@@ -31,16 +31,13 @@ a:hover, a:focus {
 }
 
 header.app {
-  border-bottom: 2px solid #000;
-  margin-bottom: 1.25rem;
-  padding-bottom: 0.75rem;
+  margin-bottom: 1rem;
 }
 
 /* Reading pages keep their toolbar small: every pixel it takes is a pixel the
    page of text does not get. */
 header.app.compact {
   margin-bottom: 0.6rem;
-  padding-bottom: 0.5rem;
 }
 
 header.app.compact nav.top a,
@@ -64,6 +61,18 @@ nav.top {
   flex-wrap: wrap;
   gap: 0.5rem;
   align-items: stretch;
+}
+
+/* The navigation fills the width, so every button is a wide target. Growing by
+   content keeps the longer labels from being squeezed onto two lines. */
+nav.top > a,
+nav.top > button,
+nav.top > form.inline {
+  flex: 1 1 auto;
+}
+
+nav.top > form.inline > button {
+  width: 100%;
 }
 
 nav.top a, button, .btn {
@@ -174,6 +183,43 @@ input[type="url"], input[type="password"], input[type="text"] {
 
 .feed-list > li:last-child, .item-list > li:last-child {
   border-bottom: 1px solid #000;
+}
+
+/* Article entries stay short so a screen holds as many as possible: the title on
+   one line, then the source and the buttons sharing the next. */
+.item-list > li {
+  padding: 0.45rem 0;
+}
+
+.item-title {
+  display: block;
+  line-height: 1.25;
+}
+
+.item-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.3rem;
+}
+
+.item-row .meta {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  font-size: 0.85rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.item-row .btn,
+.item-row button {
+  flex: 0 0 auto;
+  min-height: 2.25rem;
+  min-width: 0;
+  padding: 0.3rem 0.6rem;
+  font-size: 0.85rem;
 }
 
 .meta {
