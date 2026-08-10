@@ -279,7 +279,9 @@ class AppControllerSecurityTest {
                 .andExpect(content().string(containsString("data-reader-next-form=\"advance\"")))
                 .andExpect(content().string(containsString("action=\"/items/advance\"")))
                 .andExpect(content().string(containsString("name=\"id\" value=\"4\"")))
-                .andExpect(content().string(containsString("Mark these read")));
+                .andExpect(content().string(containsString("Mark these read")))
+                // Paging marks articles read, so entries carry no read/unread button.
+                .andExpect(content().string(not(containsString("/articles/4/read"))));
     }
 
     @Test
