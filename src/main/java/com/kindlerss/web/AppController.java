@@ -82,10 +82,12 @@ public class AppController {
             throw new ArticleService.NotFoundException("Feed not found");
         }
         Boolean unreadOnly = Boolean.TRUE.equals(unread) ? Boolean.TRUE : null;
-        int safePage = Math.max(page, 1);
-        List<Article> articles = articleService.findPage(feedId, unreadOnly, safePage, PAGE_SIZE);
         long total = articleService.count(feedId, unreadOnly);
         int totalPages = (int) Math.max(1, (total + PAGE_SIZE - 1) / PAGE_SIZE);
+        // Marking a page read shrinks an unread list, so a page number can end up
+        // past the end; show the last page rather than an empty one.
+        int safePage = Math.min(Math.max(page, 1), totalPages);
+        List<Article> articles = articleService.findPage(feedId, unreadOnly, safePage, PAGE_SIZE);
 
         model.addAttribute("articles", articles);
         model.addAttribute("feeds", feedService.listFeeds());
@@ -94,7 +96,44 @@ public class AppController {
         model.addAttribute("page", safePage);
         model.addAttribute("totalPages", totalPages);
         model.addAttribute("total", total);
+        model.addAttribute("firstIndex", articles.isEmpty() ? 0 : (long) (safePage - 1) * PAGE_SIZE + 1);
+        model.addAttribute("lastIndex", (long) (safePage - 1) * PAGE_SIZE + articles.size());
         return "items";
+    }
+
+    /**
+     * Marks the articles of the current list page read and moves on, so a list can be
+     * worked through by paging instead of marking every article by hand.
+     *
+     * <p>An unread list shrinks by exactly the articles that were just marked, which
+     * shifts the following ones into the page that was posted from — so that page,
+     * not the next one, holds what comes next.
+     */
+    @PostMapping("/items/advance")
+    public String advance(@RequestParam(value = "feed", required = false) Long feedId,
+                          @RequestParam(value = "unread", required = false) Boolean unread,
+                          @RequestParam(value = "page", defaultValue = "1") int page,
+                          @RequestParam(value = "id", required = false) List<Long> ids,
+                          RedirectAttributes redirectAttributes) {
+        int marked = ids == null || ids.isEmpty() ? 0 : articleService.markRead(ids, true);
+        redirectAttributes.addFlashAttribute("message", marked == 0
+                ? "Nothing left to mark as read"
+                : marked == 1 ? "1 article marked as read" : marked + " articles marked as read");
+
+        boolean unreadOnly = Boolean.TRUE.equals(unread);
+        int current = Math.max(page, 1);
+        return "redirect:" + itemsPath(feedId, unreadOnly, unreadOnly ? current : current + 1) + "#start";
+    }
+
+    static String itemsPath(Long feedId, boolean unread, int page) {
+        StringBuilder path = new StringBuilder("/items?page=").append(Math.max(page, 1));
+        if (feedId != null) {
+            path.append("&feed=").append(feedId);
+        }
+        if (unread) {
+            path.append("&unread=true");
+        }
+        return path.toString();
     }
 
     @GetMapping("/articles/{id}")

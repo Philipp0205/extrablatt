@@ -6,21 +6,20 @@
   <title>Articles — Kindle RSS</title>
   <link rel="stylesheet" th:href="@{/css/app.css}"/>
 </head>
-<body>
+<body class="reading">
 <div class="wrap">
-  <header class="app">
-    <a class="brand" th:href="@{/}">Kindle RSS</a>
+  <header class="app compact">
     <nav class="top">
-      <a th:href="@{/}">Feeds</a>
-      <a th:href="@{/items}">Articles</a>
-      <a th:href="@{/items(unread=true)}">Unread</a>
+      <a class="btn" th:href="@{/}">Feeds</a>
+      <a class="btn" th:href="@{/items}">Articles</a>
+      <a class="btn" th:href="@{/items(unread=true)}">Unread</a>
       <form class="inline" th:action="@{/refresh}" method="post">
         <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-        <button type="submit">Refresh</button>
+        <button class="btn" type="submit">Refresh</button>
       </form>
       <form class="inline" th:action="@{/logout}" method="post">
         <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-        <button type="submit">Log out</button>
+        <button class="btn" type="submit">Log out</button>
       </form>
     </nav>
   </header>
@@ -28,53 +27,81 @@
   <div th:if="${message}" class="flash" th:text="${message}"></div>
   <div th:if="${error}" class="flash error" th:text="${error}"></div>
 
-  <h1>Articles</h1>
-  <p class="meta" th:text="${total} + ' matching · page ' + ${page} + ' of ' + ${totalPages}">0 matching</p>
+  <div class="reader" data-reader
+       th:attr="data-reader-key='items-' + ${feedId} + '-' + ${unread} + '-' + ${page},
+                data-reader-prev-url=${page > 1} ? @{/items(feed=${feedId}, unread=${unread} ? true : null, page=${page - 1})} : null,
+                data-reader-next-form=${!#lists.isEmpty(articles)} ? 'advance' : null,
+                data-reader-next-end-label=${!#lists.isEmpty(articles)} ? 'Mark read' : null">
+    <div class="reader-frame" data-reader-frame>
+      <div class="reader-content" data-reader-content>
+        <h1>Articles</h1>
+        <p class="meta" th:if="${total > 0}"
+           th:text="${firstIndex} + '–' + ${lastIndex} + ' of ' + ${total} + ' articles'">1–20 of 20 articles</p>
 
-  <div class="filters">
-    <a class="btn" th:classappend="${feedId == null and !unread} ? ' active'" th:href="@{/items}">All</a>
-    <a class="btn" th:classappend="${unread and feedId == null} ? ' active'" th:href="@{/items(unread=true)}">Unread</a>
-    <a class="btn" th:each="f : ${feeds}"
-       th:classappend="${feedId != null and feedId == f.id} ? ' active'"
-       th:href="@{/items(feed=${f.id}, unread=${unread} ? true : null)}"
-       th:text="${f.title}">Feed</a>
-  </div>
+        <div class="filters">
+          <a class="btn" th:classappend="${feedId == null and !unread} ? ' active'" th:href="@{/items}">All</a>
+          <a class="btn" th:classappend="${unread and feedId == null} ? ' active'" th:href="@{/items(unread=true)}">Unread</a>
+          <a class="btn" th:each="f : ${feeds}"
+             th:classappend="${feedId != null and feedId == f.id} ? ' active'"
+             th:href="@{/items(feed=${f.id}, unread=${unread} ? true : null)}"
+             th:text="${f.title}">Feed</a>
+        </div>
 
-  <p th:if="${#lists.isEmpty(articles)}" class="muted">No articles.</p>
-  <ul class="item-list" th:if="${!#lists.isEmpty(articles)}">
-    <li th:each="a : ${articles}">
-      <div>
-        <strong th:if="${!a.read}">● </strong>
-        <a th:href="@{/articles/{id}(id=${a.id})}" th:text="${a.title}">Title</a>
-      </div>
-      <div class="meta">
-        <span th:text="${a.feedTitle}">Feed</span>
-        <span th:if="${a.publishedAt != null}" th:text="' · ' + ${#temporals.format(a.publishedAt, 'yyyy-MM-dd HH:mm')}"> · date</span>
-        <span th:if="${a.sentAt != null}"> · sent</span>
-      </div>
-      <div class="actions">
-        <a class="btn" th:href="@{/articles/{id}(id=${a.id})}">Read</a>
-        <form class="inline" th:action="@{/articles/{id}/send(id=${a.id})}" method="post">
-          <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-          <button type="submit">Send to Kindle</button>
-        </form>
-        <form class="inline" th:action="@{/articles/{id}/read(id=${a.id})}" method="post">
-          <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-          <input type="hidden" name="read" th:value="${!a.read}"/>
-          <input type="hidden" name="redirect" value="/items"/>
-          <button type="submit" th:text="${a.read} ? 'Mark unread' : 'Mark read'">Mark read</button>
-        </form>
-      </div>
-    </li>
-  </ul>
+        <p th:if="${#lists.isEmpty(articles)}" class="muted">No articles.</p>
+        <ul class="item-list" th:if="${!#lists.isEmpty(articles)}">
+          <li th:each="a : ${articles}">
+            <div>
+              <strong th:if="${!a.read}">● </strong>
+              <a th:href="@{/articles/{id}(id=${a.id})}" th:text="${a.title}">Title</a>
+            </div>
+            <div class="meta">
+              <span th:text="${a.feedTitle}">Feed</span>
+              <span th:if="${a.publishedAt != null}" th:text="' · ' + ${#temporals.format(a.publishedAt, 'yyyy-MM-dd HH:mm')}"> · date</span>
+              <span th:if="${a.sentAt != null}"> · sent</span>
+            </div>
+            <div class="actions">
+              <a class="btn" th:href="@{/articles/{id}(id=${a.id})}">Read</a>
+              <form class="inline" th:action="@{/articles/{id}/send(id=${a.id})}" method="post">
+                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                <button class="btn" type="submit">Send to Kindle</button>
+              </form>
+              <form class="inline" th:action="@{/articles/{id}/read(id=${a.id})}" method="post">
+                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                <input type="hidden" name="read" th:value="${!a.read}"/>
+                <input type="hidden" name="redirect"
+                       th:value="@{/items(feed=${feedId}, unread=${unread} ? true : null, page=${page})}"/>
+                <button class="btn" type="submit" th:text="${a.read} ? 'Mark unread' : 'Mark read'">Mark read</button>
+              </form>
+            </div>
+          </li>
+        </ul>
 
-  <div class="pagination" th:if="${totalPages > 1}">
-    <a class="btn" th:if="${page > 1}"
-       th:href="@{/items(feed=${feedId}, unread=${unread} ? true : null, page=${page - 1})}">Previous</a>
-    <span th:text="'Page ' + ${page} + ' / ' + ${totalPages}">Page 1</span>
-    <a class="btn" th:if="${page < totalPages}"
-       th:href="@{/items(feed=${feedId}, unread=${unread} ? true : null, page=${page + 1})}">Next</a>
+        <div class="pagination" th:if="${!#lists.isEmpty(articles)}">
+          <!-- Paging forward posts this form, so the articles just passed are marked
+               read; the plain link is there for moving on without marking them. -->
+          <form th:action="@{/items/advance}" method="post" id="advance" class="inline">
+            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+            <input type="hidden" name="feed" th:if="${feedId != null}" th:value="${feedId}"/>
+            <input type="hidden" name="unread" th:if="${unread}" value="true"/>
+            <input type="hidden" name="page" th:value="${page}"/>
+            <input type="hidden" name="id" th:each="a : ${articles}" th:value="${a.id}"/>
+            <button class="btn" type="submit"
+                    th:text="${page < totalPages} ? 'Mark read &amp; continue' : 'Mark these read'">Mark read</button>
+          </form>
+          <a class="btn" th:if="${page < totalPages}"
+             th:href="@{/items(feed=${feedId}, unread=${unread} ? true : null, page=${page + 1})}">Older articles</a>
+          <a class="btn" th:if="${page > 1}"
+             th:href="@{/items(feed=${feedId}, unread=${unread} ? true : null, page=${page - 1})}">Newer articles</a>
+        </div>
+      </div>
+    </div>
+    <nav class="pager" data-reader-pager>
+      <button class="btn" type="button" data-reader-prev>Previous page</button>
+      <span class="pager-label" data-reader-label>Page 1</span>
+      <button class="btn" type="button" data-reader-next>Next page</button>
+    </nav>
   </div>
 </div>
+<script th:src="@{/js/reader.js}"></script>
 </body>
 </html>

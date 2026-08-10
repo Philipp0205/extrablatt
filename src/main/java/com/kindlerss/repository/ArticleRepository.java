@@ -10,6 +10,8 @@ import org.springframework.stereotype.Repository;
 import java.sql.PreparedStatement;
 import java.sql.Timestamp;
 import java.time.Instant;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
@@ -127,6 +129,22 @@ public class ArticleRepository {
         jdbc.update("""
                 UPDATE articles SET read = ?, updated_at = NOW() WHERE id = ?
                 """, read, id);
+    }
+
+    /** Returns how many articles actually changed state. */
+    public int markRead(Collection<Long> ids, boolean read) {
+        if (ids == null || ids.isEmpty()) {
+            return 0;
+        }
+        String placeholders = String.join(",", Collections.nCopies(ids.size(), "?"));
+        var args = new java.util.ArrayList<Object>(ids.size() + 2);
+        args.add(read);
+        args.addAll(ids);
+        args.add(read);
+        return jdbc.update("""
+                UPDATE articles SET read = ?, updated_at = NOW()
+                WHERE id IN (%s) AND read <> ?
+                """.formatted(placeholders), args.toArray());
     }
 
     public void markSent(long id, Instant sentAt) {

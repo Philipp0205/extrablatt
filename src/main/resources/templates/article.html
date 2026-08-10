@@ -6,17 +6,24 @@
   <title th:text="${article.title} + ' — Kindle RSS'">Article — Kindle RSS</title>
   <link rel="stylesheet" th:href="@{/css/app.css}"/>
 </head>
-<body>
+<body class="reading">
 <div class="wrap">
-  <header class="app">
-    <a class="brand" th:href="@{/}">Kindle RSS</a>
+  <header class="app compact">
     <nav class="top">
-      <a th:href="@{/}">Feeds</a>
-      <a th:href="@{/items}">Articles</a>
-      <a th:href="@{/items(unread=true)}">Unread</a>
-      <form class="inline" th:action="@{/logout}" method="post">
+      <a class="btn" th:href="@{/items}">Articles</a>
+      <a class="btn" th:if="${originalUrl != null}" th:href="${originalUrl}" rel="noopener noreferrer">Original</a>
+      <a class="btn" th:if="${!images}" th:href="@{/articles/{id}(id=${article.id}, images=true)}">Show images</a>
+      <a class="btn" th:if="${images}" th:href="@{/articles/{id}(id=${article.id})}">Hide images</a>
+      <form class="inline" th:action="@{/articles/{id}/send(id=${article.id})}" method="post">
         <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-        <button type="submit">Log out</button>
+        <input type="hidden" name="images" th:value="${images}"/>
+        <button class="btn" type="submit">Send to Kindle</button>
+      </form>
+      <form class="inline" th:action="@{/articles/{id}/read(id=${article.id})}" method="post">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <input type="hidden" name="read" value="false"/>
+        <input type="hidden" name="redirect" th:value="@{/articles/{id}(id=${article.id})}"/>
+        <button class="btn" type="submit">Mark unread</button>
       </form>
     </nav>
   </header>
@@ -24,32 +31,27 @@
   <div th:if="${message}" class="flash" th:text="${message}"></div>
   <div th:if="${error}" class="flash error" th:text="${error}"></div>
 
-  <h1 th:text="${article.title}">Title</h1>
-  <div class="meta">
-    <span th:text="${article.feedTitle}">Feed</span>
-    <span th:if="${article.author != null}" th:text="' · ' + ${article.author}"></span>
-    <span th:if="${article.publishedAt != null}"
-          th:text="' · ' + ${#temporals.format(article.publishedAt, 'yyyy-MM-dd HH:mm')}"></span>
-    <span th:if="${article.sentAt != null}"> · sent to Kindle</span>
+  <div class="reader" data-reader th:attr="data-reader-key='article-' + ${article.id}">
+    <div class="reader-frame" data-reader-frame>
+      <div class="reader-content" data-reader-content>
+        <h1 th:text="${article.title}">Title</h1>
+        <div class="meta">
+          <span th:text="${article.feedTitle}">Feed</span>
+          <span th:if="${article.author != null}" th:text="' · ' + ${article.author}"></span>
+          <span th:if="${article.publishedAt != null}"
+                th:text="' · ' + ${#temporals.format(article.publishedAt, 'yyyy-MM-dd HH:mm')}"></span>
+          <span th:if="${article.sentAt != null}"> · sent to Kindle</span>
+        </div>
+        <article class="article-body" th:utext="${contentHtml}">Content</article>
+      </div>
+    </div>
+    <nav class="pager" data-reader-pager>
+      <button class="btn" type="button" data-reader-prev>Previous page</button>
+      <span class="pager-label" data-reader-label>Page 1</span>
+      <button class="btn" type="button" data-reader-next>Next page</button>
+    </nav>
   </div>
-  <div class="actions">
-    <a class="btn" th:if="${originalUrl != null}" th:href="${originalUrl}" rel="noopener noreferrer">Original</a>
-    <a class="btn" th:if="${!images}" th:href="@{/articles/{id}(id=${article.id}, images=true)}">Show images</a>
-    <a class="btn" th:if="${images}" th:href="@{/articles/{id}(id=${article.id})}">Hide images</a>
-    <form class="inline" th:action="@{/articles/{id}/send(id=${article.id})}" method="post">
-      <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-      <input type="hidden" name="images" th:value="${images}"/>
-      <button type="submit">Send to Kindle</button>
-    </form>
-    <form class="inline" th:action="@{/articles/{id}/read(id=${article.id})}" method="post">
-      <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-      <input type="hidden" name="read" value="false"/>
-      <input type="hidden" name="redirect" th:value="@{/articles/{id}(id=${article.id})}"/>
-      <button type="submit">Mark unread</button>
-    </form>
-  </div>
-
-  <article class="article-body" th:utext="${contentHtml}">Content</article>
 </div>
+<script th:src="@{/js/reader.js}"></script>
 </body>
 </html>

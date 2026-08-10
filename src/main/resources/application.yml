@@ -39,7 +39,9 @@ management:
   endpoints:
     web:
       exposure:
-        include: health
+        # /actuator/info reports version, build time and git revision. It needs a
+        # login, unlike /actuator/health.
+        include: health,info
   endpoint:
     health:
       probes:
