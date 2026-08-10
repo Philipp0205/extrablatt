@@ -98,6 +98,8 @@ public class AppController {
         model.addAttribute("page", safePage);
         model.addAttribute("totalPages", totalPages);
         model.addAttribute("total", total);
+        // Where an action started from, so that it can return to this exact list.
+        model.addAttribute("listPath", itemsPath(feedId, Boolean.TRUE.equals(unread), safePage));
         model.addAttribute("firstIndex", articles.isEmpty() ? 0 : (long) (safePage - 1) * pageSize + 1);
         model.addAttribute("lastIndex", (long) (safePage - 1) * pageSize + articles.size());
         return "items";
@@ -171,10 +173,19 @@ public class AppController {
         return "redirect:" + safeRedirect(redirect);
     }
 
+    /**
+     * Sending goes back to where it was started: to the article when it was being
+     * read, and to the list when it was picked out of the list, which would
+     * otherwise open an article nobody asked to read.
+     */
     @PostMapping("/articles/{id}/send")
     public String send(@PathVariable("id") long id,
                        @RequestParam(value = "images", defaultValue = "false") boolean images,
+                       @RequestParam(value = "redirect", required = false) String redirect,
                        RedirectAttributes redirectAttributes) {
+        String target = redirect == null || redirect.isBlank()
+                ? "/articles/" + id + (images ? "?images=true" : "")
+                : safeRedirect(redirect);
         try {
             kindleMailService.sendToKindle(id, images);
             redirectAttributes.addFlashAttribute("message", "Sent to Kindle");
@@ -184,7 +195,7 @@ public class AppController {
         } catch (Exception e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
         }
-        return "redirect:/articles/" + id + (images ? "?images=true" : "");
+        return "redirect:" + target;
     }
 
     /**

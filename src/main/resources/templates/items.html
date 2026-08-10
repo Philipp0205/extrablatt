@@ -62,6 +62,8 @@
               </span>
               <form class="inline" th:action="@{/articles/{id}/send(id=${a.id})}" method="post">
                 <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                <!-- Sending from the list comes back to the list instead of opening the article. -->
+                <input type="hidden" name="redirect" th:value="${listPath}"/>
                 <button class="btn" type="submit">Send to Kindle</button>
               </form>
             </div>
