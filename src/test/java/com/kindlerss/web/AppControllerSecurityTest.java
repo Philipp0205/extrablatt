@@ -22,9 +22,12 @@ import java.util.Properties;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.not;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -174,7 +177,7 @@ class AppControllerSecurityTest {
 
     @Test
     @WithMockUser(username = "kindle")
-    void itemsPageTellsReaderWhereTheNextListPageIs() throws Exception {
+    void itemsPageOffersBothMarkingAndPlainForwardNavigation() throws Exception {
         List<Article> articles = new ArrayList<>();
         for (int i = 1; i <= 20; i++) {
             articles.add(new Article((long) i, 1L, "guid-" + i, "Article " + i, null, null,
@@ -186,13 +189,15 @@ class AppControllerSecurityTest {
 
         mockMvc.perform(get("/items"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("data-reader-next-url")))
-                .andExpect(content().string(containsString("1–20 of 33 articles")));
+                .andExpect(content().string(containsString("1–20 of 33 articles")))
+                .andExpect(content().string(containsString("Mark read &amp; continue")))
+                .andExpect(content().string(containsString("Older articles")))
+                .andExpect(content().string(not(containsString("data-reader-prev-url"))));
     }
 
     @Test
     @WithMockUser(username = "kindle")
-    void lastItemsPageHasNoNextListPage() throws Exception {
+    void lastItemsPageOnlyLeadsBackwards() throws Exception {
         when(articleService.findPage(isNull(), isNull(), eq(2), eq(20)))
                 .thenReturn(List.of(new Article(21L, 1L, "guid-21", "Article 21", null, null,
                         null, null, null, null, false, null, null, null, "Example Feed")));
@@ -202,8 +207,79 @@ class AppControllerSecurityTest {
         mockMvc.perform(get("/items").param("page", "2"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("data-reader-prev-url")))
-                .andExpect(content().string(not(containsString("data-reader-next-url"))))
+                .andExpect(content().string(containsString("Mark these read")))
+                .andExpect(content().string(not(containsString("Older articles"))))
                 .andExpect(content().string(containsString("21–21 of 21 articles")));
+    }
+
+    @Test
+    @WithMockUser(username = "kindle")
+    void emptyItemsPageHasNothingToMarkRead() throws Exception {
+        when(articleService.findPage(isNull(), isNull(), eq(1), eq(20))).thenReturn(List.of());
+        when(articleService.count(isNull(), isNull())).thenReturn(0L);
+        when(feedService.listFeeds()).thenReturn(List.of());
+
+        mockMvc.perform(get("/items"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(not(containsString("data-reader-next-form"))))
+                .andExpect(content().string(not(containsString("/items/advance"))));
+    }
+
+    @Test
+    @WithMockUser(username = "kindle")
+    void advanceMarksThePostedArticlesReadAndMovesOn() throws Exception {
+        when(articleService.markRead(anyList(), eq(true))).thenReturn(3);
+
+        mockMvc.perform(post("/items/advance").with(csrf())
+                        .param("page", "1")
+                        .param("id", "1", "2", "3"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/items?page=2#start"));
+
+        verify(articleService).markRead(List.of(1L, 2L, 3L), true);
+    }
+
+    @Test
+    @WithMockUser(username = "kindle")
+    void advanceOnAnUnreadListStaysOnTheSamePage() throws Exception {
+        when(articleService.markRead(anyList(), eq(true))).thenReturn(20);
+
+        // The unread list shrinks by the articles just marked, so what comes next
+        // moves into the page that was posted from.
+        mockMvc.perform(post("/items/advance").with(csrf())
+                        .param("page", "2")
+                        .param("unread", "true")
+                        .param("feed", "5")
+                        .param("id", "11", "12"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/items?page=2&feed=5&unread=true#start"));
+    }
+
+    @Test
+    @WithMockUser(username = "kindle")
+    void advanceWithoutArticlesMarksNothing() throws Exception {
+        mockMvc.perform(post("/items/advance").with(csrf()).param("page", "1"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/items?page=2#start"));
+
+        verify(articleService, never()).markRead(anyList(), anyBoolean());
+    }
+
+    @Test
+    @WithMockUser(username = "kindle")
+    void itemsPagePostsItsArticleIdsWhenPagingForward() throws Exception {
+        when(articleService.findPage(isNull(), isNull(), eq(1), eq(20)))
+                .thenReturn(List.of(new Article(4L, 1L, "guid-4", "Article 4", null, null,
+                        null, null, null, null, false, null, null, null, "Example Feed")));
+        when(articleService.count(isNull(), isNull())).thenReturn(1L);
+        when(feedService.listFeeds()).thenReturn(List.of());
+
+        mockMvc.perform(get("/items"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("data-reader-next-form=\"advance\"")))
+                .andExpect(content().string(containsString("action=\"/items/advance\"")))
+                .andExpect(content().string(containsString("name=\"id\" value=\"4\"")))
+                .andExpect(content().string(containsString("Mark these read")));
     }
 
     @Test

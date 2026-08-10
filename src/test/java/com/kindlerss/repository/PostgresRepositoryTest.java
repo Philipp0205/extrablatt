@@ -9,8 +9,10 @@ import org.springframework.jdbc.core.JdbcTemplate;
 
 import javax.sql.DataSource;
 import java.time.Instant;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class PostgresRepositoryTest {
@@ -34,6 +36,28 @@ class PostgresRepositoryTest {
         if (postgres != null) {
             postgres.close();
         }
+    }
+
+    @Test
+    void marksAWholePageOfArticlesReadInOneStatement() {
+        var feed = feeds.insert("Bulk", "https://bulk.example.com/feed.xml", "https://bulk.example.com");
+        long first = insertArticle(feed.id(), "bulk-1");
+        long second = insertArticle(feed.id(), "bulk-2");
+        long untouched = insertArticle(feed.id(), "bulk-3");
+
+        assertEquals(2, articles.markRead(List.of(first, second), true));
+        // Already read: nothing changes, so nothing is reported.
+        assertEquals(0, articles.markRead(List.of(first, second), true));
+        assertEquals(0, articles.markRead(List.of(), true));
+
+        assertTrue(articles.findById(first).orElseThrow().read());
+        assertTrue(articles.findById(second).orElseThrow().read());
+        assertFalse(articles.findById(untouched).orElseThrow().read());
+    }
+
+    private long insertArticle(long feedId, String guid) {
+        return articles.insert(feedId, guid, "Article " + guid, "https://bulk.example.com/" + guid,
+                "Author", Instant.parse("2026-08-10T00:00:00Z"), "<p>Summary</p>", "<p>Content</p>");
     }
 
     @Test

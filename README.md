@@ -52,8 +52,9 @@ Tests do not require PostgreSQL or Docker. They cover EPUB layout, HTML sanitiza
 
 1. **Add a feed** on the home page (direct feed URL or site homepage).
 2. Open **Articles** / **Unread** and filter by feed.
-3. Open an article to mark it read and view extracted content (images off by default).
-4. **Send to Kindle** builds an EPUB and emails it; `sent_at` is recorded only after SMTP succeeds.
+3. Page through the list; articles you page past are marked read.
+4. Open an article to mark it read and view extracted content (images off by default).
+5. **Send to Kindle** builds an EPUB and emails it; `sent_at` is recorded only after SMTP succeeds.
 
 ## Reading a page at a time
 
@@ -65,8 +66,12 @@ article list are therefore laid out as whole pages:
 - **Previous page** / **Next page** sit under the text. Tapping the left quarter of
   the page goes back, tapping anywhere else goes forward, and the arrow, space and
   page keys work on a keyboard.
-- In the article list, **Next page** past the last page continues into the next
-  batch of articles, so the whole list reads as one sequence.
+- In the article list, **Next page** on the last page marks the articles you paged
+  past as read and loads the next ones, so a list can be cleared by reading through
+  it instead of marking every article by hand. The button says **Mark read** when
+  that is what it will do, and the next page reports how many were marked.
+  *Older articles* at the end of the list moves on without marking anything, and
+  the per-article **Mark read** / **Mark unread** buttons still work as before.
 - Your position is remembered per article, so sending to Kindle or marking an
   article unread returns you to the page you were on.
 - Rotating the device or changing the browser font re-splits the pages and keeps

@@ -34,6 +34,9 @@
   var labelNode = pager.querySelector('[data-reader-label]');
   var prevUrl = root.getAttribute('data-reader-prev-url');
   var nextUrl = root.getAttribute('data-reader-next-url');
+  var nextForm = document.getElementById(root.getAttribute('data-reader-next-form') || '');
+  var nextEndLabel = root.getAttribute('data-reader-next-end-label');
+  var nextLabel = nextButton ? nextButton.innerHTML : '';
   var storageKey = root.getAttribute('data-reader-key');
 
   var marker = document.createElement('div');
@@ -124,6 +127,7 @@
 
   function show(index) {
     page = Math.min(Math.max(index, 0), pageCount - 1);
+    var atEnd = page === pageCount - 1;
     content.style.marginLeft = (-page * (pageWidth + COLUMN_GAP)) + 'px';
     if (labelNode) {
       labelNode.textContent = 'Page ' + (page + 1) + ' of ' + pageCount;
@@ -132,7 +136,10 @@
       prevButton.disabled = page === 0 && !prevUrl;
     }
     if (nextButton) {
-      nextButton.disabled = page === pageCount - 1 && !nextUrl;
+      nextButton.disabled = atEnd && !nextUrl && !nextForm;
+      // The last page leads out of what is loaded, which for a list of articles
+      // means marking them read; say so rather than just "Next page".
+      nextButton.innerHTML = atEnd && nextEndLabel ? nextEndLabel : nextLabel;
     }
     storePosition();
   }
@@ -154,7 +161,9 @@
   }
 
   function storedPosition() {
-    if (!storageKey) {
+    if (!storageKey || window.location.hash === '#start') {
+      // Arrived on a rebuilt list (articles were just marked read): start at the
+      // top instead of restoring a position that now points at other articles.
       return 0;
     }
     try {
@@ -175,8 +184,11 @@
       return;
     }
     // Off the end of what was loaded: continue in the neighbouring list page,
-    // entering it from the far side so paging stays continuous.
-    if (delta > 0 && nextUrl) {
+    // entering it from the far side so paging stays continuous. Forward goes
+    // through a form when there is one, which marks the passed articles read.
+    if (delta > 0 && nextForm) {
+      nextForm.submit();
+    } else if (delta > 0 && nextUrl) {
       window.location.href = nextUrl;
     } else if (delta < 0 && prevUrl) {
       window.location.href = prevUrl + '#end';
@@ -281,6 +293,16 @@
     layout(function () {
       return window.location.hash === '#end' ? pageCount - 1 : storedPosition();
     });
+    forgetHash();
+  }
+
+  /* #end and #start only say where to open the page; leaving them in the address
+     would override the stored position on every later visit. */
+  function forgetHash() {
+    var hash = window.location.hash;
+    if ((hash === '#end' || hash === '#start') && window.history && window.history.replaceState) {
+      window.history.replaceState(null, '', window.location.pathname + window.location.search);
+    }
   }
 
   if (document.readyState === 'complete') {
