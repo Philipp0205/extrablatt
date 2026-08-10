@@ -1,0 +1,22 @@
+spring:
+  config:
+    activate:
+      on-profile: production
+  thymeleaf:
+    cache: true
+
+server:
+  servlet:
+    session:
+      cookie:
+        secure: true
+        same-site: lax
+        http-only: true
+  error:
+    include-stacktrace: never
+    include-message: never
+
+logging:
+  level:
+    root: WARN
+    com.kindlerss: INFO
