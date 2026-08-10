@@ -8,7 +8,6 @@ import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
 
 import java.sql.PreparedStatement;
-import java.sql.Statement;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.List;
@@ -103,7 +102,7 @@ public class ArticleRepository {
                         summary_html, feed_content_html
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                     ON CONFLICT (feed_id, guid) DO NOTHING
-                    """, Statement.RETURN_GENERATED_KEYS);
+                    """, new String[]{"id"});
             ps.setLong(1, feedId);
             ps.setString(2, guid);
             ps.setString(3, title);

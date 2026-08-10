@@ -8,7 +8,6 @@ import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
 
 import java.sql.PreparedStatement;
-import java.sql.Statement;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.List;
@@ -84,7 +83,7 @@ public class FeedRepository {
             PreparedStatement ps = con.prepareStatement("""
                     INSERT INTO feeds (title, url, site_url)
                     VALUES (?, ?, ?)
-                    """, Statement.RETURN_GENERATED_KEYS);
+                    """, new String[]{"id"});
             ps.setString(1, title);
             ps.setString(2, url);
             ps.setString(3, siteUrl);
