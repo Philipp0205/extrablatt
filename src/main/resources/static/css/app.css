@@ -66,7 +66,11 @@ nav.top {
   margin: 0 -0.5rem -0.5rem 0;
 }
 
-nav.top > * {
+/* Forms holding a single button reset their margin further down, so every row
+   below names them rather than leaning on a `> *` that they would outrank. */
+nav.top > a,
+nav.top > button,
+nav.top > form.inline {
   margin: 0 0.5rem 0.5rem 0;
 }
 
@@ -212,7 +216,8 @@ input[type="url"], input[type="password"], input[type="text"] {
   margin-top: 0.3rem;
 }
 
-.item-row > * + * {
+.item-row > * + *,
+.item-row > form.inline {
   margin-left: 0.5rem;
 }
 
@@ -255,7 +260,9 @@ input[type="url"], input[type="password"], input[type="text"] {
   margin: 0.5rem -0.5rem -0.5rem 0;
 }
 
-.actions > * {
+.actions > a,
+.actions > button,
+.actions > form.inline {
   margin: 0 0.5rem 0.5rem 0;
 }
 
@@ -283,7 +290,9 @@ input[type="url"], input[type="password"], input[type="text"] {
   margin-top: 1.25rem;
 }
 
-.pagination > * {
+.pagination > a,
+.pagination > button,
+.pagination > form.inline {
   margin: 0 0.5rem 0.5rem 0;
 }
 
