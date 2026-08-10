@@ -85,6 +85,22 @@ Services:
 
 Healthchecks are configured on Postgres and the app (`/actuator/health`).
 
+### Behind an existing reverse proxy
+
+If the host already terminates TLS (its own Caddy, nginx, Traefik), the bundled
+`caddy` container cannot bind ports 80/443. Add the overlay, which parks that
+container behind an unused profile and publishes the app on loopback instead:
+
+```bash
+docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.host-proxy.yml \
+  --env-file .env up -d --build
+```
+
+Set `APP_HTTP_PORT` in `.env` if 8090 is taken, then point the host proxy at
+`127.0.0.1:$APP_HTTP_PORT`. See `deploy/host-caddy-site.example` for a site block.
+The app already runs with `server.forward-headers-strategy=framework`, so it
+honors `X-Forwarded-Proto` and issues Secure cookies and https redirects.
+
 ## Deploy to a VPS
 
 `deploy/deploy.sh` syncs the project over SSH and runs Compose remotely.
@@ -97,6 +113,12 @@ export VPS_SSH_KEY_B64="$(base64 -w0 ~/.ssh/id_ed25519)"   # or VPS_SSH_KEY=/pat
 chmod +x deploy/deploy.sh
 ./deploy/deploy.sh
 ```
+
+The SSH user needs Docker access (membership in the `docker` group, or root).
+`REMOTE_DIR` must be writable by that user; use a path under `$HOME` when it is
+not. Set `COMPOSE_OVERRIDE=deploy/docker-compose.host-proxy.yml` when the host
+runs its own proxy. If the server holds the only copy of `.env`, point
+`ENV_FILE` at a nonexistent path so the sync does not overwrite it.
 
 Never commit `.env`, private keys, or `VPS_SSH_KEY_B64`.
 
