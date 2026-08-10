@@ -42,6 +42,8 @@ class KindleMailServiceTest {
                 "reader@kindle.com",
                 "approved@example.com",
                 "remember-key",
+                null,
+                null,
                 null
         );
         service = new KindleMailService(

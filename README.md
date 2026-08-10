@@ -5,7 +5,8 @@ Self-hosted RSS/Atom reader that extracts readable article HTML and emails EPUB 
 ## Features
 
 - Add feeds by RSS/Atom URL or homepage (autodiscovery via `link rel=alternate`)
-- Scheduled refresh every 30 minutes, plus manual refresh
+- Scheduled refresh every 30 minutes, plus manual refresh, asking each feed for
+  more than the handful of entries it publishes by default
 - Article extraction (Readability4J) with sanitized HTML caching
 - Page-at-a-time reading sized to the device screen, instead of scrolling
 - Send-to-Kindle as EPUB 3 over SMTP
@@ -53,8 +54,25 @@ Tests do not require PostgreSQL or Docker. They cover EPUB layout, HTML sanitiza
 1. **Add a feed** on the home page (direct feed URL or site homepage).
 2. Open **Articles** / **Unread** and filter by feed.
 3. Page through the list; articles you page past are marked read.
-4. Open an article to mark it read and view extracted content (images off by default).
+4. Tap an article's title to mark it read and view extracted content (images off by default).
 5. **Send to Kindle** builds an EPUB and emails it; `sent_at` is recorded only after SMTP succeeds.
+   Sending returns to where you started, so sending from the list does not open the article.
+
+### How much gets loaded
+
+A feed publishes only its newest entries, and how many is up to the publisher —
+`https://hnrss.org/frontpage` sends 20 unless it is asked for more, which is a
+fraction of the front page. Every refresh therefore asks for `FEED_MAX_ENTRIES`
+(100 by default) through a `count` parameter. Services that understand it answer
+with everything they have, the rest ignore a parameter they do not know, and a
+server that rejects it is asked again for the URL as it stands. A URL that
+already says how many it wants (`?count=`, `?limit=`, `?n=`) is left alone, and
+`FEED_MAX_ENTRIES=0` turns the whole thing off.
+
+Nothing is thrown away afterwards, so a feed keeps growing past what it
+publishes at any one moment. `ARTICLE_PAGE_SIZE` (50, at most 100) sets how many
+of those articles one page of the list holds; **Older articles** loads the next
+ones.
 
 ## Reading a page at a time
 
@@ -71,7 +89,7 @@ article list are therefore laid out as whole pages:
   it instead of marking every article by hand. The button says **Mark read** when
   that is what it will do, and the next page reports how many were marked.
   *Older articles* at the end of the list moves on without marking anything, and
-  the per-article **Mark read** / **Mark unread** buttons still work as before.
+  an article that was opened by mistake takes **Mark unread** on its own page.
 - Your position is remembered per article, so sending to Kindle or marking an
   article unread returns you to the page you were on.
 - Rotating the device or changing the browser font re-splits the pages and keeps

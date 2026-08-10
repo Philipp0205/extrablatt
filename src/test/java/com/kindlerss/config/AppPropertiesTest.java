@@ -1,0 +1,26 @@
+package com.kindlerss.config;
+
+import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+class AppPropertiesTest {
+
+    @Test
+    void readingSettingsFallBackToTheirDefaults() {
+        AppProperties properties = new AppProperties("password", "kindle@example.com",
+                "from@example.com", null, null, null, null);
+
+        assertEquals(AppProperties.Feeds.DEFAULT_MAX_ENTRIES, properties.feeds().maxEntries());
+        assertEquals(AppProperties.Articles.DEFAULT_PAGE_SIZE, properties.articles().pageSize());
+    }
+
+    @Test
+    void readingSettingsStayWithinWorkableBounds() {
+        assertEquals(0, new AppProperties.Feeds(-1).maxEntries());
+        assertEquals(500, new AppProperties.Feeds(10_000).maxEntries());
+        // The repository refuses to hand out more than 100 articles at a time.
+        assertEquals(100, new AppProperties.Articles(1_000).pageSize());
+        assertEquals(5, new AppProperties.Articles(1).pageSize());
+    }
+}

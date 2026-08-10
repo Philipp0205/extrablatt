@@ -46,7 +46,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         "app.password=test-password-123",
         "app.kindle-email=kindle@example.com",
         "app.mail-from=from@example.com",
-        "app.remember-me-key=test-remember-key"
+        "app.remember-me-key=test-remember-key",
+        "app.articles.page-size=20"
 })
 class AppControllerSecurityTest {
 
@@ -282,6 +283,51 @@ class AppControllerSecurityTest {
                 .andExpect(content().string(containsString("Mark these read")))
                 // Paging marks articles read, so entries carry no read/unread button.
                 .andExpect(content().string(not(containsString("/articles/4/read"))));
+    }
+
+    @Test
+    @WithMockUser(username = "kindle")
+    void listEntriesOpenThroughTheirTitleAndSendBackToTheList() throws Exception {
+        when(articleService.findPage(isNull(), eq(Boolean.TRUE), eq(1), eq(20)))
+                .thenReturn(List.of(new Article(4L, 1L, "guid-4", "Article 4", null, null,
+                        null, null, null, null, false, null, null, null, "Example Feed")));
+        when(articleService.count(isNull(), eq(Boolean.TRUE))).thenReturn(1L);
+        when(feedService.listFeeds()).thenReturn(List.of());
+
+        mockMvc.perform(get("/items").param("unread", "true"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("<a class=\"item-title\" href=\"/articles/4\">")))
+                .andExpect(content().string(not(containsString(">Read</a>"))))
+                .andExpect(content().string(containsString(
+                        "name=\"redirect\" value=\"/items?page=1&amp;unread=true\"")));
+    }
+
+    @Test
+    @WithMockUser(username = "kindle")
+    void sendingFromTheListReturnsToTheList() throws Exception {
+        mockMvc.perform(post("/articles/4/send").with(csrf())
+                        .param("redirect", "/items?unread=true&page=2"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/items?unread=true&page=2"));
+
+        verify(kindleMailService).sendToKindle(4L, false);
+    }
+
+    @Test
+    @WithMockUser(username = "kindle")
+    void sendingFromTheArticleStaysOnTheArticle() throws Exception {
+        mockMvc.perform(post("/articles/4/send").with(csrf()).param("images", "true"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/articles/4?images=true"));
+    }
+
+    @Test
+    @WithMockUser(username = "kindle")
+    void sendingCannotBeTalkedIntoLeavingTheApp() throws Exception {
+        mockMvc.perform(post("/articles/4/send").with(csrf())
+                        .param("redirect", "https://evil.example"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/items"));
     }
 
     @Test

@@ -42,6 +42,8 @@ services:
       SMTP_AUTH: ${SMTP_AUTH:-true}
       SMTP_STARTTLS: ${SMTP_STARTTLS:-true}
       REMEMBER_ME_KEY: ${REMEMBER_ME_KEY:?set REMEMBER_ME_KEY}
+      FEED_MAX_ENTRIES: ${FEED_MAX_ENTRIES:-100}
+      ARTICLE_PAGE_SIZE: ${ARTICLE_PAGE_SIZE:-50}
     networks:
       - kindle
     healthcheck:

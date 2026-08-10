@@ -59,6 +59,11 @@ app:
     connect-timeout: 10s
     read-timeout: 20s
     max-bytes: 2097152
+  feeds:
+    # Entries a refresh asks a feed for; 0 fetches feed URLs exactly as entered.
+    max-entries: ${FEED_MAX_ENTRIES:100}
+  articles:
+    page-size: ${ARTICLE_PAGE_SIZE:50}
 
 logging:
   level:
