@@ -1,12 +1,13 @@
 # Kindle RSS
 
-Self-hosted RSS/Atom reader that extracts readable article HTML and emails EPUB files to your Kindle. Plain server-rendered UI (no JavaScript required).
+Self-hosted RSS/Atom reader that extracts readable article HTML and emails EPUB files to your Kindle. Plain server-rendered UI that stays usable without JavaScript.
 
 ## Features
 
 - Add feeds by RSS/Atom URL or homepage (autodiscovery via `link rel=alternate`)
 - Scheduled refresh every 30 minutes, plus manual refresh
 - Article extraction (Readability4J) with sanitized HTML caching
+- Page-at-a-time reading sized to the device screen, instead of scrolling
 - Send-to-Kindle as EPUB 3 over SMTP
 - Single-user login (`kindle`) with BCrypt password and optional remember-me
 
@@ -50,9 +51,30 @@ Tests do not require PostgreSQL or Docker. They cover EPUB layout, HTML sanitiza
 ## Using the app
 
 1. **Add a feed** on the home page (direct feed URL or site homepage).
-2. Open **Articles** / **Unread**, filter by feed, paginate.
+2. Open **Articles** / **Unread** and filter by feed.
 3. Open an article to mark it read and view extracted content (images off by default).
 4. **Send to Kindle** builds an EPUB and emails it; `sent_at` is recorded only after SMTP succeeds.
+
+## Reading a page at a time
+
+E-ink panels redraw slowly, so scrolling on a Kindle feels laggy. Articles and the
+article list are therefore laid out as whole pages:
+
+- The text area is sized to what is left of the device screen, so one page turn
+  replaces exactly one screenful and never scrolls.
+- **Previous page** / **Next page** sit under the text. Tapping the left quarter of
+  the page goes back, tapping anywhere else goes forward, and the arrow, space and
+  page keys work on a keyboard.
+- In the article list, **Next page** past the last page continues into the next
+  batch of articles, so the whole list reads as one sequence.
+- Your position is remembered per article, so sending to Kindle or marking an
+  article unread returns you to the page you were on.
+- Rotating the device or changing the browser font re-splits the pages and keeps
+  your place.
+
+This is the one place the UI uses JavaScript (`static/js/reader.js`). With
+JavaScript disabled, or in a browser that cannot lay out the columns, pages fall
+back to a normally scrolling document with the same content and links.
 
 ## Send-to-Kindle (Amazon)
 

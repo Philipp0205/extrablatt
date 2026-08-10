@@ -74,7 +74,7 @@ public class SecurityConfig implements WebMvcConfigurer {
                                             RememberMeServices rememberMeServices) throws Exception {
         http
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/actuator/health", "/actuator/health/**", "/css/**").permitAll()
+                        .requestMatchers("/actuator/health", "/actuator/health/**", "/css/**", "/js/**").permitAll()
                         .requestMatchers("/login").permitAll()
                         .anyRequest().authenticated()
                 )

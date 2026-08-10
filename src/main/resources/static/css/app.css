@@ -36,6 +36,20 @@ header.app {
   padding-bottom: 0.75rem;
 }
 
+/* Reading pages keep their toolbar small: every pixel it takes is a pixel the
+   page of text does not get. */
+header.app.compact {
+  margin-bottom: 0.6rem;
+  padding-bottom: 0.5rem;
+}
+
+header.app.compact nav.top a,
+header.app.compact nav.top button {
+  min-height: 2.4rem;
+  padding: 0.4rem 0.6rem;
+  font-size: 0.95rem;
+}
+
 header.app .brand {
   display: block;
   font-size: 1.75rem;
@@ -48,12 +62,14 @@ header.app .brand {
 nav.top {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.75rem 1rem;
-  align-items: center;
+  gap: 0.5rem;
+  align-items: stretch;
 }
 
-nav.top a, nav.top button, .btn {
-  display: inline-block;
+nav.top a, button, .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   min-height: 2.75rem;
   min-width: 2.75rem;
   padding: 0.65rem 0.9rem;
@@ -61,19 +77,31 @@ nav.top a, nav.top button, .btn {
   background: #fff;
   color: #000;
   font: inherit;
+  line-height: 1.2;
+  text-align: center;
   text-decoration: none;
   cursor: pointer;
 }
 
-nav.top a:hover, nav.top button:hover, .btn:hover,
-nav.top a:focus, nav.top button:focus, .btn:focus {
+nav.top a:hover, button:hover, .btn:hover,
+nav.top a:focus, button:focus, .btn:focus {
   background: #000;
   color: #fff;
 }
 
+button[disabled], button[disabled]:hover, button[disabled]:focus {
+  background: #fff;
+  color: #999;
+  border-color: #999;
+  cursor: default;
+}
+
+/* Inline forms hold a single button; they must not add a line box of their own,
+   otherwise the button sits lower than the links beside it. */
 form.inline {
-  display: inline;
+  display: inline-flex;
   margin: 0;
+  padding: 0;
 }
 
 .flash {
@@ -187,6 +215,67 @@ input[type="url"], input[type="password"], input[type="text"] {
   gap: 0.5rem;
   align-items: center;
   margin-top: 1.25rem;
+}
+
+/* Paged reading. Without the reader script the content simply flows and scrolls.
+   reader.js adds .paged and then sets the height of .reader-frame, plus the column
+   width and horizontal offset of .reader-content, in pixels — a Kindle's browser
+   is more dependable with pixels than with viewport units. The columns overflow
+   .reader-content on purpose and are clipped by .reader-frame. */
+.reader-frame {
+  position: relative;
+}
+
+.reader.paged .reader-frame {
+  overflow: hidden;
+}
+
+.reader.paged .reader-content > h1 {
+  margin-top: 0;
+}
+
+.reader.paged .item-list > li,
+.reader.paged .article-body img,
+.reader.paged .article-body figure,
+.reader.paged .article-body blockquote {
+  -webkit-column-break-inside: avoid;
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+
+.reader-end {
+  height: 1px;
+}
+
+.pager {
+  display: none;
+}
+
+.reader.paged .pager {
+  display: flex;
+  gap: 0.5rem;
+  align-items: stretch;
+  border-top: 2px solid #000;
+  padding-top: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.pager .btn {
+  flex: 1 1 0;
+}
+
+.pager-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  padding: 0 0.5rem;
+  font-size: 0.95rem;
+  white-space: nowrap;
+}
+
+body.reading .wrap {
+  padding-bottom: 0.75rem;
 }
 
 .article-body {

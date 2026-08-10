@@ -1,5 +1,6 @@
 package com.kindlerss.web;
 
+import com.kindlerss.domain.Article;
 import com.kindlerss.service.ArticleService;
 import com.kindlerss.service.FeedService;
 import com.kindlerss.service.KindleMailService;
@@ -12,14 +13,19 @@ import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.not;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestBuilders.formLogin;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -115,6 +121,57 @@ class AppControllerSecurityTest {
         mockMvc.perform(get("/items"))
                 .andExpect(status().isOk())
                 .andExpect(view().name("items"));
+    }
+
+    @Test
+    @WithMockUser(username = "kindle")
+    void articlePageRendersPagedReader() throws Exception {
+        Article article = new Article(7L, 1L, "guid", "Paged article", "https://example.com/a", null,
+                null, null, null, null, true, null, null, null, "Example Feed");
+        when(articleService.findById(7L)).thenReturn(Optional.of(article));
+        when(articleService.getContentHtml(any(Article.class), eq(false))).thenReturn("<p>Body</p>");
+
+        mockMvc.perform(get("/articles/7"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("data-reader-frame")))
+                .andExpect(content().string(containsString("data-reader-prev")))
+                .andExpect(content().string(containsString("data-reader-next")))
+                .andExpect(content().string(containsString("/js/reader.js")))
+                .andExpect(content().string(containsString("<button class=\"btn\" type=\"submit\">Send to Kindle</button>")));
+    }
+
+    @Test
+    @WithMockUser(username = "kindle")
+    void itemsPageTellsReaderWhereTheNextListPageIs() throws Exception {
+        List<Article> articles = new ArrayList<>();
+        for (int i = 1; i <= 20; i++) {
+            articles.add(new Article((long) i, 1L, "guid-" + i, "Article " + i, null, null,
+                    null, null, null, null, false, null, null, null, "Example Feed"));
+        }
+        when(articleService.findPage(isNull(), isNull(), eq(1), eq(20))).thenReturn(articles);
+        when(articleService.count(isNull(), isNull())).thenReturn(33L);
+        when(feedService.listFeeds()).thenReturn(List.of());
+
+        mockMvc.perform(get("/items"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("data-reader-next-url")))
+                .andExpect(content().string(containsString("1–20 of 33 articles")));
+    }
+
+    @Test
+    @WithMockUser(username = "kindle")
+    void lastItemsPageHasNoNextListPage() throws Exception {
+        when(articleService.findPage(isNull(), isNull(), eq(2), eq(20)))
+                .thenReturn(List.of(new Article(21L, 1L, "guid-21", "Article 21", null, null,
+                        null, null, null, null, false, null, null, null, "Example Feed")));
+        when(articleService.count(isNull(), isNull())).thenReturn(21L);
+        when(feedService.listFeeds()).thenReturn(List.of());
+
+        mockMvc.perform(get("/items").param("page", "2"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("data-reader-prev-url")))
+                .andExpect(content().string(not(containsString("data-reader-next-url"))))
+                .andExpect(content().string(containsString("21–21 of 21 articles")));
     }
 
     @Test

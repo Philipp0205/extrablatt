@@ -94,6 +94,8 @@ public class AppController {
         model.addAttribute("page", safePage);
         model.addAttribute("totalPages", totalPages);
         model.addAttribute("total", total);
+        model.addAttribute("firstIndex", articles.isEmpty() ? 0 : (long) (safePage - 1) * PAGE_SIZE + 1);
+        model.addAttribute("lastIndex", (long) (safePage - 1) * PAGE_SIZE + articles.size());
         return "items";
     }
 
