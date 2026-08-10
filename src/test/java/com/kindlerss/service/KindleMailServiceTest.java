@@ -80,6 +80,7 @@ class KindleMailServiceTest {
 
         ArgumentCaptor<MimeMessage> message = ArgumentCaptor.forClass(MimeMessage.class);
         verify(mailSender).send(message.capture());
+        message.getValue().saveChanges();
         assertEquals("Useful Article", message.getValue().getSubject());
         assertEquals("reader@kindle.com", message.getValue().getAllRecipients()[0].toString());
         assertTrue(message.getValue().getContentType().startsWith("multipart/"));
