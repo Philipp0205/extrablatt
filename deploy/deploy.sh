@@ -9,6 +9,8 @@ set -euo pipefail
 #   VPS_SSH_PORT (default 22; VPS_PORT is accepted for compatibility)
 #   REMOTE_DIR (default /opt/kindle-rss)
 #   ENV_FILE (default ./.env) — copied to the server (never commit secrets)
+#   COMPOSE_OVERRIDE — extra compose file, relative to REMOTE_DIR, e.g.
+#     deploy/docker-compose.host-proxy.yml when the host already runs a proxy
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 VPS_HOST="${VPS_HOST:?VPS_HOST is required}"
@@ -16,6 +18,12 @@ VPS_USER="${VPS_USER:?VPS_USER is required}"
 VPS_SSH_PORT="${VPS_SSH_PORT:-${VPS_PORT:-22}}"
 REMOTE_DIR="${REMOTE_DIR:-/opt/kindle-rss}"
 ENV_FILE="${ENV_FILE:-$ROOT/.env}"
+COMPOSE_OVERRIDE="${COMPOSE_OVERRIDE:-}"
+
+COMPOSE_ARGS=(-f deploy/docker-compose.yml)
+if [[ -n "$COMPOSE_OVERRIDE" ]]; then
+  COMPOSE_ARGS+=(-f "$COMPOSE_OVERRIDE")
+fi
 
 TMP_KEY="$(mktemp)"
 cleanup() {
@@ -58,6 +66,6 @@ else
 fi
 
 echo "Building and starting stack"
-"${SSH[@]}" "cd '$REMOTE_DIR' && docker compose -f deploy/docker-compose.yml --env-file .env up -d --build"
+"${SSH[@]}" "cd '$REMOTE_DIR' && docker compose ${COMPOSE_ARGS[*]} --env-file .env up -d --build"
 
 echo "Deploy complete."
