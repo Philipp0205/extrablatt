@@ -1,5 +1,6 @@
 package com.kindlerss.web;
 
+import com.kindlerss.config.AppProperties;
 import com.kindlerss.domain.Article;
 import com.kindlerss.domain.Feed;
 import com.kindlerss.service.ArticleService;
@@ -18,18 +19,19 @@ import java.util.List;
 @Controller
 public class AppController {
 
-    private static final int PAGE_SIZE = 20;
-
     private final FeedService feedService;
     private final ArticleService articleService;
     private final KindleMailService kindleMailService;
+    private final int pageSize;
 
     public AppController(FeedService feedService,
                          ArticleService articleService,
-                         KindleMailService kindleMailService) {
+                         KindleMailService kindleMailService,
+                         AppProperties properties) {
         this.feedService = feedService;
         this.articleService = articleService;
         this.kindleMailService = kindleMailService;
+        this.pageSize = properties.articles().pageSize();
     }
 
     @GetMapping("/")
@@ -83,11 +85,11 @@ public class AppController {
         }
         Boolean unreadOnly = Boolean.TRUE.equals(unread) ? Boolean.TRUE : null;
         long total = articleService.count(feedId, unreadOnly);
-        int totalPages = (int) Math.max(1, (total + PAGE_SIZE - 1) / PAGE_SIZE);
+        int totalPages = (int) Math.max(1, (total + pageSize - 1) / pageSize);
         // Marking a page read shrinks an unread list, so a page number can end up
         // past the end; show the last page rather than an empty one.
         int safePage = Math.min(Math.max(page, 1), totalPages);
-        List<Article> articles = articleService.findPage(feedId, unreadOnly, safePage, PAGE_SIZE);
+        List<Article> articles = articleService.findPage(feedId, unreadOnly, safePage, pageSize);
 
         model.addAttribute("articles", articles);
         model.addAttribute("feeds", feedService.listFeeds());
@@ -96,8 +98,8 @@ public class AppController {
         model.addAttribute("page", safePage);
         model.addAttribute("totalPages", totalPages);
         model.addAttribute("total", total);
-        model.addAttribute("firstIndex", articles.isEmpty() ? 0 : (long) (safePage - 1) * PAGE_SIZE + 1);
-        model.addAttribute("lastIndex", (long) (safePage - 1) * PAGE_SIZE + articles.size());
+        model.addAttribute("firstIndex", articles.isEmpty() ? 0 : (long) (safePage - 1) * pageSize + 1);
+        model.addAttribute("lastIndex", (long) (safePage - 1) * pageSize + articles.size());
         return "items";
     }
 

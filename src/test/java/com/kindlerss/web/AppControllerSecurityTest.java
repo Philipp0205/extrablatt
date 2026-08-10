@@ -46,7 +46,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         "app.password=test-password-123",
         "app.kindle-email=kindle@example.com",
         "app.mail-from=from@example.com",
-        "app.remember-me-key=test-remember-key"
+        "app.remember-me-key=test-remember-key",
+        "app.articles.page-size=20"
 })
 class AppControllerSecurityTest {
 

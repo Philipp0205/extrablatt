@@ -5,6 +5,7 @@ import com.rometools.rome.feed.synd.SyndEntry;
 import com.rometools.rome.feed.synd.SyndFeed;
 import com.rometools.rome.io.SyndFeedInput;
 import com.rometools.rome.io.XmlReader;
+import com.kindlerss.config.AppProperties;
 import com.kindlerss.domain.Feed;
 import com.kindlerss.repository.ArticleRepository;
 import com.kindlerss.repository.FeedRepository;
@@ -26,25 +27,35 @@ import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.Set;
 
 @Service
 public class FeedService {
 
     private static final Logger log = LoggerFactory.getLogger(FeedService.class);
 
+    /**
+     * Query parameters through which a feed service lets a client say how many
+     * entries it wants. A URL that already carries one is left alone.
+     */
+    private static final Set<String> ENTRY_COUNT_PARAMETERS = Set.of("count", "limit", "n");
+
     private final FeedRepository feedRepository;
     private final ArticleRepository articleRepository;
     private final SafeHttpClient httpClient;
     private final HtmlSanitizer sanitizer;
+    private final int maxEntries;
 
     public FeedService(FeedRepository feedRepository,
                        ArticleRepository articleRepository,
                        SafeHttpClient httpClient,
-                       HtmlSanitizer sanitizer) {
+                       HtmlSanitizer sanitizer,
+                       AppProperties properties) {
         this.feedRepository = feedRepository;
         this.articleRepository = articleRepository;
         this.httpClient = httpClient;
         this.sanitizer = sanitizer;
+        this.maxEntries = properties.feeds().maxEntries();
     }
 
     public List<Feed> listFeeds() {
@@ -121,8 +132,8 @@ public class FeedService {
     @Transactional
     public void refreshFeed(Feed feed) {
         try {
-            SafeHttpClient.FetchedContent fetched = httpClient.get(feed.url());
-            ParsedFeed parsed = parseFeed(fetched.body(), fetched.finalUri().toString());
+            SafeHttpClient.FetchedContent fetched = fetchEntries(feed.url());
+            ParsedFeed parsed = parseFeed(fetched.body(), feed.url());
             String title = parsed.title() == null || parsed.title().isBlank() ? feed.title() : parsed.title().trim();
             feedRepository.updateTitleAndSite(feed.id(), title, parsed.siteUrl());
             int inserted = 0;
@@ -153,6 +164,55 @@ public class FeedService {
             feedRepository.setError(feed.id(), e.getMessage());
             throw e instanceof RuntimeException re ? re : new RuntimeException(e);
         }
+    }
+
+    /**
+     * A feed publishes only its newest entries, and how many is up to the
+     * publisher: hnrss.org sends 20 unless asked for more, so a reader that takes
+     * the URL at face value never sees the rest of the front page. Services that
+     * understand a count parameter answer with everything they have, the rest
+     * ignore a parameter they do not know, and a server that rejects the extra
+     * parameter outright is asked again for the URL as it stands.
+     */
+    private SafeHttpClient.FetchedContent fetchEntries(String url) {
+        String withCount = withEntryCount(url, maxEntries);
+        if (!withCount.equals(url)) {
+            try {
+                return httpClient.get(withCount);
+            } catch (RuntimeException e) {
+                log.debug("Asking {} for {} entries failed ({}); fetching it unchanged",
+                        url, maxEntries, e.getMessage());
+            }
+        }
+        return httpClient.get(url);
+    }
+
+    static String withEntryCount(String url, int count) {
+        if (url == null || url.isBlank() || count <= 0) {
+            return url;
+        }
+        URI uri;
+        try {
+            uri = URI.create(url.trim());
+        } catch (IllegalArgumentException e) {
+            return url;
+        }
+        if (uri.getRawFragment() != null) {
+            return url;
+        }
+        String query = uri.getRawQuery();
+        if (query != null) {
+            for (String pair : query.split("&")) {
+                String name = pair.split("=", 2)[0].toLowerCase(Locale.ROOT);
+                if (ENTRY_COUNT_PARAMETERS.contains(name)) {
+                    return url;
+                }
+            }
+        }
+        String trimmed = url.trim();
+        String separator = trimmed.indexOf('?') < 0 ? "?"
+                : trimmed.endsWith("?") || trimmed.endsWith("&") ? "" : "&";
+        return trimmed + separator + "count=" + count;
     }
 
     private Optional<String> discoverFeedUrl(String html, String baseUrl) {
