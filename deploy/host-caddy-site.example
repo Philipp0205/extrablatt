@@ -1,0 +1,17 @@
+# Site block for a Caddy instance running on the host (not the bundled container).
+# Add it to /etc/caddy/Caddyfile, then: sudo caddy validate --config /etc/caddy/Caddyfile && sudo systemctl reload caddy
+#
+# The upstream port must match APP_HTTP_PORT from .env (default 8090), which
+# deploy/docker-compose.host-proxy.yml publishes on loopback only.
+
+https://rss.example.com:443 {
+	encode gzip
+	reverse_proxy 127.0.0.1:8090
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options nosniff
+		Referrer-Policy no-referrer
+		X-Frame-Options DENY
+		-Server
+	}
+}
