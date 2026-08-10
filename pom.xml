@@ -19,6 +19,9 @@
 
     <properties>
         <java.version>21</java.version>
+        <!-- Overridden by the build (see Dockerfile and deploy/deploy.sh) so a running
+             instance can report which commit it was built from. -->
+        <git.revision>unknown</git.revision>
         <!-- Pin explicit jsoup: Readability4J 1.0.8 otherwise pulls the obsolete 1.11.2. -->
         <jsoup.version>1.22.2</jsoup.version>
         <rome.version>2.1.0</rome.version>
@@ -110,6 +113,18 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>build-info</goal>
+                        </goals>
+                        <configuration>
+                            <additionalProperties>
+                                <revision>${git.revision}</revision>
+                            </additionalProperties>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>

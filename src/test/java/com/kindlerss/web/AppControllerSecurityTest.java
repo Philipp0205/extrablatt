@@ -6,6 +6,7 @@ import com.kindlerss.service.FeedService;
 import com.kindlerss.service.KindleMailService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.info.BuildProperties;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.security.test.context.support.WithMockUser;
@@ -16,6 +17,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Properties;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.not;
@@ -121,6 +123,36 @@ class AppControllerSecurityTest {
         mockMvc.perform(get("/items"))
                 .andExpect(status().isOk())
                 .andExpect(view().name("items"));
+    }
+
+    @Test
+    @WithMockUser(username = "kindle")
+    void homePageShowsBuildIdentity() throws Exception {
+        when(feedService.listFeeds()).thenReturn(List.of());
+        mockMvc.perform(get("/"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("class=\"build-info\"")))
+                .andExpect(content().string(containsString("revision")));
+    }
+
+    @Test
+    void buildIdentityFallsBackWhenNotPackaged() {
+        BuildInfoAdvice.Version version = BuildInfoAdvice.describe(null);
+        org.junit.jupiter.api.Assertions.assertEquals("development build", version.number());
+        org.junit.jupiter.api.Assertions.assertEquals("unknown", version.revision());
+        org.junit.jupiter.api.Assertions.assertEquals("unknown", version.builtAt());
+    }
+
+    @Test
+    void buildIdentityReadsRevisionAndTimeFromBuildProperties() {
+        Properties properties = new Properties();
+        properties.setProperty("version", "1.0.0");
+        properties.setProperty("revision", "abc1234");
+        properties.setProperty("time", "1767225600000");
+        BuildInfoAdvice.Version version = BuildInfoAdvice.describe(new BuildProperties(properties));
+        org.junit.jupiter.api.Assertions.assertEquals("1.0.0", version.number());
+        org.junit.jupiter.api.Assertions.assertEquals("abc1234", version.revision());
+        org.junit.jupiter.api.Assertions.assertEquals("2026-01-01 00:00 UTC", version.builtAt());
     }
 
     @Test

@@ -307,6 +307,14 @@ body.reading .wrap {
   color: #444;
 }
 
+.build-info {
+  border-top: 1px solid #000;
+  margin-top: 2rem;
+  padding-top: 0.5rem;
+  font-size: 0.85rem;
+  color: #444;
+}
+
 .check {
   display: flex;
   align-items: center;

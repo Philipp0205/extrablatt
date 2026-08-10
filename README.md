@@ -122,6 +122,33 @@ chmod +x deploy/deploy.sh
 
 Never commit `.env`, private keys, or `VPS_SSH_KEY_B64`.
 
+## Which version is running
+
+The Feeds page ends with a line like:
+
+```
+Version 1.0.0-SNAPSHOT · revision a1b2c3d · built 2026-08-10 08:45 UTC
+```
+
+Compare `revision` with `git rev-parse --short HEAD` to see whether the VPS runs
+the code you have locally; a `-dirty` suffix means the deploy included uncommitted
+changes. The same values are logged once at startup (`docker compose logs app | grep
+'Kindle RSS'`) and served by `/actuator/info`, which requires a login.
+
+Version and build time come from `META-INF/build-info.properties`, written by the
+Spring Boot Maven plugin. The revision has to be passed in, because the deploy sync
+and the Docker build context both exclude `.git`:
+
+- `deploy/deploy.sh` reads the revision from your local checkout and forwards it as
+  the `GIT_REVISION` build argument, so a normal deploy needs no extra steps.
+- Building the image by hand: `GIT_REVISION=$(git rev-parse --short HEAD) docker
+  compose -f deploy/docker-compose.yml --env-file .env build app`.
+- Building the jar by hand: `./mvnw package -Dgit.revision=$(git rev-parse --short HEAD)`.
+
+Without a revision the page reports `unknown`; version and build time are still
+correct, and a build time in the past is itself a good sign that a deploy did not
+take effect.
+
 ## Backup / restore
 
 ```bash

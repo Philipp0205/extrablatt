@@ -57,7 +57,14 @@ else
   echo "WARNING: $ENV_FILE not found; remote must already have ${REMOTE_DIR}/.env" >&2
 fi
 
-echo "Building and starting stack"
-"${SSH[@]}" "cd '$REMOTE_DIR' && docker compose -f deploy/docker-compose.yml --env-file .env up -d --build"
+# The remote copy has no git metadata, so record here which commit is shipping.
+# The running app reports this on the Feeds page.
+GIT_REVISION="${GIT_REVISION:-$(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || echo unknown)}"
+if [[ "$GIT_REVISION" != "unknown" ]] && ! git -C "$ROOT" diff --quiet HEAD 2>/dev/null; then
+  GIT_REVISION="$GIT_REVISION-dirty"
+fi
+
+echo "Building and starting stack (revision $GIT_REVISION)"
+"${SSH[@]}" "cd '$REMOTE_DIR' && GIT_REVISION='$GIT_REVISION' docker compose -f deploy/docker-compose.yml --env-file .env up -d --build"
 
 echo "Deploy complete."

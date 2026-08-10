@@ -6,7 +6,11 @@ COPY mvnw pom.xml ./
 COPY .mvn .mvn
 COPY src src
 
-RUN chmod +x mvnw && ./mvnw -q -DskipTests package
+# The build context has no .git (it is excluded from the deploy sync), so the
+# commit being built is passed in and baked into build-info.properties.
+ARG GIT_REVISION=unknown
+
+RUN chmod +x mvnw && ./mvnw -q -DskipTests -Dgit.revision="$GIT_REVISION" package
 
 FROM eclipse-temurin:21-jre-alpine AS runtime
 WORKDIR /app

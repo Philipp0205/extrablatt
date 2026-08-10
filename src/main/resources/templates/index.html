@@ -64,6 +64,12 @@
       </div>
     </li>
   </ul>
+
+  <footer class="build-info">
+    Version <span th:text="${appVersion.number}">development build</span> ·
+    revision <span th:text="${appVersion.revision}">unknown</span> ·
+    built <span th:text="${appVersion.builtAt}">unknown</span>
+  </footer>
 </div>
 </body>
 </html>
