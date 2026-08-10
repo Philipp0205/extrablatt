@@ -1,0 +1,236 @@
+package com.kindlerss.service;
+
+import com.rometools.rome.feed.synd.SyndContent;
+import com.rometools.rome.feed.synd.SyndEntry;
+import com.rometools.rome.feed.synd.SyndFeed;
+import com.rometools.rome.io.SyndFeedInput;
+import com.rometools.rome.io.XmlReader;
+import com.kindlerss.domain.Feed;
+import com.kindlerss.repository.ArticleRepository;
+import com.kindlerss.repository.FeedRepository;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+import org.jsoup.select.Elements;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.io.ByteArrayInputStream;
+import java.net.URI;
+import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.util.Date;
+import java.util.List;
+import java.util.Locale;
+import java.util.Optional;
+
+@Service
+public class FeedService {
+
+    private static final Logger log = LoggerFactory.getLogger(FeedService.class);
+
+    private final FeedRepository feedRepository;
+    private final ArticleRepository articleRepository;
+    private final SafeHttpClient httpClient;
+    private final HtmlSanitizer sanitizer;
+
+    public FeedService(FeedRepository feedRepository,
+                       ArticleRepository articleRepository,
+                       SafeHttpClient httpClient,
+                       HtmlSanitizer sanitizer) {
+        this.feedRepository = feedRepository;
+        this.articleRepository = articleRepository;
+        this.httpClient = httpClient;
+        this.sanitizer = sanitizer;
+    }
+
+    public List<Feed> listFeeds() {
+        return feedRepository.findAllWithUnreadCounts();
+    }
+
+    public Optional<Feed> findById(long id) {
+        return feedRepository.findById(id);
+    }
+
+    @Transactional
+    public Feed addFeed(String rawUrl) {
+        String trimmed = rawUrl == null ? "" : rawUrl.trim();
+        if (trimmed.isEmpty()) {
+            throw new IllegalArgumentException("Feed URL is required");
+        }
+        SafeHttpClient.FetchedContent fetched = httpClient.get(trimmed);
+        String feedUrl = fetched.finalUri().toString();
+        String body = fetched.body();
+
+        ParsedFeed parsed;
+        try {
+            parsed = parseFeed(body, feedUrl);
+        } catch (Exception directParseError) {
+            Optional<String> discovered = discoverFeedUrl(body, feedUrl);
+            if (discovered.isEmpty()) {
+                throw new IllegalArgumentException("Could not parse RSS/Atom and no alternate feed link found");
+            }
+            feedUrl = discovered.get();
+            if (feedRepository.findByUrl(feedUrl).isPresent()) {
+                throw new IllegalArgumentException("Feed already exists");
+            }
+            SafeHttpClient.FetchedContent feedFetched = httpClient.get(feedUrl);
+            feedUrl = feedFetched.finalUri().toString();
+            try {
+                parsed = parseFeed(feedFetched.body(), feedUrl);
+            } catch (Exception e) {
+                throw new IllegalArgumentException("Discovered feed could not be parsed: " + e.getMessage(), e);
+            }
+        }
+
+        if (feedRepository.findByUrl(feedUrl).isPresent()) {
+            throw new IllegalArgumentException("Feed already exists");
+        }
+
+        String title = parsed.title() == null || parsed.title().isBlank() ? feedUrl : parsed.title().trim();
+        Feed feed = feedRepository.insert(title, feedUrl, parsed.siteUrl());
+        refreshFeed(feed);
+        return feedRepository.findById(feed.id()).orElse(feed);
+    }
+
+    @Transactional
+    public boolean deleteFeed(long id) {
+        return feedRepository.deleteById(id);
+    }
+
+    @Scheduled(fixedDelayString = "PT30M", initialDelayString = "PT2M")
+    public void scheduledRefresh() {
+        log.info("Scheduled feed refresh starting");
+        refreshAll();
+    }
+
+    public void refreshAll() {
+        for (Feed feed : feedRepository.findAll()) {
+            try {
+                refreshFeed(feed);
+            } catch (Exception e) {
+                log.warn("Failed to refresh feed {}: {}", feed.id(), e.getMessage());
+                feedRepository.setError(feed.id(), e.getMessage());
+            }
+        }
+    }
+
+    @Transactional
+    public void refreshFeed(Feed feed) {
+        try {
+            SafeHttpClient.FetchedContent fetched = httpClient.get(feed.url());
+            ParsedFeed parsed = parseFeed(fetched.body(), fetched.finalUri().toString());
+            String title = parsed.title() == null || parsed.title().isBlank() ? feed.title() : parsed.title().trim();
+            feedRepository.updateTitleAndSite(feed.id(), title, parsed.siteUrl());
+            int inserted = 0;
+            for (ParsedEntry entry : parsed.entries()) {
+                if (entry.guid() == null || entry.guid().isBlank()) {
+                    continue;
+                }
+                if (articleRepository.existsByFeedIdAndGuid(feed.id(), entry.guid())) {
+                    continue;
+                }
+                long id = articleRepository.insert(
+                        feed.id(),
+                        entry.guid(),
+                        entry.title(),
+                        entry.url(),
+                        entry.author(),
+                        entry.publishedAt(),
+                        sanitizer.sanitizeWithImages(entry.summaryHtml()),
+                        sanitizer.sanitizeWithImages(entry.contentHtml())
+                );
+                if (id > 0) {
+                    inserted++;
+                }
+            }
+            feedRepository.clearError(feed.id());
+            log.info("Refreshed feed {} ({} new articles)", feed.id(), inserted);
+        } catch (Exception e) {
+            feedRepository.setError(feed.id(), e.getMessage());
+            throw e instanceof RuntimeException re ? re : new RuntimeException(e);
+        }
+    }
+
+    private Optional<String> discoverFeedUrl(String html, String baseUrl) {
+        Document doc = Jsoup.parse(html, baseUrl);
+        Elements links = doc.select("link[rel~=alternate]");
+        for (Element link : links) {
+            String type = link.hasAttr("type") ? link.attr("type").toLowerCase(Locale.ROOT) : "";
+            String href = link.hasAttr("abs:href") ? link.attr("abs:href") : link.attr("href");
+            if (href == null || href.isBlank()) {
+                continue;
+            }
+            if (type.contains("rss") || type.contains("atom") || type.contains("xml")) {
+                try {
+                    URI validated = httpClient.validateAndResolve(href);
+                    return Optional.of(validated.toString());
+                } catch (SafeHttpClient.FetchException ignored) {
+                    // try next
+                }
+            }
+        }
+        return Optional.empty();
+    }
+
+    private ParsedFeed parseFeed(String body, String feedUrl) throws Exception {
+        SyndFeedInput input = new SyndFeedInput();
+        input.setPreserveWireFeed(false);
+        try (XmlReader reader = new XmlReader(new ByteArrayInputStream(body.getBytes(StandardCharsets.UTF_8)))) {
+            SyndFeed syndFeed = input.build(reader);
+            String title = syndFeed.getTitle();
+            String siteUrl = syndFeed.getLink();
+            if (siteUrl == null || siteUrl.isBlank()) {
+                siteUrl = feedUrl;
+            }
+            var entries = syndFeed.getEntries().stream().map(this::toEntry).toList();
+            return new ParsedFeed(title, siteUrl, entries);
+        }
+    }
+
+    private ParsedEntry toEntry(SyndEntry entry) {
+        String guid = entry.getUri();
+        if (guid == null || guid.isBlank()) {
+            guid = entry.getLink();
+        }
+        if (guid == null || guid.isBlank()) {
+            guid = entry.getTitle() + "|" + (entry.getPublishedDate() == null ? "" : entry.getPublishedDate().getTime());
+        }
+        String title = entry.getTitle() == null || entry.getTitle().isBlank() ? "(untitled)" : entry.getTitle().trim();
+        String url = entry.getLink();
+        String author = entry.getAuthor();
+        Instant published = toInstant(entry.getPublishedDate());
+        if (published == null) {
+            published = toInstant(entry.getUpdatedDate());
+        }
+        String summary = contentValue(entry.getDescription());
+        String content = "";
+        if (entry.getContents() != null && !entry.getContents().isEmpty()) {
+            content = contentValue(entry.getContents().getFirst());
+        }
+        return new ParsedEntry(guid, title, url, author, published, summary, content);
+    }
+
+    private static String contentValue(SyndContent content) {
+        return content == null || content.getValue() == null ? "" : content.getValue();
+    }
+
+    private static Instant toInstant(Date date) {
+        return date == null ? null : date.toInstant();
+    }
+
+    private record ParsedFeed(String title, String siteUrl, List<ParsedEntry> entries) {}
+
+    private record ParsedEntry(
+            String guid,
+            String title,
+            String url,
+            String author,
+            Instant publishedAt,
+            String summaryHtml,
+            String contentHtml
+    ) {}
+}

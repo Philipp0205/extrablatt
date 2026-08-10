@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Error — Kindle RSS</title>
+  <link rel="stylesheet" th:href="@{/css/app.css}"/>
+</head>
+<body>
+<div class="wrap">
+  <header class="app">
+    <a class="brand" th:href="@{/}">Kindle RSS</a>
+  </header>
+  <div class="error-box">
+    <h1>Something went wrong</h1>
+    <p th:text="${message} ?: 'Not found'">Not found</p>
+    <p><a class="btn" th:href="@{/}">Back to feeds</a></p>
+  </div>
+</div>
+</body>
+</html>

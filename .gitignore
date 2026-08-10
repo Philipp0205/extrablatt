@@ -1,0 +1,56 @@
+# Maven
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar.bak
+
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+.factorypath
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+id_rsa*
+VPS_SSH_KEY*
+
+# Logs / runtime
+*.log
+logs/
+tmp/
+.cache/
+
+# Java
+*.class
+*.jar
+!**/maven-wrapper.jar
+*.war
+hs_err_pid*
+replay_pid*
+
+# Test / coverage
+.jacoco/
+coverage/
