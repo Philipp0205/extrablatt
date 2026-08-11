@@ -1,5 +1,6 @@
 package com.kindlerss.config;
 
+import com.kindlerss.security.RateLimitingFilter;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -8,26 +9,29 @@ import org.springframework.core.env.Profiles;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.RememberMeServices;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.authentication.rememberme.TokenBasedRememberMeServices;
-import org.springframework.util.StringUtils;
-import org.springframework.web.servlet.config.annotation.ViewControllerRegistry;
-import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 /**
- * Single-user form login: one in-memory account from {@code APP_PASSWORD},
- * plus a long-lived remember-me cookie for the Kindle-friendly workflow.
+ * Multi-user form login backed by the database. Accounts register with an e-mail
+ * and password; a long-lived remember-me cookie keeps the Kindle-friendly
+ * workflow logged in.
  */
 @Configuration
 @EnableWebSecurity
 @EnableConfigurationProperties(AppProperties.class)
-public class SecurityConfig implements WebMvcConfigurer {
+public class SecurityConfig {
+
+    /** Public pages that must be reachable without an account. */
+    private static final String[] PUBLIC_PATHS = {
+            "/login", "/register", "/verify", "/forgot-password", "/reset-password",
+            "/privacy", "/terms"
+    };
 
     private final AppProperties appProperties;
     private final Environment environment;
@@ -37,35 +41,9 @@ public class SecurityConfig implements WebMvcConfigurer {
         this.environment = environment;
     }
 
-    @Override
-    public void addViewControllers(ViewControllerRegistry registry) {
-        registry.addViewController("/login").setViewName("login");
-    }
-
     @Bean
     PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
-    }
-
-    @Bean
-    UserDetailsService userDetailsService(PasswordEncoder passwordEncoder) {
-        String raw = appProperties.password();
-        if (!StringUtils.hasText(raw)) {
-            throw new IllegalStateException("APP_PASSWORD must be set");
-        }
-        // Spring Security's DaoAuthenticationProvider compares the login form
-        // password against an already-encoded hash (BCrypt). Encoding once at
-        // startup means APP_PASSWORD never sits in memory as the stored credential.
-        //
-        // InMemoryUserDetailsManager is the user store for this single-user app:
-        // one hard-coded "kindle" account, no database-backed users needed.
-        return new InMemoryUserDetailsManager(
-                User.builder()
-                        .username("kindle")
-                        .password(passwordEncoder.encode(raw))
-                        .roles("USER")
-                        .build()
-        );
     }
 
     @Bean
@@ -80,11 +58,13 @@ public class SecurityConfig implements WebMvcConfigurer {
 
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http,
-                                            RememberMeServices rememberMeServices) throws Exception {
+                                            RememberMeServices rememberMeServices,
+                                            RateLimitingFilter rateLimitingFilter) throws Exception {
         http
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/actuator/health", "/actuator/health/**", "/css/**", "/js/**").permitAll()
-                        .requestMatchers("/login").permitAll()
+                        .requestMatchers(PUBLIC_PATHS).permitAll()
+                        .requestMatchers("/admin", "/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )
                 .formLogin(form -> form
@@ -102,6 +82,7 @@ public class SecurityConfig implements WebMvcConfigurer {
                         .rememberMeServices(rememberMeServices)
                         .key(appProperties.rememberMeKey())
                 )
+                .addFilterBefore(rateLimitingFilter, UsernamePasswordAuthenticationFilter.class)
                 .csrf(Customizer.withDefaults());
         return http.build();
     }

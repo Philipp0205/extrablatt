@@ -58,6 +58,7 @@ public class FeedService {
     private final SafeHttpClient httpClient;
     private final HtmlSanitizer sanitizer;
     private final int maxEntries;
+    private final int maxFeedsPerUser;
 
     public FeedService(FeedRepository feedRepository,
                        ArticleRepository articleRepository,
@@ -69,18 +70,19 @@ public class FeedService {
         this.httpClient = httpClient;
         this.sanitizer = sanitizer;
         this.maxEntries = properties.feeds().maxEntries();
+        this.maxFeedsPerUser = properties.limits().maxFeedsPerUser();
     }
 
-    public List<Feed> listFeeds() {
-        return feedRepository.findAllWithUnreadCounts();
+    public List<Feed> listFeeds(long userId) {
+        return feedRepository.findAllWithUnreadCounts(userId);
     }
 
-    public Optional<Feed> findById(long id) {
-        return feedRepository.findById(id);
+    public Optional<Feed> findById(long userId, long id) {
+        return feedRepository.findById(userId, id);
     }
 
-    public List<DefaultFeed> defaultFeeds() {
-        Set<String> existingUrls = feedRepository.findAll().stream()
+    public List<DefaultFeed> defaultFeeds(long userId) {
+        Set<String> existingUrls = feedRepository.findAll(userId).stream()
                 .map(Feed::url)
                 .collect(java.util.stream.Collectors.toSet());
         return DEFAULT_FEEDS.stream().filter(feed -> !existingUrls.contains(feed.url())).toList();
@@ -91,15 +93,14 @@ public class FeedService {
     }
 
     @Transactional
-    public Feed addFeed(String rawUrl) {
-        return addFeed(rawUrl, null);
-    }
-
-    @Transactional
-    public Feed addFeed(String rawUrl, String category) {
+    public Feed addFeed(long userId, String rawUrl, String category) {
         String trimmed = rawUrl == null ? "" : rawUrl.trim();
         if (trimmed.isEmpty()) {
             throw new IllegalArgumentException("Feed URL is required");
+        }
+        if (feedRepository.countByUser(userId) >= maxFeedsPerUser) {
+            throw new IllegalArgumentException(
+                    "Feed limit reached (" + maxFeedsPerUser + "). Delete a feed before adding another.");
         }
         SafeHttpClient.FetchedContent fetched = httpClient.get(trimmed);
         String feedUrl = fetched.finalUri().toString();
@@ -114,7 +115,7 @@ public class FeedService {
                 throw new IllegalArgumentException("Could not parse RSS/Atom and no alternate feed link found");
             }
             feedUrl = discovered.get();
-            if (feedRepository.findByUrl(feedUrl).isPresent()) {
+            if (feedRepository.findByUrl(userId, feedUrl).isPresent()) {
                 throw new IllegalArgumentException("Feed already exists");
             }
             SafeHttpClient.FetchedContent feedFetched = httpClient.get(feedUrl);
@@ -126,24 +127,24 @@ public class FeedService {
             }
         }
 
-        if (feedRepository.findByUrl(feedUrl).isPresent()) {
+        if (feedRepository.findByUrl(userId, feedUrl).isPresent()) {
             throw new IllegalArgumentException("Feed already exists");
         }
 
         String title = parsed.title() == null || parsed.title().isBlank() ? feedUrl : parsed.title().trim();
-        Feed feed = feedRepository.insert(title, feedUrl, parsed.siteUrl(), category);
+        Feed feed = feedRepository.insert(userId, title, feedUrl, parsed.siteUrl(), category);
         storeEntries(feed, parsed);
-        return feedRepository.findById(feed.id()).orElse(feed);
+        return feedRepository.findById(userId, feed.id()).orElse(feed);
     }
 
     @Transactional
-    public boolean deleteFeed(long id) {
-        return feedRepository.deleteById(id);
+    public boolean deleteFeed(long userId, long id) {
+        return feedRepository.deleteById(userId, id);
     }
 
     @Transactional
-    public boolean categorizeFeed(long id, String category) {
-        return feedRepository.updateCategory(id, category);
+    public boolean categorizeFeed(long userId, long id, String category) {
+        return feedRepository.updateCategory(userId, id, category);
     }
 
     @Scheduled(fixedDelayString = "PT30M", initialDelayString = "PT2M")
@@ -152,8 +153,18 @@ public class FeedService {
         refreshAll();
     }
 
+    /** Refreshes every account's feeds; used by the scheduler. */
     public void refreshAll() {
-        for (Feed feed : feedRepository.findAll()) {
+        refreshFeeds(feedRepository.findAllAcrossUsers());
+    }
+
+    /** Refreshes only the given account's feeds; used by manual refresh. */
+    public void refreshForUser(long userId) {
+        refreshFeeds(feedRepository.findAll(userId));
+    }
+
+    private void refreshFeeds(List<Feed> feeds) {
+        for (Feed feed : feeds) {
             try {
                 refreshFeed(feed);
             } catch (Exception e) {

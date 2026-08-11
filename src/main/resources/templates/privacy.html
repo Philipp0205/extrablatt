@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Privacy — Kindle RSS</title>
+  <link rel="stylesheet" th:href="@{/css/app.css}"/>
+</head>
+<body>
+<div class="wrap">
+  <header class="app">
+    <a class="brand" th:href="@{/}">Kindle RSS</a>
+  </header>
+
+  <h1>Privacy Policy</h1>
+  <p class="meta">Last updated 2026.</p>
+
+  <p>Kindle RSS is a self-serve reader that emails articles to your Kindle. This
+    policy describes what it stores and why.</p>
+
+  <h2>What we store</h2>
+  <ul>
+    <li><strong>Account e-mail and a hashed password</strong> so you can log in.</li>
+    <li><strong>Your Kindle e-mail address</strong>, used only to deliver documents you request.</li>
+    <li><strong>The feeds you add and the articles they contain</strong>, so the app can show and send them.</li>
+  </ul>
+
+  <h2>What we do with it</h2>
+  <ul>
+    <li>We fetch the feed and article URLs you add in order to display and send them.</li>
+    <li>We send e-mail (account confirmation, password reset, and the articles you send to Kindle)
+      through a third-party e-mail provider.</li>
+    <li>We do not sell your data or use it for advertising.</li>
+  </ul>
+
+  <h2>Deleting your data</h2>
+  <p>You can delete your account at any time from
+    <a th:href="@{/settings}">Settings</a>; this removes your account, feeds, and stored articles.</p>
+
+  <p class="meta" style="margin-top:1rem"><a th:href="@{/login}">Back</a></p>
+</div>
+</body>
+</html>

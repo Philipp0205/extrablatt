@@ -1,15 +1,24 @@
 package com.kindlerss.web;
 
+import com.kindlerss.domain.AppUser;
 import com.kindlerss.domain.Article;
 import com.kindlerss.domain.Feed;
+import com.kindlerss.security.AppUserDetails;
+import com.kindlerss.security.CurrentUser;
+import com.kindlerss.security.RateLimiter;
+import com.kindlerss.security.RateLimitingFilter;
 import com.kindlerss.service.ArticleService;
 import com.kindlerss.service.FeedService;
 import com.kindlerss.service.KindleMailService;
+import com.kindlerss.service.UserService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.info.BuildProperties;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -42,16 +51,17 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.view;
 
-@WebMvcTest(controllers = AppController.class)
-@Import({com.kindlerss.config.SecurityConfig.class, GlobalExceptionHandler.class})
+@WebMvcTest(controllers = {AppController.class, AuthController.class})
+@Import({com.kindlerss.config.SecurityConfig.class, GlobalExceptionHandler.class,
+        RateLimiter.class, RateLimitingFilter.class})
 @TestPropertySource(properties = {
-        "app.password=test-password-123",
-        "app.kindle-email=kindle@example.com",
         "app.mail-from=from@example.com",
         "app.remember-me-key=test-remember-key",
         "app.articles.page-size=20"
 })
 class AppControllerSecurityTest {
+
+    private static final long UID = 1L;
 
     @Autowired
     MockMvc mockMvc;
@@ -64,6 +74,23 @@ class AppControllerSecurityTest {
 
     @MockitoBean
     KindleMailService kindleMailService;
+
+    @MockitoBean
+    CurrentUser currentUser;
+
+    @MockitoBean
+    UserDetailsService userDetailsService;
+
+    @MockitoBean
+    UserService userService;
+
+    @BeforeEach
+    void signInAsUserOne() {
+        AppUser user = new AppUser(UID, "user@example.com", "hash", "reader@kindle.com",
+                Instant.now(), null, Instant.now(), Instant.now());
+        when(currentUser.requireId()).thenReturn(UID);
+        when(currentUser.details()).thenReturn(Optional.of(new AppUserDetails(user)));
+    }
 
     @Test
     void unauthenticatedRootRedirectsToLogin() throws Exception {
@@ -80,36 +107,67 @@ class AppControllerSecurityTest {
     }
 
     @Test
+    void registrationPageIsAccessibleWithoutAuth() throws Exception {
+        mockMvc.perform(get("/register"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("register"));
+    }
+
+    @Test
+    void registrationSubmitsAndRedirectsToLogin() throws Exception {
+        mockMvc.perform(post("/register").with(csrf())
+                        .param("email", "new@example.com")
+                        .param("password", "supersecret"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/login"));
+        verify(userService).register("new@example.com", "supersecret");
+    }
+
+    @Test
+    void verifyLinkRedirectsToLogin() throws Exception {
+        when(userService.verifyEmail("tok")).thenReturn(true);
+        mockMvc.perform(get("/verify").param("token", "tok"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/login"));
+    }
+
+    @Test
     void formLoginSucceedsWithConfiguredPassword() throws Exception {
-        mockMvc.perform(formLogin().user("kindle").password("test-password-123"))
+        String hash = new BCryptPasswordEncoder().encode("test-password-123");
+        AppUser account = new AppUser(UID, "user@example.com", hash, null,
+                Instant.now(), null, Instant.now(), Instant.now());
+        when(userDetailsService.loadUserByUsername("user@example.com"))
+                .thenReturn(new AppUserDetails(account));
+
+        mockMvc.perform(formLogin().user("user@example.com").password("test-password-123"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/"));
     }
 
     @Test
-    @WithMockUser(username = "kindle")
+    @WithMockUser
     void homeRequiresAuthAndRenders() throws Exception {
-        when(feedService.listFeeds()).thenReturn(List.of());
+        when(feedService.listFeeds(UID)).thenReturn(List.of());
         mockMvc.perform(get("/"))
                 .andExpect(status().isOk())
                 .andExpect(view().name("index"));
     }
 
     @Test
-    @WithMockUser(username = "kindle")
+    @WithMockUser
     void homeOffersOptionalDefaultsAndFeedCategories() throws Exception {
-        when(feedService.defaultFeeds()).thenReturn(List.of(
+        when(feedService.defaultFeeds(UID)).thenReturn(List.of(
                 new FeedService.DefaultFeed("hacker-news", "Hacker News",
                         "https://hnrss.org/frontpage", "Technology")));
 
         // Suggested feeds are only offered before anything has been subscribed.
-        when(feedService.listFeeds()).thenReturn(List.of());
+        when(feedService.listFeeds(UID)).thenReturn(List.of());
         mockMvc.perform(get("/"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("Quick start")))
                 .andExpect(content().string(containsString("value=\"hacker-news\"")));
 
-        when(feedService.listFeeds()).thenReturn(List.of(
+        when(feedService.listFeeds(UID)).thenReturn(List.of(
                 new Feed(5L, "Android", "https://example.com/feed", "https://example.com",
                         "Technology", null, null, null)));
         mockMvc.perform(get("/"))
@@ -120,50 +178,50 @@ class AppControllerSecurityTest {
     }
 
     @Test
-    @WithMockUser(username = "kindle")
+    @WithMockUser
     void postWithoutCsrfIsRejected() throws Exception {
         mockMvc.perform(post("/refresh"))
                 .andExpect(status().isForbidden());
     }
 
     @Test
-    @WithMockUser(username = "kindle")
+    @WithMockUser
     void refreshWithCsrfWorks() throws Exception {
-        doNothing().when(feedService).refreshAll();
+        doNothing().when(feedService).refreshForUser(UID);
         mockMvc.perform(post("/refresh").with(csrf()))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/"));
-        verify(feedService).refreshAll();
+        verify(feedService).refreshForUser(UID);
     }
 
     @Test
-    @WithMockUser(username = "kindle")
+    @WithMockUser
     void missingArticleReturns404() throws Exception {
-        when(articleService.findById(99L)).thenReturn(Optional.empty());
+        when(articleService.findById(UID, 99L)).thenReturn(Optional.empty());
         mockMvc.perform(get("/articles/99"))
                 .andExpect(status().isNotFound());
     }
 
     @Test
-    @WithMockUser(username = "kindle")
+    @WithMockUser
     void itemsPageRenders() throws Exception {
-        when(articleService.findPage(isNull(), isNull(), eq(1), eq(20))).thenReturn(List.of());
-        when(articleService.count(isNull(), isNull())).thenReturn(0L);
-        when(feedService.listFeeds()).thenReturn(List.of());
+        when(articleService.findPage(eq(UID), isNull(), isNull(), eq(1), eq(20))).thenReturn(List.of());
+        when(articleService.count(eq(UID), isNull(), isNull())).thenReturn(0L);
+        when(feedService.listFeeds(UID)).thenReturn(List.of());
         mockMvc.perform(get("/items"))
                 .andExpect(status().isOk())
                 .andExpect(view().name("items"));
     }
 
     @Test
-    @WithMockUser(username = "kindle")
+    @WithMockUser
     void itemsPageFiltersByCategoryAndOpensItsFeedsWhenOneIsChosen() throws Exception {
-        when(articleService.findPage(isNull(), isNull(), eq(1), eq(20))).thenReturn(List.of());
-        when(articleService.count(isNull(), isNull())).thenReturn(0L);
-        when(articleService.findPage(isNull(), eq("Technology"), isNull(), isNull(), eq(1), eq(20)))
+        when(articleService.findPage(eq(UID), isNull(), isNull(), eq(1), eq(20))).thenReturn(List.of());
+        when(articleService.count(eq(UID), isNull(), isNull())).thenReturn(0L);
+        when(articleService.findPage(eq(UID), isNull(), eq("Technology"), isNull(), isNull(), eq(1), eq(20)))
                 .thenReturn(List.of());
-        when(articleService.count(isNull(), eq("Technology"), isNull(), isNull())).thenReturn(0L);
-        when(feedService.listFeeds()).thenReturn(List.of(
+        when(articleService.count(eq(UID), isNull(), eq("Technology"), isNull(), isNull())).thenReturn(0L);
+        when(feedService.listFeeds(UID)).thenReturn(List.of(
                 new Feed(5L, "Android Police", "https://example.com/a", null, "Technology", null, null, null),
                 new Feed(6L, "The Verge", "https://example.com/b", null, "Technology", null, null, null),
                 new Feed(7L, "Nature", "https://example.com/c", null, "Science", null, null, null)));
@@ -183,17 +241,17 @@ class AppControllerSecurityTest {
     }
 
     @Test
-    @WithMockUser(username = "kindle")
+    @WithMockUser
     void everyFeedIsInTheRowAndTheRowCanBeTurned() throws Exception {
         List<Feed> feeds = new ArrayList<>();
         for (int i = 1; i <= 12; i++) {
             feeds.add(new Feed((long) i, "A rather long feed name " + i, "https://example.com/" + i,
                     null, "Technology", null, null, null));
         }
-        when(articleService.findPage(isNull(), eq("Technology"), isNull(), isNull(), eq(1), eq(20)))
+        when(articleService.findPage(eq(UID), isNull(), eq("Technology"), isNull(), isNull(), eq(1), eq(20)))
                 .thenReturn(List.of());
-        when(articleService.count(isNull(), eq("Technology"), isNull(), isNull())).thenReturn(0L);
-        when(feedService.listFeeds()).thenReturn(feeds);
+        when(articleService.count(eq(UID), isNull(), eq("Technology"), isNull(), isNull())).thenReturn(0L);
+        when(feedService.listFeeds(UID)).thenReturn(feeds);
 
         // The whole row is rendered; how much of it fits is settled in the browser.
         mockMvc.perform(get("/items").param("category", "Technology"))
@@ -207,12 +265,12 @@ class AppControllerSecurityTest {
     }
 
     @Test
-    @WithMockUser(username = "kindle")
+    @WithMockUser
     void feedsWithoutACategoryStayReachable() throws Exception {
-        when(articleService.findPage(isNull(), eq("Uncategorized"), isNull(), isNull(), eq(1), eq(20)))
+        when(articleService.findPage(eq(UID), isNull(), eq("Uncategorized"), isNull(), isNull(), eq(1), eq(20)))
                 .thenReturn(List.of());
-        when(articleService.count(isNull(), eq("Uncategorized"), isNull(), isNull())).thenReturn(0L);
-        when(feedService.listFeeds()).thenReturn(List.of(
+        when(articleService.count(eq(UID), isNull(), eq("Uncategorized"), isNull(), isNull())).thenReturn(0L);
+        when(feedService.listFeeds(UID)).thenReturn(List.of(
                 new Feed(9L, "Loose Feed", "https://example.com/l", null, null, null, null, null)));
 
         mockMvc.perform(get("/items").param("category", "Uncategorized"))
@@ -222,9 +280,9 @@ class AppControllerSecurityTest {
     }
 
     @Test
-    @WithMockUser(username = "kindle")
+    @WithMockUser
     void homePageShowsBuildIdentity() throws Exception {
-        when(feedService.listFeeds()).thenReturn(List.of());
+        when(feedService.listFeeds(UID)).thenReturn(List.of());
         mockMvc.perform(get("/"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("class=\"build-info\"")))
@@ -252,11 +310,11 @@ class AppControllerSecurityTest {
     }
 
     @Test
-    @WithMockUser(username = "kindle")
+    @WithMockUser
     void articlePageRendersPagedReader() throws Exception {
         Article article = new Article(7L, 1L, "guid", "Paged article", "https://example.com/a", null,
                 null, null, null, null, true, null, null, null, "Example Feed");
-        when(articleService.findById(7L)).thenReturn(Optional.of(article));
+        when(articleService.findById(UID, 7L)).thenReturn(Optional.of(article));
         when(articleService.getContentHtml(any(Article.class), eq(false))).thenReturn("<p>Body</p>");
 
         mockMvc.perform(get("/articles/7"))
@@ -269,16 +327,16 @@ class AppControllerSecurityTest {
     }
 
     @Test
-    @WithMockUser(username = "kindle")
+    @WithMockUser
     void itemsPageOffersBothMarkingAndPlainForwardNavigation() throws Exception {
         List<Article> articles = new ArrayList<>();
         for (int i = 1; i <= 20; i++) {
             articles.add(new Article((long) i, 1L, "guid-" + i, "Article " + i, null, null,
                     null, null, null, null, false, null, null, null, "Example Feed"));
         }
-        when(articleService.findPage(isNull(), isNull(), eq(1), eq(20))).thenReturn(articles);
-        when(articleService.count(isNull(), isNull())).thenReturn(33L);
-        when(feedService.listFeeds()).thenReturn(List.of());
+        when(articleService.findPage(eq(UID), isNull(), isNull(), eq(1), eq(20))).thenReturn(articles);
+        when(articleService.count(eq(UID), isNull(), isNull())).thenReturn(33L);
+        when(feedService.listFeeds(UID)).thenReturn(List.of());
 
         mockMvc.perform(get("/items"))
                 .andExpect(status().isOk())
@@ -289,13 +347,13 @@ class AppControllerSecurityTest {
     }
 
     @Test
-    @WithMockUser(username = "kindle")
+    @WithMockUser
     void lastItemsPageOnlyLeadsBackwards() throws Exception {
-        when(articleService.findPage(isNull(), isNull(), eq(2), eq(20)))
+        when(articleService.findPage(eq(UID), isNull(), isNull(), eq(2), eq(20)))
                 .thenReturn(List.of(new Article(21L, 1L, "guid-21", "Article 21", null, null,
                         null, null, null, null, false, null, null, null, "Example Feed")));
-        when(articleService.count(isNull(), isNull())).thenReturn(21L);
-        when(feedService.listFeeds()).thenReturn(List.of());
+        when(articleService.count(eq(UID), isNull(), isNull())).thenReturn(21L);
+        when(feedService.listFeeds(UID)).thenReturn(List.of());
 
         mockMvc.perform(get("/items").param("page", "2"))
                 .andExpect(status().isOk())
@@ -306,11 +364,11 @@ class AppControllerSecurityTest {
     }
 
     @Test
-    @WithMockUser(username = "kindle")
+    @WithMockUser
     void emptyItemsPageHasNothingToMarkRead() throws Exception {
-        when(articleService.findPage(isNull(), isNull(), eq(1), eq(20))).thenReturn(List.of());
-        when(articleService.count(isNull(), isNull())).thenReturn(0L);
-        when(feedService.listFeeds()).thenReturn(List.of());
+        when(articleService.findPage(eq(UID), isNull(), isNull(), eq(1), eq(20))).thenReturn(List.of());
+        when(articleService.count(eq(UID), isNull(), isNull())).thenReturn(0L);
+        when(feedService.listFeeds(UID)).thenReturn(List.of());
 
         mockMvc.perform(get("/items"))
                 .andExpect(status().isOk())
@@ -319,9 +377,9 @@ class AppControllerSecurityTest {
     }
 
     @Test
-    @WithMockUser(username = "kindle")
+    @WithMockUser
     void advanceMarksThePostedArticlesReadAndMovesOn() throws Exception {
-        when(articleService.markRead(anyList(), eq(true))).thenReturn(3);
+        when(articleService.markRead(eq(UID), anyList(), eq(true))).thenReturn(3);
 
         mockMvc.perform(post("/items/advance").with(csrf())
                         .param("page", "1")
@@ -329,13 +387,13 @@ class AppControllerSecurityTest {
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/items?page=2#start"));
 
-        verify(articleService).markRead(List.of(1L, 2L, 3L), true);
+        verify(articleService).markRead(UID, List.of(1L, 2L, 3L), true);
     }
 
     @Test
-    @WithMockUser(username = "kindle")
+    @WithMockUser
     void advanceOnAnUnreadListStaysOnTheSamePage() throws Exception {
-        when(articleService.markRead(anyList(), eq(true))).thenReturn(20);
+        when(articleService.markRead(eq(UID), anyList(), eq(true))).thenReturn(20);
 
         // The unread list shrinks by the articles just marked, so what comes next
         // moves into the page that was posted from.
@@ -349,23 +407,23 @@ class AppControllerSecurityTest {
     }
 
     @Test
-    @WithMockUser(username = "kindle")
+    @WithMockUser
     void advanceWithoutArticlesMarksNothing() throws Exception {
         mockMvc.perform(post("/items/advance").with(csrf()).param("page", "1"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/items?page=2#start"));
 
-        verify(articleService, never()).markRead(anyList(), anyBoolean());
+        verify(articleService, never()).markRead(eq(UID), anyList(), anyBoolean());
     }
 
     @Test
-    @WithMockUser(username = "kindle")
+    @WithMockUser
     void itemsPagePostsItsArticleIdsWhenPagingForward() throws Exception {
-        when(articleService.findPage(isNull(), isNull(), eq(1), eq(20)))
+        when(articleService.findPage(eq(UID), isNull(), isNull(), eq(1), eq(20)))
                 .thenReturn(List.of(new Article(4L, 1L, "guid-4", "Article 4", null, null,
                         null, null, null, null, false, null, null, null, "Example Feed")));
-        when(articleService.count(isNull(), isNull())).thenReturn(1L);
-        when(feedService.listFeeds()).thenReturn(List.of());
+        when(articleService.count(eq(UID), isNull(), isNull())).thenReturn(1L);
+        when(feedService.listFeeds(UID)).thenReturn(List.of());
 
         mockMvc.perform(get("/items"))
                 .andExpect(status().isOk())
@@ -378,15 +436,15 @@ class AppControllerSecurityTest {
     }
 
     @Test
-    @WithMockUser(username = "kindle")
+    @WithMockUser
     void listEntriesOpenThroughTheirTitleAndSendBackToTheList() throws Exception {
-        when(articleService.findPage(isNull(), isNull(), eq(Boolean.TRUE),
+        when(articleService.findPage(eq(UID), isNull(), isNull(), eq(Boolean.TRUE),
                 eq(Instant.ofEpochMilli(100)), eq(1), eq(20)))
                 .thenReturn(List.of(new Article(4L, 1L, "guid-4", "Article 4", null, null,
                         null, null, null, null, false, null, null, null, "Example Feed")));
-        when(articleService.count(isNull(), isNull(), eq(Boolean.TRUE), eq(Instant.ofEpochMilli(100))))
+        when(articleService.count(eq(UID), isNull(), isNull(), eq(Boolean.TRUE), eq(Instant.ofEpochMilli(100))))
                 .thenReturn(1L);
-        when(feedService.listFeeds()).thenReturn(List.of());
+        when(feedService.listFeeds(UID)).thenReturn(List.of());
 
         mockMvc.perform(get("/items").param("unread", "true").param("snapshot", "100"))
                 .andExpect(status().isOk())
@@ -397,9 +455,9 @@ class AppControllerSecurityTest {
     }
 
     @Test
-    @WithMockUser(username = "kindle")
+    @WithMockUser
     void unreadListGetsAStableSnapshotBeforeItIsShown() throws Exception {
-        when(feedService.findById(5L)).thenReturn(Optional.of(
+        when(feedService.findById(UID, 5L)).thenReturn(Optional.of(
                 new Feed(5L, "Android", "https://example.com/feed", "https://example.com",
                         null, null, null)));
         mockMvc.perform(get("/items").param("feed", "5").param("unread", "true"))
@@ -408,18 +466,18 @@ class AppControllerSecurityTest {
     }
 
     @Test
-    @WithMockUser(username = "kindle")
+    @WithMockUser
     void sendingFromTheListReturnsToTheList() throws Exception {
         mockMvc.perform(post("/articles/4/send").with(csrf())
                         .param("redirect", "/items?unread=true&page=2"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/items?unread=true&page=2"));
 
-        verify(kindleMailService).sendToKindle(4L, false);
+        verify(kindleMailService).sendToKindle(UID, 4L, false);
     }
 
     @Test
-    @WithMockUser(username = "kindle")
+    @WithMockUser
     void sendingFromTheArticleStaysOnTheArticle() throws Exception {
         mockMvc.perform(post("/articles/4/send").with(csrf()).param("images", "true"))
                 .andExpect(status().is3xxRedirection())
@@ -427,18 +485,18 @@ class AppControllerSecurityTest {
     }
 
     @Test
-    @WithMockUser(username = "kindle")
+    @WithMockUser
     void articleCanBeSentWithoutAFullPageRedirect() throws Exception {
         mockMvc.perform(post("/articles/4/send-async").with(csrf()))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith("application/json"))
                 .andExpect(content().string(containsString("Sent to Kindle")));
 
-        verify(kindleMailService).sendToKindle(4L, false);
+        verify(kindleMailService).sendToKindle(UID, 4L, false);
     }
 
     @Test
-    @WithMockUser(username = "kindle")
+    @WithMockUser
     void sendingCannotBeTalkedIntoLeavingTheApp() throws Exception {
         mockMvc.perform(post("/articles/4/send").with(csrf())
                         .param("redirect", "https://evil.example"))

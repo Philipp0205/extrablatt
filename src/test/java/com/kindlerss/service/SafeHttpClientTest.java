@@ -32,8 +32,8 @@ class SafeHttpClientTest {
     @Test
     void rejectsNonHttpSchemesWithoutDns() {
         com.kindlerss.config.AppProperties props = new com.kindlerss.config.AppProperties(
-                "secret", "k@example.com", "from@example.com", "remember",
-                new com.kindlerss.config.AppProperties.Http(null, null, 1024), null, null
+                "from@example.com", null, "remember",
+                new com.kindlerss.config.AppProperties.Http(null, null, 1024), null, null, null
         );
         SafeHttpClient client = new SafeHttpClient(props);
         assertThrows(SafeHttpClient.FetchException.class, () -> client.validateAndResolve("file:///etc/passwd"));

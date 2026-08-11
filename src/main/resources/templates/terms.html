@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Terms — Kindle RSS</title>
+  <link rel="stylesheet" th:href="@{/css/app.css}"/>
+</head>
+<body>
+<div class="wrap">
+  <header class="app">
+    <a class="brand" th:href="@{/}">Kindle RSS</a>
+  </header>
+
+  <h1>Terms of Service</h1>
+  <p class="meta">Last updated 2026.</p>
+
+  <p>By using Kindle RSS you agree to the following.</p>
+
+  <ul>
+    <li>Use the service for your own personal reading. Do not use it to send content
+      you are not entitled to, or to overload third-party sites.</li>
+    <li>You are responsible for the feeds you add and for keeping your account secure.</li>
+    <li>The service is provided "as is", without warranty. It may change or become
+      unavailable, and reasonable per-account limits apply to keep it running for everyone.</li>
+    <li>Delivery to Kindle depends on Amazon and your own approved-sender settings, which
+      are outside our control.</li>
+  </ul>
+
+  <p class="meta" style="margin-top:1rem"><a th:href="@{/login}">Back</a></p>
+</div>
+</body>
+</html>

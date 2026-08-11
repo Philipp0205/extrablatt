@@ -1,0 +1,26 @@
+# Railway service configuration. The app image is built from the repo Dockerfile;
+# add a PostgreSQL plugin in the same project and wire the env vars below.
+#
+# Required service variables (Railway dashboard -> Variables):
+#   SPRING_PROFILES_ACTIVE = production
+#   DATABASE_URL   = jdbc:postgresql://${{Postgres.PGHOST}}:${{Postgres.PGPORT}}/${{Postgres.PGDATABASE}}
+#   DATABASE_USER  = ${{Postgres.PGUSER}}
+#   DATABASE_PASSWORD = ${{Postgres.PGPASSWORD}}
+#   APP_PUBLIC_URL = https://<your-service>.up.railway.app   (or your custom domain)
+#   REMEMBER_ME_KEY = <long random string>
+#   ADMIN_EMAILS   = you@yourdomain.com
+#   MAIL_FROM      = noreply@yourdomain.com   (on your Resend-verified domain)
+#   SMTP_HOST      = smtp.resend.com
+#   SMTP_PORT      = 587
+#   SMTP_USERNAME  = resend
+#   SMTP_PASSWORD  = <Resend API key, starts with re_>
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+healthcheckPath = "/actuator/health"
+healthcheckTimeout = 300
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3

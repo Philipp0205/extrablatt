@@ -40,10 +40,12 @@ class FeedServiceTest {
     private final ArticleRepository articleRepository = mock(ArticleRepository.class);
     private final SafeHttpClient httpClient = mock(SafeHttpClient.class);
 
+    private static final long UID = 7L;
+
     private FeedService service(int maxEntries) {
         AppProperties properties = new AppProperties(
-                "password", "kindle@example.com", "from@example.com", "remember-me",
-                null, new AppProperties.Feeds(maxEntries), null);
+                "from@example.com", null, "remember-me",
+                null, new AppProperties.Feeds(maxEntries), null, null);
         return new FeedService(feedRepository, articleRepository, httpClient, new HtmlSanitizer(), properties);
     }
 
@@ -105,13 +107,13 @@ class FeedServiceTest {
     void addingAFeedStoresTheFirstResponseWithoutFetchingItTwice() {
         String url = "https://www.reddit.com/r/stuttgart/.rss";
         when(httpClient.get(url)).thenAnswer(respondWithFeed());
-        when(feedRepository.insert(eq("Example"), eq(url), eq("https://example.com/"), eq("Local")))
+        when(feedRepository.insert(eq(UID), eq("Example"), eq(url), eq("https://example.com/"), eq("Local")))
                 .thenReturn(feed(url));
-        when(feedRepository.findById(1L)).thenReturn(Optional.of(feed(url)));
+        when(feedRepository.findById(UID, 1L)).thenReturn(Optional.of(feed(url)));
         when(articleRepository.insert(anyLong(), anyString(), anyString(),
                 anyString(), any(), any(), anyString(), anyString())).thenReturn(1L);
 
-        service(100).addFeed(url, "Local");
+        service(100).addFeed(UID, url, "Local");
 
         verify(httpClient, times(1)).get(url);
     }
