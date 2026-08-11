@@ -16,13 +16,19 @@ public class AppUserDetails implements UserDetails {
     private final String passwordHash;
     private final boolean enabled;
     private final boolean emailVerified;
+    private final boolean admin;
 
     public AppUserDetails(AppUser user) {
+        this(user, false);
+    }
+
+    public AppUserDetails(AppUser user, boolean admin) {
         this.id = user.id();
         this.email = user.email();
         this.passwordHash = user.passwordHash();
         this.enabled = user.enabled();
         this.emailVerified = user.emailVerified();
+        this.admin = admin;
     }
 
     public long id() {
@@ -33,9 +39,16 @@ public class AppUserDetails implements UserDetails {
         return emailVerified;
     }
 
+    public boolean admin() {
+        return admin;
+    }
+
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return List.of(new SimpleGrantedAuthority("ROLE_USER"));
+        return admin
+                ? List.of(new SimpleGrantedAuthority("ROLE_USER"),
+                          new SimpleGrantedAuthority("ROLE_ADMIN"))
+                : List.of(new SimpleGrantedAuthority("ROLE_USER"));
     }
 
     @Override

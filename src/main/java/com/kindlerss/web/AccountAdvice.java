@@ -6,7 +6,7 @@ import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ModelAttribute;
 
 /** Publishes the signed-in account's e-mail and verification status to every view. */
-@ControllerAdvice(assignableTypes = {AppController.class, SettingsController.class})
+@ControllerAdvice(assignableTypes = {AppController.class, SettingsController.class, AdminController.class})
 public class AccountAdvice {
 
     private final CurrentUser currentUser;
@@ -23,5 +23,10 @@ public class AccountAdvice {
     @ModelAttribute("emailVerified")
     public boolean emailVerified() {
         return currentUser.details().map(AppUserDetails::emailVerified).orElse(false);
+    }
+
+    @ModelAttribute("admin")
+    public boolean admin() {
+        return currentUser.details().map(AppUserDetails::admin).orElse(false);
     }
 }

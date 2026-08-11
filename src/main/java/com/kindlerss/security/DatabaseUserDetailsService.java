@@ -11,15 +11,17 @@ import org.springframework.stereotype.Service;
 public class DatabaseUserDetailsService implements UserDetailsService {
 
     private final UserRepository userRepository;
+    private final AdminAccess adminAccess;
 
-    public DatabaseUserDetailsService(UserRepository userRepository) {
+    public DatabaseUserDetailsService(UserRepository userRepository, AdminAccess adminAccess) {
         this.userRepository = userRepository;
+        this.adminAccess = adminAccess;
     }
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
         return userRepository.findByEmail(username)
-                .map(AppUserDetails::new)
+                .map(user -> new AppUserDetails(user, adminAccess.isAdmin(user.email())))
                 .orElseThrow(() -> new UsernameNotFoundException("No account for " + username));
     }
 }

@@ -182,18 +182,30 @@ public class ArticleRepository {
                 """.formatted(placeholders), args.toArray());
     }
 
-    public void markSent(long id, Instant sentAt) {
+    /** Records one successful delivery and updates the article's latest-send timestamp. */
+    public void recordSend(long userId, long articleId, Instant sentAt) {
         jdbc.update("""
-                UPDATE articles SET sent_at = ?, updated_at = NOW() WHERE id = ?
-                """, Timestamp.from(sentAt), id);
+                WITH event AS (
+                    INSERT INTO article_send_events (user_id, article_id, sent_at)
+                    SELECT ?, ?, ?
+                    WHERE EXISTS (
+                        SELECT 1 FROM articles a
+                        JOIN feeds f ON f.id = a.feed_id
+                        WHERE a.id = ? AND f.user_id = ?
+                    )
+                    RETURNING sent_at
+                )
+                UPDATE articles
+                SET sent_at = (SELECT sent_at FROM event), updated_at = NOW()
+                WHERE id = ? AND EXISTS (SELECT 1 FROM event)
+                """, userId, articleId, Timestamp.from(sentAt), articleId, userId, articleId);
     }
 
-    /** How many articles an account has sent to Kindle since a moment in time. */
+    /** How many successful deliveries an account made since a moment in time. */
     public long countSentSince(long userId, Instant since) {
         Long count = jdbc.queryForObject("""
-                SELECT COUNT(*) FROM articles a
-                JOIN feeds f ON f.id = a.feed_id
-                WHERE f.user_id = ? AND a.sent_at >= ?
+                SELECT COUNT(*) FROM article_send_events
+                WHERE user_id = ? AND sent_at >= ?
                 """, Long.class, userId, Timestamp.from(since));
         return count == null ? 0 : count;
     }

@@ -5,6 +5,7 @@ import com.kindlerss.domain.AppUser;
 import com.kindlerss.domain.Article;
 import com.kindlerss.repository.ArticleRepository;
 import com.kindlerss.repository.UserRepository;
+import com.kindlerss.repository.UserSendLimitRepository;
 import jakarta.mail.internet.MimeMessage;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.mail.javamail.JavaMailSender;
@@ -29,6 +30,7 @@ public class KindleMailService {
     private final ArticleService articleService;
     private final ArticleRepository articleRepository;
     private final UserRepository userRepository;
+    private final UserSendLimitRepository sendLimitRepository;
     private final AppProperties properties;
     private final int maxSendsPerDay;
 
@@ -37,12 +39,14 @@ public class KindleMailService {
                              ArticleService articleService,
                              ArticleRepository articleRepository,
                              UserRepository userRepository,
+                             UserSendLimitRepository sendLimitRepository,
                              AppProperties properties) {
         this.mailSender = mailSender;
         this.epubService = epubService;
         this.articleService = articleService;
         this.articleRepository = articleRepository;
         this.userRepository = userRepository;
+        this.sendLimitRepository = sendLimitRepository;
         this.properties = properties;
         this.maxSendsPerDay = properties.limits().maxSendsPerDay();
     }
@@ -81,7 +85,7 @@ public class KindleMailService {
             throw new IllegalStateException("Failed to send EPUB to Kindle: " + e.getMessage(), e);
         }
 
-        articleRepository.markSent(articleId, Instant.now());
+        articleRepository.recordSend(userId, articleId, Instant.now());
         articleRepository.markRead(userId, articleId, true);
     }
 
@@ -105,10 +109,17 @@ public class KindleMailService {
     }
 
     private void requireWithinDailyQuota(long userId) {
+        var override = sendLimitRepository.findByUserId(userId);
+        if (override.isPresent() && override.get().blocked(Instant.now())) {
+            throw new IllegalStateException("Sending is temporarily paused for this account");
+        }
+        int effectiveLimit = override.map(limit -> limit.maxSendsPerDay() == null
+                        ? maxSendsPerDay : limit.maxSendsPerDay())
+                .orElse(maxSendsPerDay);
         Instant dayAgo = Instant.now().minus(1, ChronoUnit.DAYS);
-        if (articleRepository.countSentSince(userId, dayAgo) >= maxSendsPerDay) {
+        if (articleRepository.countSentSince(userId, dayAgo) >= effectiveLimit) {
             throw new IllegalStateException(
-                    "Daily send limit reached (" + maxSendsPerDay + "). Try again later.");
+                    "Daily send limit reached (" + effectiveLimit + "). Try again later.");
         }
     }
 

@@ -36,6 +36,7 @@ Multi-user RSS/Atom reader that extracts readable article HTML and emails EPUB f
 | `MAIL_FROM` | Shared sender on your verified domain (`noreply@yourdomain.com`) |
 | `SMTP_HOST` / `SMTP_PORT` / `SMTP_USERNAME` / `SMTP_PASSWORD` | SMTP (Resend: host `smtp.resend.com`, username `resend`, password = API key) |
 | `REMEMBER_ME_KEY` | Secret for remember-me tokens |
+| `ADMIN_EMAILS` | Comma-separated account e-mails allowed to view telemetry and manage per-user send limits |
 
 3. Export variables (or use your shell dotenv tooling) and run:
 
@@ -55,6 +56,9 @@ Kindle address under **Settings**.
   checked on every request.
 - Per-account guardrails (`MAX_FEEDS_PER_USER`, `MAX_SENDS_PER_DAY`) and rate
   limiting on login/register/reset keep open registration from being abused.
+- Administrators listed in `ADMIN_EMAILS` get a protected `/admin` dashboard
+  showing total/24-hour/7-day sends and per-user usage. They can assign a custom
+  rolling daily send limit or temporarily block an account from Kindle sending.
 - The app runs as a single instance (one scheduled refresh, in-process rate
   limiter). Running multiple replicas would need a shared lock and store first.
 
@@ -154,6 +158,7 @@ well: managed Postgres, TLS, and Dockerfile builds with low ops.
    DATABASE_PASSWORD = ${{Postgres.PGPASSWORD}}
    APP_PUBLIC_URL    = https://<your-service>.up.railway.app
    REMEMBER_ME_KEY   = <long random string>
+   ADMIN_EMAILS      = you@yourdomain.com
    MAIL_FROM         = noreply@yourdomain.com
    SMTP_HOST         = smtp.resend.com
    SMTP_PORT         = 587

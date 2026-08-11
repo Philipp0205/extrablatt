@@ -33,6 +33,7 @@ services:
       DATABASE_USER: ${POSTGRES_USER:-kindle}
       DATABASE_PASSWORD: ${POSTGRES_PASSWORD}
       APP_PUBLIC_URL: ${APP_PUBLIC_URL:-https://${DOMAIN}}
+      ADMIN_EMAILS: ${ADMIN_EMAILS:-}
       MAIL_FROM: ${MAIL_FROM:?set MAIL_FROM}
       SMTP_HOST: ${SMTP_HOST:-smtp.resend.com}
       SMTP_PORT: ${SMTP_PORT:-587}

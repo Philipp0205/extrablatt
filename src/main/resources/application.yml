@@ -58,6 +58,9 @@ app:
   mail-from: ${MAIL_FROM:}
   # Public base URL used to build links in verification / password-reset e-mails.
   public-url: ${APP_PUBLIC_URL:http://localhost:8080}
+  # Comma-separated account e-mails granted access to /admin telemetry and
+  # per-user send controls. Keep this in deployment secrets.
+  admin-emails: ${ADMIN_EMAILS:}
   remember-me-key: ${REMEMBER_ME_KEY:kindle-rss-remember-me-change-me}
   http:
     connect-timeout: 10s

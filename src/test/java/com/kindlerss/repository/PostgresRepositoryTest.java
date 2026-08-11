@@ -22,6 +22,8 @@ class PostgresRepositoryTest {
     private static FeedRepository feeds;
     private static ArticleRepository articles;
     private static UserRepository users;
+    private static UserSendLimitRepository sendLimits;
+    private static TelemetryRepository telemetry;
     private static long userId;
     private static long otherUserId;
 
@@ -34,6 +36,8 @@ class PostgresRepositoryTest {
         feeds = new FeedRepository(jdbc);
         articles = new ArticleRepository(jdbc);
         users = new UserRepository(jdbc);
+        sendLimits = new UserSendLimitRepository(jdbc);
+        telemetry = new TelemetryRepository(jdbc);
         userId = users.insert("owner@example.com", "hash").id();
         otherUserId = users.insert("other@example.com", "hash").id();
     }
@@ -106,6 +110,28 @@ class PostgresRepositoryTest {
                 || !"Theirs".equals(f.title())));
         assertFalse(feeds.deleteById(otherUserId, mine.id()));
         assertTrue(feeds.deleteById(userId, mine.id()));
+    }
+
+    @Test
+    void telemetryCountsSendsAndPersistsUserLimits() {
+        var feed = feeds.insert(userId, "Metrics", "https://metrics.example.com/feed.xml",
+                "https://metrics.example.com", null);
+        long articleId = insertArticle(feed.id(), "metrics-1");
+        articles.recordSend(userId, articleId, Instant.now());
+        Instant blockedUntil = Instant.now().plusSeconds(3600);
+        sendLimits.save(userId, 3, blockedUntil);
+
+        var summary = telemetry.summary();
+        assertTrue(summary.sendsTotal() >= 1);
+        assertTrue(summary.sends24h() >= 1);
+
+        var usage = telemetry.userUsage().stream()
+                .filter(row -> row.userId() == userId)
+                .findFirst().orElseThrow();
+        assertTrue(usage.sendsTotal() >= 1);
+        assertEquals(3, usage.maxSendsPerDay());
+        assertTrue(usage.blocked());
+        assertEquals(3, sendLimits.findByUserId(userId).orElseThrow().maxSendsPerDay());
     }
 
     private long insertArticle(long feedId, String guid) {

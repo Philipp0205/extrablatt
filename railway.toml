@@ -8,6 +8,7 @@
 #   DATABASE_PASSWORD = ${{Postgres.PGPASSWORD}}
 #   APP_PUBLIC_URL = https://<your-service>.up.railway.app   (or your custom domain)
 #   REMEMBER_ME_KEY = <long random string>
+#   ADMIN_EMAILS   = you@yourdomain.com
 #   MAIL_FROM      = noreply@yourdomain.com   (on your Resend-verified domain)
 #   SMTP_HOST      = smtp.resend.com
 #   SMTP_PORT      = 587
