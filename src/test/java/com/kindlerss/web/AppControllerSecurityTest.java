@@ -1,6 +1,7 @@
 package com.kindlerss.web;
 
 import com.kindlerss.domain.Article;
+import com.kindlerss.domain.Feed;
 import com.kindlerss.service.ArticleService;
 import com.kindlerss.service.FeedService;
 import com.kindlerss.service.KindleMailService;
@@ -92,6 +93,24 @@ class AppControllerSecurityTest {
         mockMvc.perform(get("/"))
                 .andExpect(status().isOk())
                 .andExpect(view().name("index"));
+    }
+
+    @Test
+    @WithMockUser(username = "kindle")
+    void homeOffersOptionalDefaultsAndFeedCategories() throws Exception {
+        when(feedService.listFeeds()).thenReturn(List.of(
+                new Feed(5L, "Android", "https://example.com/feed", "https://example.com",
+                        "Technology", null, null, null)));
+        when(feedService.defaultFeeds()).thenReturn(List.of(
+                new FeedService.DefaultFeed("hacker-news", "Hacker News",
+                        "https://hnrss.org/frontpage", "Technology")));
+
+        mockMvc.perform(get("/"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("Quick start")))
+                .andExpect(content().string(containsString("value=\"hacker-news\"")))
+                .andExpect(content().string(containsString("action=\"/feeds/5/category\"")))
+                .andExpect(content().string(containsString(">Technology</h3>")));
     }
 
     @Test
@@ -308,6 +327,9 @@ class AppControllerSecurityTest {
     @Test
     @WithMockUser(username = "kindle")
     void unreadListGetsAStableSnapshotBeforeItIsShown() throws Exception {
+        when(feedService.findById(5L)).thenReturn(Optional.of(
+                new Feed(5L, "Android", "https://example.com/feed", "https://example.com",
+                        null, null, null)));
         mockMvc.perform(get("/items").param("feed", "5").param("unread", "true"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrlPattern("/items?page=1&feed=5&unread=true&snapshot=*"));
