@@ -1,5 +1,6 @@
 package com.kindlerss.repository;
 
+import com.kindlerss.domain.Feed;
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres;
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.AfterAll;
@@ -20,6 +21,9 @@ class PostgresRepositoryTest {
     private static EmbeddedPostgres postgres;
     private static FeedRepository feeds;
     private static ArticleRepository articles;
+    private static UserRepository users;
+    private static long userId;
+    private static long otherUserId;
 
     @BeforeAll
     static void startPostgres() throws Exception {
@@ -29,6 +33,9 @@ class PostgresRepositoryTest {
         JdbcTemplate jdbc = new JdbcTemplate(dataSource);
         feeds = new FeedRepository(jdbc);
         articles = new ArticleRepository(jdbc);
+        users = new UserRepository(jdbc);
+        userId = users.insert("owner@example.com", "hash").id();
+        otherUserId = users.insert("other@example.com", "hash").id();
     }
 
     @AfterAll
@@ -40,29 +47,26 @@ class PostgresRepositoryTest {
 
     @Test
     void marksAWholePageOfArticlesReadInOneStatement() {
-        var feed = feeds.insert("Bulk", "https://bulk.example.com/feed.xml", "https://bulk.example.com");
+        var feed = feeds.insert(userId, "Bulk", "https://bulk.example.com/feed.xml",
+                "https://bulk.example.com", null);
         long first = insertArticle(feed.id(), "bulk-1");
         long second = insertArticle(feed.id(), "bulk-2");
         long untouched = insertArticle(feed.id(), "bulk-3");
 
-        assertEquals(2, articles.markRead(List.of(first, second), true));
+        assertEquals(2, articles.markRead(userId, List.of(first, second), true));
         // Already read: nothing changes, so nothing is reported.
-        assertEquals(0, articles.markRead(List.of(first, second), true));
-        assertEquals(0, articles.markRead(List.of(), true));
+        assertEquals(0, articles.markRead(userId, List.of(first, second), true));
+        assertEquals(0, articles.markRead(userId, List.of(), true));
 
-        assertTrue(articles.findById(first).orElseThrow().read());
-        assertTrue(articles.findById(second).orElseThrow().read());
-        assertFalse(articles.findById(untouched).orElseThrow().read());
-    }
-
-    private long insertArticle(long feedId, String guid) {
-        return articles.insert(feedId, guid, "Article " + guid, "https://bulk.example.com/" + guid,
-                "Author", Instant.parse("2026-08-10T00:00:00Z"), "<p>Summary</p>", "<p>Content</p>");
+        assertTrue(articles.findById(userId, first).orElseThrow().read());
+        assertTrue(articles.findById(userId, second).orElseThrow().read());
+        assertFalse(articles.findById(userId, untouched).orElseThrow().read());
     }
 
     @Test
     void insertsReturnOnlyTheGeneratedIdWithPostgres() {
-        var feed = feeds.insert("Example", "https://example.com/feed.xml", "https://example.com");
+        var feed = feeds.insert(userId, "Example", "https://example.com/feed.xml",
+                "https://example.com", null);
         long articleId = articles.insert(
                 feed.id(),
                 "guid-1",
@@ -76,6 +80,36 @@ class PostgresRepositoryTest {
 
         assertTrue(feed.id() > 0);
         assertTrue(articleId > 0);
-        assertEquals("Example", articles.findById(articleId).orElseThrow().feedTitle());
+        assertEquals("Example", articles.findById(userId, articleId).orElseThrow().feedTitle());
+    }
+
+    @Test
+    void feedsAndArticlesAreIsolatedPerUser() {
+        var mine = feeds.insert(userId, "Mine", "https://iso.example.com/feed.xml",
+                "https://iso.example.com", null);
+        long articleId = insertArticle(mine.id(), "iso-1");
+
+        // The same URL can be followed independently by another account.
+        var theirs = feeds.insert(otherUserId, "Theirs", "https://iso.example.com/feed.xml",
+                "https://iso.example.com", null);
+        assertTrue(theirs.id() != mine.id());
+
+        // The other account cannot see or mutate my feed or article.
+        assertTrue(feeds.findById(otherUserId, mine.id()).isEmpty());
+        assertTrue(articles.findById(otherUserId, articleId).isEmpty());
+        assertEquals(0, articles.markRead(otherUserId, List.of(articleId), true));
+        assertFalse(articles.findById(userId, articleId).orElseThrow().read());
+
+        // My own list only counts my feeds.
+        List<Feed> myFeeds = feeds.findAll(userId);
+        assertTrue(myFeeds.stream().allMatch(f -> f.id().equals(mine.id())
+                || !"Theirs".equals(f.title())));
+        assertFalse(feeds.deleteById(otherUserId, mine.id()));
+        assertTrue(feeds.deleteById(userId, mine.id()));
+    }
+
+    private long insertArticle(long feedId, String guid) {
+        return articles.insert(feedId, guid, "Article " + guid, "https://bulk.example.com/" + guid,
+                "Author", Instant.parse("2026-08-10T00:00:00Z"), "<p>Summary</p>", "<p>Content</p>");
     }
 }
