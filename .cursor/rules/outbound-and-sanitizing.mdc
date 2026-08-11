@@ -1,0 +1,47 @@
+---
+description: Rules for fetching remote content, sanitizing HTML, and sending mail from the service layer
+globs: src/main/java/com/kindlerss/service/**/*.java
+alwaysApply: false
+---
+
+# Services: outbound requests and untrusted content
+
+Everything this app fetches is a URL a user pasted, or a link found inside a feed, so
+both the request and the response are untrusted.
+
+## Fetching
+
+All outbound HTTP goes through `SafeHttpClient`
+(@src/main/java/com/kindlerss/service/SafeHttpClient.java). Never construct a
+`java.net.http.HttpClient`, `RestTemplate`, `WebClient`, or `Jsoup.connect(...)` in a
+service — that would bypass the SSRF checks, which are: `http`/`https` only, blocked host
+names, DNS resolution with rejection of any-local, loopback, link-local, site-local,
+multicast, unique-local (`fc00::/7`) and CGNAT (`100.64.0.0/10`) addresses, redirects
+followed manually (capped at 5) so each hop is re-validated, and a response size cap.
+
+If you need a new kind of request, add a method to `SafeHttpClient` rather than a client
+elsewhere, and cover the address rules in `SafeHttpClientTest`.
+
+Timeouts and the size cap come from `app.http.*`; do not hardcode them. Failures surface
+as `SafeHttpClient.FetchException` with a message suitable for showing to the user.
+
+## HTML
+
+Remote HTML is sanitized by `HtmlSanitizer` (jsoup `Safelist`) before it is stored for
+rendering, put into an EPUB, or handed to a template. Adjust the safelists in that one
+class rather than cleaning ad hoc at a call site, and keep the images-on and images-off
+variants in step: images default to off because they are expensive on e-ink and often
+tracking pixels. `preserveRelativeLinks(false)` must stay — relative URLs would otherwise
+resolve against this app.
+
+## Feeds
+
+A refresh asks each feed for `app.feeds.max-entries` entries via a `count` parameter,
+falls back to the URL as entered when the server rejects it, and leaves a URL that already
+specifies a limit (`count`, `limit`, `n`) alone. Nothing is deleted afterwards, so a feed
+accumulates beyond what it currently publishes.
+
+## Mail
+
+`sent_at` is recorded only after SMTP has accepted the message, so a failed send can be
+retried and never looks successful. Keep that ordering.

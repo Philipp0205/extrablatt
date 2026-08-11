@@ -1,0 +1,32 @@
+---
+description: JdbcTemplate repository and Flyway migration conventions
+globs: src/main/java/com/kindlerss/repository/**/*.java,src/main/resources/db/migration/**/*.sql
+alwaysApply: false
+---
+
+# Data access
+
+Repositories use `JdbcTemplate` directly. No JPA entities, no Spring Data repositories,
+no query DSL.
+
+- One `private static final RowMapper<T>` per repository, mapping to the domain `record`.
+- Always bind parameters with `?` placeholders. The only string that may be spliced into
+  SQL is a generated placeholder list (`String.join(",", Collections.nCopies(n, "?"))`)
+  — never a value, column, or user-supplied fragment.
+- Build conditional queries with a `StringBuilder` seeded `WHERE 1=1` plus a parallel
+  argument list, as in @src/main/java/com/kindlerss/repository/ArticleRepository.java.
+- SQL lives in text blocks, keywords uppercase.
+- Timestamps cross the boundary as `Instant`; convert with `Timestamp.from` on the way in
+  and `Timestamp::toInstant` on the way out, guarding for `null`.
+- Inserts that can race use `ON CONFLICT ... DO NOTHING` and report the outcome (a
+  generated key, or the number of affected rows) rather than throwing.
+- Bulk updates return how many rows actually changed, so callers can report a count —
+  add `AND col <> ?` so unchanged rows are not counted.
+- `updated_at = NOW()` on every `UPDATE`.
+
+## Migrations
+
+Flyway runs on startup. Migrations are forward-only and immutable: never edit a
+migration that has been applied anywhere, add `V<n>__<description>.sql` instead. Keep
+them runnable against PostgreSQL 16+ and idempotent where cheap. Add the matching
+coverage to `PostgresRepositoryTest`, which starts an embedded PostgreSQL.

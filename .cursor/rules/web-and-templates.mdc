@@ -1,0 +1,56 @@
+---
+description: Controller and Thymeleaf template conventions, including the no-JavaScript baseline and e-ink paging
+globs: src/main/java/com/kindlerss/web/**/*.java,src/main/resources/templates/**/*.html,src/main/resources/static/**
+alwaysApply: false
+---
+
+# Web layer
+
+## Forms and redirects
+
+- Every `POST` form includes the CSRF token; CSRF protection stays enabled:
+
+```html
+<input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+```
+
+- A `POST` handler ends in `redirect:` and reports its outcome through
+  `RedirectAttributes` flash attributes named `message` (success) or `error` (failure).
+  Templates render both near the top of the page.
+- Any redirect target that came from the request must pass through
+  `AppController.safeRedirect`, which keeps only relative in-app paths. Likewise, a URL
+  from feed content is only rendered as a link after `AppController.safeHttpUrl`.
+  Both are static and unit-tested — extend the tests when you change them.
+- A missing entity throws `ArticleService.NotFoundException` so the handler in
+  `GlobalExceptionHandler` renders `error` with a 404, instead of returning a blank page.
+
+## Rendering untrusted HTML
+
+`th:utext` is only ever given a string that `HtmlSanitizer` produced. Feed and article
+HTML is never interpolated raw, and never passed to `th:utext` straight from the database.
+Use `th:text` for everything else.
+
+## Works without JavaScript
+
+The UI is server-rendered and must stay usable with JavaScript disabled: navigation and
+actions are links and forms, not click handlers. `static/js/reader.js` is the single
+exception — it splits an already-complete document into pages. Anything it adds must
+degrade to a normally scrolling page with the same content and links.
+
+## Paging for e-ink
+
+Kindle panels redraw slowly, so lists and articles are laid out a page at a time rather
+than scrolled. `reader.js` is driven entirely by `data-reader-*` attributes on the markup
+(`data-reader-frame`, `data-reader-prev-url`, `data-reader-next-form`,
+`data-reader-key`, …); wire new pages up by emitting those attributes instead of adding
+script. Keep the reading area sized to the viewport so one page turn replaces exactly one
+screenful.
+
+Paging forward through the article list posts `/items/advance`, which marks the articles
+of the current page read. An unread list shrinks by exactly those articles, so the
+redirect returns to the same page number rather than the next one. Preserve that
+distinction when touching list navigation, and keep the plain *Older articles* link that
+moves on without marking anything.
+
+Actions started from the list return to the list: pass the current `listPath` as the
+`redirect` parameter so sending an article does not open it.

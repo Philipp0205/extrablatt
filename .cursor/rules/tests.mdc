@@ -1,0 +1,28 @@
+---
+description: Test conventions for the Kindle RSS suite
+globs: src/test/**/*.java
+alwaysApply: false
+---
+
+# Tests
+
+`./mvnw test` must pass with no PostgreSQL server, no Docker, and no network. Database
+tests start an embedded PostgreSQL (`io.zonky.test:embedded-postgres`) and run Flyway
+against it; anything that would reach the internet is mocked.
+
+- Web tests use `@WebMvcTest(controllers = ...)` with `@Import` of `SecurityConfig` and
+  `GlobalExceptionHandler`, services replaced by `@MockitoBean`, and configuration
+  supplied through `@TestPropertySource` — see
+  @src/test/java/com/kindlerss/web/AppControllerSecurityTest.java.
+- Authenticated requests use `@WithMockUser(username = "kindle")`, and a `POST` needs
+  `.with(csrf())`. Keep at least one test asserting that a `POST` without a token is
+  rejected.
+- Test classes and methods are package-private, no `public`.
+- Method names are sentences describing the behavior, not the method under test:
+  `sendingCannotBeTalkedIntoLeavingTheApp`, `advanceOnAnUnreadListStaysOnTheSamePage`.
+- Assert on what the user gets — the rendered markup, the redirect target, the number of
+  rows changed — rather than on internal calls, and use `verify` only where the side
+  effect is the point (mail sent, nothing marked read).
+- New behavior in the security helpers (`safeRedirect`, `safeHttpUrl`,
+  `SafeHttpClient.isBlockedAddress`) needs a direct unit test for the rejected case, not
+  only the accepted one.

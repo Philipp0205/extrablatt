@@ -1,0 +1,60 @@
+---
+description: Kindle RSS project overview, layering and build commands
+alwaysApply: true
+---
+
+# Kindle RSS
+
+Self-hosted RSS/Atom reader that extracts readable article HTML and emails EPUB
+files to a Kindle. Single user, server-rendered Thymeleaf UI, Spring Boot 3.5 on
+Java 21.
+
+## Commands
+
+- `./mvnw test` — full test suite. Needs no PostgreSQL and no Docker.
+- `./mvnw spring-boot:run` — local run; requires the environment variables in `.env.example`.
+- `./mvnw package` — jar. Pass `-Dgit.revision=$(git rev-parse --short HEAD)` when the
+  running instance should be able to report its commit.
+
+Use the Maven Wrapper, not a system `mvn`.
+
+## Layering
+
+`web` → `service` → `repository` → PostgreSQL. Dependencies point one way only:
+
+- `web` (`@Controller`, `@ControllerAdvice`) resolves request parameters, calls services,
+  fills the `Model`, returns a view name or a redirect. No SQL, no HTTP fetching.
+- `service` (`@Component`/`@Service`) holds the logic: feed parsing, extraction,
+  sanitization, EPUB building, mail. Services never touch `Model` or servlet types.
+- `repository` (`@Repository`) is the only place that speaks SQL, via `JdbcTemplate`.
+
+Do not add a layer, a mapper framework, or JPA. `spring-boot-starter-jdbc` is deliberate.
+
+## Java conventions
+
+- Domain and value types are `record`s (`Article`, `Feed`, `AppProperties`, `FetchedContent`).
+  Prefer a nested `record` over a class with getters.
+- Constructor injection into `final` fields. No field `@Autowired`, no setters.
+- Validate and clamp configuration in the record's compact constructor rather than at
+  every use site — see @src/main/java/com/kindlerss/config/AppProperties.java.
+- Domain exceptions are nested in the type that raises them
+  (`ArticleService.NotFoundException`, `SafeHttpClient.FetchException`) and are mapped to
+  status codes in @src/main/java/com/kindlerss/web/GlobalExceptionHandler.java.
+- Text blocks for SQL; `Instant` for timestamps; `Locale.ROOT` when lowercasing input.
+
+## Configuration
+
+Every setting reaches the app through `app.*` in
+@src/main/resources/application.yml, bound to `AppProperties`, and is overridable by an
+environment variable with a documented default. When adding one: add the `app.*` key with
+an `${ENV_VAR:default}` placeholder, add the component to `AppProperties` with the default
+in its compact constructor, list the variable in `.env.example`, and document it in
+`README.md`.
+
+Never commit `.env`, credentials, or SSH keys.
+
+## Documentation
+
+`README.md` describes behavior a user can observe. When a change alters what the UI does,
+what gets fetched, or how it is deployed, update the matching README section in the same
+change.
