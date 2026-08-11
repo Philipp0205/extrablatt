@@ -9,6 +9,7 @@ import org.mockito.stubbing.Answer;
 
 import java.net.URI;
 import java.time.Instant;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
@@ -72,6 +73,8 @@ class FeedServiceTest {
                 FeedService.withEntryCount("https://example.com/feed?limit=3", 100));
         assertEquals("https://example.com/feed",
                 FeedService.withEntryCount("https://example.com/feed", 0));
+        assertEquals("https://www.reddit.com/r/stuttgart/.rss",
+                FeedService.withEntryCount("https://www.reddit.com/r/stuttgart/.rss", 100));
     }
 
     @Test
@@ -96,5 +99,20 @@ class FeedServiceTest {
         verify(httpClient, times(2)).get(anyString());
         verify(articleRepository).insert(anyLong(), anyString(), anyString(),
                 anyString(), any(), any(), anyString(), anyString());
+    }
+
+    @Test
+    void addingAFeedStoresTheFirstResponseWithoutFetchingItTwice() {
+        String url = "https://www.reddit.com/r/stuttgart/.rss";
+        when(httpClient.get(url)).thenAnswer(respondWithFeed());
+        when(feedRepository.insert(eq("Example"), eq(url), eq("https://example.com/"), eq("Local")))
+                .thenReturn(feed(url));
+        when(feedRepository.findById(1L)).thenReturn(Optional.of(feed(url)));
+        when(articleRepository.insert(anyLong(), anyString(), anyString(),
+                anyString(), any(), any(), anyString(), anyString())).thenReturn(1L);
+
+        service(100).addFeed(url, "Local");
+
+        verify(httpClient, times(1)).get(url);
     }
 }

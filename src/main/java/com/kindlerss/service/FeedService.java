@@ -39,6 +39,15 @@ public class FeedService {
      * entries it wants. A URL that already carries one is left alone.
      */
     private static final Set<String> ENTRY_COUNT_PARAMETERS = Set.of("count", "limit", "n");
+    private static final List<DefaultFeed> DEFAULT_FEEDS = List.of(
+            new DefaultFeed("hacker-news", "Hacker News", "https://hnrss.org/frontpage", "Technology"),
+            new DefaultFeed("android-developers", "Android Developers",
+                    "https://android-developers.googleblog.com/feeds/posts/default", "Technology"),
+            new DefaultFeed("ars-technica", "Ars Technica",
+                    "https://feeds.arstechnica.com/arstechnica/index", "Technology"),
+            new DefaultFeed("bbc-world", "BBC World News",
+                    "https://feeds.bbci.co.uk/news/world/rss.xml", "News")
+    );
 
     private final FeedRepository feedRepository;
     private final ArticleRepository articleRepository;
@@ -66,8 +75,24 @@ public class FeedService {
         return feedRepository.findById(id);
     }
 
+    public List<DefaultFeed> defaultFeeds() {
+        Set<String> existingUrls = feedRepository.findAll().stream()
+                .map(Feed::url)
+                .collect(java.util.stream.Collectors.toSet());
+        return DEFAULT_FEEDS.stream().filter(feed -> !existingUrls.contains(feed.url())).toList();
+    }
+
+    public Optional<DefaultFeed> defaultFeed(String key) {
+        return DEFAULT_FEEDS.stream().filter(feed -> feed.key().equals(key)).findFirst();
+    }
+
     @Transactional
     public Feed addFeed(String rawUrl) {
+        return addFeed(rawUrl, null);
+    }
+
+    @Transactional
+    public Feed addFeed(String rawUrl, String category) {
         String trimmed = rawUrl == null ? "" : rawUrl.trim();
         if (trimmed.isEmpty()) {
             throw new IllegalArgumentException("Feed URL is required");
@@ -102,14 +127,19 @@ public class FeedService {
         }
 
         String title = parsed.title() == null || parsed.title().isBlank() ? feedUrl : parsed.title().trim();
-        Feed feed = feedRepository.insert(title, feedUrl, parsed.siteUrl());
-        refreshFeed(feed);
+        Feed feed = feedRepository.insert(title, feedUrl, parsed.siteUrl(), category);
+        storeEntries(feed, parsed);
         return feedRepository.findById(feed.id()).orElse(feed);
     }
 
     @Transactional
     public boolean deleteFeed(long id) {
         return feedRepository.deleteById(id);
+    }
+
+    @Transactional
+    public boolean categorizeFeed(long id, String category) {
+        return feedRepository.updateCategory(id, category);
     }
 
     @Scheduled(fixedDelayString = "PT30M", initialDelayString = "PT2M")
@@ -136,34 +166,39 @@ public class FeedService {
             ParsedFeed parsed = parseFeed(fetched.body(), feed.url());
             String title = parsed.title() == null || parsed.title().isBlank() ? feed.title() : parsed.title().trim();
             feedRepository.updateTitleAndSite(feed.id(), title, parsed.siteUrl());
-            int inserted = 0;
-            for (ParsedEntry entry : parsed.entries()) {
-                if (entry.guid() == null || entry.guid().isBlank()) {
-                    continue;
-                }
-                if (articleRepository.existsByFeedIdAndGuid(feed.id(), entry.guid())) {
-                    continue;
-                }
-                long id = articleRepository.insert(
-                        feed.id(),
-                        entry.guid(),
-                        entry.title(),
-                        entry.url(),
-                        entry.author(),
-                        entry.publishedAt(),
-                        sanitizer.sanitizeWithImages(entry.summaryHtml()),
-                        sanitizer.sanitizeWithImages(entry.contentHtml())
-                );
-                if (id > 0) {
-                    inserted++;
-                }
-            }
+            int inserted = storeEntries(feed, parsed);
             feedRepository.clearError(feed.id());
             log.info("Refreshed feed {} ({} new articles)", feed.id(), inserted);
         } catch (Exception e) {
             feedRepository.setError(feed.id(), e.getMessage());
             throw e instanceof RuntimeException re ? re : new RuntimeException(e);
         }
+    }
+
+    private int storeEntries(Feed feed, ParsedFeed parsed) {
+        int inserted = 0;
+        for (ParsedEntry entry : parsed.entries()) {
+            if (entry.guid() == null || entry.guid().isBlank()) {
+                continue;
+            }
+            if (articleRepository.existsByFeedIdAndGuid(feed.id(), entry.guid())) {
+                continue;
+            }
+            long id = articleRepository.insert(
+                    feed.id(),
+                    entry.guid(),
+                    entry.title(),
+                    entry.url(),
+                    entry.author(),
+                    entry.publishedAt(),
+                    sanitizer.sanitizeWithImages(entry.summaryHtml()),
+                    sanitizer.sanitizeWithImages(entry.contentHtml())
+            );
+            if (id > 0) {
+                inserted++;
+            }
+        }
+        return inserted;
     }
 
     /**
@@ -198,6 +233,13 @@ public class FeedService {
             return url;
         }
         if (uri.getRawFragment() != null) {
+            return url;
+        }
+        String host = uri.getHost();
+        if (host != null && (host.equalsIgnoreCase("reddit.com")
+                || host.toLowerCase(Locale.ROOT).endsWith(".reddit.com"))) {
+            // Reddit's anonymous RSS endpoint is tightly rate-limited. Avoid a
+            // cache-busting count query that gains no extra entries there.
             return url;
         }
         String query = uri.getRawQuery();
@@ -283,6 +325,8 @@ public class FeedService {
     }
 
     private record ParsedFeed(String title, String siteUrl, List<ParsedEntry> entries) {}
+
+    public record DefaultFeed(String key, String title, String url, String category) {}
 
     private record ParsedEntry(
             String guid,

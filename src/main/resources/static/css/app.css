@@ -139,6 +139,11 @@ h1, h2 {
   line-height: 1.2;
 }
 
+h3 {
+  font-size: 1.05rem;
+  margin: 1rem 0 0.25rem;
+}
+
 h1 {
   font-size: 1.5rem;
   margin: 0 0 1rem;
@@ -264,6 +269,18 @@ input[type="url"], input[type="password"], input[type="text"] {
 .actions > button,
 .actions > form.inline {
   margin: 0 0.5rem 0.5rem 0;
+}
+
+.category-form {
+  flex: 1 1 14rem;
+}
+
+.category-form input {
+  min-width: 7rem;
+}
+
+.category-form button {
+  white-space: nowrap;
 }
 
 /* Inside the reader the content is laid out in columns exactly one frame wide,

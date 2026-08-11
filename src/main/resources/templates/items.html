@@ -28,8 +28,8 @@
   <div th:if="${error}" class="flash error" th:text="${error}"></div>
 
   <div class="reader" data-reader
-       th:attr="data-reader-key='items-' + ${feedId} + '-' + ${unread} + '-' + ${page},
-                data-reader-prev-url=${page > 1} ? @{/items(feed=${feedId}, unread=${unread} ? true : null, page=${page - 1})} : null,
+       th:attr="data-reader-key='items-' + ${feedId} + '-' + ${category} + '-' + ${unread} + '-' + ${snapshot} + '-' + ${page},
+                data-reader-prev-url=${page > 1} ? @{/items(feed=${feedId}, category=${category}, unread=${unread} ? true : null, snapshot=${snapshot}, page=${page - 1})} : null,
                 data-reader-next-form=${!#lists.isEmpty(articles)} ? 'advance' : null,
                 data-reader-next-end-label=${!#lists.isEmpty(articles)} ? 'Mark read' : null">
     <div class="reader-frame" data-reader-frame>
@@ -39,8 +39,12 @@
            th:text="${firstIndex} + '–' + ${lastIndex} + ' of ' + ${total} + ' articles'">1–20 of 20 articles</p>
 
         <div class="filters">
-          <a class="btn" th:classappend="${feedId == null and !unread} ? ' active'" th:href="@{/items}">All</a>
-          <a class="btn" th:classappend="${unread and feedId == null} ? ' active'" th:href="@{/items(unread=true)}">Unread</a>
+          <a class="btn" th:classappend="${feedId == null and category == null and !unread} ? ' active'" th:href="@{/items}">All</a>
+          <a class="btn" th:classappend="${unread and feedId == null and category == null} ? ' active'" th:href="@{/items(unread=true)}">Unread</a>
+          <a class="btn" th:each="c : ${categories}"
+             th:classappend="${category == c} ? ' active'"
+             th:href="@{/items(category=${c}, unread=${unread} ? true : null)}"
+             th:text="${c}">Category</a>
           <a class="btn" th:each="f : ${feeds}"
              th:classappend="${feedId != null and feedId == f.id} ? ' active'"
              th:href="@{/items(feed=${f.id}, unread=${unread} ? true : null)}"
@@ -60,7 +64,9 @@
                 <span th:if="${a.publishedAt != null}" th:text="' · ' + ${#temporals.format(a.publishedAt, 'yyyy-MM-dd HH:mm')}"> · date</span>
                 <span th:if="${a.sentAt != null}"> · sent</span>
               </span>
-              <form class="inline" th:action="@{/articles/{id}/send(id=${a.id})}" method="post">
+              <form class="inline" data-send-form
+                    th:action="@{/articles/{id}/send(id=${a.id})}"
+                    th:attr="data-send-url=@{/articles/{id}/send-async(id=${a.id})}" method="post">
                 <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
                 <!-- Sending from the list comes back to the list instead of opening the article. -->
                 <input type="hidden" name="redirect" th:value="${listPath}"/>
@@ -76,16 +82,18 @@
           <form th:action="@{/items/advance}" method="post" id="advance" class="inline">
             <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
             <input type="hidden" name="feed" th:if="${feedId != null}" th:value="${feedId}"/>
+            <input type="hidden" name="category" th:if="${category != null}" th:value="${category}"/>
             <input type="hidden" name="unread" th:if="${unread}" value="true"/>
+            <input type="hidden" name="snapshot" th:if="${snapshot != null}" th:value="${snapshot}"/>
             <input type="hidden" name="page" th:value="${page}"/>
             <input type="hidden" name="id" th:each="a : ${articles}" th:value="${a.id}"/>
             <button class="btn" type="submit"
                     th:text="${page < totalPages} ? 'Mark read &amp; continue' : 'Mark these read'">Mark read</button>
           </form>
           <a class="btn" th:if="${page < totalPages}"
-             th:href="@{/items(feed=${feedId}, unread=${unread} ? true : null, page=${page + 1})}">Older articles</a>
+             th:href="@{/items(feed=${feedId}, category=${category}, unread=${unread} ? true : null, snapshot=${snapshot}, page=${page + 1})}">Older articles</a>
           <a class="btn" th:if="${page > 1}"
-             th:href="@{/items(feed=${feedId}, unread=${unread} ? true : null, page=${page - 1})}">Newer articles</a>
+             th:href="@{/items(feed=${feedId}, category=${category}, unread=${unread} ? true : null, snapshot=${snapshot}, page=${page - 1})}">Newer articles</a>
         </div>
       </div>
     </div>

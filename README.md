@@ -5,6 +5,7 @@ Self-hosted RSS/Atom reader that extracts readable article HTML and emails EPUB 
 ## Features
 
 - Add feeds by RSS/Atom URL or homepage (autodiscovery via `link rel=alternate`)
+- Optional quick-start feed suggestions and categories for organizing subscriptions
 - Scheduled refresh every 30 minutes, plus manual refresh, asking each feed for
   more than the handful of entries it publishes by default
 - Article extraction (Readability4J) with sanitized HTML caching
@@ -52,11 +53,20 @@ Tests do not require PostgreSQL or Docker. They cover EPUB layout, HTML sanitiza
 ## Using the app
 
 1. **Add a feed** on the home page (direct feed URL or site homepage).
+   You do not need to hunt down an XML URL: open the Kindle RSS website on your
+   phone, paste the normal website address, and feed autodiscovery will usually
+   find its RSS/Atom feed. The optional **Quick start** checkboxes can populate a
+   new reader without typing URLs; no suggested feed is added unless you select it.
+   Give a feed a category while adding it, or change its category later.
 2. Open **Articles** / **Unread** and filter by feed.
 3. Page through the list; articles you page past are marked read.
 4. Tap an article's title to mark it read and view extracted content (images off by default).
+   An unread list keeps articles opened during that visit in place, so returning
+   to the list does not make the entries jump. A feed-provided discussion link
+   (for example Hacker News comments) remains available beside **Original**.
 5. **Send to Kindle** builds an EPUB and emails it; `sent_at` is recorded only after SMTP succeeds.
-   Sending returns to where you started, so sending from the list does not open the article.
+   With JavaScript available it sends in place, without reloading or moving the
+   current page; the normal form submission remains as a no-JavaScript fallback.
 
 ### How much gets loaded
 

@@ -21,6 +21,7 @@ public class FeedRepository {
             rs.getString("title"),
             rs.getString("url"),
             rs.getString("site_url"),
+            rs.getString("category"),
             rs.getString("last_error"),
             toInstant(rs.getTimestamp("created_at")),
             toInstant(rs.getTimestamp("updated_at")),
@@ -32,6 +33,7 @@ public class FeedRepository {
             rs.getString("title"),
             rs.getString("url"),
             rs.getString("site_url"),
+            rs.getString("category"),
             rs.getString("last_error"),
             toInstant(rs.getTimestamp("created_at")),
             toInstant(rs.getTimestamp("updated_at"))
@@ -53,13 +55,14 @@ public class FeedRepository {
                     WHERE read = FALSE
                     GROUP BY feed_id
                 ) u ON u.feed_id = f.id
-                ORDER BY f.title ASC
+                ORDER BY COALESCE(NULLIF(f.category, ''), 'Uncategorized') ASC, f.title ASC
                 """, MAPPER);
     }
 
     public List<Feed> findAll() {
         return jdbc.query("""
-                SELECT * FROM feeds ORDER BY title ASC
+                SELECT * FROM feeds
+                ORDER BY COALESCE(NULLIF(category, ''), 'Uncategorized') ASC, title ASC
                 """, SIMPLE_MAPPER);
     }
 
@@ -78,15 +81,20 @@ public class FeedRepository {
     }
 
     public Feed insert(String title, String url, String siteUrl) {
+        return insert(title, url, siteUrl, null);
+    }
+
+    public Feed insert(String title, String url, String siteUrl, String category) {
         KeyHolder keyHolder = new GeneratedKeyHolder();
         jdbc.update(con -> {
             PreparedStatement ps = con.prepareStatement("""
-                    INSERT INTO feeds (title, url, site_url)
-                    VALUES (?, ?, ?)
+                    INSERT INTO feeds (title, url, site_url, category)
+                    VALUES (?, ?, ?, ?)
                     """, new String[]{"id"});
             ps.setString(1, title);
             ps.setString(2, url);
             ps.setString(3, siteUrl);
+            ps.setString(4, normalizeCategory(category));
             return ps;
         }, keyHolder);
         Number key = keyHolder.getKey();
@@ -100,6 +108,12 @@ public class FeedRepository {
         jdbc.update("""
                 UPDATE feeds SET title = ?, site_url = ?, updated_at = NOW() WHERE id = ?
                 """, title, siteUrl, id);
+    }
+
+    public boolean updateCategory(long id, String category) {
+        return jdbc.update("""
+                UPDATE feeds SET category = ?, updated_at = NOW() WHERE id = ?
+                """, normalizeCategory(category), id) > 0;
     }
 
     public void clearError(long id) {
@@ -121,5 +135,12 @@ public class FeedRepository {
 
     private static Instant toInstant(Timestamp ts) {
         return ts == null ? null : ts.toInstant();
+    }
+
+    private static String normalizeCategory(String category) {
+        if (category == null || category.isBlank()) {
+            return null;
+        }
+        return category.trim().substring(0, Math.min(category.trim().length(), 100));
     }
 }

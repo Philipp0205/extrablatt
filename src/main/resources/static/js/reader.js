@@ -249,6 +249,54 @@
     }, 250);
   }
 
+  /*
+   * Sending can take several seconds while the EPUB is built and SMTP responds.
+   * Keep the current document and reader position in place instead of following
+   * the form's redirect and laying the whole screen out again.
+   */
+  function enableAsyncSending() {
+    if (!window.fetch || !window.FormData) {
+      return;
+    }
+    var forms = document.querySelectorAll('[data-send-form]');
+    for (var i = 0; i < forms.length; i++) {
+      (function (form) {
+        on(form, 'submit', function (event) {
+          var url = form.getAttribute('data-send-url');
+          var button = form.querySelector('button[type="submit"]');
+          if (!url || !button || button.disabled) {
+            return;
+          }
+          if (event.preventDefault) {
+            event.preventDefault();
+          }
+          button.style.width = button.offsetWidth + 'px';
+          button.disabled = true;
+          var originalLabel = button.textContent;
+          button.textContent = 'Sending…';
+          window.fetch(url, {
+            method: 'POST',
+            credentials: 'same-origin',
+            body: new window.FormData(form),
+            headers: {'Accept': 'application/json'}
+          }).then(function (response) {
+            return response.json().catch(function () { return {}; }).then(function (data) {
+              if (!response.ok) {
+                throw new Error(data.error || 'Could not send article');
+              }
+              button.textContent = 'Sent';
+            });
+          }).catch(function (error) {
+            button.disabled = false;
+            button.textContent = originalLabel;
+            button.style.width = '';
+            window.alert(error.message || 'Could not send article');
+          });
+        });
+      })(forms[i]);
+    }
+  }
+
   /* Turns paging on and shows the page that pickPage() asks for once the columns
      have been measured. The .paged class has to go on before measuring, because
      the pager only takes up room while it is visible. */
@@ -280,6 +328,7 @@
   }
 
   function start() {
+    enableAsyncSending();
     if (prevButton) {
       on(prevButton, 'click', function () { turn(-1); });
     }

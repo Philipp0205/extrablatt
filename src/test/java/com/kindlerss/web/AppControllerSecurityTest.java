@@ -18,6 +18,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
+import java.time.Instant;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.not;
@@ -288,18 +289,28 @@ class AppControllerSecurityTest {
     @Test
     @WithMockUser(username = "kindle")
     void listEntriesOpenThroughTheirTitleAndSendBackToTheList() throws Exception {
-        when(articleService.findPage(isNull(), eq(Boolean.TRUE), eq(1), eq(20)))
+        when(articleService.findPage(isNull(), isNull(), eq(Boolean.TRUE),
+                eq(Instant.ofEpochMilli(100)), eq(1), eq(20)))
                 .thenReturn(List.of(new Article(4L, 1L, "guid-4", "Article 4", null, null,
                         null, null, null, null, false, null, null, null, "Example Feed")));
-        when(articleService.count(isNull(), eq(Boolean.TRUE))).thenReturn(1L);
+        when(articleService.count(isNull(), isNull(), eq(Boolean.TRUE), eq(Instant.ofEpochMilli(100))))
+                .thenReturn(1L);
         when(feedService.listFeeds()).thenReturn(List.of());
 
-        mockMvc.perform(get("/items").param("unread", "true"))
+        mockMvc.perform(get("/items").param("unread", "true").param("snapshot", "100"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("<a class=\"item-title\" href=\"/articles/4\">")))
                 .andExpect(content().string(not(containsString(">Read</a>"))))
                 .andExpect(content().string(containsString(
-                        "name=\"redirect\" value=\"/items?page=1&amp;unread=true\"")));
+                        "name=\"redirect\" value=\"/items?page=1&amp;unread=true&amp;snapshot=100\"")));
+    }
+
+    @Test
+    @WithMockUser(username = "kindle")
+    void unreadListGetsAStableSnapshotBeforeItIsShown() throws Exception {
+        mockMvc.perform(get("/items").param("feed", "5").param("unread", "true"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrlPattern("/items?page=1&feed=5&unread=true&snapshot=*"));
     }
 
     @Test
@@ -319,6 +330,17 @@ class AppControllerSecurityTest {
         mockMvc.perform(post("/articles/4/send").with(csrf()).param("images", "true"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/articles/4?images=true"));
+    }
+
+    @Test
+    @WithMockUser(username = "kindle")
+    void articleCanBeSentWithoutAFullPageRedirect() throws Exception {
+        mockMvc.perform(post("/articles/4/send-async").with(csrf()))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith("application/json"))
+                .andExpect(content().string(containsString("Sent to Kindle")));
+
+        verify(kindleMailService).sendToKindle(4L, false);
     }
 
     @Test

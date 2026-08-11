@@ -53,6 +53,11 @@ public class ArticleRepository {
     }
 
     public List<Article> findPage(Long feedId, Boolean unreadOnly, int limit, int offset) {
+        return findPage(feedId, null, unreadOnly, null, limit, offset);
+    }
+
+    public List<Article> findPage(Long feedId, String category, Boolean unreadOnly, Instant unreadSnapshot,
+                                  int limit, int offset) {
         StringBuilder sql = new StringBuilder("""
                 SELECT a.*, f.title AS feed_title
                 FROM articles a
@@ -64,8 +69,17 @@ public class ArticleRepository {
             sql.append(" AND a.feed_id = ?");
             args.add(feedId);
         }
+        if (category != null && !category.isBlank()) {
+            sql.append(" AND f.category = ?");
+            args.add(category);
+        }
         if (Boolean.TRUE.equals(unreadOnly)) {
-            sql.append(" AND a.read = FALSE");
+            sql.append(" AND (a.read = FALSE");
+            if (unreadSnapshot != null) {
+                sql.append(" OR a.read_at >= ?");
+                args.add(Timestamp.from(unreadSnapshot));
+            }
+            sql.append(")");
         }
         sql.append(" ORDER BY a.published_at DESC NULLS LAST, a.id DESC LIMIT ? OFFSET ?");
         args.add(limit);
@@ -74,14 +88,31 @@ public class ArticleRepository {
     }
 
     public long count(Long feedId, Boolean unreadOnly) {
-        StringBuilder sql = new StringBuilder("SELECT COUNT(*) FROM articles a WHERE 1=1");
+        return count(feedId, null, unreadOnly, null);
+    }
+
+    public long count(Long feedId, String category, Boolean unreadOnly, Instant unreadSnapshot) {
+        StringBuilder sql = new StringBuilder("""
+                SELECT COUNT(*) FROM articles a
+                JOIN feeds f ON f.id = a.feed_id
+                WHERE 1=1
+                """);
         var args = new java.util.ArrayList<>();
         if (feedId != null) {
             sql.append(" AND a.feed_id = ?");
             args.add(feedId);
         }
+        if (category != null && !category.isBlank()) {
+            sql.append(" AND f.category = ?");
+            args.add(category);
+        }
         if (Boolean.TRUE.equals(unreadOnly)) {
-            sql.append(" AND a.read = FALSE");
+            sql.append(" AND (a.read = FALSE");
+            if (unreadSnapshot != null) {
+                sql.append(" OR a.read_at >= ?");
+                args.add(Timestamp.from(unreadSnapshot));
+            }
+            sql.append(")");
         }
         Long count = jdbc.queryForObject(sql.toString(), Long.class, args.toArray());
         return count == null ? 0 : count;
@@ -127,8 +158,10 @@ public class ArticleRepository {
 
     public void markRead(long id, boolean read) {
         jdbc.update("""
-                UPDATE articles SET read = ?, updated_at = NOW() WHERE id = ?
-                """, read, id);
+                UPDATE articles
+                SET read = ?, read_at = CASE WHEN ? THEN NOW() ELSE NULL END, updated_at = NOW()
+                WHERE id = ?
+                """, read, read, id);
     }
 
     /** Returns how many articles actually changed state. */
@@ -137,12 +170,14 @@ public class ArticleRepository {
             return 0;
         }
         String placeholders = String.join(",", Collections.nCopies(ids.size(), "?"));
-        var args = new java.util.ArrayList<Object>(ids.size() + 2);
+        var args = new java.util.ArrayList<Object>(ids.size() + 3);
+        args.add(read);
         args.add(read);
         args.addAll(ids);
         args.add(read);
         return jdbc.update("""
-                UPDATE articles SET read = ?, updated_at = NOW()
+                UPDATE articles
+                SET read = ?, read_at = CASE WHEN ? THEN NOW() ELSE NULL END, updated_at = NOW()
                 WHERE id IN (%s) AND read <> ?
                 """.formatted(placeholders), args.toArray());
     }

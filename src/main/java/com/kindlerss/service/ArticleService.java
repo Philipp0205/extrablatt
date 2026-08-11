@@ -3,6 +3,8 @@ package com.kindlerss.service;
 import com.kindlerss.domain.Article;
 import com.kindlerss.repository.ArticleRepository;
 import net.dankito.readability4j.Readability4J;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Element;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -11,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.time.Instant;
 
 @Service
 public class ArticleService {
@@ -34,14 +37,23 @@ public class ArticleService {
     }
 
     public List<Article> findPage(Long feedId, Boolean unreadOnly, int page, int pageSize) {
+        return findPage(feedId, null, unreadOnly, null, page, pageSize);
+    }
+
+    public List<Article> findPage(Long feedId, String category, Boolean unreadOnly, Instant unreadSnapshot,
+                                  int page, int pageSize) {
         int safePage = Math.max(page, 1);
         int safeSize = Math.min(Math.max(pageSize, 1), 100);
         int offset = (safePage - 1) * safeSize;
-        return articleRepository.findPage(feedId, unreadOnly, safeSize, offset);
+        return articleRepository.findPage(feedId, category, unreadOnly, unreadSnapshot, safeSize, offset);
     }
 
     public long count(Long feedId, Boolean unreadOnly) {
-        return articleRepository.count(feedId, unreadOnly);
+        return count(feedId, null, unreadOnly, null);
+    }
+
+    public long count(Long feedId, String category, Boolean unreadOnly, Instant unreadSnapshot) {
+        return articleRepository.count(feedId, category, unreadOnly, unreadSnapshot);
     }
 
     @Transactional
@@ -66,6 +78,25 @@ public class ArticleService {
     public String getContentHtml(Article article, boolean includeImages) {
         String raw = resolveRawContent(article);
         return sanitizer.sanitize(raw, includeImages);
+    }
+
+    /**
+     * Feed metadata sometimes carries a discussion link that does not exist on the
+     * linked article itself (notably Hacker News). Keep that route available even
+     * when Readability replaces the feed summary with the full source article.
+     */
+    public Optional<String> findCommentsUrl(Article article) {
+        String html = (article.feedContentHtml() == null ? "" : article.feedContentHtml())
+                + (article.summaryHtml() == null ? "" : article.summaryHtml());
+        for (Element link : Jsoup.parseBodyFragment(html).select("a[href]")) {
+            String href = link.attr("href").trim();
+            String text = link.text().toLowerCase();
+            if ((text.contains("comment") || href.matches("https?://news\\.ycombinator\\.com/item\\?id=\\d+.*"))
+                    && (href.startsWith("https://") || href.startsWith("http://"))) {
+                return Optional.of(href);
+            }
+        }
+        return Optional.empty();
     }
 
     private String resolveRawContent(Article article) {

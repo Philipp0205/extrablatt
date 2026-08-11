@@ -37,14 +37,33 @@
     <label for="url">Feed or homepage URL</label>
     <div class="row">
       <input id="url" name="url" type="url" required placeholder="https://example.com/feed.xml"/>
+      <input id="category" name="category" type="text" placeholder="Category (optional)"/>
       <button class="btn" type="submit">Add</button>
     </div>
   </form>
 
+  <div th:if="${!#lists.isEmpty(defaultFeeds)}">
+    <h2>Quick start</h2>
+    <p class="meta">Choose any suggested feeds you want. Nothing is added automatically.</p>
+    <form th:action="@{/feeds/defaults}" method="post">
+      <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+      <label class="check" th:each="suggestion : ${defaultFeeds}">
+        <input type="checkbox" name="feed" th:value="${suggestion.key}"/>
+        <span>
+          <strong th:text="${suggestion.title}">Suggested feed</strong>
+          <span class="meta" th:text="' · ' + ${suggestion.category}"> · Category</span>
+        </span>
+      </label>
+      <button class="btn" type="submit">Add selected feeds</button>
+    </form>
+  </div>
+
   <h2>Your feeds</h2>
   <p th:if="${#lists.isEmpty(feeds)}" class="muted">No feeds yet.</p>
-  <ul class="feed-list" th:if="${!#lists.isEmpty(feeds)}">
-    <li th:each="feed : ${feeds}">
+  <section th:each="group : ${feedGroups}" class="feed-group">
+    <h3 th:text="${group.key}">Category</h3>
+    <ul class="feed-list">
+    <li th:each="feed : ${group.value}">
       <div>
         <a th:href="@{/items(feed=${feed.id})}" th:text="${feed.title}">Title</a>
         <span class="badge" th:text="${feed.unreadCount}">0</span>
@@ -57,13 +76,19 @@
       </div>
       <div class="actions">
         <a class="btn" th:href="@{/items(feed=${feed.id}, unread=true)}">Unread</a>
+        <form class="inline category-form" th:action="@{/feeds/{id}/category(id=${feed.id})}" method="post">
+          <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+          <input name="category" type="text" th:value="${feed.category}" placeholder="Category"/>
+          <button type="submit">Save category</button>
+        </form>
         <form class="inline" th:action="@{/feeds/{id}/delete(id=${feed.id})}" method="post">
           <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
           <button type="submit">Delete</button>
         </form>
       </div>
     </li>
-  </ul>
+    </ul>
+  </section>
 
   <footer class="build-info">
     Version <span th:text="${appVersion.number}">development build</span> ·
