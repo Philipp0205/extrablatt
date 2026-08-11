@@ -1,0 +1,27 @@
+package com.kindlerss.web;
+
+import com.kindlerss.security.AppUserDetails;
+import com.kindlerss.security.CurrentUser;
+import org.springframework.web.bind.annotation.ControllerAdvice;
+import org.springframework.web.bind.annotation.ModelAttribute;
+
+/** Publishes the signed-in account's e-mail and verification status to every view. */
+@ControllerAdvice(assignableTypes = {AppController.class, SettingsController.class})
+public class AccountAdvice {
+
+    private final CurrentUser currentUser;
+
+    public AccountAdvice(CurrentUser currentUser) {
+        this.currentUser = currentUser;
+    }
+
+    @ModelAttribute("accountEmail")
+    public String accountEmail() {
+        return currentUser.details().map(AppUserDetails::getUsername).orElse(null);
+    }
+
+    @ModelAttribute("emailVerified")
+    public boolean emailVerified() {
+        return currentUser.details().map(AppUserDetails::emailVerified).orElse(false);
+    }
+}

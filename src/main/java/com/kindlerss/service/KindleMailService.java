@@ -1,8 +1,10 @@
 package com.kindlerss.service;
 
 import com.kindlerss.config.AppProperties;
+import com.kindlerss.domain.AppUser;
 import com.kindlerss.domain.Article;
 import com.kindlerss.repository.ArticleRepository;
+import com.kindlerss.repository.UserRepository;
 import jakarta.mail.internet.MimeMessage;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.mail.javamail.JavaMailSender;
@@ -11,9 +13,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Locale;
 
-/** Builds an EPUB from an article and emails it to the configured Kindle address. */
+/**
+ * Builds an EPUB from an article and emails it to the account's Kindle address.
+ * The {@code From} address is the shared, provider-verified sender; each user adds
+ * it to their Amazon "Approved Personal Document E-mail List".
+ */
 @Service
 public class KindleMailService {
 
@@ -21,23 +28,34 @@ public class KindleMailService {
     private final EpubService epubService;
     private final ArticleService articleService;
     private final ArticleRepository articleRepository;
+    private final UserRepository userRepository;
     private final AppProperties properties;
+    private final int maxSendsPerDay;
 
     public KindleMailService(JavaMailSender mailSender,
                              EpubService epubService,
                              ArticleService articleService,
                              ArticleRepository articleRepository,
+                             UserRepository userRepository,
                              AppProperties properties) {
         this.mailSender = mailSender;
         this.epubService = epubService;
         this.articleService = articleService;
         this.articleRepository = articleRepository;
+        this.userRepository = userRepository;
         this.properties = properties;
+        this.maxSendsPerDay = properties.limits().maxSendsPerDay();
     }
 
-    public void sendToKindle(long articleId, boolean includeImages) {
-        requireMailConfig();
-        Article article = articleRepository.findById(articleId)
+    public void sendToKindle(long userId, long articleId, boolean includeImages) {
+        AppUser user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalStateException("Account not found"));
+        requireSenderConfig();
+        requireVerified(user);
+        String kindleEmail = requireKindleEmail(user);
+        requireWithinDailyQuota(userId);
+
+        Article article = articleRepository.findById(userId, articleId)
                 .orElseThrow(() -> new ArticleService.NotFoundException("Article not found"));
 
         String html = articleService.getContentHtml(article, includeImages);
@@ -49,7 +67,7 @@ public class KindleMailService {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
             helper.setFrom(properties.mailFrom());
-            helper.setTo(properties.kindleEmail());
+            helper.setTo(kindleEmail);
             helper.setSubject(article.title());
             helper.setText("Sent by Kindle RSS", false);
             helper.addAttachment(filename, new ByteArrayResource(epub) {
@@ -64,12 +82,33 @@ public class KindleMailService {
         }
 
         articleRepository.markSent(articleId, Instant.now());
-        articleRepository.markRead(articleId, true);
+        articleRepository.markRead(userId, articleId, true);
     }
 
-    private void requireMailConfig() {
-        if (!StringUtils.hasText(properties.kindleEmail()) || !StringUtils.hasText(properties.mailFrom())) {
-            throw new IllegalStateException("KINDLE_EMAIL and MAIL_FROM must be configured");
+    private void requireSenderConfig() {
+        if (!StringUtils.hasText(properties.mailFrom())) {
+            throw new IllegalStateException("Sending is not configured yet (MAIL_FROM missing)");
+        }
+    }
+
+    private void requireVerified(AppUser user) {
+        if (!user.emailVerified()) {
+            throw new IllegalStateException("Verify your e-mail address before sending to Kindle");
+        }
+    }
+
+    private String requireKindleEmail(AppUser user) {
+        if (!StringUtils.hasText(user.kindleEmail())) {
+            throw new IllegalStateException("Add your Kindle e-mail address in Settings first");
+        }
+        return user.kindleEmail();
+    }
+
+    private void requireWithinDailyQuota(long userId) {
+        Instant dayAgo = Instant.now().minus(1, ChronoUnit.DAYS);
+        if (articleRepository.countSentSince(userId, dayAgo) >= maxSendsPerDay) {
+            throw new IllegalStateException(
+                    "Daily send limit reached (" + maxSendsPerDay + "). Try again later.");
         }
     }
 

@@ -33,42 +33,42 @@ public class ArticleService {
         this.sanitizer = sanitizer;
     }
 
-    public Optional<Article> findById(long id) {
-        return articleRepository.findById(id);
+    public Optional<Article> findById(long userId, long id) {
+        return articleRepository.findById(userId, id);
     }
 
-    public List<Article> findPage(Long feedId, Boolean unreadOnly, int page, int pageSize) {
-        return findPage(feedId, null, unreadOnly, null, page, pageSize);
+    public List<Article> findPage(long userId, Long feedId, Boolean unreadOnly, int page, int pageSize) {
+        return findPage(userId, feedId, null, unreadOnly, null, page, pageSize);
     }
 
-    public List<Article> findPage(Long feedId, String category, Boolean unreadOnly, Instant unreadSnapshot,
-                                  int page, int pageSize) {
+    public List<Article> findPage(long userId, Long feedId, String category, Boolean unreadOnly,
+                                  Instant unreadSnapshot, int page, int pageSize) {
         int safePage = Math.max(page, 1);
         int safeSize = Math.min(Math.max(pageSize, 1), 100);
         int offset = (safePage - 1) * safeSize;
-        return articleRepository.findPage(feedId, category, unreadOnly, unreadSnapshot, safeSize, offset);
+        return articleRepository.findPage(userId, feedId, category, unreadOnly, unreadSnapshot, safeSize, offset);
     }
 
-    public long count(Long feedId, Boolean unreadOnly) {
-        return count(feedId, null, unreadOnly, null);
+    public long count(long userId, Long feedId, Boolean unreadOnly) {
+        return count(userId, feedId, null, unreadOnly, null);
     }
 
-    public long count(Long feedId, String category, Boolean unreadOnly, Instant unreadSnapshot) {
-        return articleRepository.count(feedId, category, unreadOnly, unreadSnapshot);
+    public long count(long userId, Long feedId, String category, Boolean unreadOnly, Instant unreadSnapshot) {
+        return articleRepository.count(userId, feedId, category, unreadOnly, unreadSnapshot);
     }
 
     @Transactional
-    public Article markRead(long id, boolean read) {
-        Article article = articleRepository.findById(id)
+    public Article markRead(long userId, long id, boolean read) {
+        Article article = articleRepository.findById(userId, id)
                 .orElseThrow(() -> new NotFoundException("Article not found"));
-        articleRepository.markRead(id, read);
-        return articleRepository.findById(id).orElse(article);
+        articleRepository.markRead(userId, id, read);
+        return articleRepository.findById(userId, id).orElse(article);
     }
 
     /** Returns how many of the given articles actually changed state. */
     @Transactional
-    public int markRead(Collection<Long> ids, boolean read) {
-        return articleRepository.markRead(ids, read);
+    public int markRead(long userId, Collection<Long> ids, boolean read) {
+        return articleRepository.markRead(userId, ids, read);
     }
 
     /**

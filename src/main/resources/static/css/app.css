@@ -116,6 +116,16 @@ button[disabled], button[disabled]:hover, button[disabled]:focus {
   cursor: default;
 }
 
+.btn.danger {
+  border-color: #a00;
+  color: #a00;
+}
+
+.btn.danger:hover, .btn.danger:focus {
+  background: #a00;
+  color: #fff;
+}
+
 /* Inline forms hold a single button; they must not add a line box of their own,
    otherwise the button sits lower than the links beside it. */
 form.inline {

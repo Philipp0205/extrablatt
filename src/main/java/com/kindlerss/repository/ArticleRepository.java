@@ -16,7 +16,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
-/** JDBC persistence for articles. */
+/** JDBC persistence for articles, scoped to the owning account through feeds. */
 @Repository
 public class ArticleRepository {
 
@@ -44,29 +44,30 @@ public class ArticleRepository {
         this.jdbc = jdbc;
     }
 
-    public Optional<Article> findById(long id) {
+    public Optional<Article> findById(long userId, long id) {
         var list = jdbc.query("""
                 SELECT a.*, f.title AS feed_title
                 FROM articles a
                 JOIN feeds f ON f.id = a.feed_id
-                WHERE a.id = ?
-                """, MAPPER, id);
+                WHERE a.id = ? AND f.user_id = ?
+                """, MAPPER, id, userId);
         return list.stream().findFirst();
     }
 
-    public List<Article> findPage(Long feedId, Boolean unreadOnly, int limit, int offset) {
-        return findPage(feedId, null, unreadOnly, null, limit, offset);
+    public List<Article> findPage(long userId, Long feedId, Boolean unreadOnly, int limit, int offset) {
+        return findPage(userId, feedId, null, unreadOnly, null, limit, offset);
     }
 
-    public List<Article> findPage(Long feedId, String category, Boolean unreadOnly, Instant unreadSnapshot,
-                                  int limit, int offset) {
+    public List<Article> findPage(long userId, Long feedId, String category, Boolean unreadOnly,
+                                  Instant unreadSnapshot, int limit, int offset) {
         StringBuilder sql = new StringBuilder("""
                 SELECT a.*, f.title AS feed_title
                 FROM articles a
                 JOIN feeds f ON f.id = a.feed_id
-                WHERE 1=1
+                WHERE f.user_id = ?
                 """);
         var args = new java.util.ArrayList<>();
+        args.add(userId);
         if (feedId != null) {
             sql.append(" AND a.feed_id = ?");
             args.add(feedId);
@@ -86,17 +87,18 @@ public class ArticleRepository {
         return jdbc.query(sql.toString(), MAPPER, args.toArray());
     }
 
-    public long count(Long feedId, Boolean unreadOnly) {
-        return count(feedId, null, unreadOnly, null);
+    public long count(long userId, Long feedId, Boolean unreadOnly) {
+        return count(userId, feedId, null, unreadOnly, null);
     }
 
-    public long count(Long feedId, String category, Boolean unreadOnly, Instant unreadSnapshot) {
+    public long count(long userId, Long feedId, String category, Boolean unreadOnly, Instant unreadSnapshot) {
         StringBuilder sql = new StringBuilder("""
                 SELECT COUNT(*) FROM articles a
                 JOIN feeds f ON f.id = a.feed_id
-                WHERE 1=1
+                WHERE f.user_id = ?
                 """);
         var args = new java.util.ArrayList<>();
+        args.add(userId);
         if (feedId != null) {
             sql.append(" AND a.feed_id = ?");
             args.add(feedId);
@@ -152,29 +154,31 @@ public class ArticleRepository {
                 """, extractedHtml, id);
     }
 
-    public void markRead(long id, boolean read) {
+    public void markRead(long userId, long id, boolean read) {
         jdbc.update("""
                 UPDATE articles
                 SET read = ?, read_at = CASE WHEN ? THEN NOW() ELSE NULL END, updated_at = NOW()
-                WHERE id = ?
-                """, read, read, id);
+                WHERE id = ? AND feed_id IN (SELECT id FROM feeds WHERE user_id = ?)
+                """, read, read, id, userId);
     }
 
-    /** Returns how many articles actually changed state. */
-    public int markRead(Collection<Long> ids, boolean read) {
+    /** Returns how many of the account's articles actually changed state. */
+    public int markRead(long userId, Collection<Long> ids, boolean read) {
         if (ids == null || ids.isEmpty()) {
             return 0;
         }
         String placeholders = String.join(",", Collections.nCopies(ids.size(), "?"));
-        var args = new java.util.ArrayList<Object>(ids.size() + 3);
+        var args = new java.util.ArrayList<Object>(ids.size() + 4);
         args.add(read);
         args.add(read);
         args.addAll(ids);
         args.add(read);
+        args.add(userId);
         return jdbc.update("""
                 UPDATE articles
                 SET read = ?, read_at = CASE WHEN ? THEN NOW() ELSE NULL END, updated_at = NOW()
                 WHERE id IN (%s) AND read <> ?
+                AND feed_id IN (SELECT id FROM feeds WHERE user_id = ?)
                 """.formatted(placeholders), args.toArray());
     }
 
@@ -182,6 +186,16 @@ public class ArticleRepository {
         jdbc.update("""
                 UPDATE articles SET sent_at = ?, updated_at = NOW() WHERE id = ?
                 """, Timestamp.from(sentAt), id);
+    }
+
+    /** How many articles an account has sent to Kindle since a moment in time. */
+    public long countSentSince(long userId, Instant since) {
+        Long count = jdbc.queryForObject("""
+                SELECT COUNT(*) FROM articles a
+                JOIN feeds f ON f.id = a.feed_id
+                WHERE f.user_id = ? AND a.sent_at >= ?
+                """, Long.class, userId, Timestamp.from(since));
+        return count == null ? 0 : count;
     }
 
     /** Feeds without a category of their own are browsed under one shared name. */

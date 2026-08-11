@@ -3,6 +3,7 @@ package com.kindlerss.web;
 import com.kindlerss.config.AppProperties;
 import com.kindlerss.domain.Article;
 import com.kindlerss.domain.Feed;
+import com.kindlerss.security.CurrentUser;
 import com.kindlerss.service.ArticleService;
 import com.kindlerss.service.FeedService;
 import com.kindlerss.service.KindleMailService;
@@ -40,21 +41,25 @@ public class AppController {
     private final FeedService feedService;
     private final ArticleService articleService;
     private final KindleMailService kindleMailService;
+    private final CurrentUser currentUser;
     private final int pageSize;
 
     public AppController(FeedService feedService,
                          ArticleService articleService,
                          KindleMailService kindleMailService,
+                         CurrentUser currentUser,
                          AppProperties properties) {
         this.feedService = feedService;
         this.articleService = articleService;
         this.kindleMailService = kindleMailService;
+        this.currentUser = currentUser;
         this.pageSize = properties.articles().pageSize();
     }
 
     @GetMapping("/")
     public String home(Model model) {
-        List<Feed> feeds = feedService.listFeeds();
+        long userId = currentUser.requireId();
+        List<Feed> feeds = feedService.listFeeds(userId);
         long totalUnread = feeds.stream().mapToLong(Feed::unreadCount).sum();
         model.addAttribute("feeds", feeds);
         Map<String, List<Feed>> feedGroups = new LinkedHashMap<>();
@@ -62,7 +67,7 @@ public class AppController {
             feedGroups.computeIfAbsent(feed.categoryName(), ignored -> new ArrayList<>()).add(feed);
         }
         model.addAttribute("feedGroups", feedGroups);
-        model.addAttribute("defaultFeeds", feedService.defaultFeeds());
+        model.addAttribute("defaultFeeds", feedService.defaultFeeds(userId));
         model.addAttribute("totalUnread", totalUnread);
         return "index";
     }
@@ -72,7 +77,7 @@ public class AppController {
                           @RequestParam(value = "category", required = false) String category,
                           RedirectAttributes redirectAttributes) {
         try {
-            Feed feed = feedService.addFeed(url, category);
+            Feed feed = feedService.addFeed(currentUser.requireId(), url, category);
             redirectAttributes.addFlashAttribute("message", "Added feed: " + feed.title());
         } catch (Exception e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
@@ -87,6 +92,7 @@ public class AppController {
             redirectAttributes.addFlashAttribute("error", "Choose at least one suggested feed");
             return "redirect:/";
         }
+        long userId = currentUser.requireId();
         int added = 0;
         java.util.ArrayList<String> errors = new java.util.ArrayList<>();
         for (String key : keys) {
@@ -97,7 +103,7 @@ public class AppController {
             }
             try {
                 var feed = suggestion.get();
-                feedService.addFeed(feed.url(), feed.category());
+                feedService.addFeed(userId, feed.url(), feed.category());
                 added++;
             } catch (Exception e) {
                 errors.add(suggestion.get().title() + ": " + e.getMessage());
@@ -117,7 +123,7 @@ public class AppController {
     public String categorizeFeed(@PathVariable("id") long id,
                                  @RequestParam(value = "category", required = false) String category,
                                  RedirectAttributes redirectAttributes) {
-        if (feedService.categorizeFeed(id, category)) {
+        if (feedService.categorizeFeed(currentUser.requireId(), id, category)) {
             redirectAttributes.addFlashAttribute("message", "Feed category updated");
         } else {
             redirectAttributes.addFlashAttribute("error", "Feed not found");
@@ -127,7 +133,7 @@ public class AppController {
 
     @PostMapping("/feeds/{id}/delete")
     public String deleteFeed(@PathVariable("id") long id, RedirectAttributes redirectAttributes) {
-        if (!feedService.deleteFeed(id)) {
+        if (!feedService.deleteFeed(currentUser.requireId(), id)) {
             redirectAttributes.addFlashAttribute("error", "Feed not found");
         } else {
             redirectAttributes.addFlashAttribute("message", "Feed deleted");
@@ -138,7 +144,7 @@ public class AppController {
     @PostMapping("/refresh")
     public String refresh(RedirectAttributes redirectAttributes) {
         try {
-            feedService.refreshAll();
+            feedService.refreshForUser(currentUser.requireId());
             redirectAttributes.addFlashAttribute("message", "Feeds refreshed");
         } catch (Exception e) {
             redirectAttributes.addFlashAttribute("error", "Refresh failed: " + e.getMessage());
@@ -153,7 +159,8 @@ public class AppController {
                         @RequestParam(value = "snapshot", required = false) Long snapshot,
                         @RequestParam(value = "page", defaultValue = "1") int page,
                         Model model) {
-        if (feedId != null && feedService.findById(feedId).isEmpty()) {
+        long userId = currentUser.requireId();
+        if (feedId != null && feedService.findById(userId, feedId).isEmpty()) {
             throw new ArticleService.NotFoundException("Feed not found");
         }
         Boolean unreadOnly = Boolean.TRUE.equals(unread) ? Boolean.TRUE : null;
@@ -164,18 +171,18 @@ public class AppController {
         Instant unreadSnapshot = Boolean.TRUE.equals(unread) && snapshot != null
                 ? Instant.ofEpochMilli(Math.min(snapshot, System.currentTimeMillis())) : null;
         long total = category == null && unreadSnapshot == null
-                ? articleService.count(feedId, unreadOnly)
-                : articleService.count(feedId, category, unreadOnly, unreadSnapshot);
+                ? articleService.count(userId, feedId, unreadOnly)
+                : articleService.count(userId, feedId, category, unreadOnly, unreadSnapshot);
         int totalPages = (int) Math.max(1, (total + pageSize - 1) / pageSize);
         // Marking a page read shrinks an unread list, so a page number can end up
         // past the end; show the last page rather than an empty one.
         int safePage = Math.min(Math.max(page, 1), totalPages);
         List<Article> articles = category == null && unreadSnapshot == null
-                ? articleService.findPage(feedId, unreadOnly, safePage, pageSize)
-                : articleService.findPage(feedId, category, unreadOnly, unreadSnapshot, safePage, pageSize);
+                ? articleService.findPage(userId, feedId, unreadOnly, safePage, pageSize)
+                : articleService.findPage(userId, feedId, category, unreadOnly, unreadSnapshot, safePage, pageSize);
 
         model.addAttribute("articles", articles);
-        addFilterBar(model, feedService.listFeeds(), feedId, category, Boolean.TRUE.equals(unread));
+        addFilterBar(model, feedService.listFeeds(userId), feedId, category, Boolean.TRUE.equals(unread));
         model.addAttribute("feedId", feedId);
         model.addAttribute("category", category);
         model.addAttribute("unread", Boolean.TRUE.equals(unread));
@@ -285,7 +292,8 @@ public class AppController {
                           @RequestParam(value = "page", defaultValue = "1") int page,
                           @RequestParam(value = "id", required = false) List<Long> ids,
                           RedirectAttributes redirectAttributes) {
-        int marked = ids == null || ids.isEmpty() ? 0 : articleService.markRead(ids, true);
+        int marked = ids == null || ids.isEmpty() ? 0
+                : articleService.markRead(currentUser.requireId(), ids, true);
         redirectAttributes.addFlashAttribute("message", marked == 0
                 ? "Nothing left to mark as read"
                 : marked == 1 ? "1 article marked as read" : marked + " articles marked as read");
@@ -321,11 +329,12 @@ public class AppController {
     public String article(@PathVariable("id") long id,
                           @RequestParam(value = "images", defaultValue = "false") boolean images,
                           Model model) {
-        Article article = articleService.findById(id)
+        long userId = currentUser.requireId();
+        Article article = articleService.findById(userId, id)
                 .orElseThrow(() -> new ArticleService.NotFoundException("Article not found"));
         if (!article.read()) {
-            articleService.markRead(id, true);
-            article = articleService.findById(id).orElse(article);
+            articleService.markRead(userId, id, true);
+            article = articleService.findById(userId, id).orElse(article);
         }
         String contentHtml = articleService.getContentHtml(article, images);
         model.addAttribute("article", article);
@@ -343,7 +352,7 @@ public class AppController {
                            @RequestParam(value = "redirect", defaultValue = "/items") String redirect,
                            RedirectAttributes redirectAttributes) {
         try {
-            articleService.markRead(id, read);
+            articleService.markRead(currentUser.requireId(), id, read);
             redirectAttributes.addFlashAttribute("message", read ? "Marked as read" : "Marked as unread");
         } catch (ArticleService.NotFoundException e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
@@ -366,7 +375,7 @@ public class AppController {
                 ? "/articles/" + id + (images ? "?images=true" : "")
                 : safeRedirect(redirect);
         try {
-            kindleMailService.sendToKindle(id, images);
+            kindleMailService.sendToKindle(currentUser.requireId(), id, images);
             redirectAttributes.addFlashAttribute("message", "Sent to Kindle");
         } catch (ArticleService.NotFoundException e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
@@ -382,7 +391,7 @@ public class AppController {
             @PathVariable("id") long id,
             @RequestParam(value = "images", defaultValue = "false") boolean images) {
         try {
-            kindleMailService.sendToKindle(id, images);
+            kindleMailService.sendToKindle(currentUser.requireId(), id, images);
             return ResponseEntity.ok(Map.of("message", "Sent to Kindle"));
         } catch (ArticleService.NotFoundException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", e.getMessage()));

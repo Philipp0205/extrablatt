@@ -13,7 +13,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
-/** JDBC persistence for subscribed feeds. */
+/** JDBC persistence for subscribed feeds, scoped to the owning account. */
 @Repository
 public class FeedRepository {
 
@@ -46,7 +46,7 @@ public class FeedRepository {
         this.jdbc = jdbc;
     }
 
-    public List<Feed> findAllWithUnreadCounts() {
+    public List<Feed> findAllWithUnreadCounts(long userId) {
         return jdbc.query("""
                 SELECT f.*, COALESCE(u.unread_count, 0) AS unread_count
                 FROM feeds f
@@ -56,53 +56,65 @@ public class FeedRepository {
                     WHERE read = FALSE
                     GROUP BY feed_id
                 ) u ON u.feed_id = f.id
+                WHERE f.user_id = ?
                 ORDER BY COALESCE(NULLIF(f.category, ''), 'Uncategorized') ASC, f.title ASC
-                """, MAPPER);
+                """, MAPPER, userId);
     }
 
-    public List<Feed> findAll() {
+    public List<Feed> findAll(long userId) {
         return jdbc.query("""
                 SELECT * FROM feeds
+                WHERE user_id = ?
                 ORDER BY COALESCE(NULLIF(category, ''), 'Uncategorized') ASC, title ASC
+                """, SIMPLE_MAPPER, userId);
+    }
+
+    /** Every feed across all accounts, for the scheduled refresh. */
+    public List<Feed> findAllAcrossUsers() {
+        return jdbc.query("""
+                SELECT * FROM feeds
+                ORDER BY id ASC
                 """, SIMPLE_MAPPER);
     }
 
-    public Optional<Feed> findById(long id) {
+    public long countByUser(long userId) {
+        Long count = jdbc.queryForObject("SELECT COUNT(*) FROM feeds WHERE user_id = ?", Long.class, userId);
+        return count == null ? 0 : count;
+    }
+
+    public Optional<Feed> findById(long userId, long id) {
         var list = jdbc.query("""
-                SELECT *, 0 AS unread_count FROM feeds WHERE id = ?
-                """, MAPPER, id);
+                SELECT *, 0 AS unread_count FROM feeds WHERE id = ? AND user_id = ?
+                """, MAPPER, id, userId);
         return list.stream().findFirst();
     }
 
-    public Optional<Feed> findByUrl(String url) {
+    public Optional<Feed> findByUrl(long userId, String url) {
         var list = jdbc.query("""
-                SELECT *, 0 AS unread_count FROM feeds WHERE url = ?
-                """, MAPPER, url);
+                SELECT *, 0 AS unread_count FROM feeds WHERE user_id = ? AND url = ?
+                """, MAPPER, userId, url);
         return list.stream().findFirst();
     }
 
-    public Feed insert(String title, String url, String siteUrl) {
-        return insert(title, url, siteUrl, null);
-    }
-
-    public Feed insert(String title, String url, String siteUrl, String category) {
+    public Feed insert(long userId, String title, String url, String siteUrl, String category) {
         KeyHolder keyHolder = new GeneratedKeyHolder();
         jdbc.update(con -> {
             PreparedStatement ps = con.prepareStatement("""
-                    INSERT INTO feeds (title, url, site_url, category)
-                    VALUES (?, ?, ?, ?)
+                    INSERT INTO feeds (user_id, title, url, site_url, category)
+                    VALUES (?, ?, ?, ?, ?)
                     """, new String[]{"id"});
-            ps.setString(1, title);
-            ps.setString(2, url);
-            ps.setString(3, siteUrl);
-            ps.setString(4, normalizeCategory(category));
+            ps.setLong(1, userId);
+            ps.setString(2, title);
+            ps.setString(3, url);
+            ps.setString(4, siteUrl);
+            ps.setString(5, normalizeCategory(category));
             return ps;
         }, keyHolder);
         Number key = keyHolder.getKey();
         if (key == null) {
             throw new IllegalStateException("Failed to insert feed");
         }
-        return findById(key.longValue()).orElseThrow();
+        return findById(userId, key.longValue()).orElseThrow();
     }
 
     public void updateTitleAndSite(long id, String title, String siteUrl) {
@@ -111,10 +123,10 @@ public class FeedRepository {
                 """, title, siteUrl, id);
     }
 
-    public boolean updateCategory(long id, String category) {
+    public boolean updateCategory(long userId, long id, String category) {
         return jdbc.update("""
-                UPDATE feeds SET category = ?, updated_at = NOW() WHERE id = ?
-                """, normalizeCategory(category), id) > 0;
+                UPDATE feeds SET category = ?, updated_at = NOW() WHERE id = ? AND user_id = ?
+                """, normalizeCategory(category), id, userId) > 0;
     }
 
     public void clearError(long id) {
@@ -130,8 +142,8 @@ public class FeedRepository {
                 """, truncated, id);
     }
 
-    public boolean deleteById(long id) {
-        return jdbc.update("DELETE FROM feeds WHERE id = ?", id) > 0;
+    public boolean deleteById(long userId, long id) {
+        return jdbc.update("DELETE FROM feeds WHERE id = ? AND user_id = ?", id, userId) > 0;
     }
 
     private static Instant toInstant(Timestamp ts) {

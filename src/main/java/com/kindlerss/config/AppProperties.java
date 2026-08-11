@@ -10,13 +10,13 @@ import java.time.Duration;
  */
 @ConfigurationProperties(prefix = "app")
 public record AppProperties(
-        String password,
-        String kindleEmail,
         String mailFrom,
+        String publicUrl,
         String rememberMeKey,
         Http http,
         Feeds feeds,
-        Articles articles
+        Articles articles,
+        Limits limits
 ) {
     public AppProperties {
         if (http == null) {
@@ -29,6 +29,14 @@ public record AppProperties(
         if (articles == null) {
             articles = new Articles(null);
         }
+        if (limits == null) {
+            limits = new Limits(null, null);
+        }
+        if (publicUrl == null || publicUrl.isBlank()) {
+            // Base URL used to build links in verification / password-reset e-mails.
+            publicUrl = "http://localhost:8080";
+        }
+        publicUrl = publicUrl.replaceAll("/+$", "");
         if (rememberMeKey == null || rememberMeKey.isBlank()) {
             // Signs the remember-me cookie (TokenBasedRememberMeServices). Override
             // in production so tokens cannot be forged with the well-known default.
@@ -75,6 +83,23 @@ public record AppProperties(
                 pageSize = DEFAULT_PAGE_SIZE;
             }
             pageSize = Math.min(Math.max(pageSize, 5), 100);
+        }
+    }
+
+    /** Per-account guardrails that keep open registration from being abused. */
+    public record Limits(Integer maxFeedsPerUser, Integer maxSendsPerDay) {
+        public static final int DEFAULT_MAX_FEEDS = 50;
+        public static final int DEFAULT_MAX_SENDS_PER_DAY = 50;
+
+        public Limits {
+            if (maxFeedsPerUser == null) {
+                maxFeedsPerUser = DEFAULT_MAX_FEEDS;
+            }
+            maxFeedsPerUser = Math.min(Math.max(maxFeedsPerUser, 1), 1_000);
+            if (maxSendsPerDay == null) {
+                maxSendsPerDay = DEFAULT_MAX_SENDS_PER_DAY;
+            }
+            maxSendsPerDay = Math.min(Math.max(maxSendsPerDay, 1), 1_000);
         }
     }
 }
