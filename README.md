@@ -1,23 +1,27 @@
 # Kindle RSS
 
-Self-hosted RSS/Atom reader that extracts readable article HTML and emails EPUB files to your Kindle. Plain server-rendered UI that stays usable without JavaScript.
+Multi-user RSS/Atom reader that extracts readable article HTML and emails EPUB files to each user's Kindle. Plain server-rendered UI that stays usable without JavaScript. Runs as one always-on service (single VPS or a managed platform such as Railway).
 
 ## Features
 
+- Email + password accounts with e-mail verification and password reset
+- Per-user feeds and articles — every account has its own, isolated subscriptions
 - Add feeds by RSS/Atom URL or homepage (autodiscovery via `link rel=alternate`)
 - Optional quick-start feed suggestions and categories for organizing subscriptions
 - Scheduled refresh every 30 minutes, plus manual refresh, asking each feed for
   more than the handful of entries it publishes by default
 - Article extraction (Readability4J) with sanitized HTML caching
 - Page-at-a-time reading sized to the device screen, instead of scrolling
-- Send-to-Kindle as EPUB 3 over SMTP
-- Single-user login (`kindle`) with BCrypt password and optional remember-me
+- Send-to-Kindle as EPUB 3 through one shared, provider-verified sender
+- Per-account limits and IP-based rate limiting on auth endpoints
 
 ## Requirements
 
 - Java 21 and Maven 3.9+ (or the included Maven Wrapper)
 - PostgreSQL 16+ (17 recommended)
-- SMTP credentials that Amazon Kindle will accept as a personal document sender
+- A transactional e-mail provider with SMTP and a verified sending domain
+  (defaults target [Resend](https://resend.com)); the same sender delivers
+  account e-mail and Kindle documents
 
 ## Local configuration
 
@@ -26,12 +30,11 @@ Self-hosted RSS/Atom reader that extracts readable article HTML and emails EPUB 
 
 | Variable | Purpose |
 |---|---|
-| `APP_PASSWORD` | Login password for user `kindle` |
 | `DATABASE_URL` | JDBC URL, e.g. `jdbc:postgresql://localhost:5432/kindle_rss` |
 | `DATABASE_USER` / `DATABASE_PASSWORD` | DB credentials |
-| `KINDLE_EMAIL` | Your Send-to-Kindle address (`@kindle.com` / `@free.kindle.com`, etc.) |
-| `MAIL_FROM` | From address Amazon has approved |
-| `SMTP_HOST` / `SMTP_PORT` / `SMTP_USERNAME` / `SMTP_PASSWORD` | SMTP |
+| `APP_PUBLIC_URL` | Base URL used in verification / reset e-mails (e.g. `http://localhost:8080`) |
+| `MAIL_FROM` | Shared sender on your verified domain (`noreply@yourdomain.com`) |
+| `SMTP_HOST` / `SMTP_PORT` / `SMTP_USERNAME` / `SMTP_PASSWORD` | SMTP (Resend: host `smtp.resend.com`, username `resend`, password = API key) |
 | `REMEMBER_ME_KEY` | Secret for remember-me tokens |
 
 3. Export variables (or use your shell dotenv tooling) and run:
@@ -40,7 +43,20 @@ Self-hosted RSS/Atom reader that extracts readable article HTML and emails EPUB 
 ./mvnw spring-boot:run
 ```
 
-Open http://localhost:8080 and sign in as `kindle` with `APP_PASSWORD`.
+Open http://localhost:8080, create an account, confirm your e-mail, then add your
+Kindle address under **Settings**.
+
+## Accounts and data isolation
+
+- Anyone can register with an e-mail and password; a confirmation link is e-mailed.
+- Sending to Kindle is unlocked once the e-mail is verified and a Kindle address is
+  set in **Settings**.
+- Each account only ever sees and manages its own feeds and articles; access is
+  checked on every request.
+- Per-account guardrails (`MAX_FEEDS_PER_USER`, `MAX_SENDS_PER_DAY`) and rate
+  limiting on login/register/reset keep open registration from being abused.
+- The app runs as a single instance (one scheduled refresh, in-process rate
+  limiter). Running multiple replicas would need a shared lock and store first.
 
 ### Tests
 
@@ -111,14 +127,48 @@ back to a normally scrolling document with the same content and links.
 
 ## Send-to-Kindle (Amazon)
 
-Amazon only accepts documents from approved sender addresses:
+Delivery uses one shared sender (`MAIL_FROM`) for everyone. Amazon only accepts
+documents from approved sender addresses, so each user does this once:
 
 1. In Amazon account settings, open **Content & Devices** → **Preferences** → **Personal Document Settings**.
-2. Note your **Send-to-Kindle Email**.
-3. Add your `MAIL_FROM` address under **Approved Personal Document E-mail List**.
-4. Ensure your SMTP provider sends from that exact From address.
+2. Note your **Send-to-Kindle Email** and enter it in the app under **Settings**.
+3. Add the app's `MAIL_FROM` address (shown on the Settings page) under **Approved
+   Personal Document E-mail List**.
 
 Without approval, messages are silently dropped by Amazon.
+
+## Deploy on Railway (recommended, no personal VPS)
+
+The app is a small always-on service, which fits [Railway](https://railway.app)
+well: managed Postgres, TLS, and Dockerfile builds with low ops.
+
+1. Create a Railway project and add the **PostgreSQL** plugin.
+2. Add a service from this repo; Railway builds the included `Dockerfile`
+   (`railway.toml` sets the build and `/actuator/health` healthcheck).
+3. Set service variables:
+
+   ```
+   SPRING_PROFILES_ACTIVE = production
+   DATABASE_URL      = jdbc:postgresql://${{Postgres.PGHOST}}:${{Postgres.PGPORT}}/${{Postgres.PGDATABASE}}
+   DATABASE_USER     = ${{Postgres.PGUSER}}
+   DATABASE_PASSWORD = ${{Postgres.PGPASSWORD}}
+   APP_PUBLIC_URL    = https://<your-service>.up.railway.app
+   REMEMBER_ME_KEY   = <long random string>
+   MAIL_FROM         = noreply@yourdomain.com
+   SMTP_HOST         = smtp.resend.com
+   SMTP_PORT         = 587
+   SMTP_USERNAME     = resend
+   SMTP_PASSWORD     = <Resend API key, starts with re_>
+   ```
+
+4. In [Resend](https://resend.com), verify your sending domain (SPF/DKIM) and
+   create an API key; move out of the sandbox to e-mail arbitrary recipients.
+5. Deploy, open the service URL, and register the first account. Set a billing
+   alert on day one.
+
+Flyway runs the schema migrations automatically on first boot. Rely on Railway's
+managed Postgres backups. Any SMTP provider (Postmark, SES, …) works by changing
+the `SMTP_*` / `MAIL_FROM` variables — no code change.
 
 ## DNS / TLS
 
@@ -156,7 +206,7 @@ Set `APP_HTTP_PORT` in `.env` if 8090 is taken, then point the host proxy at
 The app already runs with `server.forward-headers-strategy=framework`, so it
 honors `X-Forwarded-Proto` and issues Secure cookies and https redirects.
 
-## Deploy to a VPS
+## Deploy to a VPS (self-host alternative)
 
 `deploy/deploy.sh` syncs the project over SSH and runs Compose remotely.
 
