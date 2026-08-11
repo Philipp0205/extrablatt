@@ -16,6 +16,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -25,6 +27,14 @@ import java.nio.charset.StandardCharsets;
 
 @Controller
 public class AppController {
+
+    /** How much of a feed title a filter button carries. */
+    private static final int FILTER_LABEL_MAX = 18;
+
+    /** Feeds that were never put in a category are browsed last. */
+    private static final Comparator<String> CATEGORY_ORDER =
+            Comparator.comparing((String name) -> Feed.UNCATEGORIZED.equals(name))
+                    .thenComparing(Comparator.<String>naturalOrder());
 
     private final FeedService feedService;
     private final ArticleService articleService;
@@ -48,9 +58,7 @@ public class AppController {
         model.addAttribute("feeds", feeds);
         Map<String, List<Feed>> feedGroups = new LinkedHashMap<>();
         for (Feed feed : feeds) {
-            String category = feed.category() == null || feed.category().isBlank()
-                    ? "Uncategorized" : feed.category();
-            feedGroups.computeIfAbsent(category, ignored -> new java.util.ArrayList<>()).add(feed);
+            feedGroups.computeIfAbsent(feed.categoryName(), ignored -> new ArrayList<>()).add(feed);
         }
         model.addAttribute("feedGroups", feedGroups);
         model.addAttribute("defaultFeeds", feedService.defaultFeeds());
@@ -166,10 +174,7 @@ public class AppController {
                 : articleService.findPage(feedId, category, unreadOnly, unreadSnapshot, safePage, pageSize);
 
         model.addAttribute("articles", articles);
-        List<Feed> feeds = feedService.listFeeds();
-        model.addAttribute("feeds", feeds);
-        model.addAttribute("categories", feeds.stream().map(Feed::category)
-                .filter(value -> value != null && !value.isBlank()).distinct().sorted().toList());
+        addFilterBar(model, feedService.listFeeds(), feedId, category, Boolean.TRUE.equals(unread));
         model.addAttribute("feedId", feedId);
         model.addAttribute("category", category);
         model.addAttribute("unread", Boolean.TRUE.equals(unread));
@@ -184,6 +189,84 @@ public class AppController {
         model.addAttribute("lastIndex", (long) (safePage - 1) * pageSize + articles.size());
         return "items";
     }
+
+    /**
+     * The filter bar browses categories first and only opens up the feeds of the
+     * category that is being read, because a list of every feed is both longer than
+     * the screen is wide and rarely what is wanted.
+     *
+     * <p>Both rows are rendered whole; a row too long for the screen is turned a page
+     * at a time in the browser, where the buttons can actually be measured.
+     */
+    private void addFilterBar(Model model, List<Feed> feeds, Long feedId, String category,
+                              boolean unread) {
+        String activeCategory = category != null && !category.isBlank() ? category.trim() : null;
+        if (activeCategory == null && feedId != null) {
+            activeCategory = feeds.stream()
+                    .filter(feed -> feedId.equals(feed.id()))
+                    .map(Feed::categoryName)
+                    .findFirst().orElse(null);
+        }
+
+        List<FilterChip> categoryChips = new ArrayList<>();
+        categoryChips.add(new FilterChip("All", filterLink(null, null, unread),
+                feedId == null && activeCategory == null));
+        categoryChips.add(new FilterChip("Unread", filterLink(feedId, category, !unread), unread));
+        for (String name : feeds.stream().map(Feed::categoryName).distinct().sorted(CATEGORY_ORDER).toList()) {
+            categoryChips.add(new FilterChip(name, filterLink(null, name, unread), name.equals(activeCategory)));
+        }
+
+        List<FilterChip> feedChips = new ArrayList<>();
+        String openCategory = activeCategory;
+        if (openCategory != null) {
+            for (Feed feed : feeds) {
+                if (openCategory.equals(feed.categoryName())) {
+                    feedChips.add(new FilterChip(chipLabel(feed.title()),
+                            filterLink(feed.id(), null, unread),
+                            feed.id() != null && feed.id().equals(feedId)));
+                }
+            }
+        }
+
+        model.addAttribute("categoryChips", categoryChips);
+        model.addAttribute("feedChips", feedChips);
+        model.addAttribute("filterLabel", feedId != null
+                ? feeds.stream().filter(feed -> feedId.equals(feed.id())).map(Feed::title).findFirst().orElse(null)
+                : activeCategory);
+    }
+
+    /**
+     * A filter button starts its list fresh: at the first page, and for an unread list
+     * without the snapshot of the list left behind, which belongs to other articles.
+     */
+    private static String filterLink(Long feedId, String category, boolean unread) {
+        StringBuilder query = new StringBuilder();
+        appendParam(query, "feed", feedId == null ? null : String.valueOf(feedId));
+        appendParam(query, "category", category);
+        appendParam(query, "unread", unread ? "true" : null);
+        return query.isEmpty() ? "/items" : "/items?" + query;
+    }
+
+    private static void appendParam(StringBuilder query, String name, String value) {
+        if (value == null || value.isBlank()) {
+            return;
+        }
+        if (!query.isEmpty()) {
+            query.append('&');
+        }
+        query.append(name).append('=').append(URLEncoder.encode(value, StandardCharsets.UTF_8));
+    }
+
+    /** Feed titles are names, not sentences: enough of one to recognise it is enough. */
+    private static String chipLabel(String title) {
+        String value = title == null || title.isBlank() ? "Untitled" : title.trim();
+        return value.length() <= FILTER_LABEL_MAX
+                ? value
+                : value.substring(0, FILTER_LABEL_MAX - 1).trim() + "…";
+    }
+
+    /** One button of the filter bar: the whole list, a category, or a single feed. */
+    public record FilterChip(String label, String href, boolean active) {}
 
     /**
      * Marks the articles of the current list page read and moves on, so a list can be

@@ -1,6 +1,7 @@
 package com.kindlerss.repository;
 
 import com.kindlerss.domain.Article;
+import com.kindlerss.domain.Feed;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
@@ -69,10 +70,7 @@ public class ArticleRepository {
             sql.append(" AND a.feed_id = ?");
             args.add(feedId);
         }
-        if (category != null && !category.isBlank()) {
-            sql.append(" AND f.category = ?");
-            args.add(category);
-        }
+        appendCategoryFilter(sql, args, category);
         if (Boolean.TRUE.equals(unreadOnly)) {
             sql.append(" AND (a.read = FALSE");
             if (unreadSnapshot != null) {
@@ -102,10 +100,7 @@ public class ArticleRepository {
             sql.append(" AND a.feed_id = ?");
             args.add(feedId);
         }
-        if (category != null && !category.isBlank()) {
-            sql.append(" AND f.category = ?");
-            args.add(category);
-        }
+        appendCategoryFilter(sql, args, category);
         if (Boolean.TRUE.equals(unreadOnly)) {
             sql.append(" AND (a.read = FALSE");
             if (unreadSnapshot != null) {
@@ -186,6 +181,16 @@ public class ArticleRepository {
         jdbc.update("""
                 UPDATE articles SET sent_at = ?, updated_at = NOW() WHERE id = ?
                 """, Timestamp.from(sentAt), id);
+    }
+
+    /** Feeds without a category of their own are browsed under one shared name. */
+    private static void appendCategoryFilter(StringBuilder sql, List<Object> args, String category) {
+        if (Feed.UNCATEGORIZED.equals(category)) {
+            sql.append(" AND (f.category IS NULL OR f.category = '')");
+        } else if (category != null && !category.isBlank()) {
+            sql.append(" AND f.category = ?");
+            args.add(category);
+        }
     }
 
     private static Instant toInstant(Timestamp ts) {

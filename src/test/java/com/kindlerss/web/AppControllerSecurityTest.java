@@ -151,6 +151,72 @@ class AppControllerSecurityTest {
 
     @Test
     @WithMockUser(username = "kindle")
+    void itemsPageFiltersByCategoryAndOpensItsFeedsWhenOneIsChosen() throws Exception {
+        when(articleService.findPage(isNull(), isNull(), eq(1), eq(20))).thenReturn(List.of());
+        when(articleService.count(isNull(), isNull())).thenReturn(0L);
+        when(articleService.findPage(isNull(), eq("Technology"), isNull(), isNull(), eq(1), eq(20)))
+                .thenReturn(List.of());
+        when(articleService.count(isNull(), eq("Technology"), isNull(), isNull())).thenReturn(0L);
+        when(feedService.listFeeds()).thenReturn(List.of(
+                new Feed(5L, "Android Police", "https://example.com/a", null, "Technology", null, null, null),
+                new Feed(6L, "The Verge", "https://example.com/b", null, "Technology", null, null, null),
+                new Feed(7L, "Nature", "https://example.com/c", null, "Science", null, null, null)));
+
+        // Without a category the bar is a list of categories, not of every feed.
+        mockMvc.perform(get("/items"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("href=\"/items?category=Technology\"")))
+                .andExpect(content().string(containsString("href=\"/items?category=Science\"")))
+                .andExpect(content().string(not(containsString("Android Police"))));
+
+        mockMvc.perform(get("/items").param("category", "Technology"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("href=\"/items?feed=5\"")))
+                .andExpect(content().string(containsString("Android Police")))
+                .andExpect(content().string(not(containsString("Nature"))));
+    }
+
+    @Test
+    @WithMockUser(username = "kindle")
+    void everyFeedIsInTheRowAndTheRowCanBeTurned() throws Exception {
+        List<Feed> feeds = new ArrayList<>();
+        for (int i = 1; i <= 12; i++) {
+            feeds.add(new Feed((long) i, "A rather long feed name " + i, "https://example.com/" + i,
+                    null, "Technology", null, null, null));
+        }
+        when(articleService.findPage(isNull(), eq("Technology"), isNull(), isNull(), eq(1), eq(20)))
+                .thenReturn(List.of());
+        when(articleService.count(isNull(), eq("Technology"), isNull(), isNull())).thenReturn(0L);
+        when(feedService.listFeeds()).thenReturn(feeds);
+
+        // The whole row is rendered; how much of it fits is settled in the browser.
+        mockMvc.perform(get("/items").param("category", "Technology"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("href=\"/items?feed=1\"")))
+                .andExpect(content().string(containsString("href=\"/items?feed=12\"")))
+                .andExpect(content().string(containsString("data-strip-track")))
+                .andExpect(content().string(containsString("data-strip-prev")))
+                .andExpect(content().string(containsString("data-strip-next")))
+                .andExpect(content().string(containsString("/js/filters.js")));
+    }
+
+    @Test
+    @WithMockUser(username = "kindle")
+    void feedsWithoutACategoryStayReachable() throws Exception {
+        when(articleService.findPage(isNull(), eq("Uncategorized"), isNull(), isNull(), eq(1), eq(20)))
+                .thenReturn(List.of());
+        when(articleService.count(isNull(), eq("Uncategorized"), isNull(), isNull())).thenReturn(0L);
+        when(feedService.listFeeds()).thenReturn(List.of(
+                new Feed(9L, "Loose Feed", "https://example.com/l", null, null, null, null, null)));
+
+        mockMvc.perform(get("/items").param("category", "Uncategorized"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("href=\"/items?feed=9\"")))
+                .andExpect(content().string(containsString("Loose Feed")));
+    }
+
+    @Test
+    @WithMockUser(username = "kindle")
     void homePageShowsBuildIdentity() throws Exception {
         when(feedService.listFeeds()).thenReturn(List.of());
         mockMvc.perform(get("/"))

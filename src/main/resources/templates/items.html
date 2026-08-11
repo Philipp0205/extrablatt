@@ -35,20 +35,33 @@
     <div class="reader-frame" data-reader-frame>
       <div class="reader-content" data-reader-content>
         <h1>Articles</h1>
-        <p class="meta" th:if="${total > 0}"
-           th:text="${firstIndex} + '–' + ${lastIndex} + ' of ' + ${total} + ' articles'">1–20 of 20 articles</p>
+        <p class="meta" th:if="${total > 0}">
+          <span th:text="${firstIndex} + '–' + ${lastIndex} + ' of ' + ${total} + ' articles'">1–20 of 20 articles</span>
+          <span th:if="${filterLabel != null}" th:text="' in ' + ${filterLabel}"> in Category</span>
+        </p>
 
-        <div class="filters">
-          <a class="btn" th:classappend="${feedId == null and category == null and !unread} ? ' active'" th:href="@{/items}">All</a>
-          <a class="btn" th:classappend="${unread and feedId == null and category == null} ? ' active'" th:href="@{/items(unread=true)}">Unread</a>
-          <a class="btn" th:each="c : ${categories}"
-             th:classappend="${category == c} ? ' active'"
-             th:href="@{/items(category=${c}, unread=${unread} ? true : null)}"
-             th:text="${c}">Category</a>
-          <a class="btn" th:each="f : ${feeds}"
-             th:classappend="${feedId != null and feedId == f.id} ? ' active'"
-             th:href="@{/items(feed=${f.id}, unread=${unread} ? true : null)}"
-             th:text="${f.title}">Feed</a>
+        <!-- Categories first; the feeds of the one being read follow on the line below.
+             A row wider than the screen is turned a page at a time by filters.js, which
+             is what the two arrows are for; without the script the row simply wraps. -->
+        <div class="filters" data-strip>
+          <button class="btn strip-step" type="button" data-strip-prev aria-label="Earlier filters">‹</button>
+          <div class="strip" data-strip-track>
+            <a class="btn" th:each="chip : ${categoryChips}"
+               th:classappend="${chip.active} ? ' active'"
+               th:href="@{${chip.href}}"
+               th:text="${chip.label}">Category</a>
+          </div>
+          <button class="btn strip-step" type="button" data-strip-next aria-label="More filters">›</button>
+        </div>
+        <div class="filters feeds" data-strip th:if="${!#lists.isEmpty(feedChips)}">
+          <button class="btn strip-step" type="button" data-strip-prev aria-label="Earlier feeds">‹</button>
+          <div class="strip" data-strip-track>
+            <a class="btn" th:each="chip : ${feedChips}"
+               th:classappend="${chip.active} ? ' active'"
+               th:href="@{${chip.href}}"
+               th:text="${chip.label}">Feed</a>
+          </div>
+          <button class="btn strip-step" type="button" data-strip-next aria-label="More feeds">›</button>
         </div>
 
         <p th:if="${#lists.isEmpty(articles)}" class="muted">No articles.</p>
@@ -104,6 +117,9 @@
     </nav>
   </div>
 </div>
+<!-- Before the reader: clipping the filter rows to one line changes how much room
+     is left for the article list, and the reader measures that on load. -->
+<script th:src="@{/js/filters.js}"></script>
 <script th:src="@{/js/reader.js}"></script>
 </body>
 </html>

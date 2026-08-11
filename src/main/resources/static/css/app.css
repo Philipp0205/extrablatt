@@ -275,8 +275,9 @@ input[type="url"], input[type="password"], input[type="text"] {
   flex: 1 1 14rem;
 }
 
-.category-form input {
+.category-form input[type="text"] {
   min-width: 7rem;
+  margin-right: 0.5rem;
 }
 
 .category-form button {
@@ -284,15 +285,75 @@ input[type="url"], input[type="password"], input[type="text"] {
 }
 
 /* Inside the reader the content is laid out in columns exactly one frame wide,
-   so these rows keep their spacing within their own width. */
+   so these rows keep their spacing within their own width.
+
+   The filter bar is navigation on a page meant for reading: its buttons are
+   smaller than the toolbar's, and a row longer than the screen is clipped to one
+   line and turned by the arrows filters.js reveals. Until it does, the row wraps. */
 .filters {
   display: flex;
   flex-wrap: wrap;
-  margin-bottom: 0.5rem;
+  align-items: stretch;
+  margin-bottom: 0.4rem;
 }
 
-.filters > * {
-  margin: 0 0.5rem 0.5rem 0;
+.filters .strip {
+  display: flex;
+  flex-wrap: wrap;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.filters.paged {
+  flex-wrap: nowrap;
+}
+
+.filters.paged .strip {
+  flex-wrap: nowrap;
+  overflow: hidden;
+}
+
+.filters > *,
+.filters .strip > * {
+  margin: 0 0.4rem 0.4rem 0;
+}
+
+/* Buttons keep the width of their label. Left to shrink, as flex items do, they
+   would squeeze themselves into the row instead of running past its end, and a
+   row that never overflows is a row that never turns. */
+.filters .strip > * {
+  flex: 0 0 auto;
+}
+
+/* A trailing gap would count as width the row does not have and start a page of
+   its own. */
+.filters .strip > :last-child {
+  margin-right: 0;
+}
+
+.filters .btn {
+  min-height: 2.25rem;
+  min-width: 0;
+  padding: 0.3rem 0.6rem;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+/* The arrows belong to a row that is being turned, and to no other. */
+.strip-step {
+  display: none;
+}
+
+.filters.paged .strip-step {
+  display: inline-flex;
+  flex: 0 0 auto;
+  padding: 0.3rem 0.5rem;
+  font-size: 1rem;
+}
+
+/* The feeds of the open category read as a second level, not a second bar. */
+.filters.feeds .btn {
+  border-width: 1px;
 }
 
 .filters a.active {
