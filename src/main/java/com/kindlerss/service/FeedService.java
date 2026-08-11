@@ -29,6 +29,10 @@ import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
 
+/**
+ * Subscribes to RSS/Atom feeds, discovers feed URLs from HTML pages, and
+ * periodically refreshes entries into the article store.
+ */
 @Service
 public class FeedService {
 

@@ -98,17 +98,23 @@ class AppControllerSecurityTest {
     @Test
     @WithMockUser(username = "kindle")
     void homeOffersOptionalDefaultsAndFeedCategories() throws Exception {
-        when(feedService.listFeeds()).thenReturn(List.of(
-                new Feed(5L, "Android", "https://example.com/feed", "https://example.com",
-                        "Technology", null, null, null)));
         when(feedService.defaultFeeds()).thenReturn(List.of(
                 new FeedService.DefaultFeed("hacker-news", "Hacker News",
                         "https://hnrss.org/frontpage", "Technology")));
 
+        // Suggested feeds are only offered before anything has been subscribed.
+        when(feedService.listFeeds()).thenReturn(List.of());
         mockMvc.perform(get("/"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("Quick start")))
-                .andExpect(content().string(containsString("value=\"hacker-news\"")))
+                .andExpect(content().string(containsString("value=\"hacker-news\"")));
+
+        when(feedService.listFeeds()).thenReturn(List.of(
+                new Feed(5L, "Android", "https://example.com/feed", "https://example.com",
+                        "Technology", null, null, null)));
+        mockMvc.perform(get("/"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(not(containsString("Quick start"))))
                 .andExpect(content().string(containsString("action=\"/feeds/5/category\"")))
                 .andExpect(content().string(containsString(">Technology</h3>")));
     }

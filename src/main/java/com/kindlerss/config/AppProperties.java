@@ -4,6 +4,10 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 
 import java.time.Duration;
 
+/**
+ * Application settings bound from {@code app.*} / env vars. Nested records get
+ * safe defaults when omitted so the app boots without a full config file.
+ */
 @ConfigurationProperties(prefix = "app")
 public record AppProperties(
         String password,
@@ -16,6 +20,7 @@ public record AppProperties(
 ) {
     public AppProperties {
         if (http == null) {
+            // Used by SafeHttpClient for outbound feed/article fetches.
             http = new Http(Duration.ofSeconds(10), Duration.ofSeconds(20), 2_097_152);
         }
         if (feeds == null) {
@@ -25,10 +30,13 @@ public record AppProperties(
             articles = new Articles(null);
         }
         if (rememberMeKey == null || rememberMeKey.isBlank()) {
+            // Signs the remember-me cookie (TokenBasedRememberMeServices). Override
+            // in production so tokens cannot be forged with the well-known default.
             rememberMeKey = "kindle-rss-remember-me-change-me";
         }
     }
 
+    /** Timeouts and response size cap for outbound HTTP (feed refresh, extraction). */
     public record Http(Duration connectTimeout, Duration readTimeout, int maxBytes) {
         public Http {
             if (connectTimeout == null) {

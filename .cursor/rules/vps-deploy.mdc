@@ -1,0 +1,23 @@
+---
+description: Deploy to the VPS via a cloud agent that has the configured secrets
+alwaysApply: true
+---
+
+# VPS deployment
+
+When asked to deploy this app to the VPS, **do not deploy from the local agent**.
+
+Start a **cloud agent** instead. VPS credentials live as Cursor cloud runtime secrets (`VPS_HOST`, `VPS_USER`, `VPS_SSH_KEY_B64`, and related app secrets). Local sessions do not have them, and pasting keys into chat or inventing a local fallback is wrong.
+
+## How to deploy
+
+1. Ensure the revision to ship is on `main` (commit and push first if needed).
+2. Launch a cloud agent (environment: cloud, base branch: `main`) whose only job is to run `deploy/deploy.sh`.
+3. Tell that agent to use the injected `VPS_*` secrets, never print them, and to leave the remote `.env` alone unless a real production env file is provided.
+4. Prefer pointing `ENV_FILE` at a non-existent path so the script skips the `.env` copy — the checkout `.env` is a placeholder and must not overwrite the server.
+
+## Do not
+
+- Run `deploy/deploy.sh` from a local agent using guessed hosts, personal SSH keys, or the placeholder `.env`
+- Commit `.env`, private keys, or `VPS_SSH_KEY_B64`
+- Change application code as part of a deploy-only request

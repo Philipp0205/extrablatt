@@ -13,6 +13,7 @@ import org.springframework.util.StringUtils;
 import java.time.Instant;
 import java.util.Locale;
 
+/** Builds an EPUB from an article and emails it to the configured Kindle address. */
 @Service
 public class KindleMailService {
 

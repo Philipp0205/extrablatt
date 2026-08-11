@@ -28,8 +28,6 @@
   <div th:if="${message}" class="flash" th:text="${message}"></div>
   <div th:if="${error}" class="flash error" th:text="${error}"></div>
 
-  <h1>Feeds</h1>
-  <p class="meta" th:text="'Unread across all feeds: ' + ${totalUnread}">Unread: 0</p>
 
   <h2>Add feed</h2>
   <form th:action="@{/feeds}" method="post">
@@ -42,7 +40,7 @@
     </div>
   </form>
 
-  <div th:if="${!#lists.isEmpty(defaultFeeds)}">
+  <div th:if="${#lists.isEmpty(feeds) and !#lists.isEmpty(defaultFeeds)}">
     <h2>Quick start</h2>
     <p class="meta">Choose any suggested feeds you want. Nothing is added automatically.</p>
     <form th:action="@{/feeds/defaults}" method="post">
@@ -59,6 +57,7 @@
   </div>
 
   <h2>Your feeds</h2>
+  <p class="meta" th:text="'Unread across all feeds: ' + ${totalUnread}">Unread: 0</p>
   <p th:if="${#lists.isEmpty(feeds)}" class="muted">No feeds yet.</p>
   <section th:each="group : ${feedGroups}" class="feed-group">
     <h3 th:text="${group.key}">Category</h3>
@@ -75,11 +74,10 @@
         Last error: <span th:text="${feed.lastError}">error</span>
       </div>
       <div class="actions">
-        <a class="btn" th:href="@{/items(feed=${feed.id}, unread=true)}">Unread</a>
         <form class="inline category-form" th:action="@{/feeds/{id}/category(id=${feed.id})}" method="post">
           <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
           <input name="category" type="text" th:value="${feed.category}" placeholder="Category"/>
-          <button type="submit">Save category</button>
+          <button type="submit">Save</button>
         </form>
         <form class="inline" th:action="@{/feeds/{id}/delete(id=${feed.id})}" method="post">
           <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
@@ -89,6 +87,7 @@
     </li>
     </ul>
   </section>
+
 
   <footer class="build-info">
     Version <span th:text="${appVersion.number}">development build</span> ·

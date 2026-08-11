@@ -5,6 +5,7 @@ import org.jsoup.nodes.Document;
 import org.jsoup.safety.Safelist;
 import org.springframework.stereotype.Component;
 
+/** Strips unsafe HTML from feed/article content before storage or EPUB export. */
 @Component
 public class HtmlSanitizer {
 

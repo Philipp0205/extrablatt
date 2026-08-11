@@ -25,6 +25,7 @@ import java.time.Instant;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 
+/** MVC endpoints for feeds, articles, and Kindle send actions. */
 @Controller
 public class AppController {
 

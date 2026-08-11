@@ -2,6 +2,10 @@ package com.kindlerss.domain;
 
 import java.time.Instant;
 
+/**
+ * A single feed entry. {@code guid} is the publisher's stable id (Atom {@code id} /
+ * RSS {@code guid}, else link, else title+date) used for deduplication per feed.
+ */
 public record Article(
         Long id,
         Long feedId,

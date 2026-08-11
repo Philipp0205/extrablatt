@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.Optional;
 import java.time.Instant;
 
+/** Loads, extracts, and updates article read/sent state. */
 @Service
 public class ArticleService {
 

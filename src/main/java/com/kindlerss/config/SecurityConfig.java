@@ -20,6 +20,10 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.servlet.config.annotation.ViewControllerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
+/**
+ * Single-user form login: one in-memory account from {@code APP_PASSWORD},
+ * plus a long-lived remember-me cookie for the Kindle-friendly workflow.
+ */
 @Configuration
 @EnableWebSecurity
 @EnableConfigurationProperties(AppProperties.class)
@@ -49,7 +53,12 @@ public class SecurityConfig implements WebMvcConfigurer {
         if (!StringUtils.hasText(raw)) {
             throw new IllegalStateException("APP_PASSWORD must be set");
         }
-        // Encode at startup; plaintext is never stored in the user details store.
+        // Spring Security's DaoAuthenticationProvider compares the login form
+        // password against an already-encoded hash (BCrypt). Encoding once at
+        // startup means APP_PASSWORD never sits in memory as the stored credential.
+        //
+        // InMemoryUserDetailsManager is the user store for this single-user app:
+        // one hard-coded "kindle" account, no database-backed users needed.
         return new InMemoryUserDetailsManager(
                 User.builder()
                         .username("kindle")

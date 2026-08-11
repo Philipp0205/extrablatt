@@ -36,6 +36,7 @@ public class SafeHttpClient {
 
     public record FetchedContent(URI finalUri, String body, String contentType) {}
 
+    /** Hostnames rejected before DNS (SSRF). Not used as request targets. */
     private static final Set<String> BLOCKED_HOSTS = Set.of("localhost", "metadata.google.internal");
 
     private final HttpClient httpClient;

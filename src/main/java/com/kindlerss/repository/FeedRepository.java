@@ -13,6 +13,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
+/** JDBC persistence for subscribed feeds. */
 @Repository
 public class FeedRepository {
 

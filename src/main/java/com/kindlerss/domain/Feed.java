@@ -2,6 +2,7 @@ package com.kindlerss.domain;
 
 import java.time.Instant;
 
+/** Subscribed RSS/Atom source, optionally with an unread count for list views. */
 public record Feed(
         Long id,
         String title,

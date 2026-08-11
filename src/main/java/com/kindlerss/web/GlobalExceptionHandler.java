@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 
+/** Maps common service exceptions to error pages. */
 @ControllerAdvice
 public class GlobalExceptionHandler {
 

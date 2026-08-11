@@ -44,6 +44,8 @@ public class EpubService {
         String articleXhtml = wrapArticle(safeTitle, htmlBody);
         String contentOpf = buildOpf(safeTitle, safeAuthor, bookId, modified);
         String navXhtml = buildNav(safeTitle);
+        // EPUB package parts are fixed scaffolding; inlining the XML keeps this
+        // writer dependency-free. A full EPUB library would be overkill here.
         String containerXml = """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
