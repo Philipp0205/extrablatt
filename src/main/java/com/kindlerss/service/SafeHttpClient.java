@@ -117,7 +117,13 @@ public class SafeHttpClient {
             if (!RETRY_AS_BROWSER.contains(e.status())) {
                 throw e;
             }
-            return get(url, 0, allowTruncation, BROWSER_USER_AGENT);
+            try {
+                return get(url, 0, allowTruncation, BROWSER_USER_AGENT);
+            } catch (FetchException retryFailed) {
+                // A wall that turns a browser away too has nothing to add: the
+                // refusal worth reporting is the one for the request as it stands.
+                throw e;
+            }
         }
     }
 
