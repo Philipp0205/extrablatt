@@ -24,13 +24,16 @@ public class ArticleService {
     private final ArticleRepository articleRepository;
     private final SafeHttpClient httpClient;
     private final HtmlSanitizer sanitizer;
+    private final HackerNewsReader hackerNews;
 
     public ArticleService(ArticleRepository articleRepository,
                           SafeHttpClient httpClient,
-                          HtmlSanitizer sanitizer) {
+                          HtmlSanitizer sanitizer,
+                          HackerNewsReader hackerNews) {
         this.articleRepository = articleRepository;
         this.httpClient = httpClient;
         this.sanitizer = sanitizer;
+        this.hackerNews = hackerNews;
     }
 
     public Optional<Article> findById(long userId, long id) {
@@ -105,41 +108,92 @@ public class ArticleService {
             return article.extractedContentHtml();
         }
 
-        String extracted = extractFromSource(article);
-        if (extracted != null && !extracted.isBlank()) {
-            String sanitized = sanitizer.sanitizeWithImages(extracted);
-            articleRepository.updateExtractedContent(article.id(), sanitized);
-            return sanitized;
+        // An entry that links to a Hacker News item is a text submission: the item
+        // page is the article, and reading it as a web page yields the site
+        // furniture instead of the text.
+        Optional<String> submission = HackerNewsReader.itemUrl(article.url());
+        if (submission.isPresent()) {
+            return hackerNews.read(submission.get())
+                    .map(html -> cache(article, html))
+                    .orElseGet(() -> fromFeed(article, "the Hacker News item page could not be read"));
         }
 
-        if (article.feedContentHtml() != null && !article.feedContentHtml().isBlank()) {
-            return article.feedContentHtml();
+        Extraction extraction = extractFromSource(article);
+        if (extraction.succeeded()) {
+            return cache(article, extraction.html());
         }
-        if (article.summaryHtml() != null && !article.summaryHtml().isBlank()) {
-            return article.summaryHtml();
+        log.info("Could not read article {} at {}: {}", article.id(), article.url(), extraction.failure());
+
+        // The linked page is out of reach, so fall back to the discussion the feed
+        // pointed at. That is not cached: the page may well be readable later, and
+        // the discussion keeps growing in the meantime.
+        Optional<String> discussion = findCommentsUrl(article)
+                .flatMap(HackerNewsReader::itemUrl)
+                .flatMap(hackerNews::read);
+        if (discussion.isPresent()) {
+            return note("The linked page could not be fetched (" + extraction.failure()
+                    + "). The Hacker News discussion is shown instead.")
+                    + sanitizer.sanitizeWithImages(discussion.get());
         }
-        return "<p>No content available.</p>";
+        return fromFeed(article, extraction.failure());
     }
 
-    private String extractFromSource(Article article) {
+    private String cache(Article article, String html) {
+        String sanitized = sanitizer.sanitizeWithImages(html);
+        articleRepository.updateExtractedContent(article.id(), sanitized);
+        return sanitized;
+    }
+
+    /**
+     * What the feed itself carried, which for some feeds is a summary and for
+     * others little more than a link. The reason the full text is missing is said
+     * out loud, so a short entry is not mistaken for a short article.
+     */
+    private String fromFeed(Article article, String failure) {
+        String prefix = failure == null ? "" : note("The full article could not be fetched (" + failure + ").");
+        if (article.feedContentHtml() != null && !article.feedContentHtml().isBlank()) {
+            return prefix + article.feedContentHtml();
+        }
+        if (article.summaryHtml() != null && !article.summaryHtml().isBlank()) {
+            return prefix + article.summaryHtml();
+        }
+        return prefix.isEmpty() ? "<p>No content available.</p>" : prefix;
+    }
+
+    private static String note(String text) {
+        return "<p><em>" + text + "</em></p>";
+    }
+
+    private Extraction extractFromSource(Article article) {
         if (article.url() == null || article.url().isBlank()) {
-            return null;
+            return Extraction.failed("the entry carries no link");
         }
         try {
-            SafeHttpClient.FetchedContent fetched = httpClient.get(article.url());
+            SafeHttpClient.FetchedContent fetched = httpClient.getPage(article.url());
+            if (!fetched.isMarkup()) {
+                return Extraction.failed("the link is not a web page but " + fetched.contentType());
+            }
             Readability4J readability = new Readability4J(fetched.finalUri().toString(), fetched.body());
             net.dankito.readability4j.Article parsed = readability.parse();
-            if (parsed == null) {
-                return null;
-            }
-            String content = parsed.getContent();
+            String content = parsed == null ? null : parsed.getContent();
             if (content == null || content.isBlank()) {
-                return null;
+                return Extraction.failed("no article text was found on the page");
             }
-            return content;
+            return new Extraction(content, null);
         } catch (Exception e) {
-            log.debug("Extraction failed for article {}: {}", article.id(), e.getMessage());
-            return null;
+            String reason = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
+            return Extraction.failed(reason);
+        }
+    }
+
+    /** Either the extracted article HTML, or why there is none. */
+    private record Extraction(String html, String failure) {
+        static Extraction failed(String reason) {
+            return new Extraction(null, reason);
+        }
+
+        boolean succeeded() {
+            return html != null && !html.isBlank();
         }
     }
 

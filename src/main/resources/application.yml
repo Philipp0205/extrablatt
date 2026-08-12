@@ -65,7 +65,9 @@ app:
   http:
     connect-timeout: 10s
     read-timeout: 20s
-    max-bytes: 2097152
+    # Article pages carry a lot of markup around the text; the cap is generous so
+    # extraction is not left with a fragment of the page.
+    max-bytes: 4194304
   feeds:
     # Entries a refresh asks a feed for; 0 fetches feed URLs exactly as entered.
     max-entries: ${FEED_MAX_ENTRIES:100}

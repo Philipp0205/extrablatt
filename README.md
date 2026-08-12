@@ -10,7 +10,8 @@ Multi-user RSS/Atom reader that extracts readable article HTML and emails EPUB f
 - Optional quick-start feed suggestions and categories for organizing subscriptions
 - Scheduled refresh every 30 minutes, plus manual refresh, asking each feed for
   more than the handful of entries it publishes by default
-- Article extraction (Readability4J) with sanitized HTML caching
+- Article extraction (Readability4J) with sanitized HTML caching, and Hacker News
+  items read as their submitted text plus the discussion
 - Page-at-a-time reading sized to the device screen, instead of scrolling
 - Send-to-Kindle as EPUB 3 through one shared, provider-verified sender
 - Per-account limits and IP-based rate limiting on auth endpoints
@@ -103,6 +104,23 @@ Nothing is thrown away afterwards, so a feed keeps growing past what it
 publishes at any one moment. `ARTICLE_PAGE_SIZE` (50, at most 100) sets how many
 of those articles one page of the list holds; **Older articles** loads the next
 ones.
+
+### What "the full article" means
+
+Opening an article fetches the page it links to and extracts the readable part,
+which is then cached. Some pages cannot be read that way — a paywall, a bot wall,
+a PDF — and the article then says so, in place of silently showing the two or
+three lines the feed happened to carry.
+
+Hacker News entries carry no text at all: the feed summary is the article link,
+the comments link and a score. Those are read as follows:
+
+- A story that links elsewhere is fetched and extracted like any other article.
+- An **Ask HN** or text submission links back to its Hacker News item, so the item
+  page is read instead: the submitted text followed by the discussion, with replies
+  indented by how deep they sit.
+- When the linked page cannot be fetched, the discussion is shown instead, with a
+  line saying why. That is not cached, so a page that is readable later still wins.
 
 ## Reading a page at a time
 
