@@ -39,6 +39,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -192,6 +193,44 @@ class AppControllerSecurityTest {
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/"));
         verify(feedService).refreshForUser(UID);
+    }
+
+    @Test
+    @WithMockUser
+    void refreshComesBackToTheListItWasAskedFrom() throws Exception {
+        mockMvc.perform(post("/refresh").with(csrf())
+                        .param("redirect", "/items?page=2&feed=5&unread=true&snapshot=100"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/items?page=2&feed=5&unread=true&snapshot=100"));
+
+        mockMvc.perform(post("/refresh").with(csrf()).param("redirect", "https://evil.example"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/items"));
+    }
+
+    @Test
+    @WithMockUser
+    void browsingRefreshesFeedsThatHaveGoneStale() throws Exception {
+        when(feedService.listFeeds(UID)).thenReturn(List.of());
+        when(articleService.findPage(eq(UID), isNull(), isNull(), eq(1), eq(20))).thenReturn(List.of());
+
+        mockMvc.perform(get("/")).andExpect(status().isOk());
+        mockMvc.perform(get("/items")).andExpect(status().isOk());
+
+        verify(feedService, times(2)).refreshForUserIfStale(UID);
+    }
+
+    @Test
+    @WithMockUser
+    void theRefreshButtonOnAListStaysOnThatList() throws Exception {
+        when(articleService.findPage(eq(UID), isNull(), eq("Technology"), isNull(), isNull(), eq(1), eq(20)))
+                .thenReturn(List.of());
+        when(feedService.listFeeds(UID)).thenReturn(List.of());
+
+        mockMvc.perform(get("/items").param("category", "Technology"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString(
+                        "name=\"redirect\" value=\"/items?page=1&amp;category=Technology\"")));
     }
 
     @Test

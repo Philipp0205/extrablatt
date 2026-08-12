@@ -8,8 +8,8 @@ Multi-user RSS/Atom reader that extracts readable article HTML and emails EPUB f
 - Per-user feeds and articles — every account has its own, isolated subscriptions
 - Add feeds by RSS/Atom URL or homepage (autodiscovery via `link rel=alternate`)
 - Optional quick-start feed suggestions and categories for organizing subscriptions
-- Scheduled refresh every 30 minutes, plus manual refresh, asking each feed for
-  more than the handful of entries it publishes by default
+- Feeds refresh while you read them, on a 30-minute schedule and on demand,
+  asking each feed for more than the handful of entries it publishes by default
 - Article extraction (Readability4J) with sanitized HTML caching, and Hacker News
   items read as their submitted text plus the discussion
 - Page-at-a-time reading sized to the device screen, instead of scrolling
@@ -104,6 +104,18 @@ Nothing is thrown away afterwards, so a feed keeps growing past what it
 publishes at any one moment. `ARTICLE_PAGE_SIZE` (50, at most 100) sets how many
 of those articles one page of the list holds; **Older articles** loads the next
 ones.
+
+### When feeds are refreshed
+
+Feeds are fetched every 30 minutes by the scheduler, and again when you open the
+feeds page or an article list after `FEED_AUTO_REFRESH_AFTER` (10 minutes by
+default) has passed since the last refresh of your account. Fetching every feed
+of an account takes longer than a page should, so it runs in the background: the
+page you asked for renders from what is stored, and anything new is on the next
+one. `FEED_AUTO_REFRESH_AFTER=0` leaves refreshing to the schedule and the button.
+
+**Refresh** returns to the page it was pressed on, filters and page number
+included, instead of starting over on the feeds page.
 
 ### What "the full article" means
 

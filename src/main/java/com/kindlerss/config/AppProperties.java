@@ -62,17 +62,35 @@ public record AppProperties(
     }
 
     /**
-     * How many entries a refresh asks a feed for. 0 fetches feed URLs exactly as
-     * they were entered.
+     * How many entries a refresh asks a feed for (0 fetches feed URLs exactly as
+     * they were entered), and how old the newest fetch may be before opening a page
+     * refreshes the account's feeds in the background. Zero turns that off and
+     * leaves refreshing to the scheduler and the button.
      */
-    public record Feeds(Integer maxEntries) {
+    public record Feeds(Integer maxEntries, Duration autoRefreshAfter) {
         public static final int DEFAULT_MAX_ENTRIES = 100;
+        public static final Duration DEFAULT_AUTO_REFRESH_AFTER = Duration.ofMinutes(10);
+
+        public Feeds(Integer maxEntries) {
+            this(maxEntries, null);
+        }
 
         public Feeds {
             if (maxEntries == null) {
                 maxEntries = DEFAULT_MAX_ENTRIES;
             }
             maxEntries = Math.min(Math.max(maxEntries, 0), 500);
+            if (autoRefreshAfter == null) {
+                autoRefreshAfter = DEFAULT_AUTO_REFRESH_AFTER;
+            }
+            if (autoRefreshAfter.isNegative()) {
+                autoRefreshAfter = Duration.ZERO;
+            }
+            // Every feed of the account is fetched, so page loads must not be able
+            // to trigger that in quick succession.
+            if (!autoRefreshAfter.isZero() && autoRefreshAfter.compareTo(Duration.ofMinutes(1)) < 0) {
+                autoRefreshAfter = Duration.ofMinutes(1);
+            }
         }
     }
 

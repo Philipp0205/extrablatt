@@ -8,15 +8,20 @@ import org.junit.jupiter.api.Test;
 import org.mockito.stubbing.Answer;
 
 import java.net.URI;
+import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -43,10 +48,15 @@ class FeedServiceTest {
     private static final long UID = 7L;
 
     private FeedService service(int maxEntries) {
+        return service(new AppProperties.Feeds(maxEntries));
+    }
+
+    private FeedService service(AppProperties.Feeds feeds) {
         AppProperties properties = new AppProperties(
-                "from@example.com", null, "remember-me",
-                null, new AppProperties.Feeds(maxEntries), null, null);
-        return new FeedService(feedRepository, articleRepository, httpClient, new HtmlSanitizer(), properties);
+                "from@example.com", null, "remember-me", null, feeds, null, null);
+        // Refreshing on the calling thread keeps what a page load starts observable.
+        return new FeedService(feedRepository, articleRepository, httpClient, new HtmlSanitizer(),
+                Runnable::run, properties);
     }
 
     private static Feed feed(String url) {
@@ -101,6 +111,38 @@ class FeedServiceTest {
         verify(httpClient, times(2)).get(anyString());
         verify(articleRepository).insert(anyLong(), anyString(), anyString(),
                 anyString(), any(), any(), anyString(), anyString());
+    }
+
+    @Test
+    void openingAPageRefreshesFeedsThatHaveGoneStaleAndThenLeavesThemAlone() {
+        when(feedRepository.findAll(UID)).thenReturn(List.of(feed("https://example.com/feed")));
+        when(httpClient.get(anyString())).thenAnswer(respondWithFeed());
+        FeedService service = service(new AppProperties.Feeds(100, Duration.ofMinutes(10)));
+
+        assertTrue(service.refreshForUserIfStale(UID));
+        verify(feedRepository, times(1)).findAll(UID);
+
+        // Nothing has aged since, so the next page load fetches nothing.
+        assertFalse(service.refreshForUserIfStale(UID));
+        verify(feedRepository, times(1)).findAll(UID);
+    }
+
+    @Test
+    void aManualRefreshCountsAsTheLatestOne() {
+        when(feedRepository.findAll(UID)).thenReturn(List.of());
+        FeedService service = service(new AppProperties.Feeds(100, Duration.ofMinutes(10)));
+
+        service.refreshForUser(UID);
+
+        assertFalse(service.refreshForUserIfStale(UID));
+    }
+
+    @Test
+    void automaticRefreshCanBeTurnedOff() {
+        FeedService service = service(new AppProperties.Feeds(100, Duration.ZERO));
+
+        assertFalse(service.refreshForUserIfStale(UID));
+        verify(feedRepository, never()).findAll(UID);
     }
 
     @Test

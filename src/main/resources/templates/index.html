@@ -18,6 +18,7 @@
       <a th:if="${admin}" th:href="@{/admin}">Telemetry</a>
       <form class="inline" th:action="@{/refresh}" method="post">
         <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <input type="hidden" name="redirect" value="/"/>
         <button type="submit">Refresh</button>
       </form>
       <form class="inline" th:action="@{/logout}" method="post">

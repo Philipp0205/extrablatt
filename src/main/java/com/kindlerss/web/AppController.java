@@ -59,6 +59,7 @@ public class AppController {
     @GetMapping("/")
     public String home(Model model) {
         long userId = currentUser.requireId();
+        feedService.refreshForUserIfStale(userId);
         List<Feed> feeds = feedService.listFeeds(userId);
         long totalUnread = feeds.stream().mapToLong(Feed::unreadCount).sum();
         model.addAttribute("feeds", feeds);
@@ -141,15 +142,17 @@ public class AppController {
         return "redirect:/";
     }
 
+    /** Refreshing comes back to the page it was asked for, filters and page included. */
     @PostMapping("/refresh")
-    public String refresh(RedirectAttributes redirectAttributes) {
+    public String refresh(@RequestParam(value = "redirect", required = false) String redirect,
+                          RedirectAttributes redirectAttributes) {
         try {
             feedService.refreshForUser(currentUser.requireId());
             redirectAttributes.addFlashAttribute("message", "Feeds refreshed");
         } catch (Exception e) {
             redirectAttributes.addFlashAttribute("error", "Refresh failed: " + e.getMessage());
         }
-        return "redirect:/";
+        return "redirect:" + (redirect == null || redirect.isBlank() ? "/" : safeRedirect(redirect));
     }
 
     @GetMapping("/items")
@@ -163,6 +166,7 @@ public class AppController {
         if (feedId != null && feedService.findById(userId, feedId).isEmpty()) {
             throw new ArticleService.NotFoundException("Feed not found");
         }
+        feedService.refreshForUserIfStale(userId);
         Boolean unreadOnly = Boolean.TRUE.equals(unread) ? Boolean.TRUE : null;
         if (Boolean.TRUE.equals(unread) && snapshot == null) {
             return "redirect:" + itemsPath(feedId, category, true, Math.max(page, 1),

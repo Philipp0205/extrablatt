@@ -15,6 +15,7 @@ import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,12 +23,16 @@ import org.springframework.transaction.annotation.Transactional;
 import java.io.ByteArrayInputStream;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executor;
 
 /**
  * Subscribes to RSS/Atom feeds, discovers feed URLs from HTML pages, and
@@ -57,20 +62,31 @@ public class FeedService {
     private final ArticleRepository articleRepository;
     private final SafeHttpClient httpClient;
     private final HtmlSanitizer sanitizer;
+    private final Executor backgroundRefresh;
     private final int maxEntries;
     private final int maxFeedsPerUser;
+    private final Duration autoRefreshAfter;
+
+    /** When each account's feeds were last fetched, so a page load can tell staleness. */
+    private final Map<Long, Instant> lastRefresh = new ConcurrentHashMap<>();
+
+    /** Accounts with a refresh in flight, so page loads do not pile them up. */
+    private final Set<Long> refreshing = ConcurrentHashMap.newKeySet();
 
     public FeedService(FeedRepository feedRepository,
                        ArticleRepository articleRepository,
                        SafeHttpClient httpClient,
                        HtmlSanitizer sanitizer,
+                       @Qualifier("applicationTaskExecutor") Executor backgroundRefresh,
                        AppProperties properties) {
         this.feedRepository = feedRepository;
         this.articleRepository = articleRepository;
         this.httpClient = httpClient;
         this.sanitizer = sanitizer;
+        this.backgroundRefresh = backgroundRefresh;
         this.maxEntries = properties.feeds().maxEntries();
         this.maxFeedsPerUser = properties.limits().maxFeedsPerUser();
+        this.autoRefreshAfter = properties.feeds().autoRefreshAfter();
     }
 
     public List<Feed> listFeeds(long userId) {
@@ -160,7 +176,47 @@ public class FeedService {
 
     /** Refreshes only the given account's feeds; used by manual refresh. */
     public void refreshForUser(long userId) {
+        lastRefresh.put(userId, Instant.now());
         refreshFeeds(feedRepository.findAll(userId));
+    }
+
+    /**
+     * Refreshes an account's feeds while it is being read, so that opening the app
+     * shows what has been published since instead of what the last refresh left
+     * behind. Fetching every feed takes longer than a page load may, so it happens
+     * in the background: the page being asked for renders from what is stored, and
+     * anything new is on the next one.
+     *
+     * @return whether a refresh was started
+     */
+    public boolean refreshForUserIfStale(long userId) {
+        if (autoRefreshAfter.isZero()) {
+            return false;
+        }
+        Instant last = lastRefresh.get(userId);
+        if (last != null && last.isAfter(Instant.now().minus(autoRefreshAfter))) {
+            return false;
+        }
+        if (!refreshing.add(userId)) {
+            return false;
+        }
+        lastRefresh.put(userId, Instant.now());
+        try {
+            backgroundRefresh.execute(() -> {
+                try {
+                    refreshFeeds(feedRepository.findAll(userId));
+                } catch (RuntimeException e) {
+                    log.warn("Background refresh for user {} failed: {}", userId, e.getMessage());
+                } finally {
+                    refreshing.remove(userId);
+                }
+            });
+            return true;
+        } catch (RuntimeException e) {
+            refreshing.remove(userId);
+            log.warn("Could not start a background refresh for user {}: {}", userId, e.getMessage());
+            return false;
+        }
     }
 
     private void refreshFeeds(List<Feed> feeds) {
