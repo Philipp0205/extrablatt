@@ -23,8 +23,8 @@ class AppPropertiesTest {
 
     @Test
     void readingSettingsStayWithinWorkableBounds() {
-        assertEquals(0, new AppProperties.Feeds(-1).maxEntries());
-        assertEquals(500, new AppProperties.Feeds(10_000).maxEntries());
+        assertEquals(0, new AppProperties.Feeds(-1, null).maxEntries());
+        assertEquals(500, new AppProperties.Feeds(10_000, null).maxEntries());
         // The repository refuses to hand out more than 100 articles at a time.
         assertEquals(100, new AppProperties.Articles(1_000).pageSize());
         assertEquals(5, new AppProperties.Articles(1).pageSize());

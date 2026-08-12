@@ -24,7 +24,7 @@ public record AppProperties(
             http = new Http(Duration.ofSeconds(10), Duration.ofSeconds(20), Http.DEFAULT_MAX_BYTES);
         }
         if (feeds == null) {
-            feeds = new Feeds(null);
+            feeds = new Feeds(null, null);
         }
         if (articles == null) {
             articles = new Articles(null);
@@ -71,10 +71,8 @@ public record AppProperties(
         public static final int DEFAULT_MAX_ENTRIES = 100;
         public static final Duration DEFAULT_AUTO_REFRESH_AFTER = Duration.ofMinutes(10);
 
-        public Feeds(Integer maxEntries) {
-            this(maxEntries, null);
-        }
-
+        // A record with a second constructor is no longer bound to app.feeds.* by
+        // constructor binding, so this one stays alone.
         public Feeds {
             if (maxEntries == null) {
                 maxEntries = DEFAULT_MAX_ENTRIES;

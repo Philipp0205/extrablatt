@@ -48,7 +48,7 @@ class FeedServiceTest {
     private static final long UID = 7L;
 
     private FeedService service(int maxEntries) {
-        return service(new AppProperties.Feeds(maxEntries));
+        return service(new AppProperties.Feeds(maxEntries, null));
     }
 
     private FeedService service(AppProperties.Feeds feeds) {

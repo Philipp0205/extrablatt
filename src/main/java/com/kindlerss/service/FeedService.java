@@ -195,13 +195,16 @@ public class FeedService {
         }
         Instant last = lastRefresh.get(userId);
         if (last != null && last.isAfter(Instant.now().minus(autoRefreshAfter))) {
+            log.debug("Feeds for user {} were refreshed at {}; leaving them alone", userId, last);
             return false;
         }
         if (!refreshing.add(userId)) {
+            log.debug("A refresh for user {} is already running", userId);
             return false;
         }
         lastRefresh.put(userId, Instant.now());
         try {
+            log.info("Refreshing feeds for user {} in the background", userId);
             backgroundRefresh.execute(() -> {
                 try {
                     refreshFeeds(feedRepository.findAll(userId));
