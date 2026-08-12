@@ -46,7 +46,7 @@ class HackerNewsReaderTest {
         when(httpClient.getPage(ITEM_URL)).thenReturn(
                 new SafeHttpClient.FetchedContent(URI.create(ITEM_URL), itemPage(), "text/html"));
 
-        String html = reader.read(ITEM_URL).orElseThrow();
+        String html = reader.read(ITEM_URL).html();
 
         assertTrue(html.contains("I read on an e-reader"), html);
         assertTrue(html.contains("<h2>Hacker News discussion</h2>"), html);
@@ -61,7 +61,7 @@ class HackerNewsReaderTest {
         when(httpClient.getPage(ITEM_URL)).thenReturn(
                 new SafeHttpClient.FetchedContent(URI.create(ITEM_URL), itemPage(), "text/html"));
 
-        String html = reader.read(ITEM_URL).orElseThrow();
+        String html = reader.read(ITEM_URL).html();
 
         assertTrue(html.contains("<blockquote><p><strong>replier</strong>"), html);
         // A reply nine levels down is indented as if it sat at the deepest level shown.
@@ -74,24 +74,30 @@ class HackerNewsReaderTest {
         when(httpClient.getPage(ITEM_URL)).thenReturn(
                 new SafeHttpClient.FetchedContent(URI.create(ITEM_URL), itemPage(), "text/html"));
 
-        String html = reader.read(ITEM_URL).orElseThrow();
+        String html = reader.read(ITEM_URL).html();
 
         assertFalse(html.contains("flagged"), html);
         assertEquals(3, html.split("<p><strong>", -1).length - 1, html);
     }
 
     @Test
-    void anItemPageThatCannotBeFetchedIsNotAnError() {
+    void anItemPageThatCannotBeFetchedSaysSoRatherThanFailing() {
         when(httpClient.getPage(anyString())).thenThrow(new SafeHttpClient.FetchException("HTTP 503", 503));
 
-        assertTrue(reader.read(ITEM_URL).isEmpty());
+        HackerNewsReader.Item item = reader.read(ITEM_URL);
+
+        assertFalse(item.found());
+        assertEquals("HTTP 503", item.failure());
     }
 
     @Test
-    void aPageWithoutCommentsOrTextIsNothingToRead() {
+    void anItemWithNothingOnItYetIsNotMistakenForAnUnreadablePage() {
         when(httpClient.getPage(ITEM_URL)).thenReturn(new SafeHttpClient.FetchedContent(
                 URI.create(ITEM_URL), "<html><body><p>No such item.</p></body></html>", "text/html"));
 
-        assertTrue(reader.read(ITEM_URL).isEmpty());
+        HackerNewsReader.Item item = reader.read(ITEM_URL);
+
+        assertFalse(item.found());
+        assertEquals("the item has no text and no comments yet", item.failure());
     }
 }

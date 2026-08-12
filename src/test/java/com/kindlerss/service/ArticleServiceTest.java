@@ -104,6 +104,17 @@ class ArticleServiceTest {
     }
 
     @Test
+    void anItemWithNothingOnItYetSaysThatRatherThanNothing() {
+        when(httpClient.getPage(ITEM_URL)).thenReturn(page(ITEM_URL,
+                "<html><body><table class=\"fatitem\"></table></body></html>"));
+
+        String html = service.getContentHtml(article(ITEM_URL, FEED_SUMMARY, null), false);
+
+        assertTrue(html.contains("no text and no comments yet"), html);
+        assertTrue(html.contains("Points: 114"), html);
+    }
+
+    @Test
     void whenNothingCanBeFetchedTheFeedSummarySaysWhy() {
         when(httpClient.getPage(anyString()))
                 .thenThrow(new SafeHttpClient.FetchException("DNS resolution failed"));

@@ -113,9 +113,8 @@ public class ArticleService {
         // furniture instead of the text.
         Optional<String> submission = HackerNewsReader.itemUrl(article.url());
         if (submission.isPresent()) {
-            return hackerNews.read(submission.get())
-                    .map(html -> cache(article, html))
-                    .orElseGet(() -> fromFeed(article, "the Hacker News item page could not be read"));
+            HackerNewsReader.Item item = hackerNews.read(submission.get());
+            return item.found() ? cache(article, item.html()) : fromFeed(article, item.failure());
         }
 
         Extraction extraction = extractFromSource(article);
@@ -127,13 +126,14 @@ public class ArticleService {
         // The linked page is out of reach, so fall back to the discussion the feed
         // pointed at. That is not cached: the page may well be readable later, and
         // the discussion keeps growing in the meantime.
-        Optional<String> discussion = findCommentsUrl(article)
+        HackerNewsReader.Item discussion = findCommentsUrl(article)
                 .flatMap(HackerNewsReader::itemUrl)
-                .flatMap(hackerNews::read);
-        if (discussion.isPresent()) {
+                .map(hackerNews::read)
+                .orElse(null);
+        if (discussion != null && discussion.found()) {
             return note("The linked page could not be fetched (" + extraction.failure()
                     + "). The Hacker News discussion is shown instead.")
-                    + sanitizer.sanitizeWithImages(discussion.get());
+                    + sanitizer.sanitizeWithImages(discussion.html());
         }
         return fromFeed(article, extraction.failure());
     }

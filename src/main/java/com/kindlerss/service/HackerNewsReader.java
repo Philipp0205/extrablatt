@@ -51,18 +51,33 @@ public class HackerNewsReader {
                 : Optional.empty();
     }
 
-    /** Fetches an item page and renders it, or empty when it cannot be read. */
-    public Optional<String> read(String itemUrl) {
+    /** Either an item page rendered as article HTML, or why there is nothing to read. */
+    public record Item(String html, String failure) {
+        static Item failed(String reason) {
+            return new Item(null, reason);
+        }
+
+        public boolean found() {
+            return html != null && !html.isBlank();
+        }
+    }
+
+    /** Fetches an item page and renders it. */
+    public Item read(String itemUrl) {
         try {
             SafeHttpClient.FetchedContent fetched = httpClient.getPage(itemUrl);
             if (!fetched.isMarkup()) {
-                return Optional.empty();
+                return Item.failed("the item page is not a web page but " + fetched.contentType());
             }
             String html = render(fetched.body(), fetched.finalUri().toString());
-            return html.isBlank() ? Optional.empty() : Optional.of(html);
+            if (html.isBlank()) {
+                return Item.failed("the item has no text and no comments yet");
+            }
+            return new Item(html, null);
         } catch (RuntimeException e) {
-            log.info("Could not read Hacker News item {}: {}", itemUrl, e.getMessage());
-            return Optional.empty();
+            String reason = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
+            log.info("Could not read Hacker News item {}: {}", itemUrl, reason);
+            return Item.failed(reason);
         }
     }
 
