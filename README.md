@@ -82,9 +82,11 @@ Tests do not require PostgreSQL or Docker. They cover EPUB layout, HTML sanitiza
 2. Open **Articles** / **Unread** and filter by feed.
 3. Page through the list; articles you page past are marked read.
 4. Tap an article's title to mark it read and view extracted content (images off by default).
-   An unread list keeps articles opened during that visit in place, so returning
-   to the list does not make the entries jump. A feed-provided discussion link
-   (for example Hacker News comments) remains available beside **Original**.
+   **Back** returns to the list you came from — same feed, category, page and unread
+   selection — and **Feeds** goes to the feed overview, so neither needs the browser's
+   own back button. An unread list keeps articles opened during that visit in place,
+   so returning to the list does not make the entries jump. A feed-provided discussion
+   link (for example Hacker News comments) remains available beside **Original**.
 5. **Send to Kindle** builds an EPUB and emails it; `sent_at` is recorded only after SMTP succeeds.
    With JavaScript available it sends in place, without reloading or moving the
    current page; the normal form submission remains as a no-JavaScript fallback.

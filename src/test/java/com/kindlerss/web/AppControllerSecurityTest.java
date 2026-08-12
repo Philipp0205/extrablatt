@@ -367,6 +367,42 @@ class AppControllerSecurityTest {
 
     @Test
     @WithMockUser
+    void anArticleCanBeLeftByAButtonForTheListItWasOpenedFrom() throws Exception {
+        Article article = new Article(7L, 1L, "guid", "Paged article", "https://example.com/a", null,
+                null, null, null, null, true, null, null, null, "Example Feed");
+        when(articleService.findById(UID, 7L)).thenReturn(Optional.of(article));
+        when(articleService.getContentHtml(any(Article.class), eq(false))).thenReturn("<p>Body</p>");
+
+        mockMvc.perform(get("/articles/7").param("back", "/items?page=2&feed=5"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString(
+                        "href=\"/items?page=2&amp;feed=5\">Back</a>")))
+                .andExpect(content().string(containsString("href=\"/\">Feeds</a>")));
+
+        // Without one, and for anything pointing out of the app, Back is the article list.
+        mockMvc.perform(get("/articles/7"))
+                .andExpect(content().string(containsString("href=\"/items\">Back</a>")));
+        mockMvc.perform(get("/articles/7").param("back", "https://evil.example"))
+                .andExpect(content().string(containsString("href=\"/items\">Back</a>")));
+    }
+
+    @Test
+    @WithMockUser
+    void listEntriesTellTheArticleWhereItWasOpenedFrom() throws Exception {
+        when(articleService.findPage(eq(UID), isNull(), isNull(), eq(2), eq(20)))
+                .thenReturn(List.of(new Article(4L, 1L, "guid-4", "Article 4", null, null,
+                        null, null, null, null, false, null, null, null, "Example Feed")));
+        when(articleService.count(eq(UID), isNull(), isNull())).thenReturn(30L);
+        when(feedService.listFeeds(UID)).thenReturn(List.of());
+
+        mockMvc.perform(get("/items").param("page", "2"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString(
+                        "href=\"/articles/4?back=/items?page%3D2\"")));
+    }
+
+    @Test
+    @WithMockUser
     void itemsPageOffersBothMarkingAndPlainForwardNavigation() throws Exception {
         List<Article> articles = new ArrayList<>();
         for (int i = 1; i <= 20; i++) {
@@ -487,7 +523,8 @@ class AppControllerSecurityTest {
 
         mockMvc.perform(get("/items").param("unread", "true").param("snapshot", "100"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("<a class=\"item-title\" href=\"/articles/4\">")))
+                .andExpect(content().string(containsString(
+                        "<a class=\"item-title\" href=\"/articles/4?back=/items?page%3D1%26unread%3Dtrue%26snapshot%3D100\">")))
                 .andExpect(content().string(not(containsString(">Read</a>"))))
                 .andExpect(content().string(containsString(
                         "name=\"redirect\" value=\"/items?page=1&amp;unread=true&amp;snapshot=100\"")));

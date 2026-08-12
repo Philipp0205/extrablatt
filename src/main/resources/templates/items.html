@@ -70,7 +70,8 @@
         <p th:if="${#lists.isEmpty(articles)}" class="muted">No articles.</p>
         <ul class="item-list" th:if="${!#lists.isEmpty(articles)}">
           <li th:each="a : ${articles}">
-            <a class="item-title" th:href="@{/articles/{id}(id=${a.id})}">
+            <!-- The article carries this list along, so it can be left by a button. -->
+            <a class="item-title" th:href="@{/articles/{id}(id=${a.id}, back=${listPath})}">
               <strong th:if="${!a.read}">●</strong>
               <span th:text="${a.title}">Title</span>
             </a>

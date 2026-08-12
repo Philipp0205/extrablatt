@@ -329,9 +329,14 @@ public class AppController {
         return path.toString();
     }
 
+    /**
+     * @param back the list this article was opened from, so that leaving it again is
+     *             a button on the page rather than the browser's history
+     */
     @GetMapping("/articles/{id}")
     public String article(@PathVariable("id") long id,
                           @RequestParam(value = "images", defaultValue = "false") boolean images,
+                          @RequestParam(value = "back", required = false) String back,
                           Model model) {
         long userId = currentUser.requireId();
         Article article = articleService.findById(userId, id)
@@ -344,6 +349,7 @@ public class AppController {
         model.addAttribute("article", article);
         model.addAttribute("contentHtml", contentHtml);
         model.addAttribute("images", images);
+        model.addAttribute("back", safeRedirect(back));
         model.addAttribute("originalUrl", safeHttpUrl(article.url()));
         model.addAttribute("commentsUrl",
                 articleService.findCommentsUrl(article).map(AppController::safeHttpUrl).orElse(null));
