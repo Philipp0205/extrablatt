@@ -39,15 +39,31 @@ public class AuthController {
             redirectAttributes.addFlashAttribute("email", email);
             return "redirect:/register";
         } catch (RuntimeException e) {
-            // Account was created but the verification e-mail failed to send; keep
-            // the message generic and let the user request a new link via reset.
+            // Registration is transactional, so a failed verification e-mail also
+            // rolls back the account: the address stays free to try again.
             redirectAttributes.addFlashAttribute("error",
-                    "Account created but the confirmation e-mail could not be sent. Try again shortly.");
+                    "We could not send the confirmation e-mail, so the account was not created. "
+                            + "Please try again in a moment.");
+            redirectAttributes.addFlashAttribute("email", email);
             return "redirect:/register";
         }
-        redirectAttributes.addFlashAttribute("message",
-                "Check your inbox to confirm your e-mail, then log in.");
-        return "redirect:/login";
+        redirectAttributes.addFlashAttribute("sentTo", email);
+        redirectAttributes.addFlashAttribute("instruction",
+                "Open the confirmation link in that message to activate your account, then log in.");
+        redirectAttributes.addFlashAttribute("retryPath", "/register");
+        return "redirect:/check-email";
+    }
+
+    /**
+     * Confirms that an e-mail went out. Reached only through a redirect that
+     * carries the flash attributes; a direct visit has nothing to report.
+     */
+    @GetMapping("/check-email")
+    public String checkEmail(Model model) {
+        if (!model.containsAttribute("instruction")) {
+            return "redirect:/login";
+        }
+        return "check-email";
     }
 
     @GetMapping("/verify")
@@ -70,9 +86,14 @@ public class AuthController {
     @PostMapping("/forgot-password")
     public String forgot(@RequestParam("email") String email, RedirectAttributes redirectAttributes) {
         userService.requestPasswordReset(email);
-        redirectAttributes.addFlashAttribute("message",
-                "If that address has an account, a reset link is on its way.");
-        return "redirect:/login";
+        // Worded so it reads the same whether or not the address has an account,
+        // which keeps the page from confirming who is registered.
+        redirectAttributes.addFlashAttribute("sentTo", email);
+        redirectAttributes.addFlashAttribute("instruction",
+                "If that address has an account, the message contains a link to set a new password. "
+                        + "The link is valid for one hour.");
+        redirectAttributes.addFlashAttribute("retryPath", "/forgot-password");
+        return "redirect:/check-email";
     }
 
     @GetMapping("/reset-password")

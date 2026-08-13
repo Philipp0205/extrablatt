@@ -30,7 +30,7 @@ public class SecurityConfig {
     /** Public pages that must be reachable without an account. */
     private static final String[] PUBLIC_PATHS = {
             "/login", "/register", "/verify", "/forgot-password", "/reset-password",
-            "/privacy", "/terms"
+            "/check-email", "/privacy", "/terms"
     };
 
     private final AppProperties appProperties;

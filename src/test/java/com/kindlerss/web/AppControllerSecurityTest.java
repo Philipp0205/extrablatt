@@ -35,6 +35,7 @@ import static org.hamcrest.Matchers.not;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doNothing;
@@ -42,6 +43,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.flash;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestBuilders.formLogin;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -114,13 +116,56 @@ class AppControllerSecurityTest {
     }
 
     @Test
-    void registrationSubmitsAndRedirectsToLogin() throws Exception {
+    void registrationConfirmsThatAnEmailWasSent() throws Exception {
         mockMvc.perform(post("/register").with(csrf())
                         .param("email", "new@example.com")
                         .param("password", "supersecret"))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/login"));
+                .andExpect(redirectedUrl("/check-email"))
+                .andExpect(flash().attribute("sentTo", "new@example.com"));
         verify(userService).register("new@example.com", "supersecret");
+    }
+
+    @Test
+    void aFailedVerificationEmailReportsThatNoAccountWasCreated() throws Exception {
+        org.mockito.Mockito.doThrow(new IllegalStateException("Could not send e-mail"))
+                .when(userService).register(anyString(), anyString());
+
+        mockMvc.perform(post("/register").with(csrf())
+                        .param("email", "new@example.com")
+                        .param("password", "supersecret"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/register"))
+                .andExpect(flash().attribute("error",
+                        containsString("account was not created")));
+    }
+
+    @Test
+    void passwordResetConfirmsThatAnEmailWasSent() throws Exception {
+        mockMvc.perform(post("/forgot-password").with(csrf())
+                        .param("email", "someone@example.com"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/check-email"))
+                .andExpect(flash().attribute("sentTo", "someone@example.com"));
+        verify(userService).requestPasswordReset("someone@example.com");
+    }
+
+    @Test
+    void theConfirmationPageNamesTheAddressItWrote() throws Exception {
+        mockMvc.perform(get("/check-email")
+                        .flashAttr("sentTo", "new@example.com")
+                        .flashAttr("instruction", "Open the confirmation link."))
+                .andExpect(status().isOk())
+                .andExpect(view().name("check-email"))
+                .andExpect(content().string(containsString("new@example.com")))
+                .andExpect(content().string(containsString("Open the confirmation link.")));
+    }
+
+    @Test
+    void visitingTheConfirmationPageDirectlyHasNothingToReport() throws Exception {
+        mockMvc.perform(get("/check-email"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/login"));
     }
 
     @Test
