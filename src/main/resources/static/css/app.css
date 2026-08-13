@@ -210,8 +210,9 @@ label {
   margin-bottom: 0.35rem;
 }
 
-input[type="url"], input[type="password"], input[type="text"] {
+input[type="email"], input[type="url"], input[type="password"], input[type="text"] {
   width: 100%;
+  max-width: 100%;
   min-height: 2.75rem;
   padding: 0.6rem 0.75rem;
   border: 2px solid #000;
