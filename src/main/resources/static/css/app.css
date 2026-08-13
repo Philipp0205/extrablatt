@@ -144,6 +144,16 @@ form.inline {
   background: #f5f5f5;
 }
 
+/* Confirmation that a message was sent; carries more than one line, unlike the
+   single-sentence flashes above. */
+.flash.sent p {
+  margin: 0 0 0.5rem;
+}
+
+.flash.sent p:last-child {
+  margin-bottom: 0;
+}
+
 .metric-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));

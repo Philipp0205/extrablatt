@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Check your inbox — Kindle RSS</title>
+  <link rel="stylesheet" th:href="@{/css/app.css}"/>
+</head>
+<body>
+<div class="wrap">
+  <header class="app">
+    <span class="brand">Kindle RSS</span>
+  </header>
+
+  <h1>Check your inbox</h1>
+
+  <div class="flash sent">
+    <p th:if="${sentTo != null}">
+      We sent an e-mail to <strong th:text="${sentTo}">you@example.com</strong>.
+    </p>
+    <p th:if="${sentTo == null}">We sent you an e-mail.</p>
+    <p class="meta" th:text="${instruction}">Open the link in that message to continue.</p>
+  </div>
+
+  <p class="meta">
+    Nothing after a few minutes? Check your spam folder, then
+    <a th:href="${retryPath} ?: @{/register}">try again</a>.
+  </p>
+
+  <p class="meta">
+    <a th:href="@{/login}">Back to log in</a>
+  </p>
+</div>
+</body>
+</html>
