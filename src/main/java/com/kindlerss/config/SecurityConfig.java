@@ -13,6 +13,7 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.authentication.RememberMeServices;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.authentication.rememberme.TokenBasedRememberMeServices;
@@ -32,6 +33,9 @@ public class SecurityConfig {
             "/login", "/register", "/verify", "/forgot-password", "/reset-password",
             "/check-email", "/privacy", "/terms"
     };
+
+    /** Session attribute holding the e-mail from a failed login, so the form can keep it. */
+    public static final String LAST_LOGIN_USERNAME = "LAST_LOGIN_USERNAME";
 
     private final AppProperties appProperties;
     private final Environment environment;
@@ -70,6 +74,7 @@ public class SecurityConfig {
                 .formLogin(form -> form
                         .loginPage("/login")
                         .defaultSuccessUrl("/", true)
+                        .failureHandler(loginFailureHandler())
                         .permitAll()
                 )
                 .logout(logout -> logout
@@ -85,6 +90,21 @@ public class SecurityConfig {
                 .addFilterBefore(rateLimitingFilter, UsernamePasswordAuthenticationFilter.class)
                 .csrf(Customizer.withDefaults());
         return http.build();
+    }
+
+    /**
+     * On a failed login, remember the e-mail that was tried so the form can put it
+     * back — a wrong password should not also make the user retype their address.
+     * The password is never kept.
+     */
+    private AuthenticationFailureHandler loginFailureHandler() {
+        return (request, response, exception) -> {
+            String username = request.getParameter("username");
+            if (username != null && !username.isBlank()) {
+                request.getSession().setAttribute(LAST_LOGIN_USERNAME, username.trim());
+            }
+            response.sendRedirect(request.getContextPath() + "/login?error");
+        };
     }
 
     private boolean isProduction() {

@@ -12,7 +12,6 @@ import com.kindlerss.repository.FeedRepository;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
-import org.jsoup.select.Elements;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -110,21 +109,12 @@ public class FeedService {
         try {
             parsed = parseFeed(body, feedUrl);
         } catch (Exception directParseError) {
-            Optional<String> discovered = discoverFeedUrl(body, feedUrl);
-            if (discovered.isEmpty()) {
-                throw new IllegalArgumentException("Could not parse RSS/Atom and no alternate feed link found");
-            }
-            feedUrl = discovered.get();
-            if (feedRepository.findByUrl(userId, feedUrl).isPresent()) {
-                throw new IllegalArgumentException("Feed already exists");
-            }
-            SafeHttpClient.FetchedContent feedFetched = httpClient.get(feedUrl);
-            feedUrl = feedFetched.finalUri().toString();
-            try {
-                parsed = parseFeed(feedFetched.body(), feedUrl);
-            } catch (Exception e) {
-                throw new IllegalArgumentException("Discovered feed could not be parsed: " + e.getMessage(), e);
-            }
+            // The address was a web page, not a feed: try to find the feed it points
+            // to (its <link> tags and feed-like anchors) and, failing that, the
+            // conventional feed locations for the site.
+            Discovered discovered = discoverFeed(body, feedUrl);
+            feedUrl = discovered.url();
+            parsed = discovered.feed();
         }
 
         if (feedRepository.findByUrl(userId, feedUrl).isPresent()) {
@@ -272,25 +262,100 @@ public class FeedService {
         return trimmed + separator + "count=" + count;
     }
 
-    private Optional<String> discoverFeedUrl(String html, String baseUrl) {
-        Document doc = Jsoup.parse(html, baseUrl);
-        Elements links = doc.select("link[rel~=alternate]");
-        for (Element link : links) {
-            String type = link.hasAttr("type") ? link.attr("type").toLowerCase(Locale.ROOT) : "";
-            String href = link.hasAttr("abs:href") ? link.attr("abs:href") : link.attr("href");
-            if (href == null || href.isBlank()) {
+    /** Guards against fetching an unbounded number of URLs from one add-feed action. */
+    private static final int MAX_DISCOVERY_ATTEMPTS = 12;
+
+    /** Conventional locations a feed sits at when a page advertises none. */
+    private static final List<String> WELL_KNOWN_FEED_PATHS = List.of(
+            "/feed", "/feed/", "/rss", "/rss.xml", "/feed.xml", "/atom.xml",
+            "/index.xml", "/feeds/posts/default", "/?feed=rss2");
+
+    private record Discovered(String url, ParsedFeed feed) {}
+
+    /**
+     * Finds a real feed for a page that is not itself one. Candidates are tried in
+     * order of confidence — declared {@code <link>} feeds, then feed-like anchors,
+     * then the site's conventional feed paths — and the first that actually parses
+     * as RSS/Atom wins. Each candidate is SSRF-validated and fetched at most once.
+     */
+    private Discovered discoverFeed(String html, String baseUrl) {
+        java.util.LinkedHashSet<String> attempted = new java.util.LinkedHashSet<>();
+        int attempts = 0;
+        for (String candidate : candidateFeedUrls(html, baseUrl)) {
+            URI validated;
+            try {
+                validated = httpClient.validateAndResolve(candidate);
+            } catch (RuntimeException invalid) {
                 continue;
             }
-            if (type.contains("rss") || type.contains("atom") || type.contains("xml")) {
-                try {
-                    URI validated = httpClient.validateAndResolve(href);
-                    return Optional.of(validated.toString());
-                } catch (SafeHttpClient.FetchException ignored) {
-                    // try next
-                }
+            String url = validated.toString();
+            if (url.equals(baseUrl) || !attempted.add(url)) {
+                continue;
+            }
+            if (++attempts > MAX_DISCOVERY_ATTEMPTS) {
+                break;
+            }
+            try {
+                SafeHttpClient.FetchedContent fetched = httpClient.get(url);
+                String finalUrl = fetched.finalUri().toString();
+                ParsedFeed parsed = parseFeed(fetched.body(), finalUrl);
+                return new Discovered(finalUrl, parsed);
+            } catch (Exception notAFeed) {
+                log.debug("Feed candidate {} did not parse: {}", url, notAFeed.getMessage());
             }
         }
-        return Optional.empty();
+        throw new IllegalArgumentException(
+                "Could not find an RSS/Atom feed at that address. Try the feed's direct URL.");
+    }
+
+    /** Ordered, de-duplicated feed candidates gathered from a page's markup and site conventions. */
+    private List<String> candidateFeedUrls(String html, String baseUrl) {
+        java.util.LinkedHashSet<String> candidates = new java.util.LinkedHashSet<>();
+        Document doc = Jsoup.parse(html, baseUrl);
+
+        for (Element link : doc.select("link[rel~=(?i)alternate][type]")) {
+            String type = link.attr("type").toLowerCase(Locale.ROOT);
+            if (type.contains("rss") || type.contains("atom") || type.contains("xml")) {
+                addCandidate(candidates, link.attr("abs:href"));
+            }
+        }
+        for (Element link : doc.select("link[type]")) {
+            String type = link.attr("type").toLowerCase(Locale.ROOT);
+            if (type.contains("rss") || type.contains("atom")) {
+                addCandidate(candidates, link.attr("abs:href"));
+            }
+        }
+        for (Element anchor : doc.select("a[href]")) {
+            String href = anchor.attr("abs:href");
+            String lower = href.toLowerCase(Locale.ROOT);
+            if (lower.contains("/feed") || lower.contains("rss") || lower.contains("atom")
+                    || lower.endsWith(".xml")) {
+                addCandidate(candidates, href);
+            }
+        }
+        candidates.addAll(wellKnownFeedUrls(baseUrl));
+        return new java.util.ArrayList<>(candidates);
+    }
+
+    private static void addCandidate(java.util.Set<String> candidates, String href) {
+        if (href != null && !href.isBlank()) {
+            candidates.add(href.trim());
+        }
+    }
+
+    /** The site's conventional feed paths, resolved against the page's origin. */
+    private static List<String> wellKnownFeedUrls(String baseUrl) {
+        URI base;
+        try {
+            base = URI.create(baseUrl);
+        } catch (IllegalArgumentException invalid) {
+            return List.of();
+        }
+        if (base.getScheme() == null || base.getRawAuthority() == null) {
+            return List.of();
+        }
+        String origin = base.getScheme() + "://" + base.getRawAuthority();
+        return WELL_KNOWN_FEED_PATHS.stream().map(path -> origin + path).toList();
     }
 
     private ParsedFeed parseFeed(String body, String feedUrl) throws Exception {

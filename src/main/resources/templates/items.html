@@ -12,7 +12,6 @@
     <nav class="top">
       <a class="btn" th:href="@{/}">Feeds</a>
       <a class="btn" th:href="@{/items}">Articles</a>
-      <a class="btn" th:href="@{/items(unread=true)}">Unread</a>
       <a class="btn" th:href="@{/settings}">Settings</a>
       <form class="inline" th:action="@{/refresh}" method="post">
         <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
@@ -28,7 +27,10 @@
   <div th:if="${message}" class="flash" th:text="${message}"></div>
   <div th:if="${error}" class="flash error" th:text="${error}"></div>
 
-  <div class="reader" data-reader
+  <!-- The article list always opens at the top: unlike a single article, there is
+       no reading position worth restoring, and returning to "Articles" should show
+       page one from its start. -->
+  <div class="reader" data-reader data-reader-restore="false"
        th:attr="data-reader-key='items-' + ${feedId} + '-' + ${category} + '-' + ${unread} + '-' + ${snapshot} + '-' + ${page},
                 data-reader-prev-url=${page > 1} ? @{/items(feed=${feedId}, category=${category}, unread=${unread} ? true : null, snapshot=${snapshot}, page=${page - 1})} : null,
                 data-reader-next-form=${!#lists.isEmpty(articles)} ? 'advance' : null,
@@ -101,7 +103,12 @@
             <input type="hidden" name="snapshot" th:if="${snapshot != null}" th:value="${snapshot}"/>
             <input type="hidden" name="page" th:value="${page}"/>
             <input type="hidden" name="id" th:each="a : ${articles}" th:value="${a.id}"/>
+            <!-- On the last page the pager's "Next page" button already becomes
+                 "Mark read", so this one would be a second, identical button; it is
+                 hidden while the reader is paged and kept only as the no-script
+                 fallback. Earlier pages keep it as "Mark read & continue". -->
             <button class="btn" type="submit"
+                    th:classappend="${page >= totalPages} ? ' reader-hide-when-paged'"
                     th:text="${page < totalPages} ? 'Mark read &amp; continue' : 'Mark these read'">Mark read</button>
           </form>
           <a class="btn" th:if="${page < totalPages}"

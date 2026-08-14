@@ -1,6 +1,9 @@
 package com.kindlerss.web;
 
+import com.kindlerss.config.SecurityConfig;
 import com.kindlerss.service.UserService;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpSession;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -19,7 +22,17 @@ public class AuthController {
     }
 
     @GetMapping("/login")
-    public String login() {
+    public String login(HttpServletRequest request, Model model) {
+        HttpSession session = request.getSession(false);
+        if (session != null) {
+            Object lastUsername = session.getAttribute(SecurityConfig.LAST_LOGIN_USERNAME);
+            if (lastUsername != null) {
+                // Put the tried e-mail back into the form after a wrong password, then
+                // drop it so a later, clean visit starts with an empty field.
+                model.addAttribute("email", lastUsername);
+                session.removeAttribute(SecurityConfig.LAST_LOGIN_USERNAME);
+            }
+        }
         return "login";
     }
 

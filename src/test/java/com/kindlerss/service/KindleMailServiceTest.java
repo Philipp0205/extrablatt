@@ -132,6 +132,18 @@ class KindleMailServiceTest {
     }
 
     @Test
+    void documentNameKeepsTheRealTitleInsteadOfADashedSlug() {
+        assertEquals("My Great Article", KindleMailService.documentName("My Great Article"));
+        // Illegal file-name characters and control characters become spaces, and runs
+        // of whitespace collapse, but words and capitals are preserved.
+        assertEquals("Q3 Report Numbers",
+                KindleMailService.documentName("Q3/Report: Numbers?"));
+        assertEquals("Spaced Out", KindleMailService.documentName("  Spaced   Out  "));
+        assertEquals("Article", KindleMailService.documentName("   "));
+        assertEquals("Article", KindleMailService.documentName(null));
+    }
+
+    @Test
     void administratorCanSetACustomDailyLimit() {
         when(sendLimitRepository.findByUserId(UID))
                 .thenReturn(Optional.of(new UserSendLimit(UID, 2, null)));

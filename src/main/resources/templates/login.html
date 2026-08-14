@@ -21,7 +21,8 @@
   <form th:action="@{/login}" method="post">
     <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
     <label for="username">E-mail</label>
-    <input id="username" name="username" type="email" autocomplete="username" required/>
+    <input id="username" name="username" type="email" autocomplete="username"
+           th:value="${email}" required/>
 
     <label for="password" style="margin-top:0.75rem">Password</label>
     <input id="password" name="password" type="password" autocomplete="current-password" required/>

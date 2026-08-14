@@ -15,7 +15,6 @@ import org.springframework.util.StringUtils;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.Locale;
 
 /**
  * Builds an EPUB from an article and emails it to the account's Kindle address.
@@ -65,7 +64,7 @@ public class KindleMailService {
         String html = articleService.getContentHtml(article, includeImages);
         String author = StringUtils.hasText(article.author()) ? article.author() : article.feedTitle();
         byte[] epub = epubService.createEpub(article.title(), author, html);
-        String filename = slugify(article.title()) + ".epub";
+        String filename = documentName(article.title()) + ".epub";
 
         try {
             MimeMessage message = mailSender.createMimeMessage();
@@ -123,15 +122,23 @@ public class KindleMailService {
         }
     }
 
-    static String slugify(String title) {
-        String base = title == null ? "article" : title.toLowerCase(Locale.ROOT)
-                .replaceAll("[^a-z0-9]+", "-")
-                .replaceAll("^-+|-+$", "");
+    /**
+     * The attachment name is what shows up in the Kindle library, so it keeps the
+     * article's real title — words, spaces and capitals — instead of a dashed slug.
+     * Only characters a file name cannot hold are dropped, and runs of whitespace
+     * are collapsed so the name stays on one tidy line.
+     */
+    static String documentName(String title) {
+        String base = title == null ? "" : title
+                // Characters that are illegal in file names on common systems.
+                .replaceAll("[\\\\/:*?\"<>|\\p{Cntrl}]", " ")
+                .replaceAll("\\s+", " ")
+                .trim();
         if (base.isBlank()) {
-            base = "article";
+            base = "Article";
         }
-        if (base.length() > 60) {
-            base = base.substring(0, 60);
+        if (base.length() > 80) {
+            base = base.substring(0, 80).trim();
         }
         return base;
     }

@@ -550,6 +550,22 @@ class AppControllerSecurityTest {
     }
 
     @Test
+    void resolveCategoryPrefersATypedNewNameAndTreatsTheSentinelAsNone() {
+        // A newly typed category wins over whatever the drop-down still shows.
+        org.junit.jupiter.api.Assertions.assertEquals("Science",
+                AppController.resolveCategory("__new__", "Science"));
+        org.junit.jupiter.api.Assertions.assertEquals("Science",
+                AppController.resolveCategory("Technology", "  Science  "));
+        // The "New category" sentinel and the blank "Uncategorized" choice mean none.
+        org.junit.jupiter.api.Assertions.assertNull(AppController.resolveCategory("__new__", null));
+        org.junit.jupiter.api.Assertions.assertNull(AppController.resolveCategory("", ""));
+        org.junit.jupiter.api.Assertions.assertNull(AppController.resolveCategory(null, null));
+        // A plain drop-down choice is used as-is (trimmed).
+        org.junit.jupiter.api.Assertions.assertEquals("Technology",
+                AppController.resolveCategory(" Technology ", "  "));
+    }
+
+    @Test
     void safeRedirectRejectsOpenRedirects() {
         org.junit.jupiter.api.Assertions.assertEquals("/items", AppController.safeRedirect("https://evil.example"));
         org.junit.jupiter.api.Assertions.assertEquals("/items", AppController.safeRedirect("//evil.example"));
