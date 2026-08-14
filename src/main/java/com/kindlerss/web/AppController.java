@@ -7,6 +7,7 @@ import com.kindlerss.security.CurrentUser;
 import com.kindlerss.service.ArticleService;
 import com.kindlerss.service.FeedService;
 import com.kindlerss.service.KindleMailService;
+import com.kindlerss.service.UserService;
 import org.springframework.stereotype.Controller;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -41,19 +42,24 @@ public class AppController {
     private final FeedService feedService;
     private final ArticleService articleService;
     private final KindleMailService kindleMailService;
+    private final UserService userService;
     private final CurrentUser currentUser;
     private final int pageSize;
+    private final String mailFrom;
 
     public AppController(FeedService feedService,
                          ArticleService articleService,
                          KindleMailService kindleMailService,
+                         UserService userService,
                          CurrentUser currentUser,
                          AppProperties properties) {
         this.feedService = feedService;
         this.articleService = articleService;
         this.kindleMailService = kindleMailService;
+        this.userService = userService;
         this.currentUser = currentUser;
         this.pageSize = properties.articles().pageSize();
+        this.mailFrom = properties.mailFrom();
     }
 
     @GetMapping("/")
@@ -67,17 +73,38 @@ public class AppController {
             feedGroups.computeIfAbsent(feed.categoryName(), ignored -> new ArrayList<>()).add(feed);
         }
         model.addAttribute("feedGroups", feedGroups);
+        model.addAttribute("categories", existingCategories(feeds));
         model.addAttribute("defaultFeeds", feedService.defaultFeeds(userId));
         model.addAttribute("totalUnread", totalUnread);
+        model.addAttribute("kindleConfigured", isKindleConfigured(userId));
+        model.addAttribute("mailFrom", mailFrom);
         return "index";
+    }
+
+    /** The distinct categories already in use, so they can fill a category drop-down. */
+    private static List<String> existingCategories(List<Feed> feeds) {
+        return feeds.stream()
+                .map(Feed::category)
+                .filter(name -> name != null && !name.isBlank())
+                .map(String::trim)
+                .distinct()
+                .sorted(String.CASE_INSENSITIVE_ORDER)
+                .toList();
+    }
+
+    private boolean isKindleConfigured(long userId) {
+        return userService.findById(userId)
+                .map(user -> user.kindleEmail() != null && !user.kindleEmail().isBlank())
+                .orElse(false);
     }
 
     @PostMapping("/feeds")
     public String addFeed(@RequestParam("url") String url,
                           @RequestParam(value = "category", required = false) String category,
+                          @RequestParam(value = "newCategory", required = false) String newCategory,
                           RedirectAttributes redirectAttributes) {
         try {
-            Feed feed = feedService.addFeed(currentUser.requireId(), url, category);
+            Feed feed = feedService.addFeed(currentUser.requireId(), url, resolveCategory(category, newCategory));
             redirectAttributes.addFlashAttribute("message", "Added feed: " + feed.title());
         } catch (Exception e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
@@ -122,13 +149,31 @@ public class AppController {
     @PostMapping("/feeds/{id}/category")
     public String categorizeFeed(@PathVariable("id") long id,
                                  @RequestParam(value = "category", required = false) String category,
+                                 @RequestParam(value = "newCategory", required = false) String newCategory,
                                  RedirectAttributes redirectAttributes) {
-        if (feedService.categorizeFeed(currentUser.requireId(), id, category)) {
+        if (feedService.categorizeFeed(currentUser.requireId(), id, resolveCategory(category, newCategory))) {
             redirectAttributes.addFlashAttribute("message", "Feed category updated");
         } else {
             redirectAttributes.addFlashAttribute("error", "Feed not found");
         }
         return "redirect:/";
+    }
+
+    /**
+     * The category comes from a drop-down of the categories already in use, plus a
+     * "New category" choice that reveals a text field. A typed new name wins; the
+     * sentinel value and the blank "Uncategorized" choice both mean no category.
+     */
+    static final String NEW_CATEGORY = "__new__";
+
+    static String resolveCategory(String category, String newCategory) {
+        if (newCategory != null && !newCategory.isBlank()) {
+            return newCategory.trim();
+        }
+        if (category == null || category.isBlank() || NEW_CATEGORY.equals(category.trim())) {
+            return null;
+        }
+        return category.trim();
     }
 
     @PostMapping("/feeds/{id}/delete")

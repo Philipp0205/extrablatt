@@ -8,6 +8,7 @@ import com.kindlerss.security.RateLimitingFilter;
 import com.kindlerss.service.ArticleService;
 import com.kindlerss.service.FeedService;
 import com.kindlerss.service.KindleMailService;
+import com.kindlerss.service.UserService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -74,6 +75,9 @@ class BuildInfoViewTest {
 
     @MockitoBean
     CurrentUser currentUser;
+
+    @MockitoBean
+    UserService userService;
 
     @MockitoBean
     UserDetailsService userDetailsService;

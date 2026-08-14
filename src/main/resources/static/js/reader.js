@@ -38,6 +38,9 @@
   var nextEndLabel = root.getAttribute('data-reader-next-end-label');
   var nextLabel = nextButton ? nextButton.innerHTML : '';
   var storageKey = root.getAttribute('data-reader-key');
+  // A list (as opposed to a single article) is asked to always open at the top,
+  // so a stored scroll position is neither saved nor restored for it.
+  var restorePosition = root.getAttribute('data-reader-restore') !== 'false';
 
   var marker = document.createElement('div');
   marker.className = 'reader-end';
@@ -150,7 +153,7 @@
    * different orientation or font size splits the text into different pages.
    */
   function storePosition() {
-    if (!storageKey) {
+    if (!storageKey || !restorePosition) {
       return;
     }
     try {
@@ -161,7 +164,7 @@
   }
 
   function storedPosition() {
-    if (!storageKey || window.location.hash === '#start') {
+    if (!storageKey || !restorePosition || window.location.hash === '#start') {
       // Arrived on a rebuilt list (articles were just marked read): start at the
       // top instead of restoring a position that now points at other articles.
       return 0;

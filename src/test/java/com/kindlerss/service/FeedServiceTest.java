@@ -16,6 +16,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -116,5 +117,50 @@ class FeedServiceTest {
         service(100).addFeed(UID, url, "Local");
 
         verify(httpClient, times(1)).get(url);
+    }
+
+    @Test
+    void addingAHomepageDiscoversTheFeedItDeclares() {
+        String homepage = "https://example.com/";
+        String feedUrl = "https://example.com/feed.xml";
+        String html = "<html><head><link rel=\"alternate\" type=\"application/rss+xml\" href=\""
+                + feedUrl + "\"></head><body>Hello</body></html>";
+        when(httpClient.get(homepage))
+                .thenReturn(new SafeHttpClient.FetchedContent(URI.create(homepage), html, "text/html"));
+        when(httpClient.validateAndResolve(anyString()))
+                .thenAnswer(invocation -> URI.create(invocation.getArgument(0)));
+        when(httpClient.get(feedUrl)).thenAnswer(respondWithFeed());
+        when(feedRepository.insert(eq(UID), eq("Example"), eq(feedUrl), eq("https://example.com/"), isNull()))
+                .thenReturn(feed(feedUrl));
+        when(feedRepository.findById(UID, 1L)).thenReturn(Optional.of(feed(feedUrl)));
+        when(articleRepository.insert(anyLong(), anyString(), anyString(),
+                anyString(), any(), any(), anyString(), anyString())).thenReturn(1L);
+
+        Feed added = service(100).addFeed(UID, homepage, null);
+
+        assertEquals(feedUrl, added.url());
+        verify(httpClient).get(feedUrl);
+    }
+
+    @Test
+    void addingAHomepageFallsBackToAWellKnownFeedPath() {
+        String homepage = "https://example.com/";
+        String feedUrl = "https://example.com/feed";
+        String html = "<html><head><title>No feed links here</title></head><body>Hello</body></html>";
+        when(httpClient.get(homepage))
+                .thenReturn(new SafeHttpClient.FetchedContent(URI.create(homepage), html, "text/html"));
+        when(httpClient.validateAndResolve(anyString()))
+                .thenAnswer(invocation -> URI.create(invocation.getArgument(0)));
+        when(httpClient.get(feedUrl)).thenAnswer(respondWithFeed());
+        when(feedRepository.insert(eq(UID), eq("Example"), eq(feedUrl), eq("https://example.com/"), isNull()))
+                .thenReturn(feed(feedUrl));
+        when(feedRepository.findById(UID, 1L)).thenReturn(Optional.of(feed(feedUrl)));
+        when(articleRepository.insert(anyLong(), anyString(), anyString(),
+                anyString(), any(), any(), anyString(), anyString())).thenReturn(1L);
+
+        Feed added = service(100).addFeed(UID, homepage, null);
+
+        assertEquals(feedUrl, added.url());
+        verify(httpClient).get(feedUrl);
     }
 }
