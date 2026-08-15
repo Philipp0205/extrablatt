@@ -46,7 +46,7 @@ class FeedServiceTest {
     private FeedService service(int maxEntries) {
         AppProperties properties = new AppProperties(
                 "from@example.com", null, "remember-me",
-                null, new AppProperties.Feeds(maxEntries), null, null);
+                null, new AppProperties.Feeds(maxEntries), null, null, null);
         return new FeedService(feedRepository, articleRepository, httpClient, new HtmlSanitizer(), properties);
     }
 

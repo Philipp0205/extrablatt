@@ -57,6 +57,11 @@ public class ArticleService {
         return articleRepository.count(userId, feedId, category, unreadOnly, unreadSnapshot);
     }
 
+    /** How many articles an account has sent to Kindle in total, lifetime. */
+    public long countSentTotal(long userId) {
+        return articleRepository.countSentTotal(userId);
+    }
+
     @Transactional
     public Article markRead(long userId, long id, boolean read) {
         Article article = articleRepository.findById(userId, id)

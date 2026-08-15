@@ -420,8 +420,11 @@ public class AppController {
                 ? "/articles/" + id + (images ? "?images=true" : "")
                 : safeRedirect(redirect);
         try {
-            kindleMailService.sendToKindle(currentUser.requireId(), id, images);
+            boolean donationPrompt = kindleMailService.sendToKindle(currentUser.requireId(), id, images);
             redirectAttributes.addFlashAttribute("message", "Sent to Kindle");
+            if (donationPrompt) {
+                redirectAttributes.addFlashAttribute("donationPrompt", true);
+            }
         } catch (ArticleService.NotFoundException e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
             return "redirect:/items";
@@ -432,12 +435,12 @@ public class AppController {
     }
 
     @PostMapping("/articles/{id}/send-async")
-    public ResponseEntity<Map<String, String>> sendAsync(
+    public ResponseEntity<Map<String, Object>> sendAsync(
             @PathVariable("id") long id,
             @RequestParam(value = "images", defaultValue = "false") boolean images) {
         try {
-            kindleMailService.sendToKindle(currentUser.requireId(), id, images);
-            return ResponseEntity.ok(Map.of("message", "Sent to Kindle"));
+            boolean donationPrompt = kindleMailService.sendToKindle(currentUser.requireId(), id, images);
+            return ResponseEntity.ok(Map.of("message", "Sent to Kindle", "donationPrompt", donationPrompt));
         } catch (ArticleService.NotFoundException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", e.getMessage()));
         } catch (Exception e) {

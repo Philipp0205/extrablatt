@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<!--
+  A small, easy to dismiss reminder that the app is free to run but not free to
+  host. Rendered `open` by the server every Nth lifetime send (no JavaScript
+  required — it just shows as a centered card, styled in app.css); when
+  JavaScript sends an article without reloading the page, reader.js opens this
+  same element as a native modal instead once the server says to.
+
+  "Maybe later" is a plain `<form method="dialog">`, which closes the nearest
+  dialog natively with no script of its own.
+-->
+<div th:fragment="donationDialog">
+  <dialog id="donation-dialog" class="donate-dialog" th:attr="open=${donationPrompt} ? 'open' : null">
+    <h2>Help keep the servers running</h2>
+    <p>Kindle RSS is free to use, with no ads and no accounts to sell. Sending
+      EPUBs and extracting articles still costs real money to host, though — if
+      it has been useful to you, a small one-time donation helps keep it running.</p>
+    <div class="row">
+      <a class="btn" th:href="${donateUrl}" target="_blank" rel="noopener noreferrer">Donate on PayPal</a>
+      <form method="dialog"><button class="btn" type="submit">Maybe later</button></form>
+    </div>
+  </dialog>
+</div>
+</body>
+</html>

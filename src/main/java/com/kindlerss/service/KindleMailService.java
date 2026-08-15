@@ -24,6 +24,14 @@ import java.time.temporal.ChronoUnit;
 @Service
 public class KindleMailService {
 
+    /**
+     * How often, in lifetime successful sends, the "help keep the servers running"
+     * donation reminder resurfaces. The app is free to use; this is a gentle, easy
+     * to dismiss nudge rather than a paywall, so it repeats sparingly instead of
+     * showing on every send.
+     */
+    static final int DONATION_REMINDER_INTERVAL = 10;
+
     private final JavaMailSender mailSender;
     private final EpubService epubService;
     private final ArticleService articleService;
@@ -50,7 +58,12 @@ public class KindleMailService {
         this.maxSendsPerDay = properties.limits().maxSendsPerDay();
     }
 
-    public void sendToKindle(long userId, long articleId, boolean includeImages) {
+    /**
+     * Sends the article and returns whether the donation reminder should be shown
+     * now, i.e. this delivery just completed a multiple of
+     * {@link #DONATION_REMINDER_INTERVAL} lifetime sends for the account.
+     */
+    public boolean sendToKindle(long userId, long articleId, boolean includeImages) {
         AppUser user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalStateException("Account not found"));
         requireSenderConfig();
@@ -86,6 +99,9 @@ public class KindleMailService {
 
         articleRepository.recordSend(userId, articleId, Instant.now());
         articleRepository.markRead(userId, articleId, true);
+
+        long totalSent = articleRepository.countSentTotal(userId);
+        return totalSent > 0 && totalSent % DONATION_REMINDER_INTERVAL == 0;
     }
 
     private void requireSenderConfig() {

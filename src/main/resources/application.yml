@@ -62,6 +62,8 @@ app:
   # per-user send controls. Keep this in deployment secrets.
   admin-emails: ${ADMIN_EMAILS:}
   remember-me-key: ${REMEMBER_ME_KEY:kindle-rss-remember-me-change-me}
+  # Shown in Settings and in the occasional donation reminder after several sends.
+  donate-url: ${DONATE_URL:https://paypal.me/philippkurrle}
   http:
     connect-timeout: 10s
     read-timeout: 20s

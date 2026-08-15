@@ -34,6 +34,7 @@
 
   <div th:if="${message}" class="flash" th:text="${message}"></div>
   <div th:if="${error}" class="flash error" th:text="${error}"></div>
+  <div th:replace="~{fragments/donation-dialog :: donationDialog}"></div>
 
   <div class="reader" data-reader th:attr="data-reader-key='article-' + ${article.id}">
     <div class="reader-frame" data-reader-frame>

@@ -210,6 +210,14 @@ public class ArticleRepository {
         return count == null ? 0 : count;
     }
 
+    /** How many successful deliveries an account has made in total, lifetime. */
+    public long countSentTotal(long userId) {
+        Long count = jdbc.queryForObject("""
+                SELECT COUNT(*) FROM article_send_events WHERE user_id = ?
+                """, Long.class, userId);
+        return count == null ? 0 : count;
+    }
+
     /** Feeds without a category of their own are browsed under one shared name. */
     private static void appendCategoryFilter(StringBuilder sql, List<Object> args, String category) {
         if (Feed.UNCATEGORIZED.equals(category)) {
