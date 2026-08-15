@@ -253,6 +253,19 @@
   }
 
   /*
+   * The server marks every Nth lifetime send with donationPrompt: true. The
+   * no-JavaScript path already renders #donation-dialog open on the next full
+   * page; here the page never reloads, so open it as a proper native modal
+   * instead (dismissed the same way, via its own <form method="dialog">).
+   */
+  function showDonationDialog() {
+    var dialog = document.getElementById('donation-dialog');
+    if (dialog && typeof dialog.showModal === 'function' && !dialog.open) {
+      dialog.showModal();
+    }
+  }
+
+  /*
    * Sending can take several seconds while the EPUB is built and SMTP responds.
    * Keep the current document and reader position in place instead of following
    * the form's redirect and laying the whole screen out again.
@@ -288,6 +301,9 @@
                 throw new Error(data.error || 'Could not send article');
               }
               button.textContent = 'Sent';
+              if (data.donationPrompt) {
+                showDonationDialog();
+              }
             });
           }).catch(function (error) {
             button.disabled = false;

@@ -26,6 +26,7 @@
 
   <div th:if="${message}" class="flash" th:text="${message}"></div>
   <div th:if="${error}" class="flash error" th:text="${error}"></div>
+  <div th:replace="~{fragments/donation-dialog :: donationDialog}"></div>
 
   <!-- The article list always opens at the top: unlike a single article, there is
        no reading position worth restoring, and returning to "Articles" should show

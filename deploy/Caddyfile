@@ -1,6 +1,25 @@
+# The application itself (registration, feeds, reading, Send-to-Kindle).
+# Point this at your app subdomain, e.g. app.extrablatt.app.
 {$DOMAIN:localhost} {
 	encode gzip
 	reverse_proxy app:8080
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options nosniff
+		Referrer-Policy no-referrer
+		X-Frame-Options DENY
+		-Server
+	}
+}
+
+# Static marketing/landing page, served straight from disk — no application
+# server involved. Point this at your bare domain, e.g. extrablatt.app.
+# Left pointing at a placeholder host when MARKETING_DOMAIN is unset, so Caddy
+# still starts up cleanly on a single-domain (app-only) deployment.
+{$MARKETING_DOMAIN:marketing.localhost} {
+	encode gzip
+	root * /srv/marketing
+	file_server
 	header {
 		Strict-Transport-Security "max-age=31536000; includeSubDomains"
 		X-Content-Type-Options nosniff

@@ -46,6 +46,7 @@ services:
       ARTICLE_PAGE_SIZE: ${ARTICLE_PAGE_SIZE:-50}
       MAX_FEEDS_PER_USER: ${MAX_FEEDS_PER_USER:-50}
       MAX_SENDS_PER_DAY: ${MAX_SENDS_PER_DAY:-50}
+      DONATE_URL: ${DONATE_URL:-}
     networks:
       - kindle
     healthcheck:
@@ -66,8 +67,12 @@ services:
       - "443:443"
     environment:
       DOMAIN: ${DOMAIN:?set DOMAIN}
+      # Optional: the static marketing/landing page's domain (e.g. extrablatt.app,
+      # with DOMAIN set to app.extrablatt.app). Leave unset to run the app only.
+      MARKETING_DOMAIN: ${MARKETING_DOMAIN:-}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ../marketing:/srv/marketing:ro
       - caddy_data:/data
       - caddy_config:/config
     networks:

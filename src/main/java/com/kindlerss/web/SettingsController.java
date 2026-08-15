@@ -3,6 +3,7 @@ package com.kindlerss.web;
 import com.kindlerss.config.AppProperties;
 import com.kindlerss.domain.AppUser;
 import com.kindlerss.security.CurrentUser;
+import com.kindlerss.service.ArticleService;
 import com.kindlerss.service.UserService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -20,21 +21,26 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 public class SettingsController {
 
     private final UserService userService;
+    private final ArticleService articleService;
     private final CurrentUser currentUser;
     private final AppProperties properties;
 
-    public SettingsController(UserService userService, CurrentUser currentUser, AppProperties properties) {
+    public SettingsController(UserService userService, ArticleService articleService,
+                              CurrentUser currentUser, AppProperties properties) {
         this.userService = userService;
+        this.articleService = articleService;
         this.currentUser = currentUser;
         this.properties = properties;
     }
 
     @GetMapping("/settings")
     public String settings(Model model) {
-        AppUser user = userService.findById(currentUser.requireId())
+        long userId = currentUser.requireId();
+        AppUser user = userService.findById(userId)
                 .orElseThrow(() -> new IllegalStateException("Account not found"));
         model.addAttribute("account", user);
         model.addAttribute("mailFrom", properties.mailFrom());
+        model.addAttribute("totalSent", articleService.countSentTotal(userId));
         return "settings";
     }
 
