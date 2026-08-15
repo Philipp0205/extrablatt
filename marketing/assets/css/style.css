@@ -1,0 +1,339 @@
+/* Extrablatt marketing site. Plain, static, no JavaScript — matches the
+   restrained black-and-white look of the app itself, scaled up for a
+   landing page instead of an e-ink screen. */
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 18px;
+}
+
+body {
+  margin: 0;
+  font-family: Georgia, "Times New Roman", Times, serif;
+  background: #fff;
+  color: #111;
+  line-height: 1.5;
+}
+
+a {
+  color: #000;
+}
+
+.wrap {
+  max-width: 68rem;
+  margin: 0 auto;
+  padding: 0 1.25rem;
+}
+
+h1, h2, h3 {
+  font-weight: 700;
+  line-height: 1.2;
+  margin: 0 0 0.75rem;
+}
+
+h2 {
+  font-size: 1.9rem;
+  text-align: center;
+  margin-bottom: 2.5rem;
+}
+
+h3 {
+  font-size: 1.15rem;
+  margin-bottom: 0.4rem;
+}
+
+p {
+  margin: 0 0 1rem;
+}
+
+.muted {
+  color: #555;
+}
+
+/* Buttons: thick 2px borders, the same idiom the app itself uses. */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.75rem;
+  padding: 0.65rem 1.15rem;
+  border: 2px solid #000;
+  background: #fff;
+  color: #000;
+  font: inherit;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.btn:hover, .btn:focus {
+  background: #000;
+  color: #fff;
+}
+
+.btn-primary {
+  background: #000;
+  color: #fff;
+}
+
+.btn-primary:hover, .btn-primary:focus {
+  background: #fff;
+  color: #000;
+}
+
+.btn-large {
+  min-height: 3.25rem;
+  padding: 0.85rem 1.5rem;
+  font-size: 1.05rem;
+}
+
+/* Header */
+.site-header {
+  border-bottom: 2px solid #000;
+}
+
+.bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+}
+
+.brand {
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.bar nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+/* Hero */
+.hero {
+  padding: 3.5rem 0 3rem;
+}
+
+.hero-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 3rem;
+  align-items: center;
+}
+
+.hero-copy h1 {
+  font-size: 2.6rem;
+  margin-bottom: 1rem;
+}
+
+.hero .lede {
+  font-size: 1.15rem;
+  color: #222;
+  max-width: 34rem;
+}
+
+.hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin: 1.5rem 0 0.75rem;
+}
+
+.hero-note {
+  color: #555;
+  font-size: 0.95rem;
+  margin: 0;
+}
+
+/* Two Kindle mockups, gently offset like a product shot. */
+.hero-devices {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  min-height: 22rem;
+}
+
+.kindle-mock {
+  margin: 0;
+  width: 15.5rem;
+  background: linear-gradient(180deg, #333336, #1b1b1d);
+  border-radius: 20px;
+  padding: 1.35rem 1rem 2.5rem;
+  box-shadow: 0 30px 55px -22px rgba(0, 0, 0, 0.55);
+}
+
+.kindle-mock-secondary {
+  position: absolute;
+  right: 0;
+  bottom: -1.5rem;
+  width: 13rem;
+  transform: rotate(3deg);
+  z-index: 2;
+}
+
+.kindle-mock:first-child {
+  position: relative;
+  z-index: 1;
+  transform: rotate(-3deg);
+  margin-right: 4.5rem;
+}
+
+.kindle-screen {
+  background: #fff;
+  border-radius: 5px;
+  overflow: hidden;
+  aspect-ratio: 3 / 4;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.25);
+}
+
+.kindle-screen img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top center;
+}
+
+.kindle-mock::after {
+  content: "";
+  display: block;
+  width: 2.6rem;
+  height: 0.35rem;
+  margin: 1rem auto 0;
+  border-radius: 999px;
+  background: #55555a;
+}
+
+/* Feature grid */
+.features {
+  padding: 4rem 0;
+  background: #f7f6f3;
+  border-top: 2px solid #000;
+  border-bottom: 2px solid #000;
+}
+
+.feature-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: 1.75rem;
+}
+
+.feature {
+  background: #fff;
+  border: 2px solid #000;
+  padding: 1.25rem 1.4rem;
+}
+
+.feature p {
+  margin-bottom: 0;
+  color: #222;
+}
+
+/* Steps */
+.steps {
+  padding: 4.5rem 0;
+}
+
+.step-list {
+  list-style: none;
+  margin: 0 auto;
+  padding: 0;
+  max-width: 40rem;
+}
+
+.step-list li {
+  display: flex;
+  gap: 1.25rem;
+  align-items: flex-start;
+  margin-bottom: 1.75rem;
+}
+
+.step-number {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border: 2px solid #000;
+  border-radius: 50%;
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+
+.step-list p {
+  margin-bottom: 0;
+  color: #222;
+}
+
+.steps-cta {
+  text-align: center;
+  margin-top: 2.5rem;
+}
+
+/* Footer */
+.site-footer {
+  border-top: 2px solid #000;
+  padding: 2.5rem 0;
+}
+
+.footer-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 1.5rem;
+}
+
+.footer-grid .muted {
+  margin: 0.35rem 0 0;
+}
+
+.footer-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.25rem;
+  align-items: center;
+}
+
+.footer-links a {
+  text-decoration: none;
+  border-bottom: 1px solid #000;
+}
+
+@media (max-width: 900px) {
+  .hero-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .hero-devices {
+    order: -1;
+    min-height: 18rem;
+    margin-bottom: 1rem;
+  }
+
+  .hero-copy h1 {
+    font-size: 2.1rem;
+  }
+}
+
+@media (max-width: 520px) {
+  html { font-size: 16px; }
+
+  .kindle-mock:first-child {
+    margin-right: 3rem;
+  }
+
+  .kindle-mock { width: 11.5rem; }
+  .kindle-mock-secondary { width: 9.5rem; }
+
+  .hero-actions { flex-direction: column; align-items: stretch; }
+  .hero-actions .btn { width: 100%; }
+}
