@@ -1,0 +1,11 @@
+# Static marketing site. Keep this separate from the app's root railway.toml
+# so GitHub deploys do not inherit /actuator/health.
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+healthcheckPath = "/"
+healthcheckTimeout = 60
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10
