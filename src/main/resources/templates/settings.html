@@ -3,13 +3,13 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>Settings — Kindle RSS</title>
+  <title>Settings — Extrablatt</title>
   <link rel="stylesheet" th:href="@{/css/app.css}"/>
 </head>
 <body>
 <div class="wrap">
   <header class="app">
-    <a class="brand" th:href="@{/}">Kindle RSS</a>
+    <a class="brand" th:href="@{/}">Extrablatt</a>
     <nav class="top">
       <a th:href="@{/}">Feeds</a>
       <a th:href="@{/items}">Articles</a>
@@ -65,7 +65,7 @@
 
   <h2>Support this project</h2>
   <p class="meta">
-    Kindle RSS is free to use, with no ads and no accounts to sell.
+    Extrablatt is free to use, with no ads and no accounts to sell.
     <span th:if="${totalSent != null and totalSent > 0}"
           th:text="'You have sent ' + ${totalSent} + (${totalSent == 1} ? ' article' : ' articles') + ' to your Kindle so far.'">
       You have sent 0 articles to your Kindle so far.

@@ -62,7 +62,7 @@ public class SafeHttpClient {
         HttpRequest request = HttpRequest.newBuilder(uri)
                 .timeout(properties.http().readTimeout())
                 .header("User-Agent",
-                        "KindleRSS/1.0 (+https://github.com/Philipp0205/kindle-rss; personal feed reader)")
+                        "Extrablatt/1.0 (+https://github.com/Philipp0205/kindle-rss; personal feed reader)")
                 .header("Accept", "application/rss+xml, application/atom+xml, application/xml, text/xml, text/html, */*;q=0.8")
                 .GET()
                 .build();

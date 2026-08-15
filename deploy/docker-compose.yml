@@ -68,7 +68,7 @@ services:
     environment:
       DOMAIN: ${DOMAIN:?set DOMAIN}
       # Optional: the static marketing/landing page's domain (e.g. extrablatt.app,
-      # with DOMAIN set to app.extrablatt.app). Leave unset to run the app only.
+      # with DOMAIN set to reader.extrablatt.app). Leave unset to run the app only.
       MARKETING_DOMAIN: ${MARKETING_DOMAIN:-}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro

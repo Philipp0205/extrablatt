@@ -9,6 +9,7 @@ import org.springframework.core.env.Profiles;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -103,7 +104,8 @@ public class SecurityConfig {
             if (username != null && !username.isBlank()) {
                 request.getSession().setAttribute(LAST_LOGIN_USERNAME, username.trim());
             }
-            response.sendRedirect(request.getContextPath() + "/login?error");
+            String failure = exception instanceof DisabledException ? "unverified" : "error";
+            response.sendRedirect(request.getContextPath() + "/login?" + failure);
         };
     }
 

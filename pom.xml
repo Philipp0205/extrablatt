@@ -14,7 +14,7 @@
     <groupId>com.kindlerss</groupId>
     <artifactId>kindle-rss</artifactId>
     <version>1.0.0-SNAPSHOT</version>
-    <name>kindle-rss</name>
+    <name>Extrablatt</name>
     <description>Self-hosted RSS reader with Send-to-Kindle EPUB delivery</description>
 
     <properties>

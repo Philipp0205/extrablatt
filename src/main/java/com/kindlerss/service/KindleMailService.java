@@ -85,7 +85,7 @@ public class KindleMailService {
             helper.setFrom(properties.mailFrom());
             helper.setTo(kindleEmail);
             helper.setSubject(article.title());
-            helper.setText("Sent by Kindle RSS", false);
+            helper.setText("Sent by Extrablatt", false);
             helper.addAttachment(filename, new ByteArrayResource(epub) {
                 @Override
                 public String getFilename() {

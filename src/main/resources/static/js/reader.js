@@ -373,9 +373,12 @@
     }
   }
 
-  if (document.readyState === 'complete') {
+  // Stylesheets in <head> are ready by DOMContentLoaded. Do not wait for every
+  // article image to finish downloading, or the phone briefly shows the normal
+  // scrolling layout before paging is applied.
+  if (document.readyState === 'interactive' || document.readyState === 'complete') {
     start();
   } else {
-    on(window, 'load', start);
+    on(document, 'DOMContentLoaded', start);
   }
 })();

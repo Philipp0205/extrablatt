@@ -29,7 +29,7 @@ public class BuildInfoAdvice {
 
     public BuildInfoAdvice(ObjectProvider<BuildProperties> buildProperties) {
         this.version = describe(buildProperties.getIfAvailable());
-        log.info("Kindle RSS {} (revision {}, built {})",
+        log.info("Extrablatt {} (revision {}, built {})",
                 version.number(), version.revision(), version.builtAt());
     }
 
