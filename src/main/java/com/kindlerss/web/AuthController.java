@@ -81,14 +81,13 @@ public class AuthController {
 
     @GetMapping("/verify")
     public String verify(@RequestParam(value = "token", required = false) String token,
-                         RedirectAttributes redirectAttributes) {
-        if (userService.verifyEmail(token)) {
-            redirectAttributes.addFlashAttribute("message", "E-mail confirmed. You can log in now.");
-        } else {
-            redirectAttributes.addFlashAttribute("error",
-                    "That confirmation link is invalid or has expired.");
-        }
-        return "redirect:/login";
+                         Model model) {
+        boolean verified = userService.verifyEmail(token);
+        model.addAttribute("verified", verified);
+        model.addAttribute("message", verified
+                ? "E-mail confirmed. You can log in now."
+                : "That confirmation link is invalid or has expired.");
+        return "verify-result";
     }
 
     @GetMapping("/forgot-password")

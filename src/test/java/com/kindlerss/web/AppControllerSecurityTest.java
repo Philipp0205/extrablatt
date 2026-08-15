@@ -169,11 +169,13 @@ class AppControllerSecurityTest {
     }
 
     @Test
-    void verifyLinkRedirectsToLogin() throws Exception {
+    void verifyLinkShowsAConfirmationResult() throws Exception {
         when(userService.verifyEmail("tok")).thenReturn(true);
         mockMvc.perform(get("/verify").param("token", "tok"))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/login"));
+                .andExpect(status().isOk())
+                .andExpect(view().name("verify-result"))
+                .andExpect(content().string(containsString("E-mail confirmed")))
+                .andExpect(content().string(containsString("Go to login")));
     }
 
     @Test
