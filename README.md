@@ -15,6 +15,9 @@ Multi-user RSS/Atom reader that extracts readable article HTML and emails EPUB f
 - Page-at-a-time reading sized to the device screen, instead of scrolling
 - Send-to-Kindle as EPUB 3 through one shared, provider-verified sender
 - Per-account limits and IP-based rate limiting on auth endpoints
+- Optional "help keep the servers running" reminder every 10th article sent,
+  plus a permanent donation link in Settings — the app itself stays free and
+  ad-free either way
 
 ## Requirements
 
@@ -177,9 +180,37 @@ Flyway runs the schema migrations automatically on first boot. Rely on Railway's
 managed Postgres backups. Any SMTP provider (Postmark, SES, …) works by changing
 the `SMTP_*` / `MAIL_FROM` variables — no code change.
 
+Railway hosts the application service only. The static `marketing/` landing
+page is not part of this deploy — host it separately (GitHub Pages, Cloudflare
+Pages, Netlify, or any static file host all work with zero configuration)
+and point it at wherever the app ends up running.
+
+## Marketing / landing page
+
+`marketing/` is a small, static (plain HTML/CSS, no JavaScript, no build step)
+landing page: a short pitch plus screenshots of the app running on an actual
+Kindle, with a link through to the app itself. It is deliberately **not**
+built with Spring/Java — it is pure static content, so the simplest, cheapest
+thing to serve it with is a file server, not another JVM process. The bundled
+Caddy container already sits in front of the app, so it serves this folder
+directly as a second site (see `deploy/Caddyfile`); nothing else needs to run.
+
+The production split is two subdomains against one deployment:
+
+- `extrablatt.app` (`MARKETING_DOMAIN`) — the static page in `marketing/`.
+- `app.extrablatt.app` (`DOMAIN`) — the actual application (this repo's Spring
+  Boot service).
+
+To update the landing page's copy or screenshots, edit files under
+`marketing/` and redeploy as usual — `deploy/deploy.sh` syncs the whole repo,
+including this folder, and Caddy serves whatever is on disk with no rebuild.
+
 ## DNS / TLS
 
-Point an A/AAAA record for your `DOMAIN` at the VPS. Caddy obtains certificates automatically when ports 80/443 are reachable.
+Point an A/AAAA record at the VPS for both `DOMAIN` (the app, e.g.
+`app.extrablatt.app`) and, if used, `MARKETING_DOMAIN` (the landing page,
+e.g. `extrablatt.app`). Caddy obtains certificates for both automatically
+when ports 80/443 are reachable.
 
 ## Build / run with Docker
 
@@ -231,6 +262,11 @@ The SSH user needs Docker access (membership in the `docker` group, or root).
 not. Set `COMPOSE_OVERRIDE=deploy/docker-compose.host-proxy.yml` when the host
 runs its own proxy. If the server holds the only copy of `.env`, point
 `ENV_FILE` at a nonexistent path so the sync does not overwrite it.
+
+Set `DOMAIN` to the app's subdomain (e.g. `app.extrablatt.app`) and, to also
+serve the landing page from the same bundled Caddy container, `MARKETING_DOMAIN`
+to the bare domain (e.g. `extrablatt.app`) in `.env`. Leave `MARKETING_DOMAIN`
+unset to run the app on its own, with no landing page.
 
 Never commit `.env`, private keys, or `VPS_SSH_KEY_B64`.
 
