@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Deploy Kindle RSS to a VPS over SSH.
+# Deploy Extrablatt to a VPS over SSH.
 # Required env:
 #   VPS_HOST, VPS_USER
 #   VPS_SSH_KEY_B64  (base64-encoded private key) OR VPS_SSH_KEY (path)

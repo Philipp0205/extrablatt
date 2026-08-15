@@ -3,17 +3,20 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>Log in — Kindle RSS</title>
+  <title>Log in — Extrablatt</title>
   <link rel="stylesheet" th:href="@{/css/app.css}"/>
 </head>
 <body>
 <div class="wrap">
   <header class="app">
-    <span class="brand">Kindle RSS</span>
+    <span class="brand">Extrablatt</span>
   </header>
 
   <h1>Log in</h1>
   <div th:if="${message}" class="flash" th:text="${message}"></div>
+  <div th:if="${param.unverified}" class="flash error">
+    Confirm your e-mail address before logging in. Use the confirmation link in your inbox.
+  </div>
   <div th:if="${param.error}" class="flash error">Invalid e-mail or password.</div>
   <div th:if="${param.logout}" class="flash">You have been logged out.</div>
   <div th:if="${param.deleted}" class="flash">Your account has been deleted.</div>

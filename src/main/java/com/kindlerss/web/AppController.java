@@ -187,14 +187,15 @@ public class AppController {
     }
 
     @PostMapping("/refresh")
-    public String refresh(RedirectAttributes redirectAttributes) {
+    public String refresh(@RequestParam(value = "redirect", defaultValue = "/") String redirect,
+                          RedirectAttributes redirectAttributes) {
         try {
             feedService.refreshForUser(currentUser.requireId());
             redirectAttributes.addFlashAttribute("message", "Feeds refreshed");
         } catch (Exception e) {
             redirectAttributes.addFlashAttribute("error", "Refresh failed: " + e.getMessage());
         }
-        return "redirect:/";
+        return "redirect:" + safeRedirect(redirect);
     }
 
     @GetMapping("/items")
@@ -208,12 +209,13 @@ public class AppController {
         if (feedId != null && feedService.findById(userId, feedId).isEmpty()) {
             throw new ArticleService.NotFoundException("Feed not found");
         }
-        Boolean unreadOnly = Boolean.TRUE.equals(unread) ? Boolean.TRUE : null;
-        if (Boolean.TRUE.equals(unread) && snapshot == null) {
+        boolean unreadByDefault = unread == null || Boolean.TRUE.equals(unread);
+        Boolean unreadOnly = unreadByDefault ? Boolean.TRUE : null;
+        if (unreadByDefault && snapshot == null) {
             return "redirect:" + itemsPath(feedId, category, true, Math.max(page, 1),
                     System.currentTimeMillis());
         }
-        Instant unreadSnapshot = Boolean.TRUE.equals(unread) && snapshot != null
+        Instant unreadSnapshot = unreadByDefault && snapshot != null
                 ? Instant.ofEpochMilli(Math.min(snapshot, System.currentTimeMillis())) : null;
         long total = category == null && unreadSnapshot == null
                 ? articleService.count(userId, feedId, unreadOnly)
@@ -227,17 +229,17 @@ public class AppController {
                 : articleService.findPage(userId, feedId, category, unreadOnly, unreadSnapshot, safePage, pageSize);
 
         model.addAttribute("articles", articles);
-        addFilterBar(model, feedService.listFeeds(userId), feedId, category, Boolean.TRUE.equals(unread));
+        addFilterBar(model, feedService.listFeeds(userId), feedId, category, unreadByDefault);
         model.addAttribute("feedId", feedId);
         model.addAttribute("category", category);
-        model.addAttribute("unread", Boolean.TRUE.equals(unread));
+        model.addAttribute("unread", unreadByDefault);
         model.addAttribute("snapshot", snapshot);
         model.addAttribute("page", safePage);
         model.addAttribute("totalPages", totalPages);
         model.addAttribute("total", total);
         // Where an action started from, so that it can return to this exact list.
         model.addAttribute("listPath",
-                itemsPath(feedId, category, Boolean.TRUE.equals(unread), safePage, snapshot));
+                itemsPath(feedId, category, unreadByDefault, safePage, snapshot));
         model.addAttribute("firstIndex", articles.isEmpty() ? 0 : (long) (safePage - 1) * pageSize + 1);
         model.addAttribute("lastIndex", (long) (safePage - 1) * pageSize + articles.size());
         return "items";
@@ -296,7 +298,7 @@ public class AppController {
         StringBuilder query = new StringBuilder();
         appendParam(query, "feed", feedId == null ? null : String.valueOf(feedId));
         appendParam(query, "category", category);
-        appendParam(query, "unread", unread ? "true" : null);
+        appendParam(query, "unread", String.valueOf(unread));
         return query.isEmpty() ? "/items" : "/items?" + query;
     }
 
@@ -361,8 +363,8 @@ public class AppController {
         if (category != null && !category.isBlank()) {
             path.append("&category=").append(URLEncoder.encode(category, StandardCharsets.UTF_8));
         }
+        path.append("&unread=").append(unread);
         if (unread) {
-            path.append("&unread=true");
             if (snapshot != null) {
                 path.append("&snapshot=").append(snapshot);
             }

@@ -1,6 +1,6 @@
 spring:
   application:
-    name: kindle-rss
+    name: extrablatt
   datasource:
     url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/kindle_rss}
     username: ${DATABASE_USER:kindle}

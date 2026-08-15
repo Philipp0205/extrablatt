@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Confirm e-mail — Extrablatt</title>
+  <link rel="stylesheet" th:href="@{/css/app.css}"/>
+</head>
+<body>
+<div class="wrap">
+  <header class="app">
+    <span class="brand">Extrablatt</span>
+  </header>
+
+  <h1 th:text="${verified} ? 'E-mail confirmed' : 'Confirmation failed'">Confirm e-mail</h1>
+  <div class="flash" th:classappend="${verified} ? '' : ' error'" th:text="${message}">
+    Confirmation result
+  </div>
+  <p><a class="btn" th:href="@{/login}">Go to login</a></p>
+</div>
+</body>
+</html>

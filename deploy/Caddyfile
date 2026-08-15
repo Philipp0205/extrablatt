@@ -1,5 +1,5 @@
 # The application itself (registration, feeds, reading, Send-to-Kindle).
-# Point this at your app subdomain, e.g. app.extrablatt.app.
+# Point this at your app subdomain, e.g. reader.extrablatt.app.
 {$DOMAIN:localhost} {
 	encode gzip
 	reverse_proxy app:8080

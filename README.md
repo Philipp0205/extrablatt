@@ -1,4 +1,4 @@
-# Kindle RSS
+# Extrablatt
 
 Multi-user RSS/Atom reader that extracts readable article HTML and emails EPUB files to each user's Kindle. Plain server-rendered UI that stays usable without JavaScript. Runs as one always-on service (single VPS or a managed platform such as Railway).
 
@@ -77,7 +77,7 @@ Tests do not require PostgreSQL or Docker. They cover EPUB layout, HTML sanitiza
 ## Using the app
 
 1. **Add a feed** on the home page (direct feed URL or site homepage).
-   You do not need to hunt down an XML URL: open the Kindle RSS website on your
+   You do not need to hunt down an XML URL: open the Extrablatt website on your
    phone, paste the normal website address, and feed autodiscovery will usually
    find its RSS/Atom feed. The optional **Quick start** checkboxes can populate a
    new reader without typing URLs; no suggested feed is added unless you select it.
@@ -187,7 +187,7 @@ run as a second Railway service in the same project:
 ```bash
 railway add --service marketing-site           # empty service
 railway up marketing --path-as-root --service marketing-site
-railway domain extrablatt.app --service marketing-site   # app.extrablatt.app stays on the app service
+railway domain extrablatt.app --service marketing-site   # reader.extrablatt.app stays on the app service
 ```
 
 Any static file host (GitHub Pages, Cloudflare Pages, Netlify, …) works
@@ -206,7 +206,7 @@ directly as a second site (see `deploy/Caddyfile`); nothing else needs to run.
 The production split is two subdomains against one deployment:
 
 - `extrablatt.app` (`MARKETING_DOMAIN`) — the static page in `marketing/`.
-- `app.extrablatt.app` (`DOMAIN`) — the actual application (this repo's Spring
+- `reader.extrablatt.app` (`DOMAIN`) — the actual application (this repo's Spring
   Boot service).
 
 To update the landing page's copy or screenshots, edit files under
@@ -216,7 +216,7 @@ including this folder, and Caddy serves whatever is on disk with no rebuild.
 ## DNS / TLS
 
 Point an A/AAAA record at the VPS for both `DOMAIN` (the app, e.g.
-`app.extrablatt.app`) and, if used, `MARKETING_DOMAIN` (the landing page,
+`reader.extrablatt.app`) and, if used, `MARKETING_DOMAIN` (the landing page,
 e.g. `extrablatt.app`). Caddy obtains certificates for both automatically
 when ports 80/443 are reachable.
 
@@ -271,7 +271,7 @@ not. Set `COMPOSE_OVERRIDE=deploy/docker-compose.host-proxy.yml` when the host
 runs its own proxy. If the server holds the only copy of `.env`, point
 `ENV_FILE` at a nonexistent path so the sync does not overwrite it.
 
-Set `DOMAIN` to the app's subdomain (e.g. `app.extrablatt.app`) and, to also
+Set `DOMAIN` to the app's subdomain (e.g. `reader.extrablatt.app`) and, to also
 serve the landing page from the same bundled Caddy container, `MARKETING_DOMAIN`
 to the bare domain (e.g. `extrablatt.app`) in `.env`. Leave `MARKETING_DOMAIN`
 unset to run the app on its own, with no landing page.
@@ -289,7 +289,7 @@ Version 1.0.0-SNAPSHOT · revision a1b2c3d · built 2026-08-10 08:45 UTC
 Compare `revision` with `git rev-parse --short HEAD` to see whether the VPS runs
 the code you have locally; a `-dirty` suffix means the deploy included uncommitted
 changes. The same values are logged once at startup (`docker compose logs app | grep
-'Kindle RSS'`) and served by `/actuator/info`, which requires a login.
+'Extrablatt'`) and served by `/actuator/info`, which requires a login.
 
 Version and build time come from `META-INF/build-info.properties`, written by the
 Spring Boot Maven plugin. The revision has to be passed in, because the deploy sync

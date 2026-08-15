@@ -78,6 +78,8 @@ public class AppUserDetails implements UserDetails {
 
     @Override
     public boolean isEnabled() {
-        return enabled;
+        // Owning the password is not enough to activate an account: the mailbox
+        // must have been confirmed before Spring Security creates a session.
+        return enabled && emailVerified;
     }
 }

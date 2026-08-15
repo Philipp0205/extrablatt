@@ -1,4 +1,4 @@
-# Multi-stage build for Kindle RSS
+# Multi-stage build for Extrablatt
 FROM eclipse-temurin:21-jdk-alpine AS build
 WORKDIR /workspace
 

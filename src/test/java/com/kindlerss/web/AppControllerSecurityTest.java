@@ -169,11 +169,13 @@ class AppControllerSecurityTest {
     }
 
     @Test
-    void verifyLinkRedirectsToLogin() throws Exception {
+    void verifyLinkShowsAConfirmationResult() throws Exception {
         when(userService.verifyEmail("tok")).thenReturn(true);
         mockMvc.perform(get("/verify").param("token", "tok"))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/login"));
+                .andExpect(status().isOk())
+                .andExpect(view().name("verify-result"))
+                .andExpect(content().string(containsString("E-mail confirmed")))
+                .andExpect(content().string(containsString("Go to login")));
     }
 
     @Test
@@ -187,6 +189,22 @@ class AppControllerSecurityTest {
         mockMvc.perform(formLogin().user("user@example.com").password("test-password-123"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/"));
+    }
+
+    @Test
+    void unverifiedAccountCannotLogInAndGetsSpecificError() throws Exception {
+        String hash = new BCryptPasswordEncoder().encode("test-password-123");
+        AppUser account = new AppUser(UID, "user@example.com", hash, null,
+                null, null, Instant.now(), Instant.now());
+        when(userDetailsService.loadUserByUsername("user@example.com"))
+                .thenReturn(new AppUserDetails(account));
+
+        mockMvc.perform(formLogin().user("user@example.com").password("test-password-123"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/login?unverified"));
+
+        mockMvc.perform(get("/login").param("unverified", ""))
+                .andExpect(content().string(containsString("Confirm your e-mail address before logging in")));
     }
 
     @Test
@@ -233,9 +251,10 @@ class AppControllerSecurityTest {
     @WithMockUser
     void refreshWithCsrfWorks() throws Exception {
         doNothing().when(feedService).refreshForUser(UID);
-        mockMvc.perform(post("/refresh").with(csrf()))
+        mockMvc.perform(post("/refresh").with(csrf())
+                        .param("redirect", "/items?page=2&unread=false"))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/"));
+                .andExpect(redirectedUrl("/items?page=2&unread=false"));
         verify(feedService).refreshForUser(UID);
     }
 
@@ -253,9 +272,17 @@ class AppControllerSecurityTest {
         when(articleService.findPage(eq(UID), isNull(), isNull(), eq(1), eq(20))).thenReturn(List.of());
         when(articleService.count(eq(UID), isNull(), isNull())).thenReturn(0L);
         when(feedService.listFeeds(UID)).thenReturn(List.of());
-        mockMvc.perform(get("/items"))
+        mockMvc.perform(get("/items").param("unread", "false"))
                 .andExpect(status().isOk())
                 .andExpect(view().name("items"));
+    }
+
+    @Test
+    @WithMockUser
+    void itemsDefaultToAStableUnreadList() throws Exception {
+        mockMvc.perform(get("/items"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrlPattern("/items?page=1&unread=true&snapshot=*"));
     }
 
     @Test
@@ -272,15 +299,15 @@ class AppControllerSecurityTest {
                 new Feed(7L, "Nature", "https://example.com/c", null, "Science", null, null, null)));
 
         // Without a category the bar is a list of categories, not of every feed.
-        mockMvc.perform(get("/items"))
+        mockMvc.perform(get("/items").param("unread", "false"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("href=\"/items?category=Technology\"")))
-                .andExpect(content().string(containsString("href=\"/items?category=Science\"")))
+                .andExpect(content().string(containsString("href=\"/items?category=Technology&amp;unread=false\"")))
+                .andExpect(content().string(containsString("href=\"/items?category=Science&amp;unread=false\"")))
                 .andExpect(content().string(not(containsString("Android Police"))));
 
-        mockMvc.perform(get("/items").param("category", "Technology"))
+        mockMvc.perform(get("/items").param("category", "Technology").param("unread", "false"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("href=\"/items?feed=5\"")))
+                .andExpect(content().string(containsString("href=\"/items?feed=5&amp;unread=false\"")))
                 .andExpect(content().string(containsString("Android Police")))
                 .andExpect(content().string(not(containsString("Nature"))));
     }
@@ -299,10 +326,10 @@ class AppControllerSecurityTest {
         when(feedService.listFeeds(UID)).thenReturn(feeds);
 
         // The whole row is rendered; how much of it fits is settled in the browser.
-        mockMvc.perform(get("/items").param("category", "Technology"))
+        mockMvc.perform(get("/items").param("category", "Technology").param("unread", "false"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("href=\"/items?feed=1\"")))
-                .andExpect(content().string(containsString("href=\"/items?feed=12\"")))
+                .andExpect(content().string(containsString("href=\"/items?feed=1&amp;unread=false\"")))
+                .andExpect(content().string(containsString("href=\"/items?feed=12&amp;unread=false\"")))
                 .andExpect(content().string(containsString("data-strip-track")))
                 .andExpect(content().string(containsString("data-strip-prev")))
                 .andExpect(content().string(containsString("data-strip-next")))
@@ -318,9 +345,9 @@ class AppControllerSecurityTest {
         when(feedService.listFeeds(UID)).thenReturn(List.of(
                 new Feed(9L, "Loose Feed", "https://example.com/l", null, null, null, null, null)));
 
-        mockMvc.perform(get("/items").param("category", "Uncategorized"))
+        mockMvc.perform(get("/items").param("category", "Uncategorized").param("unread", "false"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("href=\"/items?feed=9\"")))
+                .andExpect(content().string(containsString("href=\"/items?feed=9&amp;unread=false\"")))
                 .andExpect(content().string(containsString("Loose Feed")));
     }
 
@@ -383,10 +410,10 @@ class AppControllerSecurityTest {
         when(articleService.count(eq(UID), isNull(), isNull())).thenReturn(33L);
         when(feedService.listFeeds(UID)).thenReturn(List.of());
 
-        mockMvc.perform(get("/items"))
+        mockMvc.perform(get("/items").param("unread", "false"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("1–20 of 33 articles")))
-                .andExpect(content().string(containsString("Mark read &amp; continue")))
+                .andExpect(content().string(not(containsString("Mark read &amp; continue"))))
                 .andExpect(content().string(containsString("Older articles")))
                 .andExpect(content().string(not(containsString("data-reader-prev-url"))));
     }
@@ -400,10 +427,11 @@ class AppControllerSecurityTest {
         when(articleService.count(eq(UID), isNull(), isNull())).thenReturn(21L);
         when(feedService.listFeeds(UID)).thenReturn(List.of());
 
-        mockMvc.perform(get("/items").param("page", "2"))
+        mockMvc.perform(get("/items").param("page", "2").param("unread", "false"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("data-reader-prev-url")))
-                .andExpect(content().string(containsString("Mark these read")))
+                .andExpect(content().string(containsString("data-reader-next-end-label=\"Mark read\"")))
+                .andExpect(content().string(not(containsString("Mark these read"))))
                 .andExpect(content().string(not(containsString("Older articles"))))
                 .andExpect(content().string(containsString("21–21 of 21 articles")));
     }
@@ -415,7 +443,7 @@ class AppControllerSecurityTest {
         when(articleService.count(eq(UID), isNull(), isNull())).thenReturn(0L);
         when(feedService.listFeeds(UID)).thenReturn(List.of());
 
-        mockMvc.perform(get("/items"))
+        mockMvc.perform(get("/items").param("unread", "false"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(not(containsString("data-reader-next-form"))))
                 .andExpect(content().string(not(containsString("/items/advance"))));
@@ -430,7 +458,7 @@ class AppControllerSecurityTest {
                         .param("page", "1")
                         .param("id", "1", "2", "3"))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/items?page=2#start"));
+                .andExpect(redirectedUrl("/items?page=2&unread=false#start"));
 
         verify(articleService).markRead(UID, List.of(1L, 2L, 3L), true);
     }
@@ -456,7 +484,7 @@ class AppControllerSecurityTest {
     void advanceWithoutArticlesMarksNothing() throws Exception {
         mockMvc.perform(post("/items/advance").with(csrf()).param("page", "1"))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/items?page=2#start"));
+                .andExpect(redirectedUrl("/items?page=2&unread=false#start"));
 
         verify(articleService, never()).markRead(eq(UID), anyList(), anyBoolean());
     }
@@ -470,12 +498,13 @@ class AppControllerSecurityTest {
         when(articleService.count(eq(UID), isNull(), isNull())).thenReturn(1L);
         when(feedService.listFeeds(UID)).thenReturn(List.of());
 
-        mockMvc.perform(get("/items"))
+        mockMvc.perform(get("/items").param("unread", "false"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("data-reader-next-form=\"advance\"")))
                 .andExpect(content().string(containsString("action=\"/items/advance\"")))
                 .andExpect(content().string(containsString("name=\"id\" value=\"4\"")))
-                .andExpect(content().string(containsString("Mark these read")))
+                .andExpect(content().string(containsString("data-reader-next-end-label=\"Mark read\"")))
+                .andExpect(content().string(not(containsString("Mark these read"))))
                 // Paging marks articles read, so entries carry no read/unread button.
                 .andExpect(content().string(not(containsString("/articles/4/read"))));
     }

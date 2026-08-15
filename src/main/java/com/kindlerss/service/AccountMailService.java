@@ -27,9 +27,9 @@ public class AccountMailService {
     }
 
     public void sendVerification(String toEmail, String token) {
-        String link = properties.publicUrl() + "/verify?token=" + token;
+        String link = accountLink("/verify", token);
         String body = """
-                Welcome to Kindle RSS.
+                Welcome to Extrablatt.
 
                 Confirm this e-mail address to start sending articles to your Kindle:
 
@@ -37,13 +37,13 @@ public class AccountMailService {
 
                 If you did not create this account, you can ignore this message.
                 """.formatted(link);
-        send(toEmail, "Confirm your Kindle RSS account", body);
+        send(toEmail, "Confirm your Extrablatt account", body);
     }
 
     public void sendPasswordReset(String toEmail, String token) {
-        String link = properties.publicUrl() + "/reset-password?token=" + token;
+        String link = accountLink("/reset-password", token);
         String body = """
-                A password reset was requested for your Kindle RSS account.
+                A password reset was requested for your Extrablatt account.
 
                 Set a new password using the link below (valid for a short time):
 
@@ -52,7 +52,12 @@ public class AccountMailService {
                 If you did not request this, you can ignore this message and your
                 password will stay unchanged.
                 """.formatted(link);
-        send(toEmail, "Reset your Kindle RSS password", body);
+        send(toEmail, "Reset your Extrablatt password", body);
+    }
+
+    private String accountLink(String path, String token) {
+        String baseUrl = properties.publicUrl().replaceFirst("/+$", "");
+        return baseUrl + path + "?token=" + token;
     }
 
     private void send(String toEmail, String subject, String body) {
