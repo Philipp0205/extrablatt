@@ -180,10 +180,18 @@ Flyway runs the schema migrations automatically on first boot. Rely on Railway's
 managed Postgres backups. Any SMTP provider (Postmark, SES, …) works by changing
 the `SMTP_*` / `MAIL_FROM` variables — no code change.
 
-Railway hosts the application service only. The static `marketing/` landing
-page is not part of this deploy — host it separately (GitHub Pages, Cloudflare
-Pages, Netlify, or any static file host all work with zero configuration)
-and point it at wherever the app ends up running.
+The steps above cover the application service. `marketing/` also has its own
+`Dockerfile` (a tiny Caddy container serving the folder on `$PORT`), so it can
+run as a second Railway service in the same project:
+
+```bash
+railway add --service marketing-site           # empty service
+railway up marketing --path-as-root --service marketing-site
+railway domain extrablatt.app --service marketing-site   # app.extrablatt.app stays on the app service
+```
+
+Any static file host (GitHub Pages, Cloudflare Pages, Netlify, …) works
+just as well if you'd rather not run it on Railway.
 
 ## Marketing / landing page
 
