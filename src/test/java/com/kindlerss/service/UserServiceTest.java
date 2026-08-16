@@ -75,14 +75,28 @@ class UserServiceTest {
     }
 
     @Test
-    void verificationAppliesAUsableToken() {
+    void verificationAppliesAUsableTokenAndSendsWelcome() {
         EmailToken token = new EmailToken("tok", 1L, EmailToken.Purpose.VERIFY,
                 Instant.now().plus(1, ChronoUnit.DAYS), null, Instant.now());
         when(tokenRepository.find("tok", EmailToken.Purpose.VERIFY)).thenReturn(Optional.of(token));
+        when(userRepository.markEmailVerified(1L)).thenReturn(true);
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user(1L, "new@example.com")));
 
         assertTrue(service.verifyEmail("tok"));
         verify(userRepository).markEmailVerified(1L);
         verify(tokenRepository).markUsed("tok");
+        verify(mailService).sendWelcome("new@example.com");
+    }
+
+    @Test
+    void verificationOfAnAlreadyVerifiedAccountDoesNotResendWelcome() {
+        EmailToken token = new EmailToken("tok", 1L, EmailToken.Purpose.VERIFY,
+                Instant.now().plus(1, ChronoUnit.DAYS), null, Instant.now());
+        when(tokenRepository.find("tok", EmailToken.Purpose.VERIFY)).thenReturn(Optional.of(token));
+        when(userRepository.markEmailVerified(1L)).thenReturn(false);
+
+        assertTrue(service.verifyEmail("tok"));
+        verify(mailService, never()).sendWelcome(anyString());
     }
 
     @Test

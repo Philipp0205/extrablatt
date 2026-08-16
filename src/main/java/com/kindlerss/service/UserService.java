@@ -85,9 +85,27 @@ public class UserService {
         if (found.isEmpty() || !found.get().usable(Instant.now())) {
             return false;
         }
-        userRepository.markEmailVerified(found.get().userId());
+        long userId = found.get().userId();
+        boolean firstConfirmation = userRepository.markEmailVerified(userId);
         tokenRepository.markUsed(token);
+        if (firstConfirmation) {
+            sendWelcome(userId);
+        }
         return true;
+    }
+
+    /**
+     * A failed welcome message should not undo an otherwise successful
+     * verification, so it is logged and swallowed rather than propagated.
+     */
+    private void sendWelcome(long userId) {
+        userRepository.findById(userId).ifPresent(user -> {
+            try {
+                mailService.sendWelcome(user.email());
+            } catch (RuntimeException e) {
+                log.warn("Welcome e-mail failed: {}", e.getMessage());
+            }
+        });
     }
 
     /**

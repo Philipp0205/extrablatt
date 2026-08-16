@@ -12,6 +12,21 @@ body {
   background: #fff;
   color: #111;
   line-height: 1.45;
+  /* Feed titles and URLs come from whatever a publisher wrote and can be one
+     long unbroken string with no spaces to wrap at (a URL, a run-on title).
+     Without this, such a string overflows its box instead of wrapping, which
+     is what actually makes a narrow phone screen scroll sideways — every
+     other rule in this file already fits within the viewport on its own. */
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+/* A last line of defense: nothing in this layout is meant to scroll
+   sideways, so if anything unexpected still runs wider than the viewport,
+   clip it instead of turning the whole page into a horizontal scroller. */
+html, body {
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 a {
@@ -207,6 +222,42 @@ h1, h2 {
 h3 {
   font-size: 1.05rem;
   margin: 1rem 0 0.25rem;
+}
+
+/* The category heading and its rename form share one line where there is room
+   for both, and wrap onto their own when there is not. */
+.category-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  margin: 1rem 0 0.25rem;
+  gap: 0.5rem;
+}
+
+.category-heading h3 {
+  margin: 0;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.category-heading .rename-form {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.category-heading .rename-form .category-rename-input {
+  width: 9rem;
+  min-height: 2.25rem;
+  padding: 0.3rem 0.5rem;
+  font-size: 0.85rem;
+  margin-right: 0.4rem;
+}
+
+.category-heading .rename-form button {
+  min-height: 2.25rem;
+  padding: 0.3rem 0.6rem;
+  font-size: 0.85rem;
+  white-space: nowrap;
 }
 
 h1 {

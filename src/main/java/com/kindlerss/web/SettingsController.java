@@ -2,7 +2,9 @@ package com.kindlerss.web;
 
 import com.kindlerss.config.AppProperties;
 import com.kindlerss.domain.AppUser;
+import com.kindlerss.security.AppUserDetails;
 import com.kindlerss.security.CurrentUser;
+import com.kindlerss.service.AdminTelemetryService;
 import com.kindlerss.service.ArticleService;
 import com.kindlerss.service.UserService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -22,13 +24,16 @@ public class SettingsController {
 
     private final UserService userService;
     private final ArticleService articleService;
+    private final AdminTelemetryService telemetryService;
     private final CurrentUser currentUser;
     private final AppProperties properties;
 
     public SettingsController(UserService userService, ArticleService articleService,
-                              CurrentUser currentUser, AppProperties properties) {
+                              AdminTelemetryService telemetryService, CurrentUser currentUser,
+                              AppProperties properties) {
         this.userService = userService;
         this.articleService = articleService;
+        this.telemetryService = telemetryService;
         this.currentUser = currentUser;
         this.properties = properties;
     }
@@ -41,6 +46,14 @@ public class SettingsController {
         model.addAttribute("account", user);
         model.addAttribute("mailFrom", properties.mailFrom());
         model.addAttribute("totalSent", articleService.countSentTotal(userId));
+        // Telemetry is folded into Settings rather than kept on a separate page, so
+        // an administrator gets to it the same way anyone reaches account settings.
+        boolean admin = currentUser.details().map(AppUserDetails::admin).orElse(false);
+        if (admin) {
+            model.addAttribute("summary", telemetryService.summary());
+            model.addAttribute("users", telemetryService.users());
+            model.addAttribute("defaultDailyLimit", properties.limits().maxSendsPerDay());
+        }
         return "settings";
     }
 

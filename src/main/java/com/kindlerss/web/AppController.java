@@ -176,6 +176,21 @@ public class AppController {
         return category.trim();
     }
 
+    @PostMapping("/categories/rename")
+    public String renameCategory(@RequestParam("oldCategory") String oldCategory,
+                                 @RequestParam("newCategory") String newCategory,
+                                 RedirectAttributes redirectAttributes) {
+        try {
+            int updated = feedService.renameCategory(currentUser.requireId(), oldCategory, newCategory);
+            redirectAttributes.addFlashAttribute("message", updated == 0
+                    ? "No feeds found in that category"
+                    : "Renamed category for " + updated + (updated == 1 ? " feed" : " feeds"));
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+        }
+        return "redirect:/";
+    }
+
     @PostMapping("/feeds/{id}/delete")
     public String deleteFeed(@PathVariable("id") long id, RedirectAttributes redirectAttributes) {
         if (!feedService.deleteFeed(currentUser.requireId(), id)) {
