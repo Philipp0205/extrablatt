@@ -21,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.io.ByteArrayInputStream;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.security.SecureRandom;
 import java.time.Instant;
 import java.util.Date;
 import java.util.List;
@@ -58,6 +59,8 @@ public class FeedService {
     private final HtmlSanitizer sanitizer;
     private final int maxEntries;
     private final int maxFeedsPerUser;
+    private final AppProperties.Newsletters newsletterProperties;
+    private final SecureRandom random = new SecureRandom();
 
     public FeedService(FeedRepository feedRepository,
                        ArticleRepository articleRepository,
@@ -70,6 +73,7 @@ public class FeedService {
         this.sanitizer = sanitizer;
         this.maxEntries = properties.feeds().maxEntries();
         this.maxFeedsPerUser = properties.limits().maxFeedsPerUser();
+        this.newsletterProperties = properties.newsletters();
     }
 
     public List<Feed> listFeeds(long userId) {
@@ -137,6 +141,91 @@ public class FeedService {
         return feedRepository.updateCategory(userId, id, category);
     }
 
+    /** Whether an administrator has configured an inbound domain for newsletters. */
+    public boolean newslettersEnabled() {
+        return newsletterProperties.enabled();
+    }
+
+    /**
+     * Creates a newsletter "feed": no URL, just a fresh, unique inbound e-mail
+     * address that the account can hand to a newsletter's subscribe form. Issues
+     * arrive later through {@link #receiveNewsletterIssue}.
+     */
+    @Transactional
+    public Feed addNewsletter(long userId, String rawTitle, String category) {
+        if (!newslettersEnabled()) {
+            throw new IllegalStateException("Newsletters are not configured on this server yet");
+        }
+        String title = rawTitle == null ? "" : rawTitle.trim();
+        if (title.isEmpty()) {
+            throw new IllegalArgumentException("Newsletter name is required");
+        }
+        if (feedRepository.countByUser(userId) >= maxFeedsPerUser) {
+            throw new IllegalArgumentException(
+                    "Feed limit reached (" + maxFeedsPerUser + "). Delete a feed before adding another.");
+        }
+        return feedRepository.insertNewsletter(userId, title, category, newInboundToken());
+    }
+
+    /**
+     * Replaces a newsletter's inbound address with a fresh one, e.g. once the old
+     * one starts attracting spam. Past issues already stored are unaffected.
+     */
+    @Transactional
+    public Feed regenerateNewsletterAddress(long userId, long id) {
+        Feed feed = feedRepository.findById(userId, id)
+                .orElseThrow(() -> new IllegalArgumentException("Feed not found"));
+        if (!feed.isNewsletter()) {
+            throw new IllegalArgumentException("Not a newsletter");
+        }
+        if (!feedRepository.updateInboundToken(userId, id, newInboundToken())) {
+            throw new IllegalArgumentException("Feed not found");
+        }
+        return feedRepository.findById(userId, id).orElseThrow();
+    }
+
+    /** Looks up a newsletter feed by its inbound token; used by the inbound mail webhook. */
+    public Optional<Long> findNewsletterFeedIdByToken(String token) {
+        return feedRepository.findByInboundToken(token).map(Feed::id);
+    }
+
+    /** The e-mail address newsletter issues should be sent to, or null for an RSS feed. */
+    public String newsletterAddress(Feed feed) {
+        if (!feed.isNewsletter() || feed.inboundToken() == null || !newslettersEnabled()) {
+            return null;
+        }
+        return feed.inboundToken() + "@" + newsletterProperties.inboundDomain();
+    }
+
+    /**
+     * Stores one incoming newsletter issue as an article of the given feed, deduped
+     * by {@code guid} (ideally the message's {@code Message-ID}) the same way a
+     * polled feed's entries are. Returns the stored article's id, or -1 if it was a
+     * duplicate.
+     */
+    @Transactional
+    public long receiveNewsletterIssue(long feedId, String guid, String subject, String author,
+                                       Instant publishedAt, String contentHtml) {
+        if (articleRepository.existsByFeedIdAndGuid(feedId, guid)) {
+            return -1;
+        }
+        String title = subject == null || subject.isBlank() ? "(untitled)" : subject.trim();
+        long id = articleRepository.insert(feedId, guid, title, null, author, publishedAt,
+                null, sanitizer.sanitizeWithImages(contentHtml));
+        feedRepository.clearError(feedId);
+        return id;
+    }
+
+    private String newInboundToken() {
+        byte[] bytes = new byte[10];
+        random.nextBytes(bytes);
+        StringBuilder hex = new StringBuilder(bytes.length * 2);
+        for (byte b : bytes) {
+            hex.append(String.format(Locale.ROOT, "%02x", b));
+        }
+        return hex.toString();
+    }
+
     @Scheduled(fixedDelayString = "PT30M", initialDelayString = "PT2M")
     public void scheduledRefresh() {
         log.info("Scheduled feed refresh starting");
@@ -155,6 +244,10 @@ public class FeedService {
 
     private void refreshFeeds(List<Feed> feeds) {
         for (Feed feed : feeds) {
+            // Newsletters have nothing to poll; their articles arrive by e-mail.
+            if (feed.isNewsletter()) {
+                continue;
+            }
             try {
                 refreshFeed(feed);
             } catch (Exception e) {

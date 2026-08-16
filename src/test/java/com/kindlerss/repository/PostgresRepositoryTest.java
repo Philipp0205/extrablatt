@@ -134,6 +134,38 @@ class PostgresRepositoryTest {
         assertEquals(3, sendLimits.findByUserId(userId).orElseThrow().maxSendsPerDay());
     }
 
+    @Test
+    void newsletterFeedsAreFoundByInboundTokenAcrossAccountsAndCanRotateIt() {
+        var newsletter = feeds.insertNewsletter(userId, "Stratechery", "Tech", "token-1");
+        assertTrue(newsletter.isNewsletter());
+        assertEquals("token-1", newsletter.inboundToken());
+
+        var found = feeds.findByInboundToken("token-1");
+        assertTrue(found.isPresent());
+        assertEquals(newsletter.id(), found.get().id());
+        assertTrue(feeds.findByInboundToken("no-such-token").isEmpty());
+
+        // Rotating the address changes the token but not the feed's identity.
+        assertTrue(feeds.updateInboundToken(userId, newsletter.id(), "token-2"));
+        assertTrue(feeds.findByInboundToken("token-1").isEmpty());
+        assertEquals(newsletter.id(), feeds.findByInboundToken("token-2").orElseThrow().id());
+
+        // Another account cannot rotate a newsletter it does not own.
+        assertFalse(feeds.updateInboundToken(otherUserId, newsletter.id(), "token-3"));
+    }
+
+    @Test
+    void anIssueSentToANewslettersInboundAddressBecomesAnArticle() {
+        var newsletter = feeds.insertNewsletter(userId, "Weekly Digest", null, "digest-token");
+        long articleId = articles.insert(newsletter.id(), "message-id-1", "Issue #1", null, "Sender",
+                Instant.parse("2026-08-10T00:00:00Z"), null, "<p>Hello</p>");
+
+        assertTrue(articleId > 0);
+        var stored = articles.findById(userId, articleId).orElseThrow();
+        assertEquals("Weekly Digest", stored.feedTitle());
+        assertEquals("Issue #1", stored.title());
+    }
+
     private long insertArticle(long feedId, String guid) {
         return articles.insert(feedId, guid, "Article " + guid, "https://bulk.example.com/" + guid,
                 "Author", Instant.parse("2026-08-10T00:00:00Z"), "<p>Summary</p>", "<p>Content</p>");

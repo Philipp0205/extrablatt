@@ -56,6 +56,7 @@ class KindleMailServiceTest {
                 null,
                 null,
                 null,
+                null,
                 null
         );
         service = new KindleMailService(
