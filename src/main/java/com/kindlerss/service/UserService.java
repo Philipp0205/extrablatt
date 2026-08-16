@@ -147,6 +147,39 @@ public class UserService {
         userRepository.deleteById(userId);
     }
 
+    /**
+     * Returns the account's newsletter inbox token, generating one the first time
+     * it is needed (e.g. when Settings is opened) rather than at registration, so
+     * accounts that never use the feature never get one.
+     */
+    @Transactional
+    public String ensureNewsletterInboundToken(long userId) {
+        AppUser user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalStateException("Account not found"));
+        if (user.newsletterInboundToken() != null) {
+            return user.newsletterInboundToken();
+        }
+        String token = newInboundToken();
+        if (userRepository.setNewsletterInboundTokenIfAbsent(userId, token)) {
+            return token;
+        }
+        // Lost a race with a concurrent request; use whichever token it set instead.
+        return userRepository.findById(userId).orElseThrow().newsletterInboundToken();
+    }
+
+    /** Replaces the account's newsletter inbox address, e.g. once it collects spam. */
+    @Transactional
+    public String regenerateNewsletterInboundToken(long userId) {
+        String token = newInboundToken();
+        userRepository.updateNewsletterInboundToken(userId, token);
+        return token;
+    }
+
+    /** Looks up which account a newsletter inbox address belongs to; used by the inbound mail webhook. */
+    public Optional<Long> findUserIdByNewsletterInboundToken(String token) {
+        return userRepository.findByNewsletterInboundToken(token).map(AppUser::id);
+    }
+
     boolean tokenValidForTest(String token, EmailToken.Purpose purpose) {
         return tokenRepository.find(token, purpose).map(t -> t.usable(Instant.now())).orElse(false);
     }
@@ -173,5 +206,16 @@ public class UserService {
         byte[] bytes = new byte[32];
         random.nextBytes(bytes);
         return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+    }
+
+    /** Lowercase hex, safe as the local part of an e-mail address. */
+    private String newInboundToken() {
+        byte[] bytes = new byte[10];
+        random.nextBytes(bytes);
+        StringBuilder hex = new StringBuilder(bytes.length * 2);
+        for (byte b : bytes) {
+            hex.append(String.format(java.util.Locale.ROOT, "%02x", b));
+        }
+        return hex.toString();
     }
 }

@@ -2,6 +2,7 @@ package com.kindlerss.web;
 
 import com.kindlerss.config.AppProperties;
 import com.kindlerss.service.FeedService;
+import com.kindlerss.service.UserService;
 import jakarta.mail.internet.MailDateFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,10 +28,11 @@ import java.util.regex.Pattern;
 
 /**
  * Receives newsletter issues forwarded by an inbound e-mail provider (Postmark,
- * Mailgun routes, a Cloudflare Worker, …) and stores them as articles of the
- * newsletter feed whose inbound address the message was sent to. Not part of the
- * authenticated app: it is guarded by a shared secret instead, since the provider
- * cannot log in.
+ * Mailgun routes, a Cloudflare Worker, …) at an account's shared newsletter inbox
+ * address and stores them as an article, auto-creating a feed for the sender on
+ * its first delivery (see {@link FeedService#receiveNewsletterIssue}). Not part
+ * of the authenticated app: it is guarded by a shared secret instead, since the
+ * provider cannot log in.
  */
 @RestController
 public class NewsletterInboundController {
@@ -39,10 +41,12 @@ public class NewsletterInboundController {
 
     private static final Pattern EMAIL = Pattern.compile("([a-zA-Z0-9._%+-]+)@([a-zA-Z0-9.-]+)");
 
+    private final UserService userService;
     private final FeedService feedService;
     private final AppProperties.Newsletters properties;
 
-    public NewsletterInboundController(FeedService feedService, AppProperties properties) {
+    public NewsletterInboundController(UserService userService, FeedService feedService, AppProperties properties) {
+        this.userService = userService;
         this.feedService = feedService;
         this.properties = properties.newsletters();
     }
@@ -62,25 +66,28 @@ public class NewsletterInboundController {
             return ResponseEntity.badRequest().body(Map.of("error", "Missing message body"));
         }
 
-        Optional<Long> feedId = candidateTokens(payload).stream()
-                .map(feedService::findNewsletterFeedIdByToken)
+        Optional<Long> userId = candidateTokens(payload).stream()
+                .map(userService::findUserIdByNewsletterInboundToken)
                 .filter(Optional::isPresent)
                 .map(Optional::get)
                 .findFirst();
-        if (feedId.isEmpty()) {
-            log.info("Inbound newsletter message matched no feed (recipient(s): {})", payload.to());
+        if (userId.isEmpty()) {
+            log.info("Inbound newsletter message matched no account (recipient(s): {})", payload.to());
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(Map.of("error", "No newsletter subscription matches the recipient address"));
+                    .body(Map.of("error", "No account's newsletter inbox matches the recipient address"));
         }
 
         String guid = StringUtils.hasText(payload.messageId()) ? payload.messageId() : fallbackGuid(payload);
-        String author = StringUtils.hasText(payload.fromName()) ? payload.fromName() : payload.from();
+        String senderName = StringUtils.hasText(payload.fromName()) ? payload.fromName() : payload.from();
         Instant publishedAt = parseDate(payload.date());
         String html = StringUtils.hasText(payload.htmlBody())
                 ? payload.htmlBody() : plainTextToHtml(payload.textBody());
 
         long articleId = feedService.receiveNewsletterIssue(
-                feedId.get(), guid, payload.subject(), author, publishedAt, html);
+                userId.get(), payload.from(), senderName, guid, payload.subject(), publishedAt, html);
+        if (articleId == FeedService.NEWSLETTER_FEED_LIMIT_REACHED) {
+            return ResponseEntity.ok(Map.of("status", "dropped", "reason", "feed limit reached"));
+        }
         if (articleId < 0) {
             return ResponseEntity.ok(Map.of("status", "duplicate"));
         }

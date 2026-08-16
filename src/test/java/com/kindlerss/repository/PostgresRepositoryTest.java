@@ -135,28 +135,27 @@ class PostgresRepositoryTest {
     }
 
     @Test
-    void newsletterFeedsAreFoundByInboundTokenAcrossAccountsAndCanRotateIt() {
-        var newsletter = feeds.insertNewsletter(userId, "Stratechery", "Tech", "token-1");
-        assertTrue(newsletter.isNewsletter());
-        assertEquals("token-1", newsletter.inboundToken());
+    void aNewsletterFeedIsFoundOrCreatedOncePerSenderPerAccount() {
+        var first = feeds.findOrCreateNewsletterFeed(userId, "newsletter:editor@example.com",
+                "Stratechery", "Newsletters");
+        assertTrue(first.isNewsletter());
+        assertEquals("editor@example.com", first.newsletterSender());
 
-        var found = feeds.findByInboundToken("token-1");
-        assertTrue(found.isPresent());
-        assertEquals(newsletter.id(), found.get().id());
-        assertTrue(feeds.findByInboundToken("no-such-token").isEmpty());
+        // A second issue from the same sender reuses the feed instead of duplicating it.
+        var again = feeds.findOrCreateNewsletterFeed(userId, "newsletter:editor@example.com",
+                "Stratechery", "Newsletters");
+        assertEquals(first.id(), again.id());
 
-        // Rotating the address changes the token but not the feed's identity.
-        assertTrue(feeds.updateInboundToken(userId, newsletter.id(), "token-2"));
-        assertTrue(feeds.findByInboundToken("token-1").isEmpty());
-        assertEquals(newsletter.id(), feeds.findByInboundToken("token-2").orElseThrow().id());
-
-        // Another account cannot rotate a newsletter it does not own.
-        assertFalse(feeds.updateInboundToken(otherUserId, newsletter.id(), "token-3"));
+        // The same sender can independently become a feed for a different account.
+        var theirs = feeds.findOrCreateNewsletterFeed(otherUserId, "newsletter:editor@example.com",
+                "Stratechery", "Newsletters");
+        assertTrue(theirs.id() != first.id());
     }
 
     @Test
-    void anIssueSentToANewslettersInboundAddressBecomesAnArticle() {
-        var newsletter = feeds.insertNewsletter(userId, "Weekly Digest", null, "digest-token");
+    void anIssueSentToTheNewslettersInboxBecomesAnArticleOfItsAutoCreatedFeed() {
+        var newsletter = feeds.findOrCreateNewsletterFeed(userId, "newsletter:weekly@example.com",
+                "Weekly Digest", "Newsletters");
         long articleId = articles.insert(newsletter.id(), "message-id-1", "Issue #1", null, "Sender",
                 Instant.parse("2026-08-10T00:00:00Z"), null, "<p>Hello</p>");
 
@@ -164,6 +163,23 @@ class PostgresRepositoryTest {
         var stored = articles.findById(userId, articleId).orElseThrow();
         assertEquals("Weekly Digest", stored.feedTitle());
         assertEquals("Issue #1", stored.title());
+    }
+
+    @Test
+    void anAccountsNewsletterInboxTokenIsGeneratedOnceAndFoundByIt() {
+        var third = users.insert("third@example.com", "hash");
+        assertTrue(users.setNewsletterInboundTokenIfAbsent(third.id(), "inbox-token"));
+        // A concurrent/second attempt to set it must not clobber the winning token.
+        assertFalse(users.setNewsletterInboundTokenIfAbsent(third.id(), "other-token"));
+
+        var found = users.findByNewsletterInboundToken("inbox-token");
+        assertTrue(found.isPresent());
+        assertEquals(third.id(), found.get().id());
+        assertTrue(users.findByNewsletterInboundToken("no-such-token").isEmpty());
+
+        users.updateNewsletterInboundToken(third.id(), "rotated-token");
+        assertTrue(users.findByNewsletterInboundToken("inbox-token").isEmpty());
+        assertEquals(third.id(), users.findByNewsletterInboundToken("rotated-token").orElseThrow().id());
     }
 
     private long insertArticle(long feedId, String guid) {

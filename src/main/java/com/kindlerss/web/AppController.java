@@ -78,7 +78,6 @@ public class AppController {
         model.addAttribute("totalUnread", totalUnread);
         model.addAttribute("kindleConfigured", isKindleConfigured(userId));
         model.addAttribute("mailFrom", mailFrom);
-        model.addAttribute("newslettersEnabled", feedService.newslettersEnabled());
         return "index";
     }
 

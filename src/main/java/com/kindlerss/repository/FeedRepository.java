@@ -2,6 +2,7 @@ package com.kindlerss.repository;
 
 import com.kindlerss.domain.Feed;
 import com.kindlerss.domain.FeedSource;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
@@ -28,8 +29,7 @@ public class FeedRepository {
             toInstant(rs.getTimestamp("created_at")),
             toInstant(rs.getTimestamp("updated_at")),
             rs.getLong("unread_count"),
-            FeedSource.valueOf(rs.getString("source")),
-            rs.getString("inbound_token")
+            FeedSource.valueOf(rs.getString("source"))
     );
 
     private static final RowMapper<Feed> SIMPLE_MAPPER = (rs, rowNum) -> new Feed(
@@ -42,8 +42,7 @@ public class FeedRepository {
             toInstant(rs.getTimestamp("created_at")),
             toInstant(rs.getTimestamp("updated_at")),
             0,
-            FeedSource.valueOf(rs.getString("source")),
-            rs.getString("inbound_token")
+            FeedSource.valueOf(rs.getString("source"))
     );
 
     private final JdbcTemplate jdbc;
@@ -124,49 +123,42 @@ public class FeedRepository {
     }
 
     /**
-     * Creates a newsletter feed: no URL is ever fetched, so {@code url} holds a
-     * synthetic placeholder built from the (unique) inbound token to satisfy the
-     * existing not-null/unique constraint.
+     * Finds the account's feed for a newsletter sender (keyed by the synthetic
+     * {@code newsletter:<sender>} URL), creating it on first delivery. A race
+     * between two concurrent first issues from the same new sender is resolved by
+     * letting the unique (user_id, url) constraint reject the loser, who then just
+     * re-reads what the winner inserted.
      */
-    public Feed insertNewsletter(long userId, String title, String category, String inboundToken) {
+    public Feed findOrCreateNewsletterFeed(long userId, String senderUrl, String title, String category) {
+        Optional<Feed> existing = findByUrl(userId, senderUrl);
+        if (existing.isPresent()) {
+            return existing.get();
+        }
+        try {
+            return insertNewsletterFeed(userId, title, senderUrl, category);
+        } catch (DuplicateKeyException raced) {
+            return findByUrl(userId, senderUrl).orElseThrow();
+        }
+    }
+
+    private Feed insertNewsletterFeed(long userId, String title, String senderUrl, String category) {
         KeyHolder keyHolder = new GeneratedKeyHolder();
         jdbc.update(con -> {
             PreparedStatement ps = con.prepareStatement("""
-                    INSERT INTO feeds (user_id, title, url, category, source, inbound_token)
-                    VALUES (?, ?, ?, ?, 'NEWSLETTER', ?)
+                    INSERT INTO feeds (user_id, title, url, category, source)
+                    VALUES (?, ?, ?, ?, 'NEWSLETTER')
                     """, new String[]{"id"});
             ps.setLong(1, userId);
             ps.setString(2, title);
-            ps.setString(3, "newsletter:" + inboundToken);
+            ps.setString(3, senderUrl);
             ps.setString(4, normalizeCategory(category));
-            ps.setString(5, inboundToken);
             return ps;
         }, keyHolder);
         Number key = keyHolder.getKey();
         if (key == null) {
-            throw new IllegalStateException("Failed to insert newsletter");
+            throw new IllegalStateException("Failed to insert newsletter feed");
         }
         return findById(userId, key.longValue()).orElseThrow();
-    }
-
-    /**
-     * Finds a newsletter feed by its inbound token, regardless of owner — the
-     * inbound mail webhook only knows the address an issue arrived at.
-     */
-    public Optional<Feed> findByInboundToken(String inboundToken) {
-        var list = jdbc.query("""
-                SELECT *, 0 AS unread_count FROM feeds WHERE inbound_token = ?
-                """, MAPPER, inboundToken);
-        return list.stream().findFirst();
-    }
-
-    /** Rotates a newsletter's inbound address, e.g. after it starts receiving spam. */
-    public boolean updateInboundToken(long userId, long id, String inboundToken) {
-        return jdbc.update("""
-                UPDATE feeds
-                SET inbound_token = ?, url = ?, updated_at = NOW()
-                WHERE id = ? AND user_id = ? AND source = 'NEWSLETTER'
-                """, inboundToken, "newsletter:" + inboundToken, id, userId) > 0;
     }
 
     public void updateTitleAndSite(long id, String title, String siteUrl) {

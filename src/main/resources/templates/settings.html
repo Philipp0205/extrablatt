@@ -63,6 +63,20 @@
     </p>
   </div>
 
+  <div th:if="${newslettersEnabled}">
+    <h2>Newsletters</h2>
+    <p class="meta">Some sources only publish by e-mail. Subscribe to any of them using
+      the address below — issues show up in <a th:href="@{/}">Feeds</a> (each sender
+      becomes its own entry the first time it writes) and send to Kindle exactly like
+      any other article.</p>
+    <code class="address-box" th:text="${newsletterAddress}">news@example.com</code>
+    <form th:action="@{/settings/newsletter-address/regenerate}" method="post"
+          onsubmit="return confirm('Replace your newsletter address? Anything still sent to the old one will be lost, but newsletters already received stay put.');">
+      <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+      <button class="btn" type="submit">New address</button>
+    </form>
+  </div>
+
   <h2>Support this project</h2>
   <p class="meta">
     Extrablatt is free to use, with no ads and no accounts to sell.

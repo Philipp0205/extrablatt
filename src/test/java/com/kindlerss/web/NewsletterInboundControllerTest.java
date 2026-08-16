@@ -4,6 +4,7 @@ import com.kindlerss.security.CurrentUser;
 import com.kindlerss.security.RateLimiter;
 import com.kindlerss.security.RateLimitingFilter;
 import com.kindlerss.service.FeedService;
+import com.kindlerss.service.UserService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -42,8 +43,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 })
 class NewsletterInboundControllerTest {
 
+    private static final long UID = 9L;
+
     @Autowired
     MockMvc mockMvc;
+
+    @MockitoBean
+    UserService userService;
 
     @MockitoBean
     FeedService feedService;
@@ -68,13 +74,14 @@ class NewsletterInboundControllerTest {
 
     @Test
     void wrongSecretIsRejected() throws Exception {
-        when(feedService.findNewsletterFeedIdByToken(anyString())).thenReturn(Optional.of(2L));
+        when(userService.findUserIdByNewsletterInboundToken(anyString())).thenReturn(Optional.of(UID));
 
         mockMvc.perform(post("/inbound/newsletters").param("secret", "wrong")
                         .contentType("application/json").content(PAYLOAD))
                 .andExpect(status().isUnauthorized());
 
-        verify(feedService, never()).receiveNewsletterIssue(anyLong(), anyString(), any(), any(), any(), anyString());
+        verify(feedService, never()).receiveNewsletterIssue(
+                anyLong(), anyString(), any(), anyString(), any(), any(), anyString());
     }
 
     @Test
@@ -86,20 +93,21 @@ class NewsletterInboundControllerTest {
 
     @Test
     void unmatchedRecipientIsReportedAsNotFound() throws Exception {
-        when(feedService.findNewsletterFeedIdByToken(anyString())).thenReturn(Optional.empty());
+        when(userService.findUserIdByNewsletterInboundToken(anyString())).thenReturn(Optional.empty());
 
         mockMvc.perform(post("/inbound/newsletters").param("secret", "correct-secret")
                         .contentType("application/json").content(PAYLOAD))
                 .andExpect(status().isNotFound());
 
-        verify(feedService, never()).receiveNewsletterIssue(anyLong(), anyString(), any(), any(), any(), anyString());
+        verify(feedService, never()).receiveNewsletterIssue(
+                anyLong(), anyString(), any(), anyString(), any(), any(), anyString());
     }
 
     @Test
-    void aMatchingIssueIsStoredUnderItsNewsletterFeed() throws Exception {
-        when(feedService.findNewsletterFeedIdByToken("abc123")).thenReturn(Optional.of(2L));
-        when(feedService.receiveNewsletterIssue(eq(2L), eq("msg-1"), eq("Issue #1"), eq("The Editor"),
-                any(), eq("<p>Hello subscriber</p>"))).thenReturn(42L);
+    void aMatchingIssueIsStoredForTheMatchingAccount() throws Exception {
+        when(userService.findUserIdByNewsletterInboundToken("abc123")).thenReturn(Optional.of(UID));
+        when(feedService.receiveNewsletterIssue(eq(UID), eq("editor@newsletter.example"), eq("The Editor"),
+                eq("msg-1"), eq("Issue #1"), any(), eq("<p>Hello subscriber</p>"))).thenReturn(42L);
 
         mockMvc.perform(post("/inbound/newsletters").param("secret", "correct-secret")
                         .contentType("application/json").content(PAYLOAD))
@@ -107,19 +115,31 @@ class NewsletterInboundControllerTest {
                 .andExpect(jsonPath("$.status").value("stored"))
                 .andExpect(jsonPath("$.articleId").value(42));
 
-        verify(feedService, times(1)).receiveNewsletterIssue(eq(2L), eq("msg-1"), eq("Issue #1"),
-                eq("The Editor"), any(), eq("<p>Hello subscriber</p>"));
+        verify(feedService, times(1)).receiveNewsletterIssue(eq(UID), eq("editor@newsletter.example"),
+                eq("The Editor"), eq("msg-1"), eq("Issue #1"), any(), eq("<p>Hello subscriber</p>"));
     }
 
     @Test
     void aRepeatedMessageIdIsReportedAsADuplicateWithoutErroring() throws Exception {
-        when(feedService.findNewsletterFeedIdByToken("abc123")).thenReturn(Optional.of(2L));
-        when(feedService.receiveNewsletterIssue(eq(2L), eq("msg-1"), any(), any(), any(), any()))
-                .thenReturn(-1L);
+        when(userService.findUserIdByNewsletterInboundToken("abc123")).thenReturn(Optional.of(UID));
+        when(feedService.receiveNewsletterIssue(eq(UID), any(), any(), eq("msg-1"), any(), any(), any()))
+                .thenReturn(FeedService.NEWSLETTER_DUPLICATE);
 
         mockMvc.perform(post("/inbound/newsletters").param("secret", "correct-secret")
                         .contentType("application/json").content(PAYLOAD))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("duplicate"));
+    }
+
+    @Test
+    void aNewSenderDroppedByTheFeedLimitIsReportedWithoutErroring() throws Exception {
+        when(userService.findUserIdByNewsletterInboundToken("abc123")).thenReturn(Optional.of(UID));
+        when(feedService.receiveNewsletterIssue(eq(UID), any(), any(), eq("msg-1"), any(), any(), any()))
+                .thenReturn(FeedService.NEWSLETTER_FEED_LIMIT_REACHED);
+
+        mockMvc.perform(post("/inbound/newsletters").param("secret", "correct-secret")
+                        .contentType("application/json").content(PAYLOAD))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("dropped"));
     }
 }

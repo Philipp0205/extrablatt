@@ -69,30 +69,6 @@
     </div>
   </form>
 
-  <div th:if="${newslettersEnabled}">
-    <h2>Add newsletter</h2>
-    <p class="meta">Newsletters arrive by e-mail instead of RSS. Add one here, then use
-      the address it gives you to subscribe on the newsletter's own site — issues show
-      up in <a th:href="@{/items}">Articles</a> and send to Kindle exactly like any
-      other article.</p>
-    <form th:action="@{/newsletters}" method="post">
-      <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-      <label for="newsletterTitle">Newsletter name</label>
-      <div class="row">
-        <input id="newsletterTitle" name="title" type="text" required
-               placeholder="e.g. Stratechery"/>
-        <select id="newsletterCategory" name="category" class="category-select" data-category-select>
-          <option value="">Uncategorized</option>
-          <option th:each="c : ${categories}" th:value="${c}" th:text="${c}">Category</option>
-          <option value="__new__">+ New category…</option>
-        </select>
-        <input type="text" name="newCategory" class="category-new" data-category-new
-               placeholder="New category name" aria-label="New category name"/>
-        <button class="btn" type="submit">Add</button>
-      </div>
-    </form>
-  </div>
-
   <div th:if="${#lists.isEmpty(feeds) and !#lists.isEmpty(defaultFeeds)}">
     <h2>Quick start</h2>
     <p class="meta">Choose any suggested feeds you want. Nothing is added automatically.</p>
@@ -121,12 +97,9 @@
         <span class="badge" th:if="${feed.isNewsletter()}">Newsletter</span>
         <span class="badge" th:text="${feed.unreadCount}">0</span>
       </div>
-      <div class="meta" th:unless="${feed.isNewsletter()}">
-        <span th:text="${feed.url}">url</span>
-      </div>
-      <div th:if="${feed.isNewsletter()}">
-        <p class="meta">Subscribe to this newsletter using:</p>
-        <code class="address-box" th:text="${@feedService.newsletterAddress(feed)}">news@example.com</code>
+      <div class="meta">
+        <span th:if="${feed.isNewsletter()}" th:text="'From ' + ${feed.newsletterSender()}">from sender</span>
+        <span th:unless="${feed.isNewsletter()}" th:text="${feed.url}">url</span>
       </div>
       <div class="meta" th:if="${feed.lastError != null}">
         Last error: <span th:text="${feed.lastError}">error</span>
@@ -143,12 +116,6 @@
           <input name="newCategory" type="text" class="category-new" data-category-new
                  placeholder="New category name" aria-label="New category name"/>
           <button type="submit">Save</button>
-        </form>
-        <form class="inline" th:if="${feed.isNewsletter()}"
-              th:action="@{/newsletters/{id}/regenerate(id=${feed.id})}" method="post"
-              onsubmit="return confirm('Replace this newsletter\'s address? Old issues stay, but anything still sent to the old address will be lost.');">
-          <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-          <button type="submit">New address</button>
         </form>
         <form class="inline" th:action="@{/feeds/{id}/delete(id=${feed.id})}" method="post">
           <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
