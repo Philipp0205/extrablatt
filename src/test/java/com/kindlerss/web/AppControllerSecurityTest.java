@@ -579,6 +579,35 @@ class AppControllerSecurityTest {
     }
 
     @Test
+    @WithMockUser
+    void renamingACategoryUpdatesEveryFeedInIt() throws Exception {
+        when(feedService.renameCategory(UID, "Technology", "Tech")).thenReturn(2);
+
+        mockMvc.perform(post("/categories/rename").with(csrf())
+                        .param("oldCategory", "Technology")
+                        .param("newCategory", "Tech"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/"))
+                .andExpect(flash().attribute("message", "Renamed category for 2 feeds"));
+
+        verify(feedService).renameCategory(UID, "Technology", "Tech");
+    }
+
+    @Test
+    @WithMockUser
+    void renamingUncategorizedIsRejected() throws Exception {
+        when(feedService.renameCategory(UID, "Uncategorized", "Tech"))
+                .thenThrow(new IllegalArgumentException("Choose a category to rename"));
+
+        mockMvc.perform(post("/categories/rename").with(csrf())
+                        .param("oldCategory", "Uncategorized")
+                        .param("newCategory", "Tech"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/"))
+                .andExpect(flash().attribute("error", "Choose a category to rename"));
+    }
+
+    @Test
     void resolveCategoryPrefersATypedNewNameAndTreatsTheSentinelAsNone() {
         // A newly typed category wins over whatever the drop-down still shows.
         org.junit.jupiter.api.Assertions.assertEquals("Science",

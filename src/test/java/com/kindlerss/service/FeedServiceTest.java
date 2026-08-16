@@ -12,12 +12,14 @@ import java.time.Instant;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -162,5 +164,37 @@ class FeedServiceTest {
 
         assertEquals(feedUrl, added.url());
         verify(httpClient).get(feedUrl);
+    }
+
+    @Test
+    void renamingACategoryUpdatesEveryFeedThatHasIt() {
+        when(feedRepository.renameCategory(UID, "Technology", "Tech")).thenReturn(3);
+
+        int updated = service(100).renameCategory(UID, "Technology", "Tech");
+
+        assertEquals(3, updated);
+        verify(feedRepository).renameCategory(UID, "Technology", "Tech");
+    }
+
+    @Test
+    void renamingUncategorizedIsRejected() {
+        assertThrows(IllegalArgumentException.class,
+                () -> service(100).renameCategory(UID, "Uncategorized", "Tech"));
+        assertThrows(IllegalArgumentException.class,
+                () -> service(100).renameCategory(UID, "", "Tech"));
+    }
+
+    @Test
+    void renamingToABlankNameIsRejected() {
+        assertThrows(IllegalArgumentException.class,
+                () -> service(100).renameCategory(UID, "Technology", "  "));
+    }
+
+    @Test
+    void renamingACategoryToItsOwnNameIsANoOp() {
+        int updated = service(100).renameCategory(UID, "Technology", " Technology ");
+
+        assertEquals(0, updated);
+        verify(feedRepository, never()).renameCategory(anyLong(), anyString(), anyString());
     }
 }
