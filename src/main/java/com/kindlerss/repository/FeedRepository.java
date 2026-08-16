@@ -173,6 +173,18 @@ public class FeedRepository {
                 """, normalizeCategory(category), id, userId) > 0;
     }
 
+    /**
+     * Renames a category across every one of an account's feeds at once, rather
+     * than requiring each feed to be recategorized by hand. Scoped to the owning
+     * account so one user's rename cannot touch another's feeds.
+     */
+    public int renameCategory(long userId, String oldCategory, String newCategory) {
+        return jdbc.update("""
+                UPDATE feeds SET category = ?, updated_at = NOW()
+                WHERE user_id = ? AND category = ?
+                """, normalizeCategory(newCategory), userId, oldCategory);
+    }
+
     public void clearError(long id) {
         jdbc.update("""
                 UPDATE feeds SET last_error = NULL, updated_at = NOW() WHERE id = ?

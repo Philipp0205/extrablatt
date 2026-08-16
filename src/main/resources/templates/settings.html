@@ -98,6 +98,69 @@
     <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
     <button class="btn danger" type="submit">Delete my account</button>
   </form>
+
+  <!-- Administrator-only usage dashboard, kept here rather than on a separate
+       page since it is the same "manage the app" area as the rest of Settings. -->
+  <div th:if="${admin}">
+    <h2>Telemetry</h2>
+    <p class="meta">Application totals derived from the database. No article content is exposed here.</p>
+
+    <div class="metric-grid">
+      <div><strong th:text="${summary.sendsTotal}">0</strong><span>Articles sent (total)</span></div>
+      <div><strong th:text="${summary.sends24h}">0</strong><span>Sent in 24 hours</span></div>
+      <div><strong th:text="${summary.sends7d}">0</strong><span>Sent in 7 days</span></div>
+      <div><strong th:text="${summary.users}">0</strong><span>Users</span></div>
+      <div><strong th:text="${summary.feeds}">0</strong><span>Feeds</span></div>
+      <div><strong th:text="${summary.articles}">0</strong><span>Articles</span></div>
+    </div>
+
+    <h3>User usage and send limits</h3>
+    <p class="meta">
+      An empty custom limit inherits the global limit of
+      <strong th:text="${defaultDailyLimit}">50</strong> sends per rolling 24 hours.
+      A temporary block prevents all Kindle sends for that user.
+    </p>
+
+    <div class="admin-users">
+      <section class="admin-user" th:each="u : ${users}">
+        <div>
+          <strong th:text="${u.email}">user@example.com</strong>
+          <span class="badge" th:text="${u.verified} ? 'verified' : 'unverified'">verified</span>
+          <span class="badge" th:if="${u.blocked}">blocked</span>
+        </div>
+        <p class="meta">
+          <span th:text="${u.sends24h}">0</span> sent in 24h ·
+          <span th:text="${u.sendsTotal}">0</span> total ·
+          <span th:text="${u.feeds}">0</span> feeds ·
+          <span th:text="${u.articles}">0</span> articles
+        </p>
+        <p class="meta" th:if="${u.blockedUntil != null}">
+          Blocked until <span th:text="${#temporals.format(u.blockedUntil, 'yyyy-MM-dd HH:mm')}">date</span>
+        </p>
+        <form th:action="@{/admin/users/limit}" method="post">
+          <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+          <input type="hidden" name="userId" th:value="${u.userId}"/>
+          <div class="row">
+            <label>
+              Custom daily limit
+              <input name="dailyLimit" type="number" min="1" max="1000"
+                     th:value="${u.maxSendsPerDay}" th:placeholder="${defaultDailyLimit}"/>
+            </label>
+            <label>
+              Temporary block
+              <select name="blockHours">
+                <option value="0">No block / unblock</option>
+                <option value="24">24 hours</option>
+                <option value="168">7 days</option>
+                <option value="720">30 days</option>
+              </select>
+            </label>
+            <button class="btn" type="submit">Apply</button>
+          </div>
+        </form>
+      </section>
+    </div>
+  </div>
 </div>
 </body>
 </html>

@@ -190,6 +190,27 @@ public class FeedService {
         return matcher.find() ? matcher.group().toLowerCase(Locale.ROOT) : null;
     }
 
+    /**
+     * Renames a category across all of an account's feeds. "Uncategorized" is a
+     * placeholder for feeds with no category rather than a real one, so it cannot
+     * be renamed; giving feeds a category through the usual form is how they leave it.
+     */
+    @Transactional
+    public int renameCategory(long userId, String oldCategory, String newCategory) {
+        String from = oldCategory == null ? "" : oldCategory.trim();
+        String to = newCategory == null ? "" : newCategory.trim();
+        if (from.isEmpty() || Feed.UNCATEGORIZED.equalsIgnoreCase(from)) {
+            throw new IllegalArgumentException("Choose a category to rename");
+        }
+        if (to.isEmpty()) {
+            throw new IllegalArgumentException("New category name is required");
+        }
+        if (to.equalsIgnoreCase(from)) {
+            return 0;
+        }
+        return feedRepository.renameCategory(userId, from, to);
+    }
+
     @Scheduled(fixedDelayString = "PT30M", initialDelayString = "PT2M")
     public void scheduledRefresh() {
         log.info("Scheduled feed refresh starting");

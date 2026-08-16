@@ -5,6 +5,7 @@ import com.kindlerss.security.AppUserDetails;
 import com.kindlerss.security.CurrentUser;
 import com.kindlerss.security.RateLimiter;
 import com.kindlerss.security.RateLimitingFilter;
+import com.kindlerss.service.AdminTelemetryService;
 import com.kindlerss.service.ArticleService;
 import com.kindlerss.service.UserService;
 import org.junit.jupiter.api.BeforeEach;
@@ -54,6 +55,9 @@ class SettingsControllerNewslettersEnabledTest {
 
     @MockitoBean
     ArticleService articleService;
+
+    @MockitoBean
+    AdminTelemetryService telemetryService;
 
     @MockitoBean
     CurrentUser currentUser;

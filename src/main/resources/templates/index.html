@@ -14,7 +14,6 @@
       <a th:href="@{/}">Feeds</a>
       <a th:href="@{/items}">Articles</a>
       <a th:href="@{/settings}">Settings</a>
-      <a th:if="${admin}" th:href="@{/admin}">Telemetry</a>
       <form class="inline" th:action="@{/refresh}" method="post">
         <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
         <button type="submit">Refresh</button>
@@ -100,7 +99,17 @@
   <p class="meta" th:text="'Unread across all feeds: ' + ${totalUnread}">Unread: 0</p>
   <p th:if="${#lists.isEmpty(feeds)}" class="muted">No feeds yet.</p>
   <section th:each="group : ${feedGroups}" class="feed-group">
-    <h3 th:text="${group.key}">Category</h3>
+    <div class="category-heading">
+      <h3 th:text="${group.key}">Category</h3>
+      <form class="inline rename-form" th:if="${group.key != 'Uncategorized'}"
+            th:action="@{/categories/rename}" method="post">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <input type="hidden" name="oldCategory" th:value="${group.key}"/>
+        <input type="text" name="newCategory" th:value="${group.key}"
+               aria-label="Rename category" class="category-rename-input"/>
+        <button type="submit">Rename</button>
+      </form>
+    </div>
     <ul class="feed-list">
     <li th:each="feed : ${group.value}">
       <div>

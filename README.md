@@ -84,7 +84,9 @@ Tests do not require PostgreSQL or Docker. They cover EPUB layout, HTML sanitiza
    phone, paste the normal website address, and feed autodiscovery will usually
    find its RSS/Atom feed. The optional **Quick start** checkboxes can populate a
    new reader without typing URLs; no suggested feed is added unless you select it.
-   Give a feed a category while adding it, or change its category later.
+   Give a feed a category while adding it, or change its category later. A
+   category heading on the Feeds page can also be renamed in place, which moves
+   every feed in it to the new name at once.
 2. Open **Articles** and filter by feed, category, or the **Unread** toggle in the
    filter bar.
 3. Page through the list; articles you page past are marked read.
