@@ -64,11 +64,17 @@ public class UserRepository {
         return findById(key.longValue()).orElseThrow();
     }
 
-    public void markEmailVerified(long id) {
-        jdbc.update("""
+    /**
+     * Confirms an address. Returns true only the first time — later calls (a
+     * reused link, or the confirmation a password reset also implies) find the
+     * column already set and change nothing, which callers use to send a welcome
+     * message exactly once.
+     */
+    public boolean markEmailVerified(long id) {
+        return jdbc.update("""
                 UPDATE users SET email_verified_at = NOW(), updated_at = NOW()
                 WHERE id = ? AND email_verified_at IS NULL
-                """, id);
+                """, id) > 0;
     }
 
     public void updatePasswordHash(long id, String passwordHash) {

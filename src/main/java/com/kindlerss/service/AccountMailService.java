@@ -40,6 +40,29 @@ public class AccountMailService {
         send(toEmail, "Confirm your Extrablatt account", body);
     }
 
+    /**
+     * Sent once an account's e-mail is confirmed — a separate, friendlier message
+     * than the confirmation link itself, pointing the new user at what to do next.
+     */
+    public void sendWelcome(String toEmail) {
+        String appUrl = properties.publicUrl().replaceFirst("/+$", "");
+        String body = """
+                Welcome aboard — your Extrablatt account is ready.
+
+                Two quick steps to get the most out of it:
+
+                1. Add a feed: paste any RSS/Atom URL, or just a site's normal
+                   homepage address, and we will try to find its feed for you.
+                2. Open Settings and add your Kindle e-mail so articles you send
+                   land on your device.
+
+                Open Extrablatt: %s
+
+                Thanks for trying it out.
+                """.formatted(appUrl);
+        send(toEmail, "Welcome to Extrablatt", body);
+    }
+
     public void sendPasswordReset(String toEmail, String token) {
         String link = accountLink("/reset-password", token);
         String body = """
