@@ -1,5 +1,11 @@
 package com.kindlerss.service;
 
+import io.documentnode.epub4j.domain.Author;
+import io.documentnode.epub4j.domain.Book;
+import io.documentnode.epub4j.domain.Identifier;
+import io.documentnode.epub4j.domain.MediaTypes;
+import io.documentnode.epub4j.domain.Resource;
+import io.documentnode.epub4j.epub.EpubWriter;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.springframework.stereotype.Service;
@@ -8,23 +14,29 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
-import java.time.Instant;
-import java.time.ZoneOffset;
-import java.time.format.DateTimeFormatter;
 import java.util.UUID;
-import java.util.zip.CRC32;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipOutputStream;
 
 /**
- * Minimal EPUB 3 writer. The mimetype entry is stored uncompressed and written first.
+ * Builds the single-article EPUB that is mailed to a Kindle.
+ *
+ * epub4j (a maintained fork of epublib) owns the container format: the package
+ * document, the navigation document, and the ZIP layout down to the uncompressed
+ * "mimetype" entry the specification wants written first. What is left here is
+ * turning an article's sanitized HTML into one well-formed XHTML chapter.
  */
 @Service
 public class EpubService {
 
-    private static final String MIMETYPE = "application/epub+zip";
-    private static final DateTimeFormatter MODIFIED =
-            DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss'Z'").withZone(ZoneOffset.UTC);
+    private static final String ARTICLE_HREF = "article.xhtml";
+    private static final String STYLESHEET_HREF = "style.css";
+
+    /* Kindle ignores most of a document's styling, so this only covers what it does
+       honour: a readable measure, and images that cannot run past the screen. */
+    private static final String STYLESHEET = """
+            body { font-family: serif; line-height: 1.5; margin: 1em; }
+            img { max-width: 100%; height: auto; }
+            h1 { font-size: 1.4em; }
+            """;
 
     public byte[] createEpub(String title, String author, String htmlBody) {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -39,54 +51,38 @@ public class EpubService {
     public void writeEpub(OutputStream out, String title, String author, String htmlBody) throws IOException {
         String safeTitle = blankToDefault(title, "Article");
         String safeAuthor = blankToDefault(author, "Unknown");
-        String bookId = "urn:uuid:" + UUID.randomUUID();
-        String modified = MODIFIED.format(Instant.now());
-        String articleXhtml = wrapArticle(safeTitle, htmlBody);
-        String contentOpf = buildOpf(safeTitle, safeAuthor, bookId, modified);
-        String navXhtml = buildNav(safeTitle);
-        // EPUB package parts are fixed scaffolding; inlining the XML keeps this
-        // writer dependency-free. A full EPUB library would be overkill here.
-        String containerXml = """
-                <?xml version="1.0" encoding="UTF-8"?>
-                <container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
-                  <rootfiles>
-                    <rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/>
-                  </rootfiles>
-                </container>
-                """;
 
-        ZipOutputStream zos = new ZipOutputStream(out);
-        try {
-            // EPUB requires mimetype as first entry, stored (no compression)
-            writeStored(zos, "mimetype", MIMETYPE.getBytes(StandardCharsets.US_ASCII));
-            writeDeflated(zos, "META-INF/container.xml", containerXml);
-            writeDeflated(zos, "OEBPS/content.opf", contentOpf);
-            writeDeflated(zos, "OEBPS/nav.xhtml", navXhtml);
-            writeDeflated(zos, "OEBPS/article.xhtml", articleXhtml);
-        } finally {
-            zos.finish();
-        }
+        Book book = new Book();
+        book.getMetadata().addTitle(safeTitle);
+        book.getMetadata().addAuthor(toAuthor(safeAuthor));
+        book.getMetadata().setLanguage("en");
+        book.getMetadata().addIdentifier(
+                new Identifier(Identifier.Scheme.UUID, UUID.randomUUID().toString()));
+
+        book.addResource(resource(STYLESHEET_HREF, STYLESHEET, MediaTypes.CSS));
+        // One section: the spine and the table of contents both end up with a single
+        // entry pointing at it.
+        book.addSection(safeTitle, resource(ARTICLE_HREF, wrapArticle(safeTitle, htmlBody), MediaTypes.XHTML));
+
+        new EpubWriter().write(book, out);
     }
 
-    private static void writeStored(ZipOutputStream zos, String name, byte[] data) throws IOException {
-        ZipEntry entry = new ZipEntry(name);
-        entry.setMethod(ZipEntry.STORED);
-        entry.setSize(data.length);
-        entry.setCompressedSize(data.length);
-        CRC32 crc = new CRC32();
-        crc.update(data);
-        entry.setCrc(crc.getValue());
-        zos.putNextEntry(entry);
-        zos.write(data);
-        zos.closeEntry();
+    private static Resource resource(String href, String content, io.documentnode.epub4j.domain.MediaType mediaType) {
+        Resource resource = new Resource(content.getBytes(StandardCharsets.UTF_8), mediaType);
+        resource.setHref(href);
+        return resource;
     }
 
-    private static void writeDeflated(ZipOutputStream zos, String name, String content) throws IOException {
-        ZipEntry entry = new ZipEntry(name);
-        entry.setMethod(ZipEntry.DEFLATED);
-        zos.putNextEntry(entry);
-        zos.write(content.getBytes(StandardCharsets.UTF_8));
-        zos.closeEntry();
+    /**
+     * Splits a byline so that epub4j, which writes a creator as "firstname lastname",
+     * reproduces it unchanged. Feeds give whole names ("Jane Doe") and publication
+     * names alike ("Reuters"), and neither has a surname to speak of.
+     */
+    private static Author toAuthor(String name) {
+        int lastSpace = name.lastIndexOf(' ');
+        return lastSpace < 0
+                ? new Author(name)
+                : new Author(name.substring(0, lastSpace), name.substring(lastSpace + 1));
     }
 
     private static String wrapArticle(String title, String bodyHtml) {
@@ -98,18 +94,14 @@ public class EpubService {
                 <head>
                   <meta charset="utf-8"/>
                   <title>%s</title>
-                  <style>
-                    body { font-family: serif; line-height: 1.5; margin: 1em; }
-                    img { max-width: 100%%; height: auto; }
-                    h1 { font-size: 1.4em; }
-                  </style>
+                  <link rel="stylesheet" type="text/css" href="%s"/>
                 </head>
                 <body>
                   <h1>%s</h1>
                   %s
                 </body>
                 </html>
-                """.formatted(escapeXml(title), escapeXml(title), body);
+                """.formatted(escapeXml(title), STYLESHEET_HREF, escapeXml(title), body);
     }
 
     private static String toXhtml(String bodyHtml) {
@@ -119,49 +111,6 @@ public class EpubService {
                 .charset(StandardCharsets.UTF_8)
                 .prettyPrint(false);
         return document.body().html();
-    }
-
-    private static String buildOpf(String title, String author, String bookId, String modified) {
-        return """
-                <?xml version="1.0" encoding="UTF-8"?>
-                <package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="BookId">
-                  <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
-                    <dc:identifier id="BookId">%s</dc:identifier>
-                    <dc:title>%s</dc:title>
-                    <dc:creator>%s</dc:creator>
-                    <dc:language>en</dc:language>
-                    <meta property="dcterms:modified">%s</meta>
-                  </metadata>
-                  <manifest>
-                    <item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>
-                    <item id="article" href="article.xhtml" media-type="application/xhtml+xml"/>
-                  </manifest>
-                  <spine>
-                    <itemref idref="article"/>
-                  </spine>
-                </package>
-                """.formatted(escapeXml(bookId), escapeXml(title), escapeXml(author), modified);
-    }
-
-    private static String buildNav(String title) {
-        return """
-                <?xml version="1.0" encoding="UTF-8"?>
-                <!DOCTYPE html>
-                <html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" xml:lang="en" lang="en">
-                <head>
-                  <meta charset="utf-8"/>
-                  <title>Navigation</title>
-                </head>
-                <body>
-                  <nav epub:type="toc" id="toc">
-                    <h1>Contents</h1>
-                    <ol>
-                      <li><a href="article.xhtml">%s</a></li>
-                    </ol>
-                  </nav>
-                </body>
-                </html>
-                """.formatted(escapeXml(title));
     }
 
     private static String blankToDefault(String value, String fallback) {
