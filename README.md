@@ -8,6 +8,9 @@ Multi-user RSS/Atom reader that extracts readable article HTML and emails EPUB f
 - Per-user feeds and articles — every account has its own, isolated subscriptions
 - Add feeds by RSS/Atom URL or homepage (autodiscovery from `<link>` tags,
   feed-like links, and the site's conventional feed paths)
+- Optional newsletter subscriptions: one inbound e-mail address per account —
+  subscribe any newsletter to it and issues show up as articles, sent to Kindle
+  the same way as any other
 - Optional quick-start feed suggestions and categories for organizing subscriptions
 - Scheduled refresh every 30 minutes, plus manual refresh, asking each feed for
   more than the handful of entries it publishes by default
@@ -147,6 +150,44 @@ documents from approved sender addresses, so each user does this once:
    Personal Document E-mail List**.
 
 Without approval, messages are silently dropped by Amazon.
+
+## Newsletters
+
+Some sources only publish by e-mail, not RSS. Once `NEWSLETTER_INBOUND_DOMAIN`
+and `NEWSLETTER_INBOUND_SECRET` are set, **Settings** shows one newsletter
+inbox address per account, generated the first time that page is opened (e.g.
+`3f9c2a1b4e...@news.yourdomain.com`). Subscribe *any* newsletter to that same
+address — there is nothing to add up front. The first issue from a given
+sender creates a feed for it automatically (titled from the sender, filed
+under a "Newsletters" category); later issues from that sender land as
+articles on the same feed. From there it behaves exactly like an RSS feed:
+read it, mark it read, **Send to Kindle**, recategorize, or **Delete** it.
+**New address** in Settings rotates the inbox (e.g. once it starts collecting
+spam) without losing anything already received.
+
+This needs an inbound e-mail provider in front of the app, since Extrablatt
+itself never receives mail directly:
+
+1. Pick a subdomain for newsletter addresses (`NEWSLETTER_INBOUND_DOMAIN`, e.g.
+   `news.yourdomain.com`) and point its MX record at an inbound e-mail provider —
+   [Postmark](https://postmarkapp.com/inbound-email) (an "Inbound" server stream)
+   is the easiest fit, since its webhook payload is what the app expects
+   out of the box. Mailgun Routes, SendGrid Inbound Parse, or a Cloudflare Email
+   Routing worker all work too with a small JSON reshape in front of the webhook.
+2. Configure that provider's inbound webhook to `POST` to
+   `https://<your-app>/inbound/newsletters?secret=<NEWSLETTER_INBOUND_SECRET>`
+   (`NEWSLETTER_INBOUND_SECRET` is a long random value you choose; the query
+   parameter is the only thing standing in for a login on this endpoint, since
+   the provider cannot authenticate like a browser).
+3. Set both variables in `.env` (or your platform's env vars) and redeploy.
+
+The webhook expects Postmark's inbound JSON shape: `To`/`ToFull`/
+`OriginalRecipient` (to find which account's inbox an issue arrived at, by the
+address's local part), `From`/`FromName` (identifies which sender's feed it
+belongs to, and names that feed the first time), `Subject`, `HtmlBody`/
+`TextBody`, `MessageID` (deduplicates re-deliveries the way a feed's `guid`
+does), and `Date`. Leaving `NEWSLETTER_INBOUND_DOMAIN` unset hides the feature
+entirely; existing RSS feeds are unaffected either way.
 
 ## Deploy on Railway (recommended, no personal VPS)
 

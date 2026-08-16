@@ -46,6 +46,12 @@ public class SettingsController {
         model.addAttribute("account", user);
         model.addAttribute("mailFrom", properties.mailFrom());
         model.addAttribute("totalSent", articleService.countSentTotal(userId));
+        boolean newslettersEnabled = properties.newsletters().enabled();
+        model.addAttribute("newslettersEnabled", newslettersEnabled);
+        if (newslettersEnabled) {
+            String token = userService.ensureNewsletterInboundToken(userId);
+            model.addAttribute("newsletterAddress", token + "@" + properties.newsletters().inboundDomain());
+        }
         // Telemetry is folded into Settings rather than kept on a separate page, so
         // an administrator gets to it the same way anyone reaches account settings.
         boolean admin = currentUser.details().map(AppUserDetails::admin).orElse(false);
@@ -57,6 +63,7 @@ public class SettingsController {
         return "settings";
     }
 
+
     @PostMapping("/settings/kindle-email")
     public String updateKindleEmail(@RequestParam(value = "kindleEmail", required = false) String kindleEmail,
                                     RedirectAttributes redirectAttributes) {
@@ -66,6 +73,18 @@ public class SettingsController {
         } catch (IllegalArgumentException e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
         }
+        return "redirect:/settings";
+    }
+
+    @PostMapping("/settings/newsletter-address/regenerate")
+    public String regenerateNewsletterAddress(RedirectAttributes redirectAttributes) {
+        if (!properties.newsletters().enabled()) {
+            redirectAttributes.addFlashAttribute("error", "Newsletters are not configured on this server");
+            return "redirect:/settings";
+        }
+        String token = userService.regenerateNewsletterInboundToken(currentUser.requireId());
+        redirectAttributes.addFlashAttribute("message",
+                "New newsletter address: " + token + "@" + properties.newsletters().inboundDomain());
         return "redirect:/settings";
     }
 

@@ -28,6 +28,7 @@ public class AccountMailService {
 
     public void sendVerification(String toEmail, String token) {
         String link = accountLink("/verify", token);
+        // TODO Refactor email templates into extra file  
         String body = """
                 Welcome to Extrablatt.
 

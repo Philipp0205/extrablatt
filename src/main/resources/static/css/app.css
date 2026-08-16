@@ -386,6 +386,19 @@ input[type="email"], input[type="url"], input[type="password"], input[type="text
   font-weight: 700;
 }
 
+/* The newsletter's inbound address is meant to be selected and pasted into a
+   subscribe form, so it gets its own boxed, monospace line rather than sitting
+   in with the rest of a feed's meta text. */
+.address-box {
+  display: block;
+  border: 2px dashed #000;
+  padding: 0.4rem 0.6rem;
+  margin: 0.4rem 0;
+  font-family: "Courier New", Courier, monospace;
+  font-size: 0.9rem;
+  word-break: break-all;
+}
+
 .actions {
   display: flex;
   flex-wrap: wrap;

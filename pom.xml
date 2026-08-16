@@ -26,6 +26,7 @@
         <jsoup.version>1.22.2</jsoup.version>
         <rome.version>2.1.0</rome.version>
         <readability4j.version>1.0.8</readability4j.version>
+        <epub4j.version>4.2.3</epub4j.version>
     </properties>
 
     <dependencies>
@@ -88,6 +89,20 @@
             <groupId>org.jsoup</groupId>
             <artifactId>jsoup</artifactId>
             <version>${jsoup.version}</version>
+        </dependency>
+        <!-- Maintained fork of the abandoned epublib. Builds the OPF, the navigation
+             document and the ZIP layout, so this project only has to supply content. -->
+        <dependency>
+            <groupId>io.documentnode</groupId>
+            <artifactId>epub4j-core</artifactId>
+            <version>${epub4j.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-devtools</artifactId>
+            <scope>runtime</scope>
+            <optional>true</optional>
         </dependency>
 
         <dependency>

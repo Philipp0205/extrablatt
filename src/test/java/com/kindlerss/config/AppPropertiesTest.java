@@ -9,7 +9,7 @@ class AppPropertiesTest {
     @Test
     void readingSettingsFallBackToTheirDefaults() {
         AppProperties properties = new AppProperties("from@example.com", null, null,
-                null, null, null, null, null);
+                null, null, null, null, null, null);
 
         assertEquals(AppProperties.Feeds.DEFAULT_MAX_ENTRIES, properties.feeds().maxEntries());
         assertEquals(AppProperties.Articles.DEFAULT_PAGE_SIZE, properties.articles().pageSize());

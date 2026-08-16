@@ -2,6 +2,7 @@ package com.kindlerss.service;
 
 import com.kindlerss.config.AppProperties;
 import com.kindlerss.domain.Feed;
+import com.kindlerss.domain.FeedSource;
 import com.kindlerss.repository.ArticleRepository;
 import com.kindlerss.repository.FeedRepository;
 import org.junit.jupiter.api.Test;
@@ -48,13 +49,18 @@ class FeedServiceTest {
     private FeedService service(int maxEntries) {
         AppProperties properties = new AppProperties(
                 "from@example.com", null, "remember-me",
-                null, new AppProperties.Feeds(maxEntries), null, null, null);
+                null, new AppProperties.Feeds(maxEntries), null, null, null, null);
         return new FeedService(feedRepository, articleRepository, httpClient, new HtmlSanitizer(), properties);
     }
 
     private static Feed feed(String url) {
         return new Feed(1L, "Example", url, "https://example.com/", null,
                 Instant.EPOCH, Instant.EPOCH);
+    }
+
+    private static Feed newsletterFeed(String senderUrl) {
+        return new Feed(2L, "A Newsletter", senderUrl, null, "Newsletters", null,
+                Instant.EPOCH, Instant.EPOCH, 0, FeedSource.NEWSLETTER);
     }
 
     private static Answer<SafeHttpClient.FetchedContent> respondWithFeed() {
@@ -164,6 +170,73 @@ class FeedServiceTest {
 
         assertEquals(feedUrl, added.url());
         verify(httpClient).get(feedUrl);
+    }
+
+    @Test
+    void receivingANewsletterIssueCreatesAFeedForItsSenderTheFirstTime() {
+        when(feedRepository.findByUrl(UID, "newsletter:editor@example.com")).thenReturn(Optional.empty());
+        when(feedRepository.countByUser(UID)).thenReturn(0L);
+        when(feedRepository.findOrCreateNewsletterFeed(UID, "newsletter:editor@example.com",
+                "The Editor", "Newsletters")).thenReturn(newsletterFeed("newsletter:editor@example.com"));
+        when(articleRepository.existsByFeedIdAndGuid(2L, "message-1")).thenReturn(false);
+        when(articleRepository.insert(eq(2L), eq("message-1"), eq("Issue #1"), isNull(), eq("The Editor"),
+                any(), isNull(), anyString())).thenReturn(42L);
+
+        long id = service(100).receiveNewsletterIssue(UID, "Editor@Example.com", "The Editor",
+                "message-1", "Issue #1", Instant.EPOCH, "<p>Hello</p>");
+
+        assertEquals(42L, id);
+        verify(feedRepository).clearError(2L);
+    }
+
+    @Test
+    void receivingANewsletterIssueFromAKnownSenderReusesItsFeed() {
+        Feed existing = newsletterFeed("newsletter:editor@example.com");
+        when(feedRepository.findByUrl(UID, "newsletter:editor@example.com")).thenReturn(Optional.of(existing));
+        when(articleRepository.existsByFeedIdAndGuid(2L, "message-2")).thenReturn(false);
+        when(articleRepository.insert(anyLong(), anyString(), anyString(), any(), any(),
+                any(), any(), anyString())).thenReturn(43L);
+
+        service(100).receiveNewsletterIssue(UID, "editor@example.com", "The Editor",
+                "message-2", "Issue #2", Instant.EPOCH, "<p>Hello again</p>");
+
+        verify(feedRepository, never()).findOrCreateNewsletterFeed(anyLong(), anyString(), any(), any());
+    }
+
+    @Test
+    void receivingTheSameNewsletterIssueTwiceIsIgnored() {
+        Feed existing = newsletterFeed("newsletter:editor@example.com");
+        when(feedRepository.findByUrl(UID, "newsletter:editor@example.com")).thenReturn(Optional.of(existing));
+        when(articleRepository.existsByFeedIdAndGuid(2L, "message-1")).thenReturn(true);
+
+        long id = service(100).receiveNewsletterIssue(UID, "editor@example.com", "The Editor",
+                "message-1", "Issue #1", Instant.EPOCH, "<p>Hello</p>");
+
+        assertEquals(FeedService.NEWSLETTER_DUPLICATE, id);
+        verify(articleRepository, never()).insert(anyLong(), anyString(), anyString(), any(), any(),
+                any(), any(), anyString());
+    }
+
+    @Test
+    void aNewSenderIsDroppedOncePerAccountFeedLimitIsReached() {
+        when(feedRepository.findByUrl(UID, "newsletter:editor@example.com")).thenReturn(Optional.empty());
+        when(feedRepository.countByUser(UID)).thenReturn(50L);
+
+        long id = service(100).receiveNewsletterIssue(UID, "editor@example.com", "The Editor",
+                "message-1", "Issue #1", Instant.EPOCH, "<p>Hello</p>");
+
+        assertEquals(FeedService.NEWSLETTER_FEED_LIMIT_REACHED, id);
+        verify(feedRepository, never()).findOrCreateNewsletterFeed(anyLong(), anyString(), any(), any());
+    }
+
+    @Test
+    void refreshingAllFeedsSkipsNewslettersSinceTheyHaveNothingToPoll() {
+        Feed newsletter = newsletterFeed("newsletter:editor@example.com");
+        when(feedRepository.findAllAcrossUsers()).thenReturn(java.util.List.of(newsletter));
+
+        service(100).refreshAll();
+
+        verify(httpClient, never()).get(anyString());
     }
 
     @Test

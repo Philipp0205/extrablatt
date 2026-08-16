@@ -17,6 +17,7 @@ public record AppProperties(
         Feeds feeds,
         Articles articles,
         Limits limits,
+        Newsletters newsletters,
         String donateUrl
 ) {
     public AppProperties {
@@ -32,6 +33,9 @@ public record AppProperties(
         }
         if (limits == null) {
             limits = new Limits(null, null);
+        }
+        if (newsletters == null) {
+            newsletters = new Newsletters(null, null);
         }
         if (publicUrl == null || publicUrl.isBlank()) {
             // Base URL used to build links in verification / password-reset e-mails.
@@ -89,6 +93,32 @@ public record AppProperties(
                 pageSize = DEFAULT_PAGE_SIZE;
             }
             pageSize = Math.min(Math.max(pageSize, 5), 100);
+        }
+    }
+
+    /**
+     * Newsletters arrive by e-mail rather than by polling a URL: each newsletter
+     * feed gets an address {@code <token>@inboundDomain}, and an inbound mail
+     * provider (Postmark, Mailgun routes, …) is configured to POST received
+     * messages to {@code /inbound/newsletters?secret=inboundSecret}. Leaving
+     * {@code inboundDomain} blank disables adding new newsletters; the shared
+     * secret guards the webhook since it cannot itself require a login.
+     */
+    public record Newsletters(String inboundDomain, String inboundSecret) {
+        public Newsletters {
+            if (inboundDomain != null) {
+                inboundDomain = inboundDomain.trim().toLowerCase();
+                if (inboundDomain.isBlank()) {
+                    inboundDomain = null;
+                }
+            }
+            if (inboundSecret != null && inboundSecret.isBlank()) {
+                inboundSecret = null;
+            }
+        }
+
+        public boolean enabled() {
+            return inboundDomain != null;
         }
     }
 

@@ -6,7 +6,6 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.Environment;
 import org.springframework.core.env.Profiles;
-import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.authentication.DisabledException;
@@ -69,6 +68,9 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/actuator/health", "/actuator/health/**", "/css/**", "/js/**").permitAll()
                         .requestMatchers(PUBLIC_PATHS).permitAll()
+                        // Called by the inbound e-mail provider, not a browser; guarded by its
+                        // own shared secret instead of a session (see NewsletterInboundController).
+                        .requestMatchers("/inbound/newsletters").permitAll()
                         .requestMatchers("/admin", "/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )
@@ -89,7 +91,10 @@ public class SecurityConfig {
                         .key(appProperties.rememberMeKey())
                 )
                 .addFilterBefore(rateLimitingFilter, UsernamePasswordAuthenticationFilter.class)
-                .csrf(Customizer.withDefaults());
+                .csrf(csrf -> csrf
+                        // A mail provider cannot carry a CSRF token; the shared secret is its
+                        // authentication instead.
+                        .ignoringRequestMatchers("/inbound/newsletters"));
         return http.build();
     }
 

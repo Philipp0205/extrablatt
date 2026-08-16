@@ -1,6 +1,8 @@
 package com.kindlerss.repository;
 
 import com.kindlerss.domain.Feed;
+import com.kindlerss.domain.FeedSource;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
@@ -26,7 +28,8 @@ public class FeedRepository {
             rs.getString("last_error"),
             toInstant(rs.getTimestamp("created_at")),
             toInstant(rs.getTimestamp("updated_at")),
-            rs.getLong("unread_count")
+            rs.getLong("unread_count"),
+            FeedSource.valueOf(rs.getString("source"))
     );
 
     private static final RowMapper<Feed> SIMPLE_MAPPER = (rs, rowNum) -> new Feed(
@@ -37,7 +40,9 @@ public class FeedRepository {
             rs.getString("category"),
             rs.getString("last_error"),
             toInstant(rs.getTimestamp("created_at")),
-            toInstant(rs.getTimestamp("updated_at"))
+            toInstant(rs.getTimestamp("updated_at")),
+            0,
+            FeedSource.valueOf(rs.getString("source"))
     );
 
     private final JdbcTemplate jdbc;
@@ -113,6 +118,45 @@ public class FeedRepository {
         Number key = keyHolder.getKey();
         if (key == null) {
             throw new IllegalStateException("Failed to insert feed");
+        }
+        return findById(userId, key.longValue()).orElseThrow();
+    }
+
+    /**
+     * Finds the account's feed for a newsletter sender (keyed by the synthetic
+     * {@code newsletter:<sender>} URL), creating it on first delivery. A race
+     * between two concurrent first issues from the same new sender is resolved by
+     * letting the unique (user_id, url) constraint reject the loser, who then just
+     * re-reads what the winner inserted.
+     */
+    public Feed findOrCreateNewsletterFeed(long userId, String senderUrl, String title, String category) {
+        Optional<Feed> existing = findByUrl(userId, senderUrl);
+        if (existing.isPresent()) {
+            return existing.get();
+        }
+        try {
+            return insertNewsletterFeed(userId, title, senderUrl, category);
+        } catch (DuplicateKeyException raced) {
+            return findByUrl(userId, senderUrl).orElseThrow();
+        }
+    }
+
+    private Feed insertNewsletterFeed(long userId, String title, String senderUrl, String category) {
+        KeyHolder keyHolder = new GeneratedKeyHolder();
+        jdbc.update(con -> {
+            PreparedStatement ps = con.prepareStatement("""
+                    INSERT INTO feeds (user_id, title, url, category, source)
+                    VALUES (?, ?, ?, ?, 'NEWSLETTER')
+                    """, new String[]{"id"});
+            ps.setLong(1, userId);
+            ps.setString(2, title);
+            ps.setString(3, senderUrl);
+            ps.setString(4, normalizeCategory(category));
+            return ps;
+        }, keyHolder);
+        Number key = keyHolder.getKey();
+        if (key == null) {
+            throw new IllegalStateException("Failed to insert newsletter feed");
         }
         return findById(userId, key.longValue()).orElseThrow();
     }

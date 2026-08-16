@@ -77,6 +77,12 @@ app:
     # Per-account guardrails for open registration.
     max-feeds-per-user: ${MAX_FEEDS_PER_USER:50}
     max-sends-per-day: ${MAX_SENDS_PER_DAY:50}
+  newsletters:
+    # Domain newsletter inboxes live under, e.g. news.yourdomain.com (needs MX
+    # records pointed at an inbound e-mail provider). Blank disables the feature.
+    inbound-domain: ${NEWSLETTER_INBOUND_DOMAIN:}
+    # Shared secret required as ?secret= on the inbound webhook URL given to that provider.
+    inbound-secret: ${NEWSLETTER_INBOUND_SECRET:}
 
 logging:
   level:

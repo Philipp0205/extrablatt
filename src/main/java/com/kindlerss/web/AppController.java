@@ -44,6 +44,7 @@ public class AppController {
     private final KindleMailService kindleMailService;
     private final UserService userService;
     private final CurrentUser currentUser;
+    private final AppProperties properties;
     private final int pageSize;
     private final String mailFrom;
 
@@ -58,6 +59,7 @@ public class AppController {
         this.kindleMailService = kindleMailService;
         this.userService = userService;
         this.currentUser = currentUser;
+        this.properties = properties;
         this.pageSize = properties.articles().pageSize();
         this.mailFrom = properties.mailFrom();
     }
@@ -78,6 +80,12 @@ public class AppController {
         model.addAttribute("totalUnread", totalUnread);
         model.addAttribute("kindleConfigured", isKindleConfigured(userId));
         model.addAttribute("mailFrom", mailFrom);
+        boolean newslettersEnabled = properties.newsletters().enabled();
+        model.addAttribute("newslettersEnabled", newslettersEnabled);
+        if (newslettersEnabled) {
+            String token = userService.ensureNewsletterInboundToken(userId);
+            model.addAttribute("newsletterAddress", token + "@" + properties.newsletters().inboundDomain());
+        }
         return "index";
     }
 

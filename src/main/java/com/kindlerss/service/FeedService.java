@@ -27,6 +27,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Subscribes to RSS/Atom feeds, discovers feed URLs from HTML pages, and
@@ -51,6 +53,8 @@ public class FeedService {
             new DefaultFeed("bbc-world", "BBC World News",
                     "https://feeds.bbci.co.uk/news/world/rss.xml", "News")
     );
+
+    private static final Pattern EMAIL_ADDRESS = Pattern.compile("([a-zA-Z0-9._%+-]+)@([a-zA-Z0-9.-]+)");
 
     private final FeedRepository feedRepository;
     private final ArticleRepository articleRepository;
@@ -137,6 +141,55 @@ public class FeedService {
         return feedRepository.updateCategory(userId, id, category);
     }
 
+    /** Returned by {@link #receiveNewsletterIssue} when the account's feed limit blocked a new sender. */
+    public static final long NEWSLETTER_FEED_LIMIT_REACHED = -2;
+    /** Returned by {@link #receiveNewsletterIssue} for a message already stored (repeat delivery). */
+    public static final long NEWSLETTER_DUPLICATE = -1;
+
+    /**
+     * Stores one incoming newsletter issue as an article, auto-creating (once,
+     * per distinct sender) a feed for it the same way {@link #addFeed} creates one
+     * for an RSS URL — an account only ever gives out one inbox address, and each
+     * sender that mails it becomes its own entry in the feed list. Deduped by
+     * {@code guid} (ideally the message's {@code Message-ID}) like a polled feed's
+     * entries.
+     */
+    @Transactional
+    public long receiveNewsletterIssue(long userId, String senderAddress, String senderName, String guid,
+                                       String subject, Instant publishedAt, String contentHtml) {
+        String sender = normalizedSenderAddress(senderAddress);
+        if (sender == null) {
+            return NEWSLETTER_DUPLICATE; // no usable sender identity; nothing sensible to store
+        }
+        String senderUrl = "newsletter:" + sender;
+        Feed feed = feedRepository.findByUrl(userId, senderUrl).orElse(null);
+        if (feed == null) {
+            if (feedRepository.countByUser(userId) >= maxFeedsPerUser) {
+                log.info("Dropping newsletter issue from {} for user {}: feed limit reached", sender, userId);
+                return NEWSLETTER_FEED_LIMIT_REACHED;
+            }
+            String title = senderName == null || senderName.isBlank() ? sender : senderName.trim();
+            feed = feedRepository.findOrCreateNewsletterFeed(userId, senderUrl, title, "Newsletters");
+        }
+        if (articleRepository.existsByFeedIdAndGuid(feed.id(), guid)) {
+            return NEWSLETTER_DUPLICATE;
+        }
+        String title = subject == null || subject.isBlank() ? "(untitled)" : subject.trim();
+        long id = articleRepository.insert(feed.id(), guid, title, null, senderName, publishedAt,
+                null, sanitizer.sanitizeWithImages(contentHtml));
+        feedRepository.clearError(feed.id());
+        return id;
+    }
+
+    /** Just the {@code local@domain} part, lower-cased, from a possibly-decorated address. */
+    private static String normalizedSenderAddress(String rawAddress) {
+        if (rawAddress == null) {
+            return null;
+        }
+        Matcher matcher = EMAIL_ADDRESS.matcher(rawAddress);
+        return matcher.find() ? matcher.group().toLowerCase(Locale.ROOT) : null;
+    }
+
     /**
      * Renames a category across all of an account's feeds. "Uncategorized" is a
      * placeholder for feeds with no category rather than a real one, so it cannot
@@ -176,6 +229,10 @@ public class FeedService {
 
     private void refreshFeeds(List<Feed> feeds) {
         for (Feed feed : feeds) {
+            // Newsletters have nothing to poll; their articles arrive by e-mail.
+            if (feed.isNewsletter()) {
+                continue;
+            }
             try {
                 refreshFeed(feed);
             } catch (Exception e) {
