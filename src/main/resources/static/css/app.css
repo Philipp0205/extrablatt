@@ -12,6 +12,21 @@ body {
   background: #fff;
   color: #111;
   line-height: 1.45;
+  /* Feed titles and URLs come from whatever a publisher wrote and can be one
+     long unbroken string with no spaces to wrap at (a URL, a run-on title).
+     Without this, such a string overflows its box instead of wrapping, which
+     is what actually makes a narrow phone screen scroll sideways — every
+     other rule in this file already fits within the viewport on its own. */
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+/* A last line of defense: nothing in this layout is meant to scroll
+   sideways, so if anything unexpected still runs wider than the viewport,
+   clip it instead of turning the whole page into a horizontal scroller. */
+html, body {
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 a {
