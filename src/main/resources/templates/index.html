@@ -17,6 +17,8 @@
       <a th:if="${admin}" th:href="@{/admin}">Telemetry</a>
       <form class="inline" th:action="@{/refresh}" method="post">
         <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <input type="hidden" name="redirect"
+               th:value="${section == 'list'} ? @{/} : @{/(section=${section})}"/>
         <button type="submit">Refresh</button>
       </form>
     </nav>
@@ -45,97 +47,114 @@
   <div th:if="${message}" class="flash" th:text="${message}"></div>
   <div th:if="${error}" class="flash error" th:text="${error}"></div>
 
-
-  <h2>Add feed</h2>
-  <form th:action="@{/feeds}" method="post">
-    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-    <label for="url">Feed or homepage URL</label>
-    <p class="meta">Paste a feed address or a normal website, we try to find its
-      RSS/Atom feed for you.</p>
-    <div class="row">
-      <input id="url" name="url" type="url" required placeholder="https://example.com"/>
-      <select id="category" name="category" class="category-select" data-category-select>
-        <option value="">Uncategorized</option>
-        <option th:each="c : ${categories}" th:value="${c}" th:text="${c}">Category</option>
-        <option value="__new__">+ New category…</option>
-      </select>
-      <input type="text" name="newCategory" class="category-new" data-category-new
-             placeholder="New category name" aria-label="New category name"/>
-      <button class="btn" type="submit">Add</button>
+  <!-- One job per Feeds sub-view: list, add, or newsletters. Same chip strip look as
+       Articles filters — large tap targets, no JS required. -->
+  <nav class="filters" aria-label="Feed sections">
+    <div class="strip">
+      <a class="btn" th:href="@{/}"
+         th:classappend="${section == 'list'} ? ' active'">Your feeds</a>
+      <a class="btn" th:href="@{/(section=add)}"
+         th:classappend="${section == 'add'} ? ' active'">Add</a>
+      <a class="btn" th:if="${newslettersEnabled}" th:href="@{/(section=newsletters)}"
+         th:classappend="${section == 'newsletters'} ? ' active'">Newsletters</a>
     </div>
-  </form>
+  </nav>
 
-  <div th:if="${newslettersEnabled}">
+  <div th:if="${section == 'add'}">
+    <h2>Add feed</h2>
+    <form th:action="@{/feeds}" method="post">
+      <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+      <label for="url">Feed or homepage URL</label>
+      <p class="meta">Paste a feed address or a normal website, we try to find its
+        RSS/Atom feed for you.</p>
+      <div class="row">
+        <input id="url" name="url" type="url" required placeholder="https://example.com"/>
+        <select id="category" name="category" class="category-select" data-category-select>
+          <option value="">Uncategorized</option>
+          <option th:each="c : ${categories}" th:value="${c}" th:text="${c}">Category</option>
+          <option value="__new__">+ New category…</option>
+        </select>
+        <input type="text" name="newCategory" class="category-new" data-category-new
+               placeholder="New category name" aria-label="New category name"/>
+        <button class="btn" type="submit">Add</button>
+      </div>
+    </form>
+
+    <div th:if="${#lists.isEmpty(feeds) and !#lists.isEmpty(defaultFeeds)}">
+      <h2>Quick start</h2>
+      <p class="meta">Choose any suggested feeds you want. Nothing is added automatically.</p>
+      <form th:action="@{/feeds/defaults}" method="post">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <label class="check" th:each="suggestion : ${defaultFeeds}">
+          <input type="checkbox" name="feed" th:value="${suggestion.key}"/>
+          <span>
+            <strong th:text="${suggestion.title}">Suggested feed</strong>
+            <span class="meta" th:text="' · ' + ${suggestion.category}"> · Category</span>
+          </span>
+        </label>
+        <button class="btn" type="submit">Add selected feeds</button>
+      </form>
+    </div>
+  </div>
+
+  <div th:if="${section == 'newsletters' and newslettersEnabled}">
     <h2>Add Newsletter</h2>
     <p class="meta">Some sources only publish by e-mail. Subscribe to any of them using
-      the address below — issues show up in <a th:href="@{/}">Feeds</a> (each sender
+      the address below — issues show up under <a th:href="@{/}">Your feeds</a> (each sender
       becomes its own entry the first time it writes) and send to Kindle exactly like
       any other article.</p>
     <code class="address-box" th:text="${newsletterAddress}">news@example.com</code>
     <form th:action="@{/settings/newsletter-address/regenerate}" method="post"
           onsubmit="return confirm('Replace your newsletter address? Anything still sent to the old one will be lost, but newsletters already received stay put.');">
       <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+      <input type="hidden" name="redirect" value="/?section=newsletters"/>
       <button class="btn" type="submit">New address</button>
     </form>
   </div>
 
-
-  <div th:if="${#lists.isEmpty(feeds) and !#lists.isEmpty(defaultFeeds)}">
-    <h2>Quick start</h2>
-    <p class="meta">Choose any suggested feeds you want. Nothing is added automatically.</p>
-    <form th:action="@{/feeds/defaults}" method="post">
-      <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-      <label class="check" th:each="suggestion : ${defaultFeeds}">
-        <input type="checkbox" name="feed" th:value="${suggestion.key}"/>
-        <span>
-          <strong th:text="${suggestion.title}">Suggested feed</strong>
-          <span class="meta" th:text="' · ' + ${suggestion.category}"> · Category</span>
-        </span>
-      </label>
-      <button class="btn" type="submit">Add selected feeds</button>
-    </form>
+  <div th:if="${section == 'list'}">
+    <h2>Your feeds</h2>
+    <p class="meta" th:text="'Unread across all feeds: ' + ${totalUnread}">Unread: 0</p>
+    <p th:if="${#lists.isEmpty(feeds)}" class="muted">No feeds yet.
+      <a th:href="@{/(section=add)}">Add a feed</a>.</p>
+    <section th:each="group : ${feedGroups}" class="feed-group">
+      <h3 th:text="${group.key}">Category</h3>
+      <ul class="feed-list">
+      <li th:each="feed : ${group.value}">
+        <div>
+          <a th:href="@{/items(feed=${feed.id})}" th:text="${feed.title}">Title</a>
+          <span class="badge" th:if="${feed.isNewsletter()}">Newsletter</span>
+          <span class="badge" th:text="${feed.unreadCount}">0</span>
+        </div>
+        <div class="meta">
+          <span th:if="${feed.isNewsletter()}" th:text="'From ' + ${feed.newsletterSender()}">from sender</span>
+          <span th:unless="${feed.isNewsletter()}" th:text="${feed.url}">url</span>
+        </div>
+        <div class="meta" th:if="${feed.lastError != null}">
+          Last error: <span th:text="${feed.lastError}">error</span>
+        </div>
+        <div class="actions">
+          <form class="inline category-form" th:action="@{/feeds/{id}/category(id=${feed.id})}" method="post">
+            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+            <select name="category" class="category-select" data-category-select aria-label="Category">
+              <option value="" th:selected="${feed.category == null or feed.category.isBlank()}">Uncategorized</option>
+              <option th:each="c : ${categories}" th:value="${c}" th:text="${c}"
+                      th:selected="${c == feed.category}">Category</option>
+              <option value="__new__">+ New category…</option>
+            </select>
+            <input name="newCategory" type="text" class="category-new" data-category-new
+                   placeholder="New category name" aria-label="New category name"/>
+            <button type="submit">Save</button>
+          </form>
+          <form class="inline" th:action="@{/feeds/{id}/delete(id=${feed.id})}" method="post">
+            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+            <button type="submit">Delete</button>
+          </form>
+        </div>
+      </li>
+      </ul>
+    </section>
   </div>
-
-  <h2>Your feeds</h2>
-  <p class="meta" th:text="'Unread across all feeds: ' + ${totalUnread}">Unread: 0</p>
-  <p th:if="${#lists.isEmpty(feeds)}" class="muted">No feeds yet.</p>
-  <section th:each="group : ${feedGroups}" class="feed-group">
-    <h3 th:text="${group.key}">Category</h3>
-    <ul class="feed-list">
-    <li th:each="feed : ${group.value}">
-      <div>
-        <a th:href="@{/items(feed=${feed.id})}" th:text="${feed.title}">Title</a>
-        <span class="badge" th:if="${feed.isNewsletter()}">Newsletter</span>
-        <span class="badge" th:text="${feed.unreadCount}">0</span>
-      </div>
-      <div class="meta">
-        <span th:if="${feed.isNewsletter()}" th:text="'From ' + ${feed.newsletterSender()}">from sender</span>
-        <span th:unless="${feed.isNewsletter()}" th:text="${feed.url}">url</span>
-      </div>
-      <div class="meta" th:if="${feed.lastError != null}">
-        Last error: <span th:text="${feed.lastError}">error</span>
-      </div>
-      <div class="actions">
-        <form class="inline category-form" th:action="@{/feeds/{id}/category(id=${feed.id})}" method="post">
-          <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-          <select name="category" class="category-select" data-category-select aria-label="Category">
-            <option value="" th:selected="${feed.category == null or feed.category.isBlank()}">Uncategorized</option>
-            <option th:each="c : ${categories}" th:value="${c}" th:text="${c}"
-                    th:selected="${c == feed.category}">Category</option>
-            <option value="__new__">+ New category…</option>
-          </select>
-          <input name="newCategory" type="text" class="category-new" data-category-new
-                 placeholder="New category name" aria-label="New category name"/>
-          <button type="submit">Save</button>
-        </form>
-        <form class="inline" th:action="@{/feeds/{id}/delete(id=${feed.id})}" method="post">
-          <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-          <button type="submit">Delete</button>
-        </form>
-      </div>
-    </li>
-    </ul>
-  </section>
 
 
   <footer class="build-info">

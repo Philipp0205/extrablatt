@@ -91,4 +91,16 @@ class SettingsControllerNewslettersEnabledTest {
                 .andExpect(flash().attribute("message", containsString("freshtoken@news.example.com")));
         verify(userService).regenerateNewsletterInboundToken(UID);
     }
+
+    @Test
+    @WithMockUser
+    void regeneratingFromFeedsReturnsToTheNewslettersSection() throws Exception {
+        when(userService.regenerateNewsletterInboundToken(UID)).thenReturn("freshtoken");
+
+        mockMvc.perform(post("/settings/newsletter-address/regenerate").with(csrf())
+                        .param("redirect", "/?section=newsletters"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/?section=newsletters"));
+        verify(userService).regenerateNewsletterInboundToken(UID);
+    }
 }

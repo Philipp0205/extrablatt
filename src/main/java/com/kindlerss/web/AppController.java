@@ -65,7 +65,8 @@ public class AppController {
     }
 
     @GetMapping("/")
-    public String home(Model model) {
+    public String home(@RequestParam(value = "section", required = false) String section,
+                       Model model) {
         long userId = currentUser.requireId();
         List<Feed> feeds = feedService.listFeeds(userId);
         long totalUnread = feeds.stream().mapToLong(Feed::unreadCount).sum();
@@ -86,7 +87,33 @@ public class AppController {
             String token = userService.ensureNewsletterInboundToken(userId);
             model.addAttribute("newsletterAddress", token + "@" + properties.newsletters().inboundDomain());
         }
+        model.addAttribute("section", resolveFeedSection(section, newslettersEnabled));
         return "index";
+    }
+
+    /** Allowed Feeds sub-views; unknown or disabled sections fall back to the list. */
+    static String resolveFeedSection(String section, boolean newslettersEnabled) {
+        if (section == null || section.isBlank() || "list".equals(section)) {
+            return "list";
+        }
+        if ("add".equals(section)) {
+            return "add";
+        }
+        if ("newsletters".equals(section) && newslettersEnabled) {
+            return "newsletters";
+        }
+        return "list";
+    }
+
+    /** Redirect target for Feeds POSTs; list uses a clean URL. */
+    static String feedsPath(String section) {
+        if ("add".equals(section)) {
+            return "/?section=add";
+        }
+        if ("newsletters".equals(section)) {
+            return "/?section=newsletters";
+        }
+        return "/";
     }
 
     /** The distinct categories already in use, so they can fill a category drop-down. */
@@ -117,7 +144,7 @@ public class AppController {
         } catch (Exception e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
         }
-        return "redirect:/";
+        return "redirect:" + feedsPath("add");
     }
 
     @PostMapping("/feeds/defaults")
@@ -125,7 +152,7 @@ public class AppController {
                                   RedirectAttributes redirectAttributes) {
         if (keys == null || keys.isEmpty()) {
             redirectAttributes.addFlashAttribute("error", "Choose at least one suggested feed");
-            return "redirect:/";
+            return "redirect:" + feedsPath("add");
         }
         long userId = currentUser.requireId();
         int added = 0;
@@ -151,7 +178,7 @@ public class AppController {
         if (!errors.isEmpty()) {
             redirectAttributes.addFlashAttribute("error", String.join("; ", errors));
         }
-        return "redirect:/";
+        return "redirect:" + feedsPath("add");
     }
 
     @PostMapping("/feeds/{id}/category")
@@ -164,7 +191,7 @@ public class AppController {
         } else {
             redirectAttributes.addFlashAttribute("error", "Feed not found");
         }
-        return "redirect:/";
+        return "redirect:" + feedsPath("list");
     }
 
     /**
@@ -191,7 +218,7 @@ public class AppController {
         } else {
             redirectAttributes.addFlashAttribute("message", "Feed deleted");
         }
-        return "redirect:/";
+        return "redirect:" + feedsPath("list");
     }
 
     @PostMapping("/refresh")

@@ -223,12 +223,16 @@ class AppControllerSecurityTest {
                 new FeedService.DefaultFeed("hacker-news", "Hacker News",
                         "https://hnrss.org/frontpage", "Technology")));
 
-        // Suggested feeds are only offered before anything has been subscribed.
+        // Suggested feeds live on the Add section, and only before anything is subscribed.
         when(feedService.listFeeds(UID)).thenReturn(List.of());
-        mockMvc.perform(get("/"))
+        mockMvc.perform(get("/").param("section", "add"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("Quick start")))
                 .andExpect(content().string(containsString("value=\"hacker-news\"")));
+        mockMvc.perform(get("/"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(not(containsString("Quick start"))))
+                .andExpect(content().string(containsString("Your feeds")));
 
         when(feedService.listFeeds(UID)).thenReturn(List.of(
                 new Feed(5L, "Android", "https://example.com/feed", "https://example.com",
@@ -238,6 +242,9 @@ class AppControllerSecurityTest {
                 .andExpect(content().string(not(containsString("Quick start"))))
                 .andExpect(content().string(containsString("action=\"/feeds/5/category\"")))
                 .andExpect(content().string(containsString(">Technology</h3>")));
+        mockMvc.perform(get("/").param("section", "add"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(not(containsString("Quick start"))));
     }
 
     @Test
@@ -601,5 +608,22 @@ class AppControllerSecurityTest {
         org.junit.jupiter.api.Assertions.assertEquals("/items?feed=1", AppController.safeRedirect("/items?feed=1"));
         org.junit.jupiter.api.Assertions.assertNull(AppController.safeHttpUrl("javascript:alert(1)"));
         org.junit.jupiter.api.Assertions.assertEquals("https://example.com/a", AppController.safeHttpUrl("https://example.com/a"));
+    }
+
+    @Test
+    void resolveFeedSectionDefaultsAndGuardsNewsletters() {
+        org.junit.jupiter.api.Assertions.assertEquals("list", AppController.resolveFeedSection(null, true));
+        org.junit.jupiter.api.Assertions.assertEquals("list", AppController.resolveFeedSection("list", true));
+        org.junit.jupiter.api.Assertions.assertEquals("add", AppController.resolveFeedSection("add", false));
+        org.junit.jupiter.api.Assertions.assertEquals("newsletters",
+                AppController.resolveFeedSection("newsletters", true));
+        org.junit.jupiter.api.Assertions.assertEquals("list",
+                AppController.resolveFeedSection("newsletters", false));
+        org.junit.jupiter.api.Assertions.assertEquals("list",
+                AppController.resolveFeedSection("nope", true));
+        org.junit.jupiter.api.Assertions.assertEquals("/", AppController.feedsPath("list"));
+        org.junit.jupiter.api.Assertions.assertEquals("/?section=add", AppController.feedsPath("add"));
+        org.junit.jupiter.api.Assertions.assertEquals("/?section=newsletters",
+                AppController.feedsPath("newsletters"));
     }
 }

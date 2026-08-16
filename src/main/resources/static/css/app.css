@@ -390,7 +390,9 @@ input[type="email"], input[type="url"], input[type="password"], input[type="text
 
    The filter bar is navigation on a page meant for reading: its buttons are
    smaller than the toolbar's, and a row longer than the screen is clipped to one
-   line and turned by the arrows filters.js reveals. Until it does, the row wraps. */
+   line and turned by the arrows filters.js reveals. Until it does, the row wraps.
+   Feeds reuses the same strip for its list / add / newsletters sections so the
+   Kindle UI stays one pattern. */
 .filters {
   display: flex;
   flex-wrap: wrap;

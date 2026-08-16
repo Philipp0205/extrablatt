@@ -63,15 +63,30 @@ public class SettingsController {
     }
 
     @PostMapping("/settings/newsletter-address/regenerate")
-    public String regenerateNewsletterAddress(RedirectAttributes redirectAttributes) {
+    public String regenerateNewsletterAddress(
+            @RequestParam(value = "redirect", required = false) String redirect,
+            RedirectAttributes redirectAttributes) {
+        String target = safeSettingsRedirect(redirect);
         if (!properties.newsletters().enabled()) {
             redirectAttributes.addFlashAttribute("error", "Newsletters are not configured on this server");
-            return "redirect:/settings";
+            return "redirect:" + target;
         }
         String token = userService.regenerateNewsletterInboundToken(currentUser.requireId());
         redirectAttributes.addFlashAttribute("message",
                 "New newsletter address: " + token + "@" + properties.newsletters().inboundDomain());
-        return "redirect:/settings";
+        return "redirect:" + target;
+    }
+
+    /** Relative in-app paths only; blank/hostile values stay on Settings. */
+    static String safeSettingsRedirect(String redirect) {
+        if (redirect == null || redirect.isBlank()) {
+            return "/settings";
+        }
+        String value = redirect.trim();
+        if (!value.startsWith("/") || value.startsWith("//") || value.contains("://")) {
+            return "/settings";
+        }
+        return value;
     }
 
     @PostMapping("/account/delete")
