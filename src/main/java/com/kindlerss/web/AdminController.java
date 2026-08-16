@@ -33,6 +33,7 @@ public class AdminController {
     public String updateLimit(@RequestParam("userId") long userId,
                               @RequestParam(value = "dailyLimit", required = false) Integer dailyLimit,
                               @RequestParam(value = "blockHours", required = false) Integer blockHours,
+                              @RequestParam(value = "redirect", defaultValue = "/settings") String redirect,
                               RedirectAttributes redirectAttributes) {
         try {
             telemetryService.updateLimit(userId, dailyLimit, blockHours);
@@ -40,6 +41,8 @@ public class AdminController {
         } catch (IllegalArgumentException e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
         }
-        return "redirect:/admin";
+        // Telemetry now lives on the Settings page; this form is only kept
+        // reachable at its own address for anything still linking directly to it.
+        return "redirect:" + ("/admin".equals(redirect) ? "/admin" : "/settings");
     }
 }
