@@ -12,6 +12,18 @@ body {
   background: #fff;
   color: #111;
   line-height: 1.45;
+  /* Feeds supply the words, so some of them are a single unbreakable token: a
+     bare permalink, a tracking URL, a compound noun. Break those rather than
+     let one of them decide how wide the page is. */
+  overflow-wrap: break-word;
+}
+
+/* Nothing in this layout is meant to scroll sideways. The rules below are what
+   keeps each part inside the screen; this is only the backstop for whatever
+   arbitrary article HTML does that they did not anticipate. */
+html, body {
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 a {
@@ -321,6 +333,13 @@ input[type="email"], input[type="url"], input[type="password"], input[type="text
   font-size: 0.85rem;
 }
 
+/* The row shrinks the source line, never the button. The button above is fixed
+   at its label's width, so a form still free to shrink ends up narrower than
+   the button standing inside it, and the button hangs off the screen. */
+.item-row > form.inline {
+  flex: 0 0 auto;
+}
+
 .meta {
   font-size: 0.95rem;
   color: #333;
@@ -434,12 +453,16 @@ input[type="email"], input[type="url"], input[type="password"], input[type="text
   margin-right: 0;
 }
 
+/* A category or feed named at length is still only one chip: it may fill the
+   row, but it may not make the row wider than the screen. */
 .filters .btn {
   min-height: 2.25rem;
   min-width: 0;
+  max-width: 100%;
   padding: 0.3rem 0.6rem;
   font-size: 0.85rem;
   white-space: nowrap;
+  overflow: hidden;
 }
 
 /* The arrows belong to a row that is being turned, and to no other. */
@@ -566,6 +589,41 @@ body.reading .wrap {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 0.9rem;
   white-space: pre-wrap;
+  overflow-wrap: break-word;
+}
+
+/* Tables arrive written for a desktop column, at whatever width suits the site
+   they came from. Fixed layout makes them divide the width they are given
+   instead of demanding their own: the reader clips its columns, so a table that
+   runs wide is not scrolled to, it is simply lost. */
+.article-body table {
+  width: 100%;
+  max-width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+}
+
+.article-body th, .article-body td {
+  padding: 0.25rem 0.4rem;
+  border: 1px solid #000;
+  text-align: left;
+  vertical-align: top;
+}
+
+/* Browsers indent both of these by 40px a side, which is a quarter of the line
+   on a phone. */
+.article-body figure, .article-body blockquote {
+  margin: 1rem 0;
+}
+
+.article-body blockquote {
+  border-left: 2px solid #000;
+  padding-left: 0.75rem;
+}
+
+.article-body figcaption {
+  font-size: 0.85rem;
+  color: #333;
 }
 
 .error-box {
