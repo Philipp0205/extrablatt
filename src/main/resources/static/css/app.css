@@ -363,6 +363,14 @@ input[type="email"], input[type="url"], input[type="password"], input[type="text
   text-overflow: ellipsis;
 }
 
+/* The form around the button has to keep the width of the button inside it. Left
+   to shrink, as a flex item does, it ends up narrower than that button, and on a
+   narrow screen the label is then cut off by the edge of the row. It is the
+   source line beside it that gives way instead, by ellipsis. */
+.item-row > form.inline {
+  flex: 0 0 auto;
+}
+
 .item-row .btn,
 .item-row button {
   flex: 0 0 auto;
