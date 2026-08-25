@@ -333,25 +333,34 @@
      have been measured. The .paged class has to go on before measuring, because
      the pager only takes up room while it is visible.
 
-     Showing a page can make the pager taller than it was when the page height
-     was worked out: "Page 1" becomes "Page 4 of 12", which on a narrow screen
-     leaves the buttons beside it too little room and wraps their labels onto a
-     second line. That pushes the pager off the bottom of the screen, so measure
-     again whenever the document no longer fits — by then the pager carries the
-     text it will keep, and the second measurement holds. */
+     Scrolling is turned off first, on the document rather than only on the body,
+     because until the pages exist the document is a long one and a desktop
+     browser gives it a scrollbar. That scrollbar takes width from the frame, and
+     the pages would be measured to a frame narrower than the one they are read
+     through — the strip it left over would show the next column through the side
+     of the page. It goes when the columns take over, but too late to measure by:
+     a browser drops it in a later layout pass, not in the one asked for here.
+
+     Showing a page can still leave the measurement behind, though: "Page 1"
+     becomes "Page 4 of 12", which on a narrow screen leaves the buttons beside
+     it too little room and wraps their labels onto a second line, pushing the
+     pager off the bottom of the screen. Measure again when that happens; by then
+     the pager carries the text it will keep. */
   function layout(pickPage) {
     if (root.className.indexOf('paged') < 0) {
       root.className += ' paged';
     }
+    document.documentElement.style.overflow = 'hidden';
     document.body.style.overflow = 'hidden';
-    for (var attempt = 0; attempt < 2; attempt++) {
+    for (var attempt = 0; attempt < 3; attempt++) {
       if (!measure()) {
         disable();
         return;
       }
       paged = true;
       show(pickPage());
-      if (document.documentElement.scrollHeight <= viewportHeight()) {
+      if (document.documentElement.scrollHeight <= viewportHeight() &&
+          Math.floor(frame.getBoundingClientRect().width) === pageWidth) {
         return;
       }
     }
@@ -360,6 +369,7 @@
   function disable() {
     paged = false;
     root.className = root.className.replace(/\s*\bpaged\b/g, '');
+    document.documentElement.style.overflow = '';
     document.body.style.overflow = '';
     frame.style.height = '';
     content.style.height = '';
