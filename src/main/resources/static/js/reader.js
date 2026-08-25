@@ -331,18 +331,30 @@
 
   /* Turns paging on and shows the page that pickPage() asks for once the columns
      have been measured. The .paged class has to go on before measuring, because
-     the pager only takes up room while it is visible. */
+     the pager only takes up room while it is visible.
+
+     Showing a page can make the pager taller than it was when the page height
+     was worked out: "Page 1" becomes "Page 4 of 12", which on a narrow screen
+     leaves the buttons beside it too little room and wraps their labels onto a
+     second line. That pushes the pager off the bottom of the screen, so measure
+     again whenever the document no longer fits — by then the pager carries the
+     text it will keep, and the second measurement holds. */
   function layout(pickPage) {
     if (root.className.indexOf('paged') < 0) {
       root.className += ' paged';
     }
     document.body.style.overflow = 'hidden';
-    if (!measure()) {
-      disable();
-      return;
+    for (var attempt = 0; attempt < 2; attempt++) {
+      if (!measure()) {
+        disable();
+        return;
+      }
+      paged = true;
+      show(pickPage());
+      if (document.documentElement.scrollHeight <= viewportHeight()) {
+        return;
+      }
     }
-    paged = true;
-    show(pickPage());
   }
 
   function disable() {

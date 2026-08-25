@@ -692,4 +692,16 @@ dialog.donate-dialog .row {
 @media (max-width: 520px) {
   html { font-size: 17px; }
   .wrap { padding: 0.75rem 0.75rem 2.5rem; }
+
+  /* Three controls on one narrow line. At full size their labels wrap, and the
+     row then takes a second line away from the page of text above it. */
+  .pager .btn {
+    padding: 0.5rem 0.35rem;
+    font-size: 0.9rem;
+  }
+
+  .pager-label {
+    padding: 0 0.3rem;
+    font-size: 0.85rem;
+  }
 }
