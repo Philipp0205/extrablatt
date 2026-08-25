@@ -84,9 +84,17 @@
   }
 
   function applyLayout() {
-    pageWidth = frame.clientWidth;
+    // Floored rather than clientWidth's rounding: a frame 374.5px wide reports
+    // 375, and a column asked to be wider than the space it has is given the
+    // space instead, which is how the pages below stop being one frame wide.
+    pageWidth = Math.floor(frame.getBoundingClientRect().width);
     frame.style.height = pageHeight + 'px';
     content.style.height = pageHeight + 'px';
+    // A page turn shifts this element by a negative margin, and a negative
+    // margin on an auto width makes the element wider. That would re-flow the
+    // columns into a different width on every turn, so the pages would no
+    // longer line up with the frame. Stating the width keeps them one size.
+    content.style.width = pageWidth + 'px';
     content.style.marginLeft = '0px';
     setColumnStyle('columnWidth', pageWidth + 'px');
     setColumnStyle('columnGap', COLUMN_GAP + 'px');
@@ -132,6 +140,11 @@
     page = Math.min(Math.max(index, 0), pageCount - 1);
     var atEnd = page === pageCount - 1;
     content.style.marginLeft = (-page * (pageWidth + COLUMN_GAP)) + 'px';
+    // The columns run off the side of the frame, which makes it a scrolling box
+    // even though it never shows a scrollbar. Anything the browser scrolls into
+    // view in there (a focused link, say) would offset the page for good.
+    frame.scrollLeft = 0;
+    frame.scrollTop = 0;
     if (labelNode) {
       labelNode.textContent = 'Page ' + (page + 1) + ' of ' + pageCount;
     }
@@ -338,6 +351,7 @@
     document.body.style.overflow = '';
     frame.style.height = '';
     content.style.height = '';
+    content.style.width = '';
     content.style.marginLeft = '';
     setColumnStyle('columnWidth', '');
     var images = content.getElementsByTagName('img');
