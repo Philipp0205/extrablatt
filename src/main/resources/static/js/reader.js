@@ -364,6 +364,9 @@
         return;
       }
     }
+    // Still not settled after three tries: hand the document back rather than
+    // hold a page that runs off the screen with the scrolling turned off.
+    disable();
   }
 
   function disable() {
