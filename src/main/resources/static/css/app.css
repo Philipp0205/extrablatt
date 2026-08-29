@@ -4,6 +4,10 @@
 
 html {
   font-size: 18px;
+  /* Phone browsers otherwise inflate the text of a narrow column on their own,
+     which throws off the height the reader measured its pages against. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 body {
@@ -131,6 +135,8 @@ nav.top a, button, .btn {
   text-align: center;
   text-decoration: none;
   cursor: pointer;
+  /* No waiting to see whether a tap was the first half of a double-tap zoom. */
+  touch-action: manipulation;
 }
 
 nav.top a:hover, button:hover, .btn:hover,
@@ -204,6 +210,52 @@ button[disabled], button[disabled]:hover, button[disabled]:focus {
 .btn.danger:hover, .btn.danger:focus {
   background: #a00;
   color: #fff;
+}
+
+/* A touch screen has no pointer to hover with, but it does leave :hover and
+   :focus behind on whatever was tapped last — so with the rules above, the
+   button just pressed stays inverted for as long as the page is open and reads
+   as still held down, or as the filter now in use. Hand both states back where
+   the browser understands the question; one that matches neither query keeps
+   the plain behaviour above, which is what a Kindle is left with. */
+@media (hover: none) {
+  a:hover,
+  nav.top a:hover,
+  button:hover,
+  .btn:hover {
+    background: #fff;
+    color: #000;
+  }
+
+  .btn.danger:hover {
+    background: #fff;
+    color: #a00;
+  }
+
+  .filters a.active:hover {
+    background: #000;
+    color: #fff;
+  }
+}
+
+@supports selector(:focus-visible) {
+  a:focus:not(:focus-visible),
+  nav.top a:focus:not(:focus-visible),
+  button:focus:not(:focus-visible),
+  .btn:focus:not(:focus-visible) {
+    background: #fff;
+    color: #000;
+  }
+
+  .btn.danger:focus:not(:focus-visible) {
+    background: #fff;
+    color: #a00;
+  }
+
+  .filters a.active:focus:not(:focus-visible) {
+    background: #000;
+    color: #fff;
+  }
 }
 
 /* Inline forms hold a single button; they must not add a line box of their own,
@@ -350,7 +402,8 @@ label {
   margin-bottom: 0.35rem;
 }
 
-input[type="email"], input[type="url"], input[type="password"], input[type="text"], select {
+input[type="email"], input[type="url"], input[type="password"], input[type="text"],
+input[type="number"], input[type="search"], input[type="tel"], select, textarea {
   width: 100%;
   max-width: 100%;
   min-height: 2.75rem;
@@ -427,14 +480,25 @@ input[type="email"], input[type="url"], input[type="password"], input[type="text
   margin-left: 0.5rem;
 }
 
+/* Zero basis rather than `auto`: the source line is the only part of the row that
+   may give up width, and it has to give up as much as the button needs. Sized
+   from its content instead, a phone-width row ends up asking for more than it
+   has and the button is pushed off the edge. */
 .item-row .meta {
-  flex: 1 1 auto;
+  flex: 1 1 0;
   min-width: 0;
   margin: 0;
   font-size: 0.85rem;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* The form around the button is a flex item of the row in its own right, and
+   would shrink below the button it holds — the button, which does not shrink,
+   then hangs out of the row and is clipped at the edge of the screen. */
+.item-row > form.inline {
+  flex: 0 0 auto;
 }
 
 .item-row .btn,
@@ -444,6 +508,7 @@ input[type="email"], input[type="url"], input[type="password"], input[type="text
   min-width: 0;
   padding: 0.3rem 0.6rem;
   font-size: 0.85rem;
+  white-space: nowrap;
 }
 
 .meta {
@@ -656,6 +721,13 @@ details.tools > .tools-body {
 
 .reader.paged .reader-frame {
   overflow: hidden;
+  /* Pages are turned by sideways swipes of the reader's own. A phone browser
+     would otherwise take one that starts near the edge of the screen for its
+     gesture to go back in history, and leave the article altogether. Nothing in
+     the frame scrolls sideways for the browser to do instead, and pinching to
+     zoom is left alone. */
+  touch-action: pan-y pinch-zoom;
+  overscroll-behavior-x: contain;
 }
 
 .reader.paged .reader-content > h1 {
@@ -804,4 +876,126 @@ dialog.donate-dialog .row {
 @media (max-width: 520px) {
   html { font-size: 17px; }
   .wrap { padding: 0.75rem 0.75rem 2.5rem; }
+}
+
+/*
+ * Phones.
+ *
+ * A toolbar built for a Kindle's landscape screen wraps onto two and three rows
+ * at 375px, and on a reading page each of those rows is taken straight out of
+ * the page of text. The rules below spend less on the controls and let them keep
+ * their own width instead of stretching to fill a row they cannot fill — five
+ * buttons packed tightly are one row shorter than five buttons spread out.
+ *
+ * Labels stop wrapping here as well. A control that wraps is a control whose
+ * height nobody measured, which is how the pager ended up half off the bottom of
+ * the screen on the very screens it was meant for.
+ */
+@media (max-width: 640px) {
+  nav.top > a,
+  nav.top > button,
+  nav.top > form.inline {
+    flex: 0 0 auto;
+  }
+
+  nav.top a, nav.top button, nav.top .btn {
+    min-height: 2.5rem;
+    padding: 0.45rem 0.6rem;
+    font-size: 0.95rem;
+    white-space: nowrap;
+  }
+
+  header.app.compact nav.top a,
+  header.app.compact nav.top button {
+    min-height: 2.25rem;
+    padding: 0.35rem 0.55rem;
+    font-size: 0.9rem;
+  }
+
+  header.app .brand {
+    font-size: 1.5rem;
+    margin-bottom: 0.35rem;
+  }
+
+  /* The page-turn buttons stay full-size targets — they are the ones actually
+     used while reading — but their labels have to fit on one line to be worth
+     the room they take. */
+  .pager .btn {
+    padding: 0.4rem 0.5rem;
+    font-size: 0.85rem;
+    white-space: nowrap;
+  }
+
+  .pager-label {
+    padding: 0 0.35rem;
+    font-size: 0.85rem;
+  }
+
+  /* Arrows on a row of filters are the smallest thing on the screen and the
+     hardest to hit, sitting right at its edge. */
+  .filters.paged .strip-step {
+    min-width: 2.75rem;
+    padding: 0.3rem 0.4rem;
+  }
+
+  .filters .btn {
+    min-height: 2.5rem;
+  }
+
+  /* A 9rem field beside a heading is a desktop arrangement; on a phone the
+     rename form takes the line under the heading and the full width of it. */
+  .category-heading .rename-form {
+    flex: 1 1 100%;
+  }
+
+  .category-heading .rename-form .category-rename-input {
+    flex: 1 1 auto;
+    width: auto;
+    min-width: 0;
+  }
+}
+
+/* iOS Safari zooms the page in whenever it focuses a field under 16px, and
+   leaves it zoomed and scrolled sideways afterwards. Nothing here gains enough
+   from being smaller to be worth that. Asked of the pointer rather than of the
+   width, because a phone held sideways is wider than a small laptop. */
+@media (pointer: coarse) {
+  input, select, textarea {
+    font-size: 1rem;
+  }
+
+  .category-heading .rename-form .category-rename-input {
+    min-height: 2.5rem;
+    font-size: 1rem;
+  }
+
+  .category-heading .rename-form button {
+    min-height: 2.5rem;
+    font-size: 0.95rem;
+  }
+}
+
+/* Phones held sideways, and phones whose browser keeps a toolbar of its own:
+   what is left for a page of text is measured in single lines, so the controls
+   above and below it are trimmed again. */
+@media (max-height: 480px) {
+  header.app.compact {
+    margin-bottom: 0.4rem;
+  }
+
+  header.app.compact nav.top a,
+  header.app.compact nav.top button {
+    min-height: 2.1rem;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.85rem;
+  }
+
+  .pager .btn {
+    min-height: 2.4rem;
+  }
+
+  .reader.paged .pager {
+    padding-top: 0.35rem;
+    margin-top: 0.35rem;
+  }
 }
