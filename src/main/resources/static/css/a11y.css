@@ -725,8 +725,8 @@ summary {
   margin-bottom: 0.75rem;
 }
 
-/* Each kind of point keeps its own colour, on the bar and on its label, so a
-   heading, a bullet and a quotation are three visibly different things. */
+/* Each kind of point keeps its own colour on the bar, so a heading, a bullet and
+   a quotation are three visibly different things. */
 .key-points li.point-heading {
   border-left-color: var(--heading);
 }
@@ -737,22 +737,6 @@ summary {
 
 .key-points li.point-lead {
   border-left-color: var(--link);
-}
-
-.point-kind {
-  display: block;
-  font-size: 0.7rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--dim);
-}
-
-.point-heading .point-kind {
-  color: var(--heading);
-}
-
-.point-quote .point-kind {
-  color: var(--quote);
 }
 
 .point-text {

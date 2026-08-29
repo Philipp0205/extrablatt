@@ -276,6 +276,29 @@ class AccessibleEditionTest {
 
     @Test
     @WithMockUser
+    void theMainPointsAreNotLabelledWithWhatKindOfPointTheyAre() throws Exception {
+        // An article with no structure falls back to its lead sentences, which is
+        // the common case — and used to label every line of the summary "Opening".
+        Article article = new Article(4L, 1L, "guid", "How the trial went", null, null,
+                Instant.now(), null, null, null, false, null, null, null, "STAT News", null);
+        when(articleService.findById(UID, 4L)).thenReturn(Optional.of(article));
+        when(articleService.getContentHtml(any(Article.class), eq(false))).thenReturn("""
+                <p>The trial enrolled six hundred people over two years at nine sites in four countries,
+                   and followed all of them for a further year afterwards.</p>
+                <p>Half of them were given the treatment and the other half were given a placebo instead,
+                   without either the patients or their doctors knowing which was which.</p>
+                """);
+
+        mockMvc.perform(get("/read/4").header("Host", ACCESSIBLE_HOST))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("The main points")))
+                .andExpect(content().string(containsString("The trial enrolled six hundred people")))
+                .andExpect(content().string(not(containsString("point-kind"))))
+                .andExpect(content().string(not(containsString(">Opening<"))));
+    }
+
+    @Test
+    @WithMockUser
     void keyPointsCanBeTurnedOff() throws Exception {
         Article article = new Article(4L, 1L, "guid", "How the trial went", null, null, null,
                 null, null, null, true, null, null, null, "STAT News", null);
