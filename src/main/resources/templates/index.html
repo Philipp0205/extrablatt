@@ -26,6 +26,12 @@
          th:attr="aria-current=${activeView == 'feeds'} ? 'page' : null">Your feeds</a>
       <a th:href="@{/(view='free-test')}" th:classappend="${activeView == 'free-test'} ? ' active'"
          th:attr="aria-current=${activeView == 'free-test'} ? 'page' : null">Your free test</a>
+    </nav>
+    <!-- The categories belong to browsing your feeds: their row only appears while
+         the feed list (or one of its categories) is open, not on Add feed or the
+         free test. -->
+    <nav class="subnav" aria-label="Feed categories"
+         th:if="${(activeView == 'feeds' or activeView == 'category') and !#lists.isEmpty(feedGroups)}">
       <a th:each="group : ${feedGroups}" th:href="@{/(category=${group.key})}"
          th:text="${group.key}" th:classappend="${selectedCategory == group.key} ? ' active'"
          th:attr="aria-current=${selectedCategory == group.key} ? 'page' : null">Category</a>
