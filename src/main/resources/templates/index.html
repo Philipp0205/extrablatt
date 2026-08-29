@@ -76,19 +76,24 @@
     </div>
   </form>
 
-  <div th:if="${newslettersEnabled}">
-    <h2>Add Newsletter</h2>
-    <p class="meta">Some sources only publish by e-mail. Subscribe to any of them using
-      the address below — issues show up in <a th:href="@{/}">Feeds</a> (each sender
-      becomes its own entry the first time it writes) and send to Kindle exactly like
-      any other article.</p>
-    <code class="address-box" th:text="${newsletterAddress}">news@example.com</code>
-    <form th:action="@{/settings/newsletter-address/regenerate}" method="post"
-          onsubmit="return confirm('Replace your newsletter address? Anything still sent to the old one will be lost, but newsletters already received stay put.');">
-      <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-      <button class="btn" type="submit">New address</button>
-    </form>
-  </div>
+  <!-- Newsletters are the exception, not the everyday action, so they fold away
+       behind a disclosure. A browser without <details> shows them expanded, which
+       is exactly what this page did before. -->
+  <details class="tools" th:if="${newslettersEnabled}">
+    <summary>Add a newsletter instead</summary>
+    <div class="tools-body">
+      <p class="meta">Some sources only publish by e-mail. Subscribe to any of them using
+        the address below — issues show up in <a th:href="@{/}">Feeds</a> (each sender
+        becomes its own entry the first time it writes) and send to Kindle exactly like
+        any other article.</p>
+      <code class="address-box" th:text="${newsletterAddress}">news@example.com</code>
+      <form th:action="@{/settings/newsletter-address/regenerate}" method="post"
+            onsubmit="return confirm('Replace your newsletter address? Anything still sent to the old one will be lost, but newsletters already received stay put.');">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <button class="btn" type="submit">New address</button>
+      </form>
+    </div>
+  </details>
   </section>
 
   <section class="subview" th:if="${activeView == 'free-test'}">
@@ -121,14 +126,16 @@
        th:if="${activeView == 'feeds' or selectedCategory == group.key}">
     <div class="category-heading">
       <h3 th:text="${group.key}">Category</h3>
-      <form class="inline rename-form" th:if="${group.key != 'Uncategorized'}"
-            th:action="@{/categories/rename}" method="post">
-        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-        <input type="hidden" name="oldCategory" th:value="${group.key}"/>
-        <input type="text" name="newCategory" th:value="${group.key}"
-               aria-label="Rename category" class="category-rename-input"/>
-        <button type="submit">Rename</button>
-      </form>
+      <details class="tools" th:if="${group.key != 'Uncategorized'}">
+        <summary>Rename</summary>
+        <form class="inline rename-form" th:action="@{/categories/rename}" method="post">
+          <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+          <input type="hidden" name="oldCategory" th:value="${group.key}"/>
+          <input type="text" name="newCategory" th:value="${group.key}"
+                 aria-label="Rename category" class="category-rename-input"/>
+          <button type="submit">Rename</button>
+        </form>
+      </details>
     </div>
     <ul class="feed-list">
     <li th:each="feed : ${group.value}">
@@ -137,31 +144,39 @@
         <span class="badge" th:if="${feed.isNewsletter()}">Newsletter</span>
         <span class="badge" th:text="${feed.unreadCount}">0</span>
       </div>
-      <div class="meta">
-        <span th:if="${feed.isNewsletter()}" th:text="'From ' + ${feed.newsletterSender()}">from sender</span>
-        <span th:unless="${feed.isNewsletter()}" th:text="${feed.url}">url</span>
-      </div>
       <div class="meta" th:if="${feed.lastError != null}">
         Last error: <span th:text="${feed.lastError}">error</span>
       </div>
-      <div class="actions">
-        <form class="inline category-form" th:action="@{/feeds/{id}/category(id=${feed.id})}" method="post">
-          <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-          <select name="category" class="category-select" data-category-select aria-label="Category">
-            <option value="" th:selected="${feed.category == null or feed.category.isBlank()}">Uncategorized</option>
-            <option th:each="c : ${categories}" th:value="${c}" th:text="${c}"
-                    th:selected="${c == feed.category}">Category</option>
-            <option value="__new__">+ New category…</option>
-          </select>
-          <input name="newCategory" type="text" class="category-new" data-category-new
-                 placeholder="New category name" aria-label="New category name"/>
-          <button type="submit">Save</button>
-        </form>
-        <form class="inline" th:action="@{/feeds/{id}/delete(id=${feed.id})}" method="post">
-          <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-          <button type="submit">Delete</button>
-        </form>
-      </div>
+      <!-- Managing a feed is rare next to reading it, so the source address and the
+           category/delete controls fold away and the list stays a plain run of
+           titles and unread counts. -->
+      <details class="tools">
+        <summary>Edit</summary>
+        <div class="tools-body">
+          <div class="meta">
+            <span th:if="${feed.isNewsletter()}" th:text="'From ' + ${feed.newsletterSender()}">from sender</span>
+            <span th:unless="${feed.isNewsletter()}" th:text="${feed.url}">url</span>
+          </div>
+          <div class="actions">
+            <form class="inline category-form" th:action="@{/feeds/{id}/category(id=${feed.id})}" method="post">
+              <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+              <select name="category" class="category-select" data-category-select aria-label="Category">
+                <option value="" th:selected="${feed.category == null or feed.category.isBlank()}">Uncategorized</option>
+                <option th:each="c : ${categories}" th:value="${c}" th:text="${c}"
+                        th:selected="${c == feed.category}">Category</option>
+                <option value="__new__">+ New category…</option>
+              </select>
+              <input name="newCategory" type="text" class="category-new" data-category-new
+                     placeholder="New category name" aria-label="New category name"/>
+              <button type="submit">Save</button>
+            </form>
+            <form class="inline" th:action="@{/feeds/{id}/delete(id=${feed.id})}" method="post">
+              <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+              <button type="submit">Delete</button>
+            </form>
+          </div>
+        </div>
+      </details>
     </li>
     </ul>
   </div>
