@@ -6,6 +6,7 @@ import com.kindlerss.security.CurrentUser;
 import com.kindlerss.security.RateLimiter;
 import com.kindlerss.security.RateLimitingFilter;
 import com.kindlerss.service.ArticleService;
+import com.kindlerss.service.AdminTelemetryService;
 import com.kindlerss.service.FeedService;
 import com.kindlerss.service.KindleMailService;
 import com.kindlerss.service.UserService;
@@ -38,7 +39,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * The Feeds page has to report what a deployed instance was built from, so that a
  * VPS can be compared against the source.
  */
-@WebMvcTest(controllers = AppController.class)
+@WebMvcTest(controllers = {AppController.class, SettingsController.class})
 @Import({com.kindlerss.config.SecurityConfig.class, GlobalExceptionHandler.class,
         RateLimiter.class, RateLimitingFilter.class})
 @TestPropertySource(properties = {
@@ -71,6 +72,9 @@ class BuildInfoViewTest {
     ArticleService articleService;
 
     @MockitoBean
+    AdminTelemetryService telemetryService;
+
+    @MockitoBean
     KindleMailService kindleMailService;
 
     @MockitoBean
@@ -88,13 +92,13 @@ class BuildInfoViewTest {
                 Instant.now(), null, Instant.now(), Instant.now());
         when(currentUser.requireId()).thenReturn(UID);
         when(currentUser.details()).thenReturn(Optional.of(new AppUserDetails(user)));
+        when(userService.findById(UID)).thenReturn(Optional.of(user));
     }
 
     @Test
     @WithMockUser
-    void homePageReportsVersionRevisionAndBuildTime() throws Exception {
-        when(feedService.listFeeds(UID)).thenReturn(List.of());
-        mockMvc.perform(get("/"))
+    void versionSettingsReportsVersionRevisionAndBuildTime() throws Exception {
+        mockMvc.perform(get("/settings").param("view", "version"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("1.0.0-SNAPSHOT")))
                 .andExpect(content().string(containsString("abc1234")))

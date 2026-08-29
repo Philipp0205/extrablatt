@@ -43,6 +43,6 @@ public class AdminController {
         }
         // Telemetry now lives on the Settings page; this form is only kept
         // reachable at its own address for anything still linking directly to it.
-        return "redirect:" + ("/admin".equals(redirect) ? "/admin" : "/settings");
+        return "redirect:" + ("/admin".equals(redirect) ? "/admin" : "/settings?view=telemetry");
     }
 }
