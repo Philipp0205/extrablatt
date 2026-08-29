@@ -16,6 +16,9 @@
   var COLUMN_GAP = 32;
   var BOTTOM_GAP = 6;
   var MIN_PAGE_HEIGHT = 160;
+  /* A viewport that changes by less than this is not worth reflowing the text
+     for: a phone browser reports small changes of its own accord. */
+  var REFIT_THRESHOLD = 24;
 
   var root = document.querySelector('[data-reader]');
   if (!root) {
@@ -52,6 +55,10 @@
   var pageHeight = 0;
   var paged = false;
   var resizeTimer = null;
+  // The viewport the current columns were measured against, so that the noise a
+  // phone browser reports can be told apart from a rotation.
+  var fittedWidth = 0;
+  var fittedHeightFor = 0;
 
   function on(target, type, handler) {
     if (target.addEventListener) {
@@ -68,8 +75,26 @@
     content.style['moz' + capitalized] = value;
   }
 
+  /*
+   * How much of the screen the page actually gets.
+   *
+   * A phone browser draws its own toolbars over the bottom of window.innerHeight
+   * while they are showing, and this reader never scrolls, so they stay showing:
+   * measured against innerHeight, the last line or two of every page sits behind
+   * the browser's own controls. visualViewport reports what is on screen. It also
+   * shrinks when the page is pinched or a keyboard opens, which says nothing
+   * about the room a page has, so it is only trusted at rest.
+   */
   function viewportHeight() {
+    var visual = window.visualViewport;
+    if (visual && visual.height && (!visual.scale || visual.scale <= 1.01)) {
+      return Math.round(visual.height);
+    }
     return window.innerHeight || document.documentElement.clientHeight;
+  }
+
+  function viewportWidth() {
+    return window.innerWidth || document.documentElement.clientWidth;
   }
 
   /** Height left for a page once the header, actions and pager have their share. */
@@ -105,17 +130,29 @@
     }
   }
 
+  function countPages() {
+    var span = Math.max(content.scrollWidth, marker.offsetLeft + marker.offsetWidth);
+    pageCount = Math.max(1, Math.round((span + COLUMN_GAP) / (pageWidth + COLUMN_GAP)));
+  }
+
+  /** Pixels by which the document still runs past the bottom of the screen. */
+  function excessHeight() {
+    return document.documentElement.scrollHeight - viewportHeight();
+  }
+
   /** Lays out the columns and returns false when this browser cannot page. */
   function measure() {
     window.scrollTo(0, 0);
     var viewport = viewportHeight();
+    fittedWidth = viewportWidth();
+    fittedHeightFor = viewport;
     pageHeight = fittedHeight(viewport);
     applyLayout();
 
     // Page margins and anything else outside the measured elements can still
     // push the document past the screen; give those pixels back to the page.
     for (var pass = 0; pass < 2; pass++) {
-      var excess = document.documentElement.scrollHeight - viewport;
+      var excess = excessHeight();
       if (excess <= 0) {
         break;
       }
@@ -127,11 +164,40 @@
       return false;
     }
 
-    var span = Math.max(content.scrollWidth, marker.offsetLeft + marker.offsetWidth);
-    pageCount = Math.max(1, Math.round((span + COLUMN_GAP) / (pageWidth + COLUMN_GAP)));
+    countPages();
     // One page for content that clearly needs several means the columns did not
     // take effect; scrolling is then the only usable option.
     return pageCount > 1 || content.scrollHeight <= pageHeight + 1;
+  }
+
+  /*
+   * Measures, shows a page, and then checks the result against the screen once
+   * more, because showing a page is what gives the pager its final size: its
+   * label only reads "Page 1 of 12" once there is a count to put in it, and a
+   * label that much wider leaves the buttons beside it narrow enough to wrap
+   * their own labels onto a second line. On a phone that second line was pushing
+   * the pager off the bottom of a document that cannot be scrolled — the page
+   * turn buttons ended up half off the screen on the screens that need them.
+   */
+  function fit(pickPage) {
+    if (!measure()) {
+      return false;
+    }
+    show(pickPage());
+    for (var pass = 0; pass < 2; pass++) {
+      var excess = excessHeight();
+      if (excess <= 0) {
+        return true;
+      }
+      pageHeight -= excess;
+      if (pageHeight < MIN_PAGE_HEIGHT) {
+        return false;
+      }
+      applyLayout();
+      countPages();
+      show(Math.min(page, pageCount - 1));
+    }
+    return excessHeight() <= 0;
   }
 
   function show(index) {
@@ -245,12 +311,19 @@
 
   function onResize() {
     // Rotation or a font-size change reflows the columns. Debounced because
-    // e-ink browsers tend to fire bursts of resize events.
+    // e-ink browsers tend to fire bursts of resize events, and because a phone
+    // browser reports one for every toolbar of its own that slides away.
     if (resizeTimer) {
       window.clearTimeout(resizeTimer);
     }
     resizeTimer = window.setTimeout(function () {
       resizeTimer = null;
+      // Reflowing the text moves the reader's place in it, so a viewport that
+      // has barely changed is left alone.
+      if (viewportWidth() === fittedWidth &&
+          Math.abs(viewportHeight() - fittedHeightFor) < REFIT_THRESHOLD) {
+        return;
+      }
       var progress = paged && pageCount > 1 ? page / (pageCount - 1) : 0;
       // Keeps the reader roughly where it was, and picks paging back up if the
       // screen just became tall enough for it.
@@ -330,12 +403,11 @@
       root.className += ' paged';
     }
     document.body.style.overflow = 'hidden';
-    if (!measure()) {
+    if (!fit(pickPage)) {
       disable();
       return;
     }
     paged = true;
-    show(pickPage());
   }
 
   function disable() {
@@ -364,6 +436,12 @@
     on(frame, 'click', onFrameClick);
     on(document, 'keydown', onKeyDown);
     on(window, 'resize', onResize);
+    // A phone browser hiding or showing a toolbar of its own changes how much of
+    // the screen is left without ever resizing the window.
+    if (window.visualViewport) {
+      on(window.visualViewport, 'resize', onResize);
+    }
+    on(window, 'orientationchange', onResize);
 
     layout(function () {
       return window.location.hash === '#end' ? pageCount - 1 : storedPosition();
