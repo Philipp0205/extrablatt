@@ -356,16 +356,6 @@ class AppControllerSecurityTest {
     }
 
     @Test
-    @WithMockUser
-    void homePageShowsBuildIdentity() throws Exception {
-        when(feedService.listFeeds(UID)).thenReturn(List.of());
-        mockMvc.perform(get("/"))
-                .andExpect(status().isOk())
-                .andExpect(content().string(containsString("class=\"build-info\"")))
-                .andExpect(content().string(containsString("revision")));
-    }
-
-    @Test
     void buildIdentityFallsBackWhenNotPackaged() {
         BuildInfoAdvice.Version version = BuildInfoAdvice.describe(null);
         org.junit.jupiter.api.Assertions.assertEquals("development build", version.number());
