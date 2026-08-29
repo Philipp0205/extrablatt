@@ -77,6 +77,12 @@ app:
     # Per-account guardrails for open registration.
     max-feeds-per-user: ${MAX_FEEDS_PER_USER:50}
     max-sends-per-day: ${MAX_SENDS_PER_DAY:50}
+  accessibility:
+    # Host the accessibility-first edition answers on, e.g.
+    # accessibility.extrablatt.app. Same application, same accounts, same data —
+    # only the view layer differs. Blank still leaves the edition reachable
+    # through ?display=accessible, which is all a local run needs.
+    domain: ${ACCESSIBILITY_DOMAIN:}
   newsletters:
     # Domain newsletter inboxes live under, e.g. news.yourdomain.com (needs MX
     # records pointed at an inbound e-mail provider). Blank disables the feature.

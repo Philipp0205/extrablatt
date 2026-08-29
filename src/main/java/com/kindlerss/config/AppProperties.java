@@ -18,6 +18,7 @@ public record AppProperties(
         Articles articles,
         Limits limits,
         Newsletters newsletters,
+        Accessibility accessibility,
         String donateUrl
 ) {
     public AppProperties {
@@ -36,6 +37,9 @@ public record AppProperties(
         }
         if (newsletters == null) {
             newsletters = new Newsletters(null, null);
+        }
+        if (accessibility == null) {
+            accessibility = new Accessibility(null);
         }
         if (publicUrl == null || publicUrl.isBlank()) {
             // Base URL used to build links in verification / password-reset e-mails.
@@ -119,6 +123,33 @@ public record AppProperties(
 
         public boolean enabled() {
             return inboundDomain != null;
+        }
+    }
+
+    /**
+     * The host the accessibility-first edition answers on (e.g.
+     * {@code accessibility.extrablatt.app}). It is the same application, the same
+     * database and the same accounts as the standard edition — only the view layer
+     * differs. Left blank, the edition is still reachable through
+     * {@code ?display=accessible} on any host, which is all a local run needs.
+     */
+    public record Accessibility(String domain) {
+        public Accessibility {
+            if (domain != null) {
+                domain = domain.trim().toLowerCase();
+                if (domain.isBlank()) {
+                    domain = null;
+                }
+            }
+        }
+
+        public boolean hasDomain() {
+            return domain != null;
+        }
+
+        /** Absolute base URL of the accessible edition, or null when it has no host of its own. */
+        public String baseUrl() {
+            return domain == null ? null : "https://" + domain;
         }
     }
 
