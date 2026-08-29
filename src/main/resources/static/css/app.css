@@ -353,14 +353,25 @@ input[type="email"], input[type="url"], input[type="password"], input[type="text
   margin-left: 0.5rem;
 }
 
+/* Zero basis rather than `auto`: the source line is the only part of the row that
+   may give up width, and it has to give up as much as the button needs. Sized
+   from its content instead, a phone-width row ends up asking for more than it
+   has and the button is pushed off the edge. */
 .item-row .meta {
-  flex: 1 1 auto;
+  flex: 1 1 0;
   min-width: 0;
   margin: 0;
   font-size: 0.85rem;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* The form around the button is a flex item of the row in its own right, and
+   would shrink below the button it holds — the button, which does not shrink,
+   then hangs out of the row and is clipped at the edge of the screen. */
+.item-row > form.inline {
+  flex: 0 0 auto;
 }
 
 .item-row .btn,
@@ -370,6 +381,7 @@ input[type="email"], input[type="url"], input[type="password"], input[type="text
   min-width: 0;
   padding: 0.3rem 0.6rem;
   font-size: 0.85rem;
+  white-space: nowrap;
 }
 
 .meta {
