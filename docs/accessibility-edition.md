@@ -106,7 +106,10 @@ The article page is built for someone who has to work to read:
   sentences of the article are extracted into a short bulleted summary at the
   top, before the full text. This is the "highlights of the headings or bullet
   points" she prints out by hand today. It is extractive, not generated — no
-  model, no API, no cost, nothing invented.
+  model, no API, no cost, nothing invented. The points are not labelled by what
+  kind of thing they were: most articles have too little structure to extract
+  anything but lead sentences, so every label read "Opening" and told nobody
+  anything. The colour of each point's bar still distinguishes them.
 - **Colour as structure.** Headings, quotes, list markers, links and source names
   each get their own bright hue against black, so kinds of content are
   distinguishable without reading them.

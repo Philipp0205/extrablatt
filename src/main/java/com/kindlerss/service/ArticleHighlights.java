@@ -49,23 +49,19 @@ public class ArticleHighlights {
             "read more", "next", "previous", "home", "menu", "search", "newsletter",
             "follow us", "comments", "print", "email", "save");
 
-    /** What kind of thing a point was in the article, so it can be coloured and announced as one. */
+    /**
+     * What kind of thing a point was in the article, so it can be coloured as one.
+     *
+     * <p>Not written out next to the point: most articles have too little structure
+     * for the extractor to find anything but lead sentences, and a list where every
+     * line is labelled "Opening" tells a reader nothing and costs a screen reader a
+     * word before every point.
+     */
     public enum Kind {
-        HEADING("Section"),
-        POINT("Point"),
-        QUOTE("Quote"),
-        LEAD("Opening");
-
-        private final String label;
-
-        Kind(String label) {
-            this.label = label;
-        }
-
-        /** Read out before the text by a screen reader, and shown as a coloured tag. */
-        public String label() {
-            return label;
-        }
+        HEADING,
+        POINT,
+        QUOTE,
+        LEAD
     }
 
     public record Point(Kind kind, String text) {}

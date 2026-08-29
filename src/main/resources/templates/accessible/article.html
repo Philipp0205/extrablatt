@@ -45,7 +45,6 @@
       <h2 id="key-points-heading">The main points</h2>
       <ul>
         <li th:each="point : ${summary.points()}" th:classappend="'point-' + ${point.kind().name().toLowerCase()}">
-          <span class="point-kind" th:text="${point.kind().label()}">Section</span>
           <span class="point-text" th:text="${point.text()}">A point from the article</span>
         </li>
       </ul>
