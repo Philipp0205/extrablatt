@@ -182,6 +182,49 @@ class PostgresRepositoryTest {
         assertEquals(third.id(), users.findByNewsletterInboundToken("rotated-token").orElseThrow().id());
     }
 
+    @Test
+    void savedArticlesAreKeptApartFromReadStateAndFromOtherAccounts() {
+        var feed = feeds.insert(userId, "Saved", "https://saved.example.com/feed.xml",
+                "https://saved.example.com", null);
+        long articleId = insertArticle(feed.id(), "saved-1");
+
+        assertTrue(articles.setSaved(userId, articleId, true));
+        var saved = articles.findById(userId, articleId).orElseThrow();
+        assertTrue(saved.saved());
+        assertFalse(saved.read(), "saving an article must not mark it read");
+
+        // Reading it afterwards leaves the bookmark alone: an article is usually
+        // saved precisely because it has been read.
+        articles.markRead(userId, articleId, true);
+        assertTrue(articles.findById(userId, articleId).orElseThrow().saved());
+
+        assertEquals(1, articles.findSavedPage(userId, 20, 0).size());
+        assertEquals(1, articles.countSaved(userId));
+        assertEquals(0, articles.countSaved(otherUserId));
+        assertFalse(articles.setSaved(otherUserId, articleId, false), "not their article to unsave");
+
+        assertTrue(articles.setSaved(userId, articleId, false));
+        assertFalse(articles.findById(userId, articleId).orElseThrow().saved());
+        assertEquals(0, articles.countSaved(userId));
+    }
+
+    @Test
+    void displayPreferencesBelongToTheAccountAndAreReplacedInPlace() {
+        var repository = new DisplayPreferencesRepository(
+                new JdbcTemplate(postgres.getPostgresDatabase()));
+        var chosen = new com.kindlerss.domain.DisplayPreferences(
+                com.kindlerss.domain.DisplayPreferences.Theme.BLACK_YELLOW, 5, 3,
+                com.kindlerss.domain.DisplayPreferences.Font.SERIF, true, false);
+
+        assertTrue(repository.find(userId).isEmpty());
+        repository.save(userId, chosen);
+        assertEquals(chosen, repository.find(userId).orElseThrow());
+
+        repository.save(userId, com.kindlerss.domain.DisplayPreferences.DEFAULTS);
+        assertEquals(com.kindlerss.domain.DisplayPreferences.DEFAULTS, repository.find(userId).orElseThrow());
+        assertTrue(repository.find(otherUserId).isEmpty());
+    }
+
     private long insertArticle(long feedId, String guid) {
         return articles.insert(feedId, guid, "Article " + guid, "https://bulk.example.com/" + guid,
                 "Author", Instant.parse("2026-08-10T00:00:00Z"), "<p>Summary</p>", "<p>Content</p>");

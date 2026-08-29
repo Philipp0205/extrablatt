@@ -12,6 +12,9 @@
     <a class="brand" th:href="@{/}">Extrablatt</a>
   </header>
 
+  <!-- Wrapped as a fragment so the accessible edition shows the same terms in its
+       own layout instead of keeping a second copy of the text. -->
+  <div th:fragment="content">
   <h1>Terms of Service</h1>
   <p class="meta">Last updated 2026.</p>
 
@@ -26,6 +29,7 @@
     <li>Delivery to Kindle depends on Amazon and your own approved-sender settings, which
       are outside our control.</li>
   </ul>
+  </div>
 
   <p class="meta" style="margin-top:1rem"><a th:href="@{/login}">Back</a></p>
 </div>

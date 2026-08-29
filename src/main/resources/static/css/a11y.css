@@ -1,0 +1,954 @@
+/*
+ * Extrablatt — accessibility edition.
+ *
+ * Written for readers with low vision, and for the screen readers of readers
+ * with none. The rules that matter here:
+ *
+ *  - Every colour comes from a theme variable, and every theme is a full
+ *    foreground/background pair chosen for contrast, not a tint of one palette.
+ *  - Type size is set on <html> from a class, so every length in rem scales with
+ *    it: at the largest setting the whole layout grows, rather than the text
+ *    outgrowing its boxes.
+ *  - Nothing is smaller than 3rem to press, nothing relies on hover, and focus is
+ *    always visible.
+ *  - Kinds of content (heading, quote, list, link, source, "new") carry their own
+ *    hue, so they can be told apart before they are read.
+ */
+
+/* ------------------------------------------------------------------ themes */
+
+html {
+  /* Black with bright accents: the default, and the format this edition was
+     asked for. Every accent clears WCAG AAA against #000 at these sizes. */
+  --bg: #000000;
+  --fg: #ffffff;
+  --dim: #cfcfcf;
+  --panel: #141414;
+  --panel-edge: #6f6f6f;
+  --heading: #ffd23f;
+  --link: #6fd3ff;
+  --link-visited: #ffa8e4;
+  --accent: #7dff6b;
+  --quote: #9ce8ff;
+  --danger: #ff8f6b;
+  --focus: #ffd23f;
+  --on-accent: #000000;
+
+  --font: "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  --base: 28px;
+  --line: 1.9;
+  --letter: normal;
+  --word: normal;
+}
+
+html.theme-black-yellow {
+  /* Yellow on black, the classic low-vision pairing. Only two colours carry
+     meaning here, so structure leans on weight, rules and underlines instead. */
+  --bg: #000000;
+  --fg: #ffd60a;
+  --dim: #d7b800;
+  --panel: #141000;
+  --panel-edge: #8a7400;
+  --heading: #ffffff;
+  --link: #ffffff;
+  --link-visited: #e6e6e6;
+  --accent: #ffffff;
+  --quote: #ffd60a;
+  --danger: #ffb37a;
+  --focus: #ffffff;
+  --on-accent: #000000;
+}
+
+html.theme-black-white {
+  --bg: #000000;
+  --fg: #ffffff;
+  --dim: #d0d0d0;
+  --panel: #151515;
+  --panel-edge: #909090;
+  --heading: #ffffff;
+  --link: #ffffff;
+  --link-visited: #dcdcdc;
+  --accent: #ffffff;
+  --quote: #ffffff;
+  --danger: #ffffff;
+  --focus: #ffffff;
+  --on-accent: #000000;
+}
+
+html.theme-light-contrast {
+  /* For readers who find light backgrounds easier, and for printing on paper.
+     The accents are darkened versions of the same hues, so the colour coding
+     still means the same thing. */
+  --bg: #ffffff;
+  --fg: #000000;
+  --dim: #3a3a3a;
+  --panel: #f2f2f2;
+  --panel-edge: #4a4a4a;
+  --heading: #8a4b00;
+  --link: #0b47b3;
+  --link-visited: #7b1a6b;
+  --accent: #0a6b1f;
+  --quote: #005a63;
+  --danger: #a01000;
+  --focus: #0b47b3;
+  --on-accent: #ffffff;
+}
+
+/* --------------------------------------------------------- size and spacing */
+
+html.size-1 { --base: 20px; }
+html.size-2 { --base: 24px; }
+html.size-3 { --base: 28px; }
+html.size-4 { --base: 34px; }
+html.size-5 { --base: 42px; }
+
+html.lines-1 { --line: 1.5; }
+html.lines-2 { --line: 1.9; }
+html.lines-3 { --line: 2.4; }
+
+html.font-sans {
+  --font: "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+}
+
+html.font-serif {
+  --font: Georgia, "Iowan Old Style", "Times New Roman", serif;
+}
+
+/* Wider letters and words help some readers separate one word from the next;
+   for others they slow reading down, so this is a choice, never a default. */
+html.letters-wide {
+  --letter: 0.055em;
+  --word: 0.16em;
+}
+
+/* ------------------------------------------------------------------- basics */
+
+* {
+  box-sizing: border-box;
+}
+
+/* Controls that only make sense once the script has run carry `hidden`, and a
+   class-based display rule below would otherwise outrank the browser's own
+   [hidden] rule and show them anyway. */
+[hidden] {
+  display: none !important;
+}
+
+html {
+  font-size: var(--base);
+  background: var(--bg);
+  color: var(--fg);
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font);
+  line-height: var(--line);
+  letter-spacing: var(--letter);
+  word-spacing: var(--word);
+  /* Publishers write titles and addresses that are one long unbroken string;
+     without this they push the page sideways, which at this type size means a
+     reader loses the left edge entirely. */
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+/* A short line is easier to track back from at the end of it. In rem, so the
+   measure stays around the same number of characters at every text size. */
+.page {
+  max-width: 34rem;
+  margin: 0 auto;
+  padding: 1rem 0.75rem 4rem;
+}
+
+h1, h2, h3 {
+  line-height: 1.25;
+  color: var(--heading);
+}
+
+h1 {
+  font-size: 1.6rem;
+  margin: 0.5rem 0 1rem;
+}
+
+h2 {
+  font-size: 1.25rem;
+  margin: 2rem 0 0.75rem;
+}
+
+h3 {
+  font-size: 1.1rem;
+  margin: 1.5rem 0 0.5rem;
+}
+
+p {
+  margin: 0 0 1rem;
+}
+
+.lede {
+  font-size: 1.05rem;
+}
+
+.quiet {
+  color: var(--dim);
+  font-size: 0.85rem;
+}
+
+.bad {
+  color: var(--danger);
+}
+
+a {
+  color: var(--link);
+  text-decoration: underline;
+  text-decoration-thickness: 0.12em;
+  text-underline-offset: 0.22em;
+}
+
+a:visited {
+  color: var(--link-visited);
+}
+
+a:hover {
+  text-decoration-thickness: 0.22em;
+}
+
+/* Focus is how a keyboard user knows where they are; it is never removed, and it
+   is drawn thickly enough to find without looking for it. */
+:focus {
+  outline: 0.18rem solid var(--focus);
+  outline-offset: 0.15rem;
+}
+
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+:focus-visible {
+  outline: 0.18rem solid var(--focus);
+  outline-offset: 0.15rem;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  background: var(--accent);
+  color: var(--on-accent);
+  padding: 0.75rem 1rem;
+  font-weight: 700;
+  z-index: 10;
+}
+
+.skip-link:focus {
+  left: 0;
+  position: static;
+  display: block;
+}
+
+/* ----------------------------------------------------------------- controls */
+
+.btn,
+button,
+select,
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="url"] {
+  font: inherit;
+  letter-spacing: inherit;
+  min-height: 3rem;
+}
+
+.btn,
+button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  width: 100%;
+  padding: 0.6rem 0.9rem;
+  border: 0.12rem solid var(--fg);
+  background: var(--bg);
+  color: var(--fg);
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.btn:hover,
+button:hover {
+  background: var(--fg);
+  color: var(--bg);
+}
+
+/* The action a page exists for should not look like the six around it. */
+.btn-strong {
+  border-color: var(--accent);
+  border-width: 0.16rem;
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.btn-strong:hover {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.btn-quiet {
+  border-color: var(--panel-edge);
+  color: var(--dim);
+}
+
+.btn-danger {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.btn-danger:hover {
+  background: var(--danger);
+  color: var(--on-accent);
+}
+
+button[disabled],
+button[disabled]:hover {
+  border-color: var(--panel-edge);
+  color: var(--panel-edge);
+  background: var(--bg);
+  cursor: default;
+}
+
+/* Buttons stack rather than sit side by side: a row of them is a row of small
+   targets, and at the largest text size it is a row of wrapped fragments. */
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin: 1rem 0 2rem;
+}
+
+.stack-tight {
+  margin: 0.5rem 0 1rem;
+}
+
+.stack form {
+  margin: 0;
+}
+
+form {
+  margin: 0 0 1rem;
+}
+
+.form-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+label {
+  font-weight: 700;
+}
+
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="url"],
+select {
+  width: 100%;
+  padding: 0.6rem 0.7rem;
+  border: 0.12rem solid var(--fg);
+  background: var(--bg);
+  color: var(--fg);
+}
+
+::placeholder {
+  color: var(--dim);
+  opacity: 1;
+}
+
+fieldset {
+  border: 0.12rem solid var(--panel-edge);
+  padding: 0.75rem 1rem 1rem;
+  margin: 0 0 1.5rem;
+}
+
+legend {
+  font-weight: 700;
+  color: var(--heading);
+  padding: 0 0.4rem;
+}
+
+/* A choice is pressable across its whole line, not just on the dot itself. */
+.choice {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-height: 3rem;
+  font-weight: 400;
+  cursor: pointer;
+}
+
+.choice input {
+  width: 1.4rem;
+  height: 1.4rem;
+  accent-color: var(--accent);
+  flex: 0 0 auto;
+}
+
+/* ------------------------------------------------------- header and footer */
+
+.bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  padding: 0.6rem 0.75rem;
+  border-bottom: 0.12rem solid var(--panel-edge);
+}
+
+.brand {
+  color: var(--fg);
+  text-decoration: none;
+  font-weight: 700;
+}
+
+.brand-name {
+  display: block;
+  font-size: 1.1rem;
+  color: var(--heading);
+}
+
+.brand-sub {
+  display: block;
+  font-size: 0.7rem;
+  color: var(--dim);
+  font-weight: 400;
+}
+
+.size-controls {
+  display: flex;
+  gap: 0.4rem;
+  margin: 0;
+}
+
+.size-btn {
+  width: auto;
+  min-width: 3.4rem;
+  font-weight: 700;
+}
+
+.main-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  padding: 0.6rem 0.75rem;
+  border-bottom: 0.12rem solid var(--panel-edge);
+}
+
+.main-nav a {
+  flex: 1 1 auto;
+  text-align: center;
+  padding: 0.5rem 0.7rem;
+  min-height: 3rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0.12rem solid transparent;
+  text-decoration: none;
+  color: var(--link);
+}
+
+.main-nav a:hover {
+  border-color: var(--link);
+}
+
+.main-nav a.current {
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.page-foot {
+  border-top: 0.12rem solid var(--panel-edge);
+  margin-top: 3rem;
+  padding: 1rem 0.75rem 2rem;
+  font-size: 0.85rem;
+}
+
+.page-foot nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1rem;
+  margin-bottom: 0.5rem;
+}
+
+/* -------------------------------------------------------------- messages */
+
+.messages:empty {
+  display: none;
+}
+
+.message {
+  border-left: 0.35rem solid var(--accent);
+  background: var(--panel);
+  padding: 0.75rem 1rem;
+  margin: 0 0 1rem;
+}
+
+.message.good {
+  border-left-color: var(--accent);
+}
+
+.message.note {
+  border-left-color: var(--heading);
+}
+
+.message.bad {
+  border-left-color: var(--danger);
+  color: var(--danger);
+}
+
+.panel {
+  border: 0.12rem solid var(--panel-edge);
+  background: var(--panel);
+  padding: 1rem;
+  margin: 0 0 1.5rem;
+}
+
+.panel-warn {
+  border-color: var(--heading);
+}
+
+.panel h2 {
+  margin-top: 0;
+}
+
+/* ---------------------------------------------------------------- topics */
+
+.topic-list {
+  list-style: none;
+  margin: 0 0 2rem;
+  padding: 0;
+}
+
+.topic-card {
+  border: 0.12rem solid var(--panel-edge);
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.topic-card h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.15rem;
+}
+
+.topic-card p {
+  margin-bottom: 0.6rem;
+}
+
+.source-list {
+  list-style: none;
+  margin: 0.5rem 0 1rem;
+  padding: 0;
+}
+
+.source-list > li {
+  border-top: 0.06rem solid var(--panel-edge);
+  padding: 0.75rem 0;
+}
+
+.source-list > li:last-child {
+  border-bottom: 0.06rem solid var(--panel-edge);
+}
+
+.topic-sources {
+  margin-bottom: 2rem;
+}
+
+details {
+  margin-bottom: 0.75rem;
+}
+
+summary {
+  min-height: 3rem;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  color: var(--link);
+}
+
+.extra {
+  border: 0.12rem solid var(--panel-edge);
+  padding: 0.5rem 1rem;
+  margin-bottom: 2rem;
+}
+
+.address {
+  border: 0.12rem dashed var(--heading);
+  padding: 0.6rem;
+  font-family: ui-monospace, "Courier New", monospace;
+  word-break: break-all;
+}
+
+/* -------------------------------------------------------------- articles */
+
+.article-list {
+  list-style: none;
+  margin: 0 0 1.5rem;
+  padding: 0;
+}
+
+.article-row {
+  border-top: 0.12rem solid var(--panel-edge);
+  padding: 1rem 0;
+}
+
+.article-row:last-child {
+  border-bottom: 0.12rem solid var(--panel-edge);
+}
+
+/* The title is the target: a whole block, several lines tall, not a line of text
+   to be hit with a finger or a shaky pointer. */
+.article-title {
+  display: block;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--link);
+  margin-bottom: 0.4rem;
+}
+
+.article-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.9rem;
+  margin: 0 0 0.6rem;
+  font-size: 0.8rem;
+}
+
+/* The source is coloured differently from the time, so "who said it" and "when"
+   do not have to be read apart. */
+.article-meta .source {
+  color: var(--heading);
+  font-weight: 700;
+}
+
+.article-meta .when,
+.article-meta .reading-time {
+  color: var(--dim);
+}
+
+.tag {
+  display: inline-block;
+  padding: 0.05rem 0.45rem;
+  border: 0.1rem solid var(--accent);
+  color: var(--accent);
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  vertical-align: middle;
+}
+
+.tag-new {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.tag-following {
+  border-color: var(--heading);
+  color: var(--heading);
+  text-transform: none;
+  letter-spacing: normal;
+  font-size: 0.8rem;
+  padding: 0.2rem 0.5rem;
+}
+
+.row-actions {
+  margin: 0;
+}
+
+.row-actions .btn {
+  width: auto;
+  min-width: 8rem;
+}
+
+.back-link {
+  margin-bottom: 0.5rem;
+}
+
+.pager {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin: 1.5rem 0 2rem;
+}
+
+/* ------------------------------------------------------------ key points */
+
+.key-points {
+  border: 0.16rem solid var(--heading);
+  padding: 1rem;
+  margin: 1.5rem 0;
+}
+
+.key-points h2 {
+  margin: 0 0 0.75rem;
+  font-size: 1.15rem;
+}
+
+.key-points ul {
+  list-style: none;
+  margin: 0 0 0.75rem;
+  padding: 0;
+}
+
+.key-points li {
+  border-left: 0.3rem solid var(--accent);
+  padding: 0.35rem 0 0.35rem 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+/* Each kind of point keeps its own colour, on the bar and on its label, so a
+   heading, a bullet and a quotation are three visibly different things. */
+.key-points li.point-heading {
+  border-left-color: var(--heading);
+}
+
+.key-points li.point-quote {
+  border-left-color: var(--quote);
+}
+
+.key-points li.point-lead {
+  border-left-color: var(--link);
+}
+
+.point-kind {
+  display: block;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--dim);
+}
+
+.point-heading .point-kind {
+  color: var(--heading);
+}
+
+.point-quote .point-kind {
+  color: var(--quote);
+}
+
+.point-text {
+  display: block;
+}
+
+.full-text-heading {
+  border-top: 0.12rem solid var(--panel-edge);
+  padding-top: 1rem;
+}
+
+/* ---------------------------------------------------------- article body */
+
+.article-body {
+  font-size: 1rem;
+}
+
+.article-body p {
+  margin: 0 0 1.1rem;
+}
+
+.article-body h1,
+.article-body h2,
+.article-body h3,
+.article-body h4 {
+  color: var(--heading);
+  border-left: 0.3rem solid var(--heading);
+  padding-left: 0.6rem;
+  margin: 1.8rem 0 0.8rem;
+}
+
+.article-body ul,
+.article-body ol {
+  padding-left: 1.4rem;
+  margin: 0 0 1.1rem;
+}
+
+.article-body li {
+  margin-bottom: 0.6rem;
+}
+
+.article-body li::marker {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.article-body blockquote {
+  border-left: 0.3rem solid var(--quote);
+  color: var(--quote);
+  margin: 1.2rem 0;
+  padding: 0.2rem 0 0.2rem 0.9rem;
+}
+
+.article-body strong,
+.article-body b {
+  color: var(--heading);
+}
+
+.article-body img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 1.2rem 0;
+  border: 0.12rem solid var(--panel-edge);
+}
+
+.article-body pre,
+.article-body code {
+  font-family: ui-monospace, "Courier New", monospace;
+  font-size: 0.85rem;
+  white-space: pre-wrap;
+}
+
+.article-body table {
+  display: block;
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.prose h2 {
+  border-left: 0.3rem solid var(--heading);
+  padding-left: 0.6rem;
+}
+
+/* ------------------------------------------------------------- listening */
+
+.listen {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  border: 0.12rem solid var(--panel-edge);
+  padding: 0.75rem;
+  margin: 1rem 0 1.5rem;
+}
+
+.listen .btn {
+  width: auto;
+  flex: 1 1 12rem;
+}
+
+.listen .speed {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.8rem;
+}
+
+.listen .speed select {
+  width: auto;
+}
+
+/* The sentence being spoken, marked the way a finger marks a line of print. */
+.speaking {
+  background: var(--accent);
+  color: var(--on-accent);
+  box-shadow: 0 0 0 0.25rem var(--accent);
+}
+
+.speaking a,
+.speaking strong {
+  color: var(--on-accent);
+}
+
+.contents ul {
+  padding-left: 1.4rem;
+}
+
+.contents li {
+  margin-bottom: 0.4rem;
+}
+
+.preview {
+  border: 0.12rem solid var(--panel-edge);
+  padding: 1rem;
+  margin-bottom: 2rem;
+}
+
+/* ---------------------------------------------------------------- print */
+
+/*
+ * Printing keeps the reader's own format — black paper included, since that is
+ * how these articles are read on paper today, and print-colour-adjust is the
+ * only way to stop a browser helpfully throwing the background away. Choosing
+ * the light theme before printing gives the ink-saving version.
+ */
+@media print {
+  html, body {
+    background: var(--bg) !important;
+    color: var(--fg) !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .bar,
+  .main-nav,
+  .page-foot,
+  .listen,
+  .stack,
+  .messages,
+  .skip-link,
+  .back-link,
+  .pager,
+  .row-actions {
+    display: none !important;
+  }
+
+  .page {
+    max-width: none;
+    padding: 0;
+  }
+
+  a {
+    color: var(--fg) !important;
+  }
+
+  .key-points {
+    break-inside: avoid;
+  }
+}
+
+/* Some readers set their own stylesheet or force colours; do not fight it. */
+@media (forced-colors: active) {
+  .btn,
+  button,
+  .tag,
+  .panel,
+  .key-points {
+    border-color: currentColor;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}

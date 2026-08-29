@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" th:class="${display.bodyClasses()}">
+<head th:replace="~{accessible/fragments/page :: head('Saved articles')}"></head>
+<body>
+<div th:replace="~{accessible/fragments/page :: top('saved')}"></div>
+
+<main id="main" class="page">
+  <div th:replace="~{accessible/fragments/page :: messages}"></div>
+
+  <h1>Saved articles</h1>
+  <p class="lede" th:if="${total > 0}">
+    <span th:text="${total}">0</span>
+    <span th:text="${total == 1} ? 'article you put aside' : 'articles you put aside'">articles you put aside</span>,
+    newest first.
+  </p>
+
+  <p class="panel" th:if="${#lists.isEmpty(articles)}">
+    You have not saved anything yet. Every article has a <strong>Save</strong>
+    button — in the list and while you are reading it — and whatever you save
+    turns up here, whether or not you have read it.
+  </p>
+
+  <ul class="article-list" th:if="${!#lists.isEmpty(articles)}">
+    <th:block th:each="a : ${articles}">
+      <li th:replace="~{accessible/fragments/page :: articleRow(${a}, ${listPath})}"></li>
+    </th:block>
+  </ul>
+
+  <nav class="pager" aria-label="More saved articles" th:if="${previousPath != null or nextPath != null}">
+    <a class="btn" th:if="${previousPath != null}" th:href="@{${previousPath}}">Newer</a>
+    <a class="btn" th:if="${nextPath != null}" th:href="@{${nextPath}}">Older</a>
+  </nav>
+</main>
+
+<footer th:replace="~{accessible/fragments/page :: foot}"></footer>
+<script th:src="@{/js/a11y.js}" defer></script>
+</body>
+</html>
