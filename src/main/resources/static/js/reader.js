@@ -87,6 +87,12 @@
     pageWidth = frame.clientWidth;
     frame.style.height = pageHeight + 'px';
     content.style.height = pageHeight + 'px';
+    // A width of its own, because pages are turned by pulling this element left
+    // with a negative margin and a block in normal flow answers that by growing
+    // as wide as the margin is deep. Left to grow, it fits a second column
+    // inside itself, the text is laid out to twice the intended measure, and
+    // every page but the first shows the middle of lines instead of the start.
+    content.style.width = pageWidth + 'px';
     content.style.marginLeft = '0px';
     setColumnStyle('columnWidth', pageWidth + 'px');
     setColumnStyle('columnGap', COLUMN_GAP + 'px');
@@ -338,6 +344,7 @@
     document.body.style.overflow = '';
     frame.style.height = '';
     content.style.height = '';
+    content.style.width = '';
     content.style.marginLeft = '';
     setColumnStyle('columnWidth', '');
     var images = content.getElementsByTagName('img');
