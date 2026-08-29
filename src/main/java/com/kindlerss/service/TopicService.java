@@ -45,8 +45,9 @@ public class TopicService {
         /** One sentence describing the outcome, ready to be read out. */
         public String summary() {
             if (added > 0 && alreadyFollowed > 0) {
-                return "Added " + count(added) + " to " + topicName
-                        + ". " + count(alreadyFollowed) + " were already there.";
+                return "Added " + count(added) + " to " + topicName + ". "
+                        + count(alreadyFollowed) + (alreadyFollowed == 1 ? " was" : " were")
+                        + " already there.";
             }
             if (added > 0) {
                 return "Added " + count(added) + " to " + topicName + ".";

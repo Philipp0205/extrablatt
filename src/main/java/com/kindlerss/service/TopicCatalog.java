@@ -17,9 +17,10 @@ import java.util.Optional;
  *
  * <p>A source is given as whatever address is most likely to keep working: the
  * feed itself where it is stable and published, otherwise the site's front page,
- * which {@link FeedService#addFeed} resolves through feed autodiscovery. A source
- * that cannot be resolved is reported and skipped; the rest of the topic is still
- * added.
+ * which {@link FeedService#addFeed} resolves through feed autodiscovery. Every
+ * entry here was checked against the live site, and a source that later stops
+ * publishing one is named in the message the reader gets rather than failing
+ * quietly — the rest of the topic is still added.
  */
 @Component
 public class TopicCatalog {
@@ -42,17 +43,16 @@ public class TopicCatalog {
                                     "Community news, audio description and everyday living."),
                             new Source("Perkins School for the Blind", "https://www.perkins.org/",
                                     "Practical guidance on living and learning without sight."),
-                            new Source("RNIB", "https://www.rnib.org.uk/",
-                                    "The UK's Royal National Institute of Blind People."),
+                            new Source("American Foundation for the Blind", "https://www.afb.org/rss.xml",
+                                    "Research, policy and practical guidance on living without sight."),
                             new Source("Blind Bargains", "https://www.blindbargains.com/",
                                     "Deals and news on assistive technology."))),
 
             new Topic("clinical-trials", "Clinical trials and medical research",
                     "New studies, trial results and the research behind them, in plain reporting.",
                     List.of(
-                            new Source("ScienceDaily: clinical trials",
-                                    "https://www.sciencedaily.com/rss/health_medicine/clinical_trials.xml",
-                                    "Short write-ups of newly published trials."),
+                            new Source("The Lancet", "https://www.thelancet.com/rssfeed/lancet_online.xml",
+                                    "Newly published studies from the Lancet."),
                             new Source("STAT News", "https://www.statnews.com/feed/",
                                     "Reporting on medicine, biotech and the business of health."),
                             new Source("US National Institutes of Health",
@@ -60,16 +60,18 @@ public class TopicCatalog {
                                     "Research announcements straight from the NIH."),
                             new Source("Medical Xpress", "https://medicalxpress.com/rss-feed/",
                                     "Daily medical research news."),
-                            new Source("The BMJ", "https://www.bmj.com/",
+                            new Source("The BMJ", "https://www.bmj.com/rss.xml",
                                     "Research and analysis from the British Medical Journal."))),
 
             new Topic("eye-health", "Eye health and sight research",
                     "Treatments, trials and research specifically about vision loss.",
                     List.of(
-                            new Source("National Eye Institute", "https://www.nei.nih.gov/",
-                                    "The US government's eye research institute."),
-                            new Source("Foundation Fighting Blindness", "https://www.fightingblindness.org/",
-                                    "Research and trials for inherited retinal diseases."),
+                            new Source("Clinical trials now recruiting: eye conditions",
+                                    "https://clinicaltrials.gov/api/rss?cond=Eye+Diseases&aggFilters=status:rec",
+                                    "Straight from ClinicalTrials.gov, as each one opens."),
+                            new Source("Medical Xpress: eyes and vision",
+                                    "https://medicalxpress.com/rss-feed/ophthalmology-news/",
+                                    "Daily reporting on eye research and treatment."),
                             new Source("Prevent Blindness", "https://preventblindness.org/",
                                     "Patient-facing news on eye conditions and care."),
                             new Source("ScienceDaily: eye care",
@@ -98,8 +100,9 @@ public class TopicCatalog {
                             new Source("ScienceDaily: health",
                                     "https://www.sciencedaily.com/rss/health_medicine.xml",
                                     "Medical research summarised daily."),
-                            new Source("Harvard Health", "https://www.health.harvard.edu/blog",
-                                    "Plain-language advice from Harvard Medical School."))),
+                            new Source("The Guardian: health",
+                                    "https://www.theguardian.com/society/health/rss",
+                                    "Health reporting from the Guardian."))),
 
             new Topic("world-news", "World news",
                     "What is happening, from several newsrooms at once.",
@@ -145,7 +148,7 @@ public class TopicCatalog {
                                     "Book reviews and author interviews."),
                             new Source("The Guardian: books", "https://www.theguardian.com/books/rss",
                                     "Reviews and literary news."),
-                            new Source("LibriVox", "https://librivox.org/",
+                            new Source("LibriVox", "https://librivox.org/rss/latest_releases",
                                     "New free public-domain audiobooks, read by volunteers."))),
 
             new Topic("good-news", "Good news",

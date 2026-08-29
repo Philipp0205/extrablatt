@@ -44,6 +44,33 @@ class ArticleHighlightsTest {
     }
 
     @Test
+    void picksUpSectionHeadingsThatArePublishedAsBoldParagraphs() {
+        // How several real newsrooms mark their sections up, ScienceDaily among them.
+        ArticleHighlights.Summary summary = highlights.summarize("""
+                <p>An opening paragraph long enough to be the lead of the article itself.</p>
+                <p><strong>Searching for biological signs</strong></p>
+                <p>More prose that carries the section and runs to a reasonable length.</p>
+                <p><strong>What happens next</strong></p>
+                <p>This paragraph <strong>emphasises</strong> a word but is not a heading.</p>
+                """);
+
+        assertEquals(2, summary.points().size());
+        assertEquals(ArticleHighlights.Kind.HEADING, summary.points().get(0).kind());
+        assertEquals("Searching for biological signs", summary.points().get(0).text());
+        assertEquals("What happens next", summary.points().get(1).text());
+    }
+
+    @Test
+    void aWholeBoldSentenceIsNotAHeading() {
+        ArticleHighlights.Summary summary = highlights.summarize(
+                "<p><strong>This is a bold sentence, and it ends like one.</strong></p>"
+                        + "<p><b>" + "long ".repeat(40) + "</b></p>");
+
+        assertFalse(summary.points().stream()
+                .anyMatch(point -> point.kind() == ArticleHighlights.Kind.HEADING));
+    }
+
+    @Test
     void anArticleWithNoStructureFallsBackToItsOpeningSentences() {
         ArticleHighlights.Summary summary = highlights.summarize("""
                 <p>Researchers at nine hospitals have reported the results of a two-year study
