@@ -12,6 +12,23 @@
 	}
 }
 
+# The accessibility-first edition of the same application: same process, same
+# database, same accounts, different view layer (chosen from this host name).
+# Point this at accessibility.extrablatt.app. Left on a placeholder host when
+# ACCESSIBILITY_DOMAIN is unset, so Caddy still starts on an app-only deployment
+# and the edition stays reachable through ?display=accessible.
+{$ACCESSIBILITY_DOMAIN:accessibility.localhost} {
+	encode gzip
+	reverse_proxy app:8080
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options nosniff
+		Referrer-Policy no-referrer
+		X-Frame-Options DENY
+		-Server
+	}
+}
+
 # Static marketing/landing page, served straight from disk — no application
 # server involved. Point this at your bare domain, e.g. extrablatt.app.
 # Left pointing at a placeholder host when MARKETING_DOMAIN is unset, so Caddy
