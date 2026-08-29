@@ -141,6 +141,52 @@ button[disabled], button[disabled]:hover, button[disabled]:focus {
   color: #fff;
 }
 
+/* A touch screen has no pointer to hover with, but it does leave :hover and
+   :focus behind on whatever was tapped last — so with the rules above, the
+   button just pressed stays inverted for as long as the page is open and reads
+   as still held down, or as the filter now in use. Hand both states back where
+   the browser understands the question; one that matches neither query keeps
+   the plain behaviour above, which is what a Kindle is left with. */
+@media (hover: none) {
+  a:hover,
+  nav.top a:hover,
+  button:hover,
+  .btn:hover {
+    background: #fff;
+    color: #000;
+  }
+
+  .btn.danger:hover {
+    background: #fff;
+    color: #a00;
+  }
+
+  .filters a.active:hover {
+    background: #000;
+    color: #fff;
+  }
+}
+
+@supports selector(:focus-visible) {
+  a:focus:not(:focus-visible),
+  nav.top a:focus:not(:focus-visible),
+  button:focus:not(:focus-visible),
+  .btn:focus:not(:focus-visible) {
+    background: #fff;
+    color: #000;
+  }
+
+  .btn.danger:focus:not(:focus-visible) {
+    background: #fff;
+    color: #a00;
+  }
+
+  .filters a.active:focus:not(:focus-visible) {
+    background: #000;
+    color: #fff;
+  }
+}
+
 /* Inline forms hold a single button; they must not add a line box of their own,
    otherwise the button sits lower than the links beside it. */
 form.inline {
