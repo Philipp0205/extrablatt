@@ -65,7 +65,9 @@ public class AppController {
     }
 
     @GetMapping("/")
-    public String home(Model model) {
+    public String home(@RequestParam(value = "view", defaultValue = "feeds") String view,
+                       @RequestParam(value = "category", required = false) String category,
+                       Model model) {
         long userId = currentUser.requireId();
         List<Feed> feeds = feedService.listFeeds(userId);
         long totalUnread = feeds.stream().mapToLong(Feed::unreadCount).sum();
@@ -75,9 +77,22 @@ public class AppController {
             feedGroups.computeIfAbsent(feed.categoryName(), ignored -> new ArrayList<>()).add(feed);
         }
         model.addAttribute("feedGroups", feedGroups);
-        model.addAttribute("categories", existingCategories(feeds));
+        List<String> categories = existingCategories(feeds);
+        model.addAttribute("categories", categories);
         model.addAttribute("defaultFeeds", feedService.defaultFeeds(userId));
         model.addAttribute("totalUnread", totalUnread);
+        String selectedCategory = category == null ? null : category.trim();
+        if (selectedCategory != null && !categories.contains(selectedCategory)
+                && !Feed.UNCATEGORIZED.equals(selectedCategory)) {
+            selectedCategory = null;
+        }
+        String activeView = selectedCategory != null ? "category"
+                : switch (view) {
+                    case "add", "free-test" -> view;
+                    default -> "feeds";
+                };
+        model.addAttribute("activeView", activeView);
+        model.addAttribute("selectedCategory", selectedCategory);
         model.addAttribute("kindleConfigured", isKindleConfigured(userId));
         model.addAttribute("mailFrom", mailFrom);
         boolean newslettersEnabled = properties.newsletters().enabled();
