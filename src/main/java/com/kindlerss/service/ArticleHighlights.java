@@ -37,6 +37,9 @@ public class ArticleHighlights {
     /** A paragraph short enough to be a caption or a byline is not a lead. */
     private static final int MIN_LEAD_PARAGRAPH_LENGTH = 90;
 
+    /** Past this, a run of bold text is a pull quote or a warning, not a heading. */
+    private static final int MAX_HEADING_LENGTH = 120;
+
     /** Average adult reading speed, rounded down to something forgiving. */
     private static final int WORDS_PER_MINUTE = 200;
 
@@ -94,7 +97,7 @@ public class ArticleHighlights {
     private static List<Point> structuralPoints(Document document) {
         List<Point> points = new ArrayList<>();
         Set<String> seen = new LinkedHashSet<>();
-        for (Element element : document.body().select("h1, h2, h3, h4, h5, h6, li, blockquote")) {
+        for (Element element : document.body().select("h1, h2, h3, h4, h5, h6, li, blockquote, p")) {
             if (points.size() >= MAX_POINTS) {
                 break;
             }
@@ -102,6 +105,12 @@ public class ArticleHighlights {
             // whole text as one point and then each child again. (Searching the
             // children rather than the element: jsoup's select matches self too.)
             if (!element.children().select("li, blockquote").isEmpty()) {
+                continue;
+            }
+            // Plenty of publishers write their section headings as a bold paragraph
+            // rather than as a heading tag. To a reader they are headings, and they
+            // are usually the only structure such an article has.
+            if ("p".equals(element.tagName()) && !isHeadingInDisguise(element)) {
                 continue;
             }
             Kind kind = kindOf(element.tagName());
@@ -148,6 +157,18 @@ public class ArticleHighlights {
             case "blockquote" -> Kind.QUOTE;
             default -> Kind.HEADING;
         };
+    }
+
+    /** A short paragraph that is nothing but emphasised text is a section heading. */
+    private static boolean isHeadingInDisguise(Element paragraph) {
+        String text = paragraph.text().replaceAll("\\s+", " ").trim();
+        if (text.isEmpty() || text.length() > MAX_HEADING_LENGTH || text.endsWith(".")) {
+            return false;
+        }
+        String emphasised = paragraph.select("strong, b, em, h1, h2, h3, h4, h5, h6")
+                .stream().map(Element::text).reduce("", (a, b) -> (a + " " + b).trim())
+                .replaceAll("\\s+", " ").trim();
+        return !emphasised.isEmpty() && emphasised.equals(text);
     }
 
     private static String firstSentence(String text) {

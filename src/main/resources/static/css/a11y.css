@@ -127,6 +127,13 @@ html.letters-wide {
   box-sizing: border-box;
 }
 
+/* Controls that only make sense once the script has run carry `hidden`, and a
+   class-based display rule below would otherwise outrank the browser's own
+   [hidden] rule and show them anyway. */
+[hidden] {
+  display: none !important;
+}
+
 html {
   font-size: var(--base);
   background: var(--bg);

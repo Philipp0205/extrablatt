@@ -143,6 +143,11 @@ rings, targets no smaller than 3rem, and no keyboard trap anywhere. Every action
 is an ordinary form post that works with JavaScript switched off; the script only
 adds instant feedback and the read-aloud control.
 
+Every page of the edition was checked with axe-core against WCAG 2.0/2.1/2.2 A
+and AA plus its best-practice rules, signed in and with real feed content, and
+reports no violations. That is a floor, not a finish line — an automated checker
+cannot tell whether a page is *usable*, only whether it is malformed.
+
 ## Delivery
 
 - `deploy/Caddyfile` gains a third site block for `$ACCESSIBILITY_DOMAIN`, proxying

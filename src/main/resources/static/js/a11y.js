@@ -122,7 +122,22 @@
     return;
   }
 
-  panel.hidden = false;
+  /*
+   * A browser can have the speech API and no voice to speak with — a bare Linux
+   * install, some Android builds — and then the button does nothing at all, which
+   * is worse than not offering it. Voices also arrive asynchronously in Chrome, so
+   * the panel appears whenever they turn up.
+   */
+  function revealWhenSpeakable() {
+    if (speech.getVoices().length > 0) {
+      panel.hidden = false;
+    }
+  }
+
+  revealWhenSpeakable();
+  if ('onvoiceschanged' in speech) {
+    speech.addEventListener('voiceschanged', revealWhenSpeakable, false);
+  }
 
   var blocks = [];
   var position = 0;
