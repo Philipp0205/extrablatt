@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" th:class="${display.bodyClasses()}">
+<head th:replace="~{accessible/fragments/page :: head('Create an account')}"></head>
+<body>
+<div th:replace="~{accessible/fragments/page :: top-signed-out}"></div>
+
+<main id="main" class="page">
+  <h1>Create an account</h1>
+  <p class="lede">A reader built for people who are blind or losing their sight:
+    black background, large text, colour that tells things apart, the main points
+    of an article first, and a voice to read it to you. It is free.</p>
+
+  <div class="messages" role="status" aria-live="polite">
+    <p class="message bad" th:if="${error}" th:text="${error}"></p>
+  </div>
+
+  <form th:action="@{/register}" method="post" class="form-stack">
+    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+
+    <label for="email">Your e-mail address</label>
+    <input id="email" name="email" type="email" autocomplete="email"
+           th:value="${email}" required autofocus
+           aria-describedby="email-help"/>
+    <p id="email-help" class="quiet">We send one message to confirm it is yours.</p>
+
+    <label for="password">Choose a password</label>
+    <input id="password" name="password" type="password" autocomplete="new-password"
+           required minlength="8" aria-describedby="password-help"/>
+    <p id="password-help" class="quiet">At least 8 characters.</p>
+
+    <button class="btn btn-strong" type="submit">Create my account</button>
+  </form>
+
+  <div class="stack">
+    <a class="btn" th:href="@{/login}">I already have an account</a>
+    <a class="btn btn-quiet" th:href="@{/help}">How does it work?</a>
+  </div>
+</main>
+
+<footer th:replace="~{accessible/fragments/page :: foot}"></footer>
+<script th:src="@{/js/a11y.js}" defer></script>
+</body>
+</html>

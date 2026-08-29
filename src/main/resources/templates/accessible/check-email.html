@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" th:class="${display.bodyClasses()}">
+<head th:replace="~{accessible/fragments/page :: head('Check your e-mail')}"></head>
+<body>
+<div th:replace="~{accessible/fragments/page :: top-signed-out}"></div>
+
+<main id="main" class="page">
+  <h1>Check your e-mail</h1>
+
+  <div class="panel" role="status">
+    <p th:if="${sentTo != null}">
+      We sent a message to <strong th:text="${sentTo}">you@example.com</strong>.
+    </p>
+    <p th:if="${sentTo == null}">We sent you a message.</p>
+    <p th:text="${instruction}">Open the link in it to carry on.</p>
+  </div>
+
+  <p>Nothing after a few minutes? Look in your spam or junk folder first — then
+    <a th:href="${retryPath} ?: @{/register}">try again</a>.</p>
+
+  <div class="stack">
+    <a class="btn" th:href="@{/login}">Back to signing in</a>
+  </div>
+</main>
+
+<footer th:replace="~{accessible/fragments/page :: foot}"></footer>
+<script th:src="@{/js/a11y.js}" defer></script>
+</body>
+</html>
