@@ -47,6 +47,9 @@ services:
       MAX_FEEDS_PER_USER: ${MAX_FEEDS_PER_USER:-50}
       MAX_SENDS_PER_DAY: ${MAX_SENDS_PER_DAY:-50}
       DONATE_URL: ${DONATE_URL:-}
+      # The app needs to recognise its own accessibility host to serve that
+      # edition there; Caddy needs it to get a certificate for it.
+      ACCESSIBILITY_DOMAIN: ${ACCESSIBILITY_DOMAIN:-}
     networks:
       - kindle
     healthcheck:
@@ -70,6 +73,9 @@ services:
       # Optional: the static marketing/landing page's domain (e.g. extrablatt.app,
       # with DOMAIN set to reader.extrablatt.app). Leave unset to run the app only.
       MARKETING_DOMAIN: ${MARKETING_DOMAIN:-}
+      # Optional: the accessibility edition's domain (e.g.
+      # accessibility.extrablatt.app), proxied to the same app container.
+      ACCESSIBILITY_DOMAIN: ${ACCESSIBILITY_DOMAIN:-}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - ../marketing:/srv/marketing:ro

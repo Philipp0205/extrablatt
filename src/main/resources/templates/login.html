@@ -44,6 +44,13 @@
     <a th:href="@{/register}">Create an account</a> ·
     <a th:href="@{/forgot-password}">Forgot password?</a>
   </p>
+
+  <!-- Someone who needs the accessible edition cannot be expected to guess that a
+       second subdomain exists, so the switch is offered where they already are. -->
+  <p class="meta">
+    <a th:href="@{/(display='accessible')}">Accessible version</a>
+    — large text, high contrast, and articles read aloud.
+  </p>
 </div>
 </body>
 </html>

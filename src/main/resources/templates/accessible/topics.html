@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" th:class="${display.bodyClasses()}">
+<head th:replace="~{accessible/fragments/page :: head('Your topics')}"></head>
+<body>
+<div th:replace="~{accessible/fragments/page :: top('topics')}"></div>
+
+<main id="main" class="page">
+  <div th:replace="~{accessible/fragments/page :: messages}"></div>
+
+  <div th:if="${!emailVerified}" class="panel panel-warn">
+    <h2>Please confirm your e-mail address</h2>
+    <p>We sent you a message with a link in it. Opening that link finishes setting
+      up your account. You can keep reading in the meantime.</p>
+  </div>
+
+  <h1>Your topics</h1>
+
+  <!-- The empty state is the important one: someone arriving here has never
+       managed to set up a reader before, so the first thing on the page is a
+       list of subjects, not a box asking for a URL. -->
+  <div th:if="${!hasSources}">
+    <p class="lede">Welcome. Choose a subject below and we will follow the good
+      sources on it for you. There is nothing to type and no addresses to find.</p>
+
+    <form th:action="@{/topics/follow}" method="post" class="topic-picker">
+      <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+      <ul class="topic-list">
+        <li th:each="topic : ${suggestions}" class="topic-card">
+          <h2 th:text="${topic.name}">Topic</h2>
+          <p th:text="${topic.description}">What it covers</p>
+          <p class="quiet">
+            <span th:text="${#lists.size(topic.sources)}">4</span> sources, including
+            <span th:text="${topic.sources[0].title}">a publication</span>.
+          </p>
+          <button class="btn btn-strong" type="submit" name="topic" th:value="${topic.key}">
+            <span>Follow </span><span th:text="${topic.name}">this topic</span>
+          </button>
+        </li>
+      </ul>
+    </form>
+  </div>
+
+  <div th:if="${hasSources}">
+    <p class="lede">
+      <span th:if="${totalUnread > 0}">
+        <strong th:text="${totalUnread}">0</strong>
+        <span th:text="${totalUnread == 1} ? 'new article is waiting.' : 'new articles are waiting.'">new articles are waiting.</span>
+      </span>
+      <span th:if="${totalUnread == 0}">You are up to date. Nothing new right now.</span>
+    </p>
+
+    <ul class="topic-list">
+      <li th:each="topic : ${followedTopics}" class="topic-card">
+        <h2>
+          <a th:href="@{/list(topic=${topic.name}, show='new')}" th:text="${topic.name}">Topic</a>
+        </h2>
+        <p class="quiet">
+          <span th:text="${topic.unread}">0</span> new ·
+          <span th:text="${topic.sources}">0</span>
+          <span th:text="${topic.sources == 1} ? 'source' : 'sources'">sources</span>
+        </p>
+      </li>
+    </ul>
+
+    <div class="stack">
+      <a class="btn btn-strong" th:href="@{/list(show='new')}">Read everything new</a>
+      <a class="btn" th:href="@{/saved}">
+        Saved articles<span th:if="${savedCount > 0}" th:text="' (' + ${savedCount} + ')'"></span>
+      </a>
+      <a class="btn" th:href="@{/topics/browse}">Add another topic</a>
+      <a class="btn" th:href="@{/sources}">Your sources</a>
+      <form th:action="@{/refresh}" method="post">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <input type="hidden" name="redirect" value="/topics"/>
+        <button class="btn" type="submit">Check for new articles now</button>
+      </form>
+    </div>
+  </div>
+</main>
+
+<footer th:replace="~{accessible/fragments/page :: foot}"></footer>
+<script th:src="@{/js/a11y.js}" defer></script>
+</body>
+</html>

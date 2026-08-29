@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" th:class="${display.bodyClasses()}">
+<head th:replace="~{accessible/fragments/page :: head('Your sources')}"></head>
+<body>
+<div th:replace="~{accessible/fragments/page :: top('topics')}"></div>
+
+<main id="main" class="page">
+  <div th:replace="~{accessible/fragments/page :: messages}"></div>
+
+  <h1>Your sources</h1>
+  <p class="lede">A source is one website or newsletter. Topics are just groups of
+    them, so you can put a source wherever it makes sense to you.</p>
+
+  <section aria-labelledby="add-heading">
+    <h2 id="add-heading">Follow a website</h2>
+    <p>Type the address of a site you like — <strong>bbc.com</strong>,
+      <strong>statnews.com</strong>, anything of that shape. You do not need to find
+      an RSS link, and it does not matter if you leave off the
+      <span class="quiet">https://</span> part.</p>
+
+    <form th:action="@{/sources/add}" method="post" class="form-stack">
+      <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+
+      <label for="address">Website address</label>
+      <input id="address" name="address" type="text" inputmode="url" autocomplete="url"
+             placeholder="bbc.com" required
+             aria-describedby="address-help"/>
+      <p id="address-help" class="quiet">For example: nfb.org, statnews.com, applevis.com</p>
+
+      <label for="topic">Put it under this topic</label>
+      <select id="topic" name="topic" data-category-select>
+        <option value="">No topic</option>
+        <option th:each="name : ${topicNames}" th:value="${name}" th:text="${name}">Topic</option>
+        <option value="__new__">A new topic…</option>
+      </select>
+
+      <div data-new-topic>
+        <label for="newTopic">Name of the new topic</label>
+        <input id="newTopic" name="newTopic" type="text"
+               placeholder="For example: Clinical trials"/>
+      </div>
+
+      <button class="btn btn-strong" type="submit">Follow this website</button>
+    </form>
+  </section>
+
+  <h2>What you follow now</h2>
+  <p class="panel" th:if="${#maps.isEmpty(sourcesByTopic)}">
+    Nothing yet. The quickest way to start is to
+    <a th:href="@{/topics/browse}">choose a topic</a>.
+  </p>
+
+  <section class="topic-sources" th:each="group : ${sourcesByTopic}">
+    <h3 th:text="${group.key}">Topic</h3>
+    <ul class="source-list">
+      <li th:each="source : ${group.value}">
+        <a th:href="@{/list(source=${source.id}, show='all')}" th:text="${source.title}">Source</a>
+        <span class="tag" th:if="${source.isNewsletter()}">Newsletter</span>
+        <span class="quiet" th:text="${source.unreadCount} + ' new'">0 new</span>
+        <p class="quiet bad" th:if="${source.lastError != null}">
+          This one could not be read last time we tried.
+        </p>
+        <form th:action="@{/sources/{id}/remove(id=${source.id})}" method="post">
+          <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+          <button class="btn btn-quiet" type="submit">
+            <span>Stop following</span>
+            <span class="visually-hidden" th:text="' ' + ${source.title}"></span>
+          </button>
+        </form>
+      </li>
+    </ul>
+  </section>
+</main>
+
+<footer th:replace="~{accessible/fragments/page :: foot}"></footer>
+<script th:src="@{/js/a11y.js}" defer></script>
+</body>
+</html>

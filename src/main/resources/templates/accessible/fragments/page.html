@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<!--
+  The furniture every page of the accessible edition shares. Kept in one place so
+  the skip link, the landmarks, the live region and the text-size control cannot
+  quietly go missing from a page later.
+-->
+<head th:fragment="head(pageTitle)">
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="color-scheme" content="dark light"/>
+  <title th:text="${pageTitle} + ' — Extrablatt'">Extrablatt</title>
+  <link rel="stylesheet" th:href="@{/css/a11y.css}"/>
+</head>
+<body>
+
+<!-- Everything above the page's own content. `here` names the current page so its
+     navigation link can say so, to a screen reader as well as on screen. -->
+<div th:fragment="top(here)">
+  <a class="skip-link" href="#main">Skip to the main content</a>
+
+  <header class="bar" role="banner">
+    <a class="brand" th:href="@{/topics}">
+      <span class="brand-name">Extrablatt</span>
+      <span class="brand-sub">easy reading</span>
+    </a>
+
+    <!-- Text size belongs where the text is, not on a settings page that has to be
+         found and read first. Two posts, no JavaScript required. -->
+    <form class="size-controls" th:action="@{/display/size}" method="post"
+          aria-label="Text size">
+      <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+      <input type="hidden" name="redirect" th:value="${currentPath}"/>
+      <button class="btn size-btn" type="submit" name="step" value="smaller"
+              th:disabled="${!display.canShrink()}">
+        <span aria-hidden="true">A−</span>
+        <span class="visually-hidden">Make the text smaller</span>
+      </button>
+      <button class="btn size-btn" type="submit" name="step" value="bigger"
+              th:disabled="${!display.canGrow()}">
+        <span aria-hidden="true">A+</span>
+        <span class="visually-hidden">Make the text bigger</span>
+      </button>
+    </form>
+  </header>
+
+  <nav class="main-nav" aria-label="Main">
+    <a th:href="@{/topics}" th:classappend="${here == 'topics'} ? ' current'"
+       th:attr="aria-current=${here == 'topics'} ? 'page' : null">Topics</a>
+    <a th:href="@{/list(show='new')}" th:classappend="${here == 'list'} ? ' current'"
+       th:attr="aria-current=${here == 'list'} ? 'page' : null">Articles</a>
+    <a th:href="@{/saved}" th:classappend="${here == 'saved'} ? ' current'"
+       th:attr="aria-current=${here == 'saved'} ? 'page' : null">Saved</a>
+    <a th:href="@{/display}" th:classappend="${here == 'display'} ? ' current'"
+       th:attr="aria-current=${here == 'display'} ? 'page' : null">Display</a>
+    <a th:href="@{/help}" th:classappend="${here == 'help'} ? ' current'"
+       th:attr="aria-current=${here == 'help'} ? 'page' : null">Help</a>
+  </nav>
+</div>
+
+<!-- Announcements. Always present, empty or not, so that a screen reader is
+     already watching this spot when something lands in it. -->
+<div th:fragment="messages" class="messages" role="status" aria-live="polite">
+  <p class="message good" th:if="${message}" th:text="${message}"></p>
+  <p class="message note" th:if="${note}" th:text="${note}"></p>
+  <p class="message bad" th:if="${error}" th:text="${error}"></p>
+</div>
+
+<footer th:fragment="foot" class="page-foot">
+  <nav aria-label="Elsewhere">
+    <a th:href="@{/settings}">Your account</a>
+    <a th:href="@{/help}">Help</a>
+    <a th:href="@{/privacy}">Privacy</a>
+    <a th:href="@{/(display='standard')}">Standard version</a>
+  </nav>
+  <p class="quiet">Extrablatt is free, with no adverts and nothing to buy.</p>
+</footer>
+
+<!-- The signed-out header: no navigation to speak of, but the same brand, the same
+     colours and the same text-size control, because the login form is a page too. -->
+<div th:fragment="top-signed-out">
+  <a class="skip-link" href="#main">Skip to the main content</a>
+  <header class="bar" role="banner">
+    <span class="brand">
+      <span class="brand-name">Extrablatt</span>
+      <span class="brand-sub">easy reading</span>
+    </span>
+    <form class="size-controls" th:action="@{/display/size}" method="post" aria-label="Text size">
+      <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+      <input type="hidden" name="redirect" th:value="${currentPath}"/>
+      <button class="btn size-btn" type="submit" name="step" value="smaller"
+              th:disabled="${!display.canShrink()}">
+        <span aria-hidden="true">A−</span>
+        <span class="visually-hidden">Make the text smaller</span>
+      </button>
+      <button class="btn size-btn" type="submit" name="step" value="bigger"
+              th:disabled="${!display.canGrow()}">
+        <span aria-hidden="true">A+</span>
+        <span class="visually-hidden">Make the text bigger</span>
+      </button>
+    </form>
+  </header>
+</div>
+
+<!-- One article as it appears in any list. -->
+<li th:fragment="articleRow(article, backPath)" class="article-row">
+  <a class="article-title" th:href="@{/read/{id}(id=${article.id}, from=${backPath})}">
+    <span class="tag tag-new" th:if="${!article.read}">New</span>
+    <span th:text="${article.title}">Article title</span>
+  </a>
+  <p class="article-meta">
+    <span class="source" th:text="${article.feedTitle}">Source</span>
+    <span class="when" th:if="${article.publishedAt != null}"
+          th:text="${when.describe(article.publishedAt)}">3 hours ago</span>
+  </p>
+  <form class="row-actions" th:action="@{/articles/{id}/save(id=${article.id})}" method="post"
+        data-save-form th:attr="data-save-url=@{/articles/{id}/save-async(id=${article.id})}">
+    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+    <input type="hidden" name="redirect" th:value="${backPath}"/>
+    <input type="hidden" name="saved" th:value="${article.saved()} ? 'false' : 'true'" data-save-state/>
+    <button class="btn btn-quiet" type="submit" data-save-button
+            th:attr="aria-pressed=${article.saved()} ? 'true' : 'false'">
+      <span th:text="${article.saved()} ? 'Saved' : 'Save'">Save</span>
+      <span class="visually-hidden" th:text="' — ' + ${article.title}"></span>
+    </button>
+  </form>
+</li>
+
+</body>
+</html>
