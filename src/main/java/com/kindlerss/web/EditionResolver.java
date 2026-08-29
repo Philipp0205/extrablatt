@@ -8,6 +8,8 @@ import org.springframework.core.env.Environment;
 import org.springframework.core.env.Profiles;
 import org.springframework.stereotype.Component;
 
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.Locale;
 
 /**
@@ -86,6 +88,28 @@ public class EditionResolver {
         return properties.accessibility().baseUrl();
     }
 
+    /**
+     * Where "Standard version" should lead from a page of the accessible edition:
+     * the standard edition's own host, or null to switch in place instead.
+     *
+     * <p>Switching in place is right on a host the two editions share, but wrong on
+     * the accessible edition's own host, where it leaves a year-long cookie that
+     * makes that host serve the standard edition from then on. The subdomain then
+     * goes on being called accessibility and quietly doing the opposite — and the
+     * reader who cannot read what it now serves is the least able to work out why.
+     */
+    public String standardEditionUrl(HttpServletRequest request) {
+        if (!matchesAccessibleHost(request)) {
+            return null;
+        }
+        String standard = properties.publicUrl();
+        String host = hostOf(standard);
+        if (host == null || host.equalsIgnoreCase(request.getServerName())) {
+            return null;
+        }
+        return standard;
+    }
+
     private Edition fromCookie(HttpServletRequest request) {
         Cookie[] cookies = request.getCookies();
         if (cookies == null) {
@@ -107,6 +131,14 @@ public class EditionResolver {
         host = host.toLowerCase(Locale.ROOT);
         String configured = properties.accessibility().domain();
         return configured != null ? host.equals(configured) : host.startsWith(CONVENTIONAL_SUBDOMAIN);
+    }
+
+    private static String hostOf(String url) {
+        try {
+            return new URI(url).getHost();
+        } catch (URISyntaxException e) {
+            return null;
+        }
     }
 
     private static String contextPath(HttpServletRequest request) {

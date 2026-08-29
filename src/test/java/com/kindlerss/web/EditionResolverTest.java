@@ -6,6 +6,7 @@ import org.springframework.mock.env.MockEnvironment;
 import org.springframework.mock.web.MockHttpServletRequest;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 /**
  * Which host gets the accessible edition. The interesting case is the deployment
@@ -44,8 +45,29 @@ class EditionResolverTest {
         assertEquals(Edition.STANDARD, resolver.resolve(requestTo("accessibility.extrablatt.app")));
     }
 
+    @Test
+    void leavingTheAccessibleHostMeansLeavingTheHostRatherThanPinningItToTheStandardEdition() {
+        EditionResolver resolver = resolverFor("accessibility.extrablatt.app", "https://reader.extrablatt.app");
+
+        assertEquals("https://reader.extrablatt.app",
+                resolver.standardEditionUrl(requestTo("accessibility.extrablatt.app")));
+        // Nothing to leave from: this host is the standard edition already.
+        assertNull(resolver.standardEditionUrl(requestTo("reader.extrablatt.app")));
+    }
+
+    @Test
+    void oneHostServingBothEditionsStillSwitchesInPlace() {
+        EditionResolver resolver = resolverFor(null, "https://accessibility.extrablatt.app");
+
+        assertNull(resolver.standardEditionUrl(requestTo("accessibility.extrablatt.app")));
+    }
+
     private static EditionResolver resolverFor(String domain) {
-        AppProperties properties = new AppProperties(null, null, null, null, null, null, null, null,
+        return resolverFor(domain, null);
+    }
+
+    private static EditionResolver resolverFor(String domain, String publicUrl) {
+        AppProperties properties = new AppProperties(null, publicUrl, null, null, null, null, null, null,
                 new AppProperties.Accessibility(domain), null);
         return new EditionResolver(properties, new MockEnvironment());
     }
