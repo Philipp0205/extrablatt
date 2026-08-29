@@ -68,6 +68,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @TestPropertySource(properties = {
         "app.mail-from=from@example.com",
         "app.remember-me-key=test-remember-key",
+        "app.public-url=https://reader.extrablatt.app",
         "app.accessibility.domain=accessibility.extrablatt.app"
 })
 class AccessibleEditionTest {
@@ -349,6 +350,16 @@ class AccessibleEditionTest {
                 .andExpect(view().name("accessible/display"))
                 .andExpect(content().string(
                         containsString("theme-black-yellow size-5 lines-3 font-serif letters-wide")));
+    }
+
+    @Test
+    @WithMockUser
+    void theWayOutOfTheAccessibleHostIsTheStandardHost() throws Exception {
+        // Not ?display=standard: that would leave this host serving the standard
+        // edition for a year, to the one reader who came here to avoid it.
+        mockMvc.perform(get("/topics").header("Host", ACCESSIBLE_HOST))
+                .andExpect(content().string(containsString("href=\"https://reader.extrablatt.app\"")))
+                .andExpect(content().string(not(containsString("display=standard"))));
     }
 
     @Test
