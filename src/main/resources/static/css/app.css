@@ -101,6 +101,21 @@ nav.top > form.inline > button {
   width: 100%;
 }
 
+/* Refresh is a utility action rather than a destination. Keep it visibly
+   secondary to the three full-size view buttons. */
+nav.top > form.inline.refresh-control {
+  flex: 0 0 auto;
+  align-self: center;
+}
+
+nav.top > form.inline.refresh-control > button {
+  min-width: 0;
+  min-height: 2.1rem;
+  width: auto;
+  padding: 0.3rem 0.55rem;
+  font-size: 0.82rem;
+}
+
 nav.top a, button, .btn {
   display: inline-flex;
   align-items: center;
@@ -120,6 +135,42 @@ nav.top a, button, .btn {
 
 nav.top a:hover, button:hover, .btn:hover,
 nav.top a:focus, button:focus, .btn:focus {
+  background: #000;
+  color: #fff;
+}
+
+nav.top a.active {
+  background: #000;
+  color: #fff;
+}
+
+/* View-specific navigation sits directly below the primary destinations. Its
+   smaller controls establish the hierarchy while still wrapping on Kindle and
+   narrow phone screens without horizontal scrolling. */
+nav.subnav {
+  display: flex;
+  flex-wrap: wrap;
+  margin: 0.15rem -0.4rem -0.4rem 0;
+  padding-top: 0.35rem;
+  border-top: 1px solid #000;
+}
+
+nav.subnav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.15rem;
+  margin: 0 0.4rem 0.4rem 0;
+  padding: 0.3rem 0.55rem;
+  border: 1px solid #000;
+  color: #000;
+  font-size: 0.84rem;
+  line-height: 1.15;
+  text-decoration: none;
+}
+
+nav.subnav a:hover,
+nav.subnav a:focus,
+nav.subnav a.active {
   background: #000;
   color: #fff;
 }
@@ -267,6 +318,11 @@ h3 {
 h1 {
   font-size: 1.5rem;
   margin: 0 0 1rem;
+}
+
+.subview > h1:first-child,
+.subview > h2:first-child {
+  margin-top: 0;
 }
 
 h2 {

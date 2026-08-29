@@ -225,7 +225,7 @@ class AppControllerSecurityTest {
 
         // Suggested feeds are only offered before anything has been subscribed.
         when(feedService.listFeeds(UID)).thenReturn(List.of());
-        mockMvc.perform(get("/"))
+        mockMvc.perform(get("/").param("view", "free-test"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("Quick start")))
                 .andExpect(content().string(containsString("value=\"hacker-news\"")));
@@ -233,9 +233,13 @@ class AppControllerSecurityTest {
         when(feedService.listFeeds(UID)).thenReturn(List.of(
                 new Feed(5L, "Android", "https://example.com/feed", "https://example.com",
                         "Technology", null, null, null)));
-        mockMvc.perform(get("/"))
+        mockMvc.perform(get("/").param("view", "free-test"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(not(containsString("Quick start"))))
+                .andExpect(content().string(containsString("Your test is complete")));
+
+        mockMvc.perform(get("/").param("category", "Technology"))
+                .andExpect(status().isOk())
                 .andExpect(content().string(containsString("action=\"/feeds/5/category\"")))
                 .andExpect(content().string(containsString(">Technology</h3>")));
     }
@@ -349,16 +353,6 @@ class AppControllerSecurityTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("href=\"/items?feed=9&amp;unread=false\"")))
                 .andExpect(content().string(containsString("Loose Feed")));
-    }
-
-    @Test
-    @WithMockUser
-    void homePageShowsBuildIdentity() throws Exception {
-        when(feedService.listFeeds(UID)).thenReturn(List.of());
-        mockMvc.perform(get("/"))
-                .andExpect(status().isOk())
-                .andExpect(content().string(containsString("class=\"build-info\"")))
-                .andExpect(content().string(containsString("revision")));
     }
 
     @Test

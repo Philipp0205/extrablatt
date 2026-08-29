@@ -37,6 +37,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.matchesPattern;
 import static org.hamcrest.Matchers.not;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -45,6 +46,7 @@ import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -149,7 +151,15 @@ class AccessibleEditionTest {
                 .andExpect(status().isOk())
                 .andExpect(view().name("accessible/login"))
                 .andExpect(content().string(containsString("/css/a11y.css")))
-                .andExpect(content().string(containsString("Skip to the main content")));
+                .andExpect(content().string(containsString("Skip to the main content")))
+                // Theme classes and a tiny inline theme land in the first document so
+                // the page is never painted in the browser default before a11y.css.
+                .andExpect(content().string(containsString("theme-black-bright size-3")))
+                .andExpect(content().string(matchesPattern(
+                        "(?s).*<head>.*--bg:\\s*#000000.*<link rel=\"stylesheet\"[^>]*a11y\\.css.*</head>.*")))
+                .andExpect(content().string(containsString("action=\"/display/size\"")))
+                .andExpect(content().string(containsString("Make the text bigger")))
+                .andExpect(content().string(containsString("name=\"redirect\" value=\"/login\"")));
 
         mockMvc.perform(get("/login"))
                 .andExpect(status().isOk())
@@ -184,7 +194,10 @@ class AccessibleEditionTest {
                 .andExpect(content().string(containsString("Clinical trials and medical research")))
                 .andExpect(content().string(containsString("value=\"blindness\"")))
                 // Nothing on this page asks anyone to find a feed URL.
-                .andExpect(content().string(not(containsString("RSS/Atom"))));
+                .andExpect(content().string(not(containsString("RSS/Atom"))))
+                .andExpect(content().string(containsString("theme-black-bright size-3")))
+                .andExpect(content().string(matchesPattern(
+                        "(?s).*<head>.*--bg:\\s*#000000.*<link rel=\"stylesheet\"[^>]*a11y\\.css.*</head>.*")));
     }
 
     @Test
@@ -276,6 +289,29 @@ class AccessibleEditionTest {
 
     @Test
     @WithMockUser
+    void theMainPointsAreNotLabelledWithWhatKindOfPointTheyAre() throws Exception {
+        // An article with no structure falls back to its lead sentences, which is
+        // the common case — and used to label every line of the summary "Opening".
+        Article article = new Article(4L, 1L, "guid", "How the trial went", null, null,
+                Instant.now(), null, null, null, false, null, null, null, "STAT News", null);
+        when(articleService.findById(UID, 4L)).thenReturn(Optional.of(article));
+        when(articleService.getContentHtml(any(Article.class), eq(false))).thenReturn("""
+                <p>The trial enrolled six hundred people over two years at nine sites in four countries,
+                   and followed all of them for a further year afterwards.</p>
+                <p>Half of them were given the treatment and the other half were given a placebo instead,
+                   without either the patients or their doctors knowing which was which.</p>
+                """);
+
+        mockMvc.perform(get("/read/4").header("Host", ACCESSIBLE_HOST))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("The main points")))
+                .andExpect(content().string(containsString("The trial enrolled six hundred people")))
+                .andExpect(content().string(not(containsString("point-kind"))))
+                .andExpect(content().string(not(containsString(">Opening<"))));
+    }
+
+    @Test
+    @WithMockUser
     void keyPointsCanBeTurnedOff() throws Exception {
         Article article = new Article(4L, 1L, "guid", "How the trial went", null, null, null,
                 null, null, null, true, null, null, null, "STAT News", null);
@@ -336,6 +372,28 @@ class AccessibleEditionTest {
         assertEquals(DisplayPreferences.DEFAULTS.textSize() + 1,
                 DisplayPreferences.decode(saved.getValue()).textSize());
         verify(preferencesRepository).save(eq(UID), any(DisplayPreferences.class));
+    }
+
+    @Test
+    void theTextSizeButtonsOnTheLoginFormWorkWithoutSigningIn() throws Exception {
+        // The cookie is the point of display preferences: the login form itself must
+        // already arrive in the reader's chosen size. Nobody is signed in yet, so the
+        // account copy must not be touched.
+        when(currentUser.details()).thenReturn(Optional.empty());
+
+        var result = mockMvc.perform(post("/display/size").with(csrf())
+                        .header("Host", ACCESSIBLE_HOST)
+                        .param("step", "bigger")
+                        .param("redirect", "/login"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/login"))
+                .andReturn();
+
+        Cookie saved = result.getResponse().getCookie(DisplayPreferencesService.COOKIE);
+        assertNotNull(saved);
+        assertEquals(DisplayPreferences.DEFAULTS.textSize() + 1,
+                DisplayPreferences.decode(saved.getValue()).textSize());
+        verify(preferencesRepository, never()).save(anyLong(), any(DisplayPreferences.class));
     }
 
     @Test
