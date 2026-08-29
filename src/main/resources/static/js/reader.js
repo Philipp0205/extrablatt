@@ -16,6 +16,10 @@
   var COLUMN_GAP = 32;
   var BOTTOM_GAP = 6;
   var MIN_PAGE_HEIGHT = 160;
+  /* Sideways travel that counts as turning the page rather than as a tap that
+     wandered, and the share of it that has to be sideways rather than down. */
+  var SWIPE_MIN = 40;
+  var SWIPE_RATIO = 1.5;
   /* A viewport that changes by less than this is not worth reflowing the text
      for: a phone browser reports small changes of its own accord. */
   var REFIT_THRESHOLD = 24;
@@ -59,6 +63,13 @@
   // phone browser reports can be told apart from a rotation.
   var fittedWidth = 0;
   var fittedHeightFor = 0;
+  var touchStart = null;
+  var swiped = false;
+  // Whether text was selected when the press that led to a click began: pressing
+  // is itself what clears a selection, so by the time the click arrives there is
+  // nothing left to ask.
+  var selectionHeld = false;
+  var lastTouchAt = 0;
 
   function on(target, type, handler) {
     if (target.addEventListener) {
@@ -282,12 +293,71 @@
     return false;
   }
 
+  /* Text the reader is holding selected is text somebody is about to copy, and
+     the tap that ends the selection is not a request for the next page. */
+  function hasSelection() {
+    var selection = window.getSelection ? window.getSelection() : null;
+    return !!selection && !selection.isCollapsed && String(selection) !== '';
+  }
+
   function onFrameClick(event) {
-    if (isInteractive(event.target)) {
+    if (isInteractive(event.target) || hasSelection()) {
+      return;
+    }
+    // A swipe has already turned the page; the click it leaves behind must not
+    // turn another.
+    if (swiped) {
+      swiped = false;
+      return;
+    }
+    // The tap that puts a selection away is a tap about the selection.
+    if (selectionHeld) {
+      selectionHeld = false;
       return;
     }
     var bounds = frame.getBoundingClientRect();
     turn((event.clientX - bounds.left) < bounds.width / 4 ? -1 : 1);
+  }
+
+  function onTouchStart(event) {
+    var touch = event.changedTouches && event.changedTouches[0];
+    lastTouchAt = new Date().getTime();
+    selectionHeld = hasSelection();
+    swiped = false;
+    touchStart = touch ? { x: touch.clientX, y: touch.clientY } : null;
+  }
+
+  function onMouseDown() {
+    // A touch screen follows its touch with a mouse press of its own, long after
+    // the touch cleared whatever was selected.
+    if (new Date().getTime() - lastTouchAt < 700) {
+      return;
+    }
+    selectionHeld = hasSelection();
+  }
+
+  /* Swiping sideways is how a page is turned on a phone, and unlike the tap
+     zones it says which way to go without having to know where the screen is
+     divided. A finger that travelled this far was never pressing the link it
+     happens to have started on, so the swipe is taken even there — and the tap
+     the browser would otherwise make of it is called off. */
+  function onTouchEnd(event) {
+    var start = touchStart;
+    var touch = event.changedTouches && event.changedTouches[0];
+    touchStart = null;
+    if (!start || !touch || !paged || hasSelection()) {
+      return;
+    }
+    var across = touch.clientX - start.x;
+    var down = touch.clientY - start.y;
+    if (Math.abs(across) < SWIPE_MIN || Math.abs(across) < Math.abs(down) * SWIPE_RATIO) {
+      return;
+    }
+    if (event.cancelable && event.preventDefault) {
+      event.preventDefault();
+    }
+    swiped = true;
+    turn(across < 0 ? 1 : -1);
   }
 
   function onKeyDown(event) {
@@ -434,6 +504,9 @@
       on(nextButton, 'click', function () { turn(1); });
     }
     on(frame, 'click', onFrameClick);
+    on(frame, 'mousedown', onMouseDown);
+    on(frame, 'touchstart', onTouchStart);
+    on(frame, 'touchend', onTouchEnd);
     on(document, 'keydown', onKeyDown);
     on(window, 'resize', onResize);
     // A phone browser hiding or showing a toolbar of its own changes how much of

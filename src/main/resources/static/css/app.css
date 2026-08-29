@@ -544,6 +544,13 @@ input[type="email"], input[type="url"], input[type="password"], input[type="text
 
 .reader.paged .reader-frame {
   overflow: hidden;
+  /* Pages are turned by sideways swipes of the reader's own. A phone browser
+     would otherwise take one that starts near the edge of the screen for its
+     gesture to go back in history, and leave the article altogether. Nothing in
+     the frame scrolls sideways for the browser to do instead, and pinching to
+     zoom is left alone. */
+  touch-action: pan-y pinch-zoom;
+  overscroll-behavior-x: contain;
 }
 
 .reader.paged .reader-content > h1 {
