@@ -10,6 +10,35 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="color-scheme" content="dark light"/>
   <title th:text="${pageTitle} + ' — Extrablatt'">Extrablatt</title>
+  <!-- Until a11y.css arrives the canvas would paint in the browser default —
+       white, small type — which is the opposite of what this edition is for. -->
+  <style>
+    html {
+      --bg: #000000;
+      --fg: #ffffff;
+      --base: 28px;
+      background: var(--bg);
+      color: var(--fg);
+      font-size: var(--base);
+      color-scheme: dark;
+    }
+    html.theme-black-yellow { --fg: #ffd60a; }
+    html.theme-light-contrast {
+      --bg: #ffffff;
+      --fg: #000000;
+      color-scheme: light;
+    }
+    html.size-1 { --base: 20px; }
+    html.size-2 { --base: 24px; }
+    html.size-3 { --base: 28px; }
+    html.size-4 { --base: 34px; }
+    html.size-5 { --base: 42px; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--fg);
+    }
+  </style>
   <link rel="stylesheet" th:href="@{/css/a11y.css}"/>
 </head>
 <body>

@@ -37,6 +37,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.matchesPattern;
 import static org.hamcrest.Matchers.not;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -149,7 +150,12 @@ class AccessibleEditionTest {
                 .andExpect(status().isOk())
                 .andExpect(view().name("accessible/login"))
                 .andExpect(content().string(containsString("/css/a11y.css")))
-                .andExpect(content().string(containsString("Skip to the main content")));
+                .andExpect(content().string(containsString("Skip to the main content")))
+                // Theme classes and a tiny inline theme land in the first document so
+                // the page is never painted in the browser default before a11y.css.
+                .andExpect(content().string(containsString("theme-black-bright size-3")))
+                .andExpect(content().string(matchesPattern(
+                        "(?s).*<head>.*--bg:\\s*#000000.*<link rel=\"stylesheet\"[^>]*a11y\\.css.*</head>.*")));
 
         mockMvc.perform(get("/login"))
                 .andExpect(status().isOk())
@@ -184,7 +190,10 @@ class AccessibleEditionTest {
                 .andExpect(content().string(containsString("Clinical trials and medical research")))
                 .andExpect(content().string(containsString("value=\"blindness\"")))
                 // Nothing on this page asks anyone to find a feed URL.
-                .andExpect(content().string(not(containsString("RSS/Atom"))));
+                .andExpect(content().string(not(containsString("RSS/Atom"))))
+                .andExpect(content().string(containsString("theme-black-bright size-3")))
+                .andExpect(content().string(matchesPattern(
+                        "(?s).*<head>.*--bg:\\s*#000000.*<link rel=\"stylesheet\"[^>]*a11y\\.css.*</head>.*")));
     }
 
     @Test
