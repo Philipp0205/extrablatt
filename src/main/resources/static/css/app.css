@@ -240,9 +240,13 @@ h3 {
   min-width: 0;
 }
 
-.category-heading .rename-form {
+.category-heading details.tools {
   flex: 0 1 auto;
   min-width: 0;
+}
+
+.category-heading details.tools .rename-form {
+  margin-top: 0.5rem;
 }
 
 .category-heading .rename-form .category-rename-input {
@@ -397,6 +401,44 @@ input[type="email"], input[type="url"], input[type="password"], input[type="text
   font-family: "Courier New", Courier, monospace;
   font-size: 0.9rem;
   word-break: break-all;
+}
+
+/* Secondary controls fold away behind native disclosures: no JavaScript, and a
+   browser that never learned <details> shows everything expanded, which is what
+   these pages did before. The summary is drawn as a small button so it reads as
+   a control rather than a heading; the display override also drops the default
+   triangle marker, with the WebKit pseudo-element covering older engines. */
+details.tools > summary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.25rem;
+  min-width: 2.75rem;
+  padding: 0.3rem 0.6rem;
+  border: 1px solid #000;
+  font-size: 0.85rem;
+  line-height: 1.2;
+  cursor: pointer;
+  list-style: none;
+}
+
+details.tools > summary::-webkit-details-marker {
+  display: none;
+}
+
+details.tools > summary:hover,
+details.tools > summary:focus,
+details.tools[open] > summary {
+  background: #000;
+  color: #fff;
+}
+
+details.tools > .tools-body {
+  margin-top: 0.5rem;
+}
+
+.feed-list details.tools {
+  margin-top: 0.5rem;
 }
 
 .actions {

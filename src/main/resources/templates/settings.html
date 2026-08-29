@@ -45,23 +45,29 @@
     </div>
   </form>
 
-  <div class="meta" style="margin-top:1rem">
-    <p>To let articles reach your Kindle, add our sender address to Amazon's
-      approved list:</p>
-    <ol>
-      <li>Find your Send-to-Kindle e-mail on Amazon under
-        <em>Manage Your Content and Devices → Preferences → Personal Document Settings</em>,
-        and enter it above.</li>
-      <li>In the same place, add
-        <strong th:text="${mailFrom} ?: 'our sender address'">sender@example.com</strong>
-        to the <em>Approved Personal Document E-mail List</em>.</li>
-    </ol>
-    <p>
-      <a class="btn" href="https://www.amazon.de/hz/mycd/preferences/myx#/home/settings/payment"
-         target="_blank" rel="noopener noreferrer">Open Amazon settings</a>
-      — easiest to complete on your phone.
-    </p>
-  </div>
+  <!-- Setup instructions matter exactly once: expanded until a Kindle address is
+       saved, folded away afterwards so the page stays short. -->
+  <details class="tools" style="margin-top:1rem"
+           th:open="${#strings.isEmpty(account.kindleEmail)}">
+    <summary>Amazon setup instructions</summary>
+    <div class="tools-body meta">
+      <p>To let articles reach your Kindle, add our sender address to Amazon's
+        approved list:</p>
+      <ol>
+        <li>Find your Send-to-Kindle e-mail on Amazon under
+          <em>Manage Your Content and Devices → Preferences → Personal Document Settings</em>,
+          and enter it above.</li>
+        <li>In the same place, add
+          <strong th:text="${mailFrom} ?: 'our sender address'">sender@example.com</strong>
+          to the <em>Approved Personal Document E-mail List</em>.</li>
+      </ol>
+      <p>
+        <a class="btn" href="https://www.amazon.de/hz/mycd/preferences/myx#/home/settings/payment"
+           target="_blank" rel="noopener noreferrer">Open Amazon settings</a>
+        — easiest to complete on your phone.
+      </p>
+    </div>
+  </details>
 
   <div th:if="${newslettersEnabled}">
     <h2>Newsletters</h2>
