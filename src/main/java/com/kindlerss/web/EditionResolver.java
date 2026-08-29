@@ -31,6 +31,14 @@ public class EditionResolver {
     /** Request attribute (and model attribute) carrying the resolved edition. */
     public static final String ATTRIBUTE = "edition";
 
+    /**
+     * First label of the host the accessible edition is expected on when no domain
+     * is configured. Forgetting the setting is otherwise a silent failure: the
+     * subdomain resolves, answers, and serves the very edition the reader who
+     * needed it cannot use.
+     */
+    private static final String CONVENTIONAL_SUBDOMAIN = "accessibility.";
+
     private static final int COOKIE_MAX_AGE_SECONDS = 365 * 24 * 60 * 60;
 
     private final AppProperties properties;
@@ -92,12 +100,13 @@ public class EditionResolver {
     }
 
     private boolean matchesAccessibleHost(HttpServletRequest request) {
-        String configured = properties.accessibility().domain();
-        if (configured == null) {
+        String host = request.getServerName();
+        if (host == null) {
             return false;
         }
-        String host = request.getServerName();
-        return host != null && host.toLowerCase(Locale.ROOT).equals(configured);
+        host = host.toLowerCase(Locale.ROOT);
+        String configured = properties.accessibility().domain();
+        return configured != null ? host.equals(configured) : host.startsWith(CONVENTIONAL_SUBDOMAIN);
     }
 
     private static String contextPath(HttpServletRequest request) {

@@ -57,8 +57,14 @@ templates, its own stylesheet and its own (optional) script.
    host-only cookie. This also lets someone on `reader.extrablatt.app` turn the
    accessible edition on without knowing the subdomain exists.
 2. the `extrablatt-edition` cookie;
-3. the request host matching `app.accessibility.domain` (`ACCESSIBILITY_DOMAIN`);
+3. the request host matching `app.accessibility.domain` (`ACCESSIBILITY_DOMAIN`),
+   or — when that is unset — any host whose first label is `accessibility`;
 4. otherwise the standard edition.
+
+The unconfigured fallback exists because the alternative fails silently. A
+deployment that puts the subdomain in DNS but forgets the variable serves a
+working site that answers on the right name with the wrong edition, and the one
+reader who would notice is the one who cannot read it.
 
 An interceptor then does two things:
 
