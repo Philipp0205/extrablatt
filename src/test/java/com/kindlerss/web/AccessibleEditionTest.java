@@ -46,6 +46,7 @@ import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -155,7 +156,10 @@ class AccessibleEditionTest {
                 // the page is never painted in the browser default before a11y.css.
                 .andExpect(content().string(containsString("theme-black-bright size-3")))
                 .andExpect(content().string(matchesPattern(
-                        "(?s).*<head>.*--bg:\\s*#000000.*<link rel=\"stylesheet\"[^>]*a11y\\.css.*</head>.*")));
+                        "(?s).*<head>.*--bg:\\s*#000000.*<link rel=\"stylesheet\"[^>]*a11y\\.css.*</head>.*")))
+                .andExpect(content().string(containsString("action=\"/display/size\"")))
+                .andExpect(content().string(containsString("Make the text bigger")))
+                .andExpect(content().string(containsString("name=\"redirect\" value=\"/login\"")));
 
         mockMvc.perform(get("/login"))
                 .andExpect(status().isOk())
@@ -368,6 +372,28 @@ class AccessibleEditionTest {
         assertEquals(DisplayPreferences.DEFAULTS.textSize() + 1,
                 DisplayPreferences.decode(saved.getValue()).textSize());
         verify(preferencesRepository).save(eq(UID), any(DisplayPreferences.class));
+    }
+
+    @Test
+    void theTextSizeButtonsOnTheLoginFormWorkWithoutSigningIn() throws Exception {
+        // The cookie is the point of display preferences: the login form itself must
+        // already arrive in the reader's chosen size. Nobody is signed in yet, so the
+        // account copy must not be touched.
+        when(currentUser.details()).thenReturn(Optional.empty());
+
+        var result = mockMvc.perform(post("/display/size").with(csrf())
+                        .header("Host", ACCESSIBLE_HOST)
+                        .param("step", "bigger")
+                        .param("redirect", "/login"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/login"))
+                .andReturn();
+
+        Cookie saved = result.getResponse().getCookie(DisplayPreferencesService.COOKIE);
+        assertNotNull(saved);
+        assertEquals(DisplayPreferences.DEFAULTS.textSize() + 1,
+                DisplayPreferences.decode(saved.getValue()).textSize());
+        verify(preferencesRepository, never()).save(anyLong(), any(DisplayPreferences.class));
     }
 
     @Test
