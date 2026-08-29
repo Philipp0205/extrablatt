@@ -78,9 +78,14 @@ public class EditionInterceptor implements HandlerInterceptor {
             viewName = PREFIX + viewName;
             modelAndView.setViewName(viewName);
         }
+        // Attributes added to a redirect become query parameters, so a redirect gets
+        // nothing: there is no page here to render, only a location header.
+        if (!renderable) {
+            return;
+        }
         // A page that only exists in this edition is in this edition, whichever host
         // asked for it — otherwise it would render without the settings it needs.
-        if (!isAccessible(request) && (viewName == null || !viewName.startsWith(PREFIX))) {
+        if (!isAccessible(request) && !viewName.startsWith(PREFIX)) {
             return;
         }
         modelAndView.addObject(EditionResolver.ATTRIBUTE, Edition.ACCESSIBLE);

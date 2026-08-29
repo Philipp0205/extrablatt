@@ -21,8 +21,9 @@
   </p>
 
   <ul class="article-list" th:if="${!#lists.isEmpty(articles)}">
-    <li th:replace="~{accessible/fragments/page :: articleRow(${a}, ${listPath})}"
-        th:each="a : ${articles}"></li>
+    <th:block th:each="a : ${articles}">
+      <li th:replace="~{accessible/fragments/page :: articleRow(${a}, ${listPath})}"></li>
+    </th:block>
   </ul>
 
   <nav class="pager" aria-label="More saved articles" th:if="${previousPath != null or nextPath != null}">
