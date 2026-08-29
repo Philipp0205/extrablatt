@@ -99,8 +99,9 @@ public class ArticleHighlights {
                 break;
             }
             // A list inside a list item would otherwise contribute its parent's
-            // whole text as one point and then each child again.
-            if (element.select("li, blockquote").size() > 0) {
+            // whole text as one point and then each child again. (Searching the
+            // children rather than the element: jsoup's select matches self too.)
+            if (!element.children().select("li, blockquote").isEmpty()) {
                 continue;
             }
             Kind kind = kindOf(element.tagName());
