@@ -114,12 +114,42 @@ The article page is built for someone who has to work to read:
   each get their own bright hue against black, so kinds of content are
   distinguishable without reading them.
 - **Listen.** A play/pause control reads the article aloud with the browser's own
-  speech synthesis, highlighting each sentence as it is spoken. Free, offline,
+  speech synthesis, highlighting each paragraph as it is spoken. Free, offline,
   and useful both to someone who cannot read the screen and to someone who can
-  but tires quickly.
+  but tires quickly. Which voice does the reading is chosen rather than left to
+  the browser — see below.
 - **Print** keeps her format — dark background and large type, with
   `print-color-adjust: exact` — with an ink-saving alternative one click away.
 - Images stay off by default and are announced by their alt text instead.
+
+#### Choosing the voice, not accepting one
+
+Left alone, `speechSynthesis.speak()` uses whichever voice the operating system
+lists first. On Windows that is a 1990s formant synthesiser (*Microsoft David*),
+on Linux it is eSpeak, and on iOS it is the compact copy of a voice rather than
+the full one. All three sound like a robot, which is what a reader who tried the
+button reported. The same machines almost always have a modern neural voice
+behind the very same API: Edge's *… Online (Natural)* voices, Chrome's *Google*
+network voices, Apple's *Premium*/*Enhanced* downloads, Android's Google TTS.
+
+So `a11y.js` ranks the voices it can see, filtered to the language of the page:
+neural and premium families score highest, network-served voices next, and
+formant synthesisers, cut-down "compact"/"desktop" copies and Apple's novelty
+voices (*Zarvox*, *Bad News*, …) are pushed to the bottom. The best one is
+selected before the reader presses anything; the whole ranked list is offered in
+a **Voice** menu beside the button, which speaks a sample when it changes and is
+remembered per device in `localStorage`, along with the speed.
+
+Two consequences of preferring network voices are handled explicitly:
+
+- an utterance that fails (offline, or the voice service refusing) does not stop
+  the reading — the best offline voice takes over from the same sentence, for
+  that page only;
+- Chrome and Safari cut a remote utterance off after about fifteen seconds, so
+  paragraphs are queued a sentence or two at a time (≈180 characters), broken at
+  punctuation. That also puts a natural pause between sentences. Highlighting
+  stays at paragraph level, and the page is not re-scrolled between the pieces of
+  one paragraph.
 
 ### 3. Display settings that actually change the display
 
@@ -172,8 +202,13 @@ cannot tell whether a page is *usable*, only whether it is malformed.
 
 - **No separate service, database or codebase.** A second deployment would double
   the operational surface and split her account in two.
-- **No text-to-speech on the server.** Browser speech synthesis is free and
-  private; a server-side voice would cost money per article and add latency.
+- **No text-to-speech on the server.** Cloud voices (OpenAI, ElevenLabs, Azure
+  Neural, Google, Polly) are better than the best browser voice, but they bill
+  per character, need the article text sent to a third party, add several seconds
+  before the first word, and want an audio cache with a size limit. Ranking the
+  voices already on the device closes most of the gap for nothing. If it is ever
+  added it belongs behind an optional API key, defaulting off, with the browser
+  voices as the fallback — not as a replacement for them.
 - **No summarising model.** The highlights are the publisher's own headings and
   bullets, not a paraphrase that could quietly get a clinical trial result wrong.
 - **No new tracking.** Nothing about a reader's impairment is stored beyond the
