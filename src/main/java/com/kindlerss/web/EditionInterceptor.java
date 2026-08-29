@@ -95,6 +95,7 @@ public class EditionInterceptor implements HandlerInterceptor {
         // where they were used, so every page has to know its own address. Thymeleaf
         // 3.1 no longer exposes the request, so it is handed over here.
         modelAndView.addObject("currentPath", currentPath(request));
+        modelAndView.addObject("standardEditionUrl", resolver.standardEditionUrl(request));
     }
 
     private static String currentPath(HttpServletRequest request) {

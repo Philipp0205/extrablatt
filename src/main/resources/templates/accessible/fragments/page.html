@@ -71,7 +71,7 @@
     <a th:href="@{/settings}">Your account</a>
     <a th:href="@{/help}">Help</a>
     <a th:href="@{/privacy}">Privacy</a>
-    <a th:href="@{/(display='standard')}">Standard version</a>
+    <a th:href="${standardEditionUrl} ?: @{/(display='standard')}">Standard version</a>
   </nav>
   <p class="quiet">Extrablatt is free, with no adverts and nothing to buy.</p>
 </footer>
