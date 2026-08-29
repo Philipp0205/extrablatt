@@ -830,13 +830,6 @@ dialog.donate-dialog .row {
     min-height: 2.5rem;
   }
 
-  /* iOS Safari zooms the page in whenever it focuses a field under 16px, and
-     leaves it zoomed and scrolled sideways afterwards. Nothing here gains
-     enough from being smaller to be worth that. */
-  input, select, textarea {
-    font-size: 1rem;
-  }
-
   /* A 9rem field beside a heading is a desktop arrangement; on a phone the
      rename form takes the line under the heading and the full width of it. */
   .category-heading .rename-form {
@@ -847,6 +840,19 @@ dialog.donate-dialog .row {
     flex: 1 1 auto;
     width: auto;
     min-width: 0;
+  }
+}
+
+/* iOS Safari zooms the page in whenever it focuses a field under 16px, and
+   leaves it zoomed and scrolled sideways afterwards. Nothing here gains enough
+   from being smaller to be worth that. Asked of the pointer rather than of the
+   width, because a phone held sideways is wider than a small laptop. */
+@media (pointer: coarse) {
+  input, select, textarea {
+    font-size: 1rem;
+  }
+
+  .category-heading .rename-form .category-rename-input {
     min-height: 2.5rem;
     font-size: 1rem;
   }
