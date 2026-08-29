@@ -1,0 +1,15 @@
+{
+  "name": "Extrablatt",
+  "install": "./.cursor/install.sh",
+  "start": "./.cursor/start.sh",
+  "terminals": [
+    {
+      "name": "app",
+      "command": "DATABASE_URL=jdbc:postgresql://localhost:5432/kindle_rss DATABASE_USER=kindle DATABASE_PASSWORD=kindle APP_PUBLIC_URL=http://localhost:8080 MAIL_FROM=noreply@extrablatt.local SMTP_HOST=localhost SMTP_PORT=1025 SMTP_AUTH=false SMTP_STARTTLS=false REMEMBER_ME_KEY=dev-remember-me-key-change-me ADMIN_EMAILS=admin@extrablatt.local ./mvnw -B spring-boot:run"
+    }
+  ],
+  "ports": [
+    { "name": "app", "port": 8080 },
+    { "name": "mailpit", "port": 8025 }
+  ]
+}
