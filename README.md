@@ -281,11 +281,17 @@ ACCESSIBILITY_DOMAIN=accessibility.extrablatt.app
 ```
 
 It is passed to both the app (so it recognises its own host) and Caddy (so it gets
-a certificate). Leave it unset and nothing changes for anyone; the edition is then
-reachable only through `?display=accessible`, which also works on the main host and
-is remembered in a cookie — worth knowing, since a reader who needs it may arrive
-on the wrong subdomain. Locally, `http://localhost:8080/topics?display=accessible`
-is enough to see it with no DNS at all.
+a certificate). A host named `accessibility.<anything>` is recognised even without
+it, so a deployment that only adds the subdomain still gets the right edition
+there; set it anyway when the edition lives on a differently named host, and set it
+for Caddy either way.
+
+Leave it unset on a deployment without that subdomain and nothing changes for
+anyone; the edition is then reachable through `?display=accessible`, which also
+works on the main host and is remembered in a cookie — worth knowing, since a
+reader who needs it may arrive on the wrong subdomain. Locally,
+`http://localhost:8080/topics?display=accessible` is enough to see it with no DNS
+at all.
 
 ## Marketing / landing page
 
