@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" th:class="${display.bodyClasses()}">
+<head th:replace="~{accessible/fragments/page :: head('Terms')}"></head>
+<body>
+<div th:replace="~{accessible/fragments/page :: top-signed-out}"></div>
+
+<main id="main" class="page prose">
+  <!-- The same terms the standard edition shows, in this edition's layout. -->
+  <div th:replace="~{terms :: content}"></div>
+
+  <div class="stack">
+    <a class="btn" th:href="@{/topics}">Back to your topics</a>
+    <a class="btn btn-quiet" th:href="@{/privacy}">Privacy</a>
+  </div>
+</main>
+
+<footer th:replace="~{accessible/fragments/page :: foot}"></footer>
+<script th:src="@{/js/a11y.js}" defer></script>
+</body>
+</html>

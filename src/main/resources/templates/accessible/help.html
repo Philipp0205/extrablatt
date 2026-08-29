@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" th:class="${display.bodyClasses()}">
+<head th:replace="~{accessible/fragments/page :: head('Help')}"></head>
+<body>
+<div th:replace="~{accessible/fragments/page :: top('help')}"></div>
+
+<main id="main" class="page">
+  <h1>Help</h1>
+  <p class="lede">Short answers, in plain words. Nothing here assumes you have used
+    a reader like this before.</p>
+
+  <nav class="contents" aria-label="On this page">
+    <h2>On this page</h2>
+    <ul>
+      <li><a href="#what">What this is</a></li>
+      <li><a href="#topics">Following a topic</a></li>
+      <li><a href="#website">Following one website</a></li>
+      <li><a href="#reading">Reading an article</a></li>
+      <li><a href="#listen">Having it read to you</a></li>
+      <li><a href="#saving">Saving something for later</a></li>
+      <li><a href="#looks">Changing how it looks</a></li>
+      <li><a href="#keys">Keyboard</a></li>
+      <li><a href="#stuck">If something goes wrong</a></li>
+    </ul>
+  </nav>
+
+  <section aria-labelledby="what">
+    <h2 id="what">What this is</h2>
+    <p>Websites publish a plain list of everything they have just written. It is
+      called a feed. This app collects the feeds you follow and puts all their
+      articles in one place, newest first, with no adverts and no clutter.</p>
+    <p>You do not need to know anything about feeds to use it. You choose subjects;
+      we look after the addresses.</p>
+  </section>
+
+  <section aria-labelledby="topics">
+    <h2 id="topics">Following a topic</h2>
+    <p>Open <a th:href="@{/topics/browse}">Add a topic</a> and press the button
+      under any subject that interests you — blindness and low vision, clinical
+      trials, eye research, health, world news, and others.</p>
+    <p>One press follows several publications at once. Their articles then appear
+      together under that topic's name on your <a th:href="@{/topics}">Topics</a>
+      page. If one publication in a topic cannot be reached, the rest are still
+      added and we tell you which one was skipped.</p>
+  </section>
+
+  <section aria-labelledby="website">
+    <h2 id="website">Following one website</h2>
+    <p>Go to <a th:href="@{/sources}">your sources</a> and type the plain address of
+      the site, like <strong>bbc.com</strong>. That is all. You do not have to hunt
+      for an "RSS" link, and you do not have to type <span class="quiet">https://</span>
+      or anything ending in <span class="quiet">.xml</span>. We look at the site and
+      find its feed for you.</p>
+    <p>If we cannot find one, the site does not publish a feed. That happens, and it
+      is not something you did wrong.</p>
+  </section>
+
+  <section aria-labelledby="reading">
+    <h2 id="reading">Reading an article</h2>
+    <p>Press an article's title to open it. The article is fetched and stripped down
+      to its text: no menus, no pop-ups, no adverts. Pictures are hidden unless you
+      ask for them.</p>
+    <p>By default, an article opens with <strong>the main points</strong> first: its
+      own headings and bullet points, listed one after another, so you can see what
+      it says before deciding to read all of it. Nothing there is rewritten — every
+      line is taken word for word from the article, which is below it in full. You
+      can switch this off under <a th:href="@{/display}">Display</a>.</p>
+  </section>
+
+  <section aria-labelledby="listen">
+    <h2 id="listen">Having it read to you</h2>
+    <p>Every article has a <strong>Listen to this article</strong> button. It uses
+      the voice built into your phone or computer, so it works without an account
+      anywhere else and costs nothing. The part being read is highlighted as it
+      goes. Press the same button again to pause, and <strong>Stop</strong> to
+      finish.</p>
+    <p>If you do not see the button, your browser has no voice available. A screen
+      reader will still read the page in its usual way.</p>
+  </section>
+
+  <section aria-labelledby="saving">
+    <h2 id="saving">Saving something for later</h2>
+    <p>Every article has a <strong>Save</strong> button, both in the list and while
+      you are reading it. Saved articles are gathered on the
+      <a th:href="@{/saved}">Saved</a> page and stay there until you remove them,
+      whether or not you have read them.</p>
+  </section>
+
+  <section aria-labelledby="looks">
+    <h2 id="looks">Changing how it looks</h2>
+    <p>The <strong>A−</strong> and <strong>A+</strong> buttons at the top of every
+      page make the text smaller and bigger straight away.</p>
+    <p>The <a th:href="@{/display}">Display</a> page has more: four colour schemes
+      (including black with bright colours, and black with yellow text), five text
+      sizes, three line spacings, wider spacing between letters, and a choice of
+      plain or book letters. Your choices are saved to your account, so they follow
+      you to another device.</p>
+    <p>To print an article the way you see it, press <strong>Print this article</strong>
+      at the bottom of it. The colours and the large text are kept.</p>
+  </section>
+
+  <section aria-labelledby="keys">
+    <h2 id="keys">Keyboard</h2>
+    <ul>
+      <li><strong>Tab</strong> moves to the next link or button, <strong>Shift and Tab</strong> back.</li>
+      <li>The first thing on every page is a <strong>Skip to the main content</strong> link.</li>
+      <li>Every page has one main heading, and sections under it, so a screen reader
+        can jump by heading.</li>
+    </ul>
+  </section>
+
+  <section aria-labelledby="stuck">
+    <h2 id="stuck">If something goes wrong</h2>
+    <p>Nothing here can break your account. If a page looks wrong, the
+      <a th:href="@{/display}">Display</a> page can put the colours and size back.</p>
+    <p th:if="${newslettersEnabled}">If you follow newsletters by e-mail, your
+      personal address for them is on the <a th:href="@{/settings}">your account</a>
+      page. Subscribe with that address and the issues arrive here as articles.</p>
+    <p>This app is free and run by one person. If it is useful to you, that is
+      already enough.</p>
+  </section>
+</main>
+
+<footer th:replace="~{accessible/fragments/page :: foot}"></footer>
+<script th:src="@{/js/a11y.js}" defer></script>
+</body>
+</html>

@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" th:class="${display.bodyClasses()}">
+<head th:replace="~{accessible/fragments/page :: head('Sign in')}"></head>
+<body>
+<div th:replace="~{accessible/fragments/page :: top-signed-out}"></div>
+
+<main id="main" class="page">
+  <h1>Sign in</h1>
+
+  <div class="messages" role="status" aria-live="polite">
+    <p class="message good" th:if="${message}" th:text="${message}"></p>
+    <p class="message bad" th:if="${param.error}">That e-mail address and password did not match.</p>
+    <p class="message bad" th:if="${param.unverified}">
+      Please confirm your e-mail address first. The confirmation link is in the
+      message we sent you.
+    </p>
+    <p class="message good" th:if="${param.logout}">You are signed out.</p>
+    <p class="message good" th:if="${param.deleted}">Your account has been deleted.</p>
+  </div>
+
+  <form th:action="@{/login}" method="post" class="form-stack">
+    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+
+    <label for="username">Your e-mail address</label>
+    <input id="username" name="username" type="email" autocomplete="username"
+           th:value="${email}" required autofocus/>
+
+    <label for="password">Your password</label>
+    <input id="password" name="password" type="password" autocomplete="current-password" required/>
+
+    <label class="choice">
+      <input type="checkbox" name="remember-me" value="true" checked/>
+      <span>Keep me signed in on this device</span>
+    </label>
+
+    <button class="btn btn-strong" type="submit">Sign in</button>
+  </form>
+
+  <div class="stack">
+    <a class="btn" th:href="@{/register}">Create an account</a>
+    <a class="btn btn-quiet" th:href="@{/forgot-password}">I have forgotten my password</a>
+    <a class="btn btn-quiet" th:href="@{/help}">What is this?</a>
+  </div>
+</main>
+
+<footer th:replace="~{accessible/fragments/page :: foot}"></footer>
+<script th:src="@{/js/a11y.js}" defer></script>
+</body>
+</html>
