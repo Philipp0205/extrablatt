@@ -96,7 +96,7 @@ class SettingsControllerTest {
         mockMvc.perform(post("/settings/kindle-email").with(csrf())
                         .param("kindleEmail", "me@kindle.com"))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/settings"))
+                .andExpect(redirectedUrl("/settings?view=kindle"))
                 .andExpect(flash().attribute("message", "Kindle e-mail updated"));
         verify(userService).updateKindleEmail(UID, "me@kindle.com");
     }
@@ -106,7 +106,7 @@ class SettingsControllerTest {
     void regeneratingTheNewsletterAddressWithoutConfigurationFailsGracefully() throws Exception {
         mockMvc.perform(post("/settings/newsletter-address/regenerate").with(csrf()))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/settings"))
+                .andExpect(redirectedUrl("/settings?view=kindle"))
                 .andExpect(flash().attribute("error", containsString("not configured")));
         verify(userService, never()).regenerateNewsletterInboundToken(UID);
     }
@@ -136,9 +136,19 @@ class SettingsControllerTest {
                 .thenReturn(new TelemetryRepository.Summary(2, 3, 10, 4, 1, 3));
         when(telemetryService.users()).thenReturn(List.of());
 
-        mockMvc.perform(get("/settings"))
+        mockMvc.perform(get("/settings").param("view", "telemetry"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("Telemetry")))
                 .andExpect(content().string(containsString("User usage and send limits")));
+    }
+
+    @Test
+    @WithMockUser
+    void settingsRendersOnlyTheSelectedSubview() throws Exception {
+        mockMvc.perform(get("/settings").param("view", "accessibility"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("Switch to the accessible version")))
+                .andExpect(content().string(not(containsString("Signed in as"))))
+                .andExpect(content().string(not(containsString("Delete my account"))));
     }
 }
