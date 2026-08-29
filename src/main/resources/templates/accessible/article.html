@@ -36,6 +36,12 @@
           <option value="1.25">Faster</option>
         </select>
       </label>
+      <!-- The script fills this with the voices this device actually has, best
+           sounding first, and hides it again when there is only one. -->
+      <label class="voice" data-listen-voice-field hidden>
+        <span>Voice</span>
+        <select data-listen-voice></select>
+      </label>
       <p class="visually-hidden" role="status" aria-live="polite" data-listen-status></p>
     </div>
 
