@@ -79,7 +79,7 @@ class SettingsControllerNewslettersEnabledTest {
     void settingsShowsTheAccountsGeneratedNewsletterAddress() throws Exception {
         when(userService.ensureNewsletterInboundToken(UID)).thenReturn("abc123");
 
-        mockMvc.perform(get("/settings"))
+        mockMvc.perform(get("/settings").param("view", "kindle"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("abc123@news.example.com")));
     }
@@ -91,7 +91,7 @@ class SettingsControllerNewslettersEnabledTest {
 
         mockMvc.perform(post("/settings/newsletter-address/regenerate").with(csrf()))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/settings"))
+                .andExpect(redirectedUrl("/settings?view=kindle"))
                 .andExpect(flash().attribute("message", containsString("freshtoken@news.example.com")));
         verify(userService).regenerateNewsletterInboundToken(UID);
     }
