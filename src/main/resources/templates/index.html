@@ -59,6 +59,19 @@
       </p>
     </div>
 
+    <details class="tools rename-category"
+             th:if="${activeView == 'category' and selectedCategory != 'Uncategorized'}">
+      <summary>Rename</summary>
+      <form class="inline rename-form tools-body" th:action="@{/categories/rename}" method="post">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <input type="hidden" name="oldCategory" th:value="${selectedCategory}"/>
+        <input type="hidden" name="redirect" th:value="@{/(category=${selectedCategory})}"/>
+        <input type="text" name="newCategory" th:value="${selectedCategory}"
+               aria-label="Rename category" class="category-rename-input"/>
+        <button type="submit">Rename</button>
+      </form>
+    </details>
+
     <!-- Adding remains reachable before a long category or feed list. Old
          /?view=add links still open the disclosure directly. -->
     <details class="tools add-feed" id="add-feed" th:open="${activeView == 'add'}">
@@ -136,19 +149,6 @@
 
   <!-- Level two: only the feeds in the chosen category. -->
   <div class="feed-group" th:if="${activeView == 'category'}">
-    <div class="category-heading" th:if="${selectedCategory != 'Uncategorized'}">
-      <details class="tools">
-        <summary>Rename</summary>
-        <form class="inline rename-form" th:action="@{/categories/rename}" method="post">
-          <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-          <input type="hidden" name="oldCategory" th:value="${selectedCategory}"/>
-          <input type="hidden" name="redirect" th:value="@{/(category=${selectedCategory})}"/>
-          <input type="text" name="newCategory" th:value="${selectedCategory}"
-                 aria-label="Rename category" class="category-rename-input"/>
-          <button type="submit">Rename</button>
-        </form>
-      </details>
-    </div>
     <ul class="feed-list">
     <li th:each="feed : ${selectedFeeds}">
       <div>

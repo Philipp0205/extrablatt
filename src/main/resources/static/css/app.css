@@ -629,12 +629,12 @@ details.tools > .tools-body {
   margin-bottom: 0;
 }
 
-.feed-page-heading details.add-feed {
+.feed-page-heading > details.tools {
   flex: 0 0 auto;
   margin: 0 0.5rem 0 0;
 }
 
-.feed-page-heading details.add-feed[open] {
+.feed-page-heading > details.tools[open] {
   flex-basis: 100%;
   margin-top: 0.75rem;
 }
@@ -642,6 +642,27 @@ details.tools > .tools-body {
 .feed-page-heading details.add-feed > .tools-body {
   border-top: 1px solid #000;
   padding-top: 0.75rem;
+}
+
+.rename-category .rename-form {
+  display: flex;
+}
+
+.rename-category .category-rename-input {
+  flex: 1 1 auto;
+  width: auto;
+  min-width: 0;
+  min-height: 2.25rem;
+  margin-right: 0.4rem;
+  padding: 0.3rem 0.5rem;
+  font-size: 0.85rem;
+}
+
+.rename-category .rename-form button {
+  min-height: 2.25rem;
+  padding: 0.3rem 0.6rem;
+  font-size: 0.85rem;
+  white-space: nowrap;
 }
 
 details.nested-tools {
@@ -679,12 +700,6 @@ details.nested-tools {
   flex: 0 0 auto;
   margin: 0 0 0 0.75rem;
   text-align: right;
-}
-
-.feed-group > .category-heading:first-child {
-  justify-content: flex-end;
-  margin-top: 0;
-  margin-bottom: 0.5rem;
 }
 
 .settings-section {
