@@ -25,8 +25,6 @@
          th:attr="aria-current=${activeView == 'accounts'} ? 'page' : null">Accounts</a>
       <a th:href="@{/settings(view='kindle')}" th:classappend="${activeView == 'kindle'} ? ' active'"
          th:attr="aria-current=${activeView == 'kindle'} ? 'page' : null">Send to Kindle</a>
-      <a th:href="@{/settings(view='accessibility')}" th:classappend="${activeView == 'accessibility'} ? ' active'"
-         th:attr="aria-current=${activeView == 'accessibility'} ? 'page' : null">Accessibility</a>
       <a th:href="@{/settings(view='version')}" th:classappend="${activeView == 'version'} ? ' active'"
          th:attr="aria-current=${activeView == 'version'} ? 'page' : null">Version</a>
       <a th:href="@{/settings(view='support')}" th:classappend="${activeView == 'support'} ? ' active'"
@@ -108,19 +106,6 @@
       <button class="btn" type="submit">New address</button>
     </form>
   </div>
-  </section>
-
-  <section class="subview" th:if="${activeView == 'accessibility'}">
-  <h2>Accessible version</h2>
-  <p class="meta">
-    Hard to read this screen? The accessible version of Extrablatt has a black
-    background with very large text, colours that separate headings from quotes,
-    each article's main points before its full text, and a button that reads it
-    aloud. Same account, same feeds, and you can switch back at any time.
-  </p>
-  <p>
-    <a class="btn" th:href="@{/(display='accessible')}">Switch to the accessible version</a>
-  </p>
   </section>
 
   <section class="subview" th:if="${activeView == 'version'}">
