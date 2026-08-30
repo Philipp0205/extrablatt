@@ -79,7 +79,6 @@ public class AppController {
         model.addAttribute("feedGroups", feedGroups);
         List<String> categories = existingCategories(feeds);
         model.addAttribute("categories", categories);
-        model.addAttribute("defaultFeeds", feedService.defaultFeeds(userId));
         model.addAttribute("totalUnread", totalUnread);
         String selectedCategory = category == null ? null : category.trim();
         if (selectedCategory != null && !categories.contains(selectedCategory)
@@ -87,10 +86,7 @@ public class AppController {
             selectedCategory = null;
         }
         String activeView = selectedCategory != null ? "category"
-                : switch (view) {
-                    case "add", "free-test" -> view;
-                    default -> "feeds";
-                };
+                : "add".equals(view) ? "add" : "feeds";
         model.addAttribute("activeView", activeView);
         model.addAttribute("selectedCategory", selectedCategory);
         model.addAttribute("kindleConfigured", isKindleConfigured(userId));
@@ -131,40 +127,6 @@ public class AppController {
             redirectAttributes.addFlashAttribute("message", "Added feed: " + feed.title());
         } catch (Exception e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
-        }
-        return "redirect:/";
-    }
-
-    @PostMapping("/feeds/defaults")
-    public String addDefaultFeeds(@RequestParam(value = "feed", required = false) List<String> keys,
-                                  RedirectAttributes redirectAttributes) {
-        if (keys == null || keys.isEmpty()) {
-            redirectAttributes.addFlashAttribute("error", "Choose at least one suggested feed");
-            return "redirect:/";
-        }
-        long userId = currentUser.requireId();
-        int added = 0;
-        java.util.ArrayList<String> errors = new java.util.ArrayList<>();
-        for (String key : keys) {
-            var suggestion = feedService.defaultFeed(key);
-            if (suggestion.isEmpty()) {
-                errors.add("Unknown suggested feed: " + key);
-                continue;
-            }
-            try {
-                var feed = suggestion.get();
-                feedService.addFeed(userId, feed.url(), feed.category());
-                added++;
-            } catch (Exception e) {
-                errors.add(suggestion.get().title() + ": " + e.getMessage());
-            }
-        }
-        if (added > 0) {
-            redirectAttributes.addFlashAttribute("message",
-                    added == 1 ? "Added 1 suggested feed" : "Added " + added + " suggested feeds");
-        }
-        if (!errors.isEmpty()) {
-            redirectAttributes.addFlashAttribute("error", String.join("; ", errors));
         }
         return "redirect:/";
     }

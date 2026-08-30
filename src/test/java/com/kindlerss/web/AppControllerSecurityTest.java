@@ -218,30 +218,21 @@ class AppControllerSecurityTest {
 
     @Test
     @WithMockUser
-    void homeOffersOptionalDefaultsAndFeedCategories() throws Exception {
-        when(feedService.defaultFeeds(UID)).thenReturn(List.of(
-                new FeedService.DefaultFeed("hacker-news", "Hacker News",
-                        "https://hnrss.org/frontpage", "Technology")));
-
-        // Suggested feeds are only offered before anything has been subscribed.
-        when(feedService.listFeeds(UID)).thenReturn(List.of());
-        mockMvc.perform(get("/").param("view", "free-test"))
-                .andExpect(status().isOk())
-                .andExpect(content().string(containsString("Quick start")))
-                .andExpect(content().string(containsString("value=\"hacker-news\"")));
-
+    void homeRendersFeedCategories() throws Exception {
         when(feedService.listFeeds(UID)).thenReturn(List.of(
                 new Feed(5L, "Android", "https://example.com/feed", "https://example.com",
                         "Technology", null, null, null)));
-        mockMvc.perform(get("/").param("view", "free-test"))
-                .andExpect(status().isOk())
-                .andExpect(content().string(not(containsString("Quick start"))))
-                .andExpect(content().string(containsString("Your test is complete")));
 
         mockMvc.perform(get("/").param("category", "Technology"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("action=\"/feeds/5/category\"")))
-                .andExpect(content().string(containsString(">Technology</h3>")));
+                .andExpect(content().string(containsString(">Technology</h3>")))
+                .andExpect(content().string(not(containsString("Your free test"))));
+
+        mockMvc.perform(get("/").param("view", "add"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("Add feed")))
+                .andExpect(content().string(not(containsString("Your free test"))));
     }
 
     @Test

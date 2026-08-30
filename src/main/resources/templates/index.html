@@ -24,12 +24,9 @@
          th:attr="aria-current=${activeView == 'add'} ? 'page' : null">Add feed</a>
       <a th:href="@{/(view='feeds')}" th:classappend="${activeView == 'feeds'} ? ' active'"
          th:attr="aria-current=${activeView == 'feeds'} ? 'page' : null">Your feeds</a>
-      <a th:href="@{/(view='free-test')}" th:classappend="${activeView == 'free-test'} ? ' active'"
-         th:attr="aria-current=${activeView == 'free-test'} ? 'page' : null">Your free test</a>
     </nav>
     <!-- The categories belong to browsing your feeds: their row only appears while
-         the feed list (or one of its categories) is open, not on Add feed or the
-         free test. -->
+         the feed list (or one of its categories) is open, not on Add feed. -->
     <nav class="subnav" aria-label="Feed categories"
          th:if="${(activeView == 'feeds' or activeView == 'category') and !#lists.isEmpty(feedGroups)}">
       <a th:each="group : ${feedGroups}" th:href="@{/(category=${group.key})}"
@@ -100,28 +97,6 @@
       </form>
     </div>
   </details>
-  </section>
-
-  <section class="subview" th:if="${activeView == 'free-test'}">
-    <h1>Your free test</h1>
-  <div th:if="${#lists.isEmpty(feeds) and !#lists.isEmpty(defaultFeeds)}">
-    <h2>Quick start</h2>
-    <p class="meta">Choose any suggested feeds you want. Nothing is added automatically.</p>
-    <form th:action="@{/feeds/defaults}" method="post">
-      <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-      <label class="check" th:each="suggestion : ${defaultFeeds}">
-        <input type="checkbox" name="feed" th:value="${suggestion.key}"/>
-        <span>
-          <strong th:text="${suggestion.title}">Suggested feed</strong>
-          <span class="meta" th:text="' · ' + ${suggestion.category}"> · Category</span>
-        </span>
-      </label>
-      <button class="btn" type="submit">Add selected feeds</button>
-    </form>
-  </div>
-  <p th:unless="${#lists.isEmpty(feeds) and !#lists.isEmpty(defaultFeeds)}" class="muted">
-    Your test is complete. You can add more sources at any time under Add feed.
-  </p>
   </section>
 
   <section class="subview" th:if="${activeView == 'feeds' or activeView == 'category'}">

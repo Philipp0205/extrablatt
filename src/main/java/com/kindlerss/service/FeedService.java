@@ -44,15 +44,6 @@ public class FeedService {
      * entries it wants. A URL that already carries one is left alone.
      */
     private static final Set<String> ENTRY_COUNT_PARAMETERS = Set.of("count", "limit", "n");
-    private static final List<DefaultFeed> DEFAULT_FEEDS = List.of(
-            new DefaultFeed("hacker-news", "Hacker News", "https://hnrss.org/frontpage", "Technology"),
-            new DefaultFeed("android-developers", "Android Developers",
-                    "https://android-developers.googleblog.com/feeds/posts/default", "Technology"),
-            new DefaultFeed("ars-technica", "Ars Technica",
-                    "https://feeds.arstechnica.com/arstechnica/index", "Technology"),
-            new DefaultFeed("bbc-world", "BBC World News",
-                    "https://feeds.bbci.co.uk/news/world/rss.xml", "News")
-    );
 
     private static final Pattern EMAIL_ADDRESS = Pattern.compile("([a-zA-Z0-9._%+-]+)@([a-zA-Z0-9.-]+)");
 
@@ -82,17 +73,6 @@ public class FeedService {
 
     public Optional<Feed> findById(long userId, long id) {
         return feedRepository.findById(userId, id);
-    }
-
-    public List<DefaultFeed> defaultFeeds(long userId) {
-        Set<String> existingUrls = feedRepository.findAll(userId).stream()
-                .map(Feed::url)
-                .collect(java.util.stream.Collectors.toSet());
-        return DEFAULT_FEEDS.stream().filter(feed -> !existingUrls.contains(feed.url())).toList();
-    }
-
-    public Optional<DefaultFeed> defaultFeed(String key) {
-        return DEFAULT_FEEDS.stream().filter(feed -> feed.key().equals(key)).findFirst();
     }
 
     @Transactional
@@ -483,8 +463,6 @@ public class FeedService {
     }
 
     private record ParsedFeed(String title, String siteUrl, List<ParsedEntry> entries) {}
-
-    public record DefaultFeed(String key, String title, String url, String category) {}
 
     private record ParsedEntry(
             String guid,
