@@ -39,8 +39,7 @@ public class SettingsController {
     }
 
     @GetMapping("/settings")
-    public String settings(@RequestParam(value = "view", defaultValue = "accounts") String view,
-                           Model model) {
+    public String settings(Model model) {
         long userId = currentUser.requireId();
         AppUser user = userService.findById(userId)
                 .orElseThrow(() -> new IllegalStateException("Account not found"));
@@ -54,12 +53,6 @@ public class SettingsController {
             model.addAttribute("newsletterAddress", token + "@" + properties.newsletters().inboundDomain());
         }
         boolean admin = currentUser.details().map(AppUserDetails::admin).orElse(false);
-        String activeView = switch (view) {
-            case "kindle", "accessibility", "version", "support", "delete" -> view;
-            case "telemetry" -> admin ? view : "accounts";
-            default -> "accounts";
-        };
-        model.addAttribute("activeView", activeView);
         if (admin) {
             model.addAttribute("summary", telemetryService.summary());
             model.addAttribute("users", telemetryService.users());
@@ -78,19 +71,19 @@ public class SettingsController {
         } catch (IllegalArgumentException e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
         }
-        return "redirect:/settings?view=kindle";
+        return "redirect:/settings#kindle";
     }
 
     @PostMapping("/settings/newsletter-address/regenerate")
     public String regenerateNewsletterAddress(RedirectAttributes redirectAttributes) {
         if (!properties.newsletters().enabled()) {
             redirectAttributes.addFlashAttribute("error", "Newsletters are not configured on this server");
-            return "redirect:/settings?view=kindle";
+            return "redirect:/settings#kindle";
         }
         String token = userService.regenerateNewsletterInboundToken(currentUser.requireId());
         redirectAttributes.addFlashAttribute("message",
                 "New newsletter address: " + token + "@" + properties.newsletters().inboundDomain());
-        return "redirect:/settings?view=kindle";
+        return "redirect:/settings#kindle";
     }
 
     @PostMapping("/account/delete")

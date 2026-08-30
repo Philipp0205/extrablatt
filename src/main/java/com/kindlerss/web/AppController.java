@@ -88,7 +88,7 @@ public class AppController {
         }
         String activeView = selectedCategory != null ? "category"
                 : switch (view) {
-                    case "add", "free-test" -> view;
+                    case "add" -> view;
                     default -> "feeds";
                 };
         model.addAttribute("activeView", activeView);

@@ -225,10 +225,12 @@ class AppControllerSecurityTest {
 
         // Suggested feeds are only offered before anything has been subscribed.
         when(feedService.listFeeds(UID)).thenReturn(List.of());
-        mockMvc.perform(get("/").param("view", "free-test"))
+        mockMvc.perform(get("/"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("Quick start")))
-                .andExpect(content().string(containsString("value=\"hacker-news\"")));
+                .andExpect(content().string(containsString("value=\"hacker-news\"")))
+                .andExpect(content().string(containsString("<summary>Add a feed</summary>")))
+                .andExpect(content().string(not(containsString("aria-label=\"Feed views\""))));
 
         when(feedService.listFeeds(UID)).thenReturn(List.of(
                 new Feed(5L, "Android", "https://example.com/feed", "https://example.com",
@@ -236,7 +238,8 @@ class AppControllerSecurityTest {
         mockMvc.perform(get("/").param("view", "free-test"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(not(containsString("Quick start"))))
-                .andExpect(content().string(containsString("Your test is complete")));
+                .andExpect(content().string(not(containsString("Your test is complete"))))
+                .andExpect(content().string(containsString(">Android</a>")));
 
         mockMvc.perform(get("/").param("category", "Technology"))
                 .andExpect(status().isOk())

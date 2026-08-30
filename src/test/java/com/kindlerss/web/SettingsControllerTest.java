@@ -96,7 +96,7 @@ class SettingsControllerTest {
         mockMvc.perform(post("/settings/kindle-email").with(csrf())
                         .param("kindleEmail", "me@kindle.com"))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/settings?view=kindle"))
+                .andExpect(redirectedUrl("/settings#kindle"))
                 .andExpect(flash().attribute("message", "Kindle e-mail updated"));
         verify(userService).updateKindleEmail(UID, "me@kindle.com");
     }
@@ -106,7 +106,7 @@ class SettingsControllerTest {
     void regeneratingTheNewsletterAddressWithoutConfigurationFailsGracefully() throws Exception {
         mockMvc.perform(post("/settings/newsletter-address/regenerate").with(csrf()))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/settings?view=kindle"))
+                .andExpect(redirectedUrl("/settings#kindle"))
                 .andExpect(flash().attribute("error", containsString("not configured")));
         verify(userService, never()).regenerateNewsletterInboundToken(UID);
     }
@@ -144,11 +144,12 @@ class SettingsControllerTest {
 
     @Test
     @WithMockUser
-    void settingsRendersOnlyTheSelectedSubview() throws Exception {
+    void settingsRendersAllSectionsWithoutATabStrip() throws Exception {
         mockMvc.perform(get("/settings").param("view", "accessibility"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("Switch to the accessible version")))
-                .andExpect(content().string(not(containsString("Signed in as"))))
-                .andExpect(content().string(not(containsString("Delete my account"))));
+                .andExpect(content().string(containsString("Signed in as")))
+                .andExpect(content().string(containsString("Delete my account")))
+                .andExpect(content().string(not(containsString("aria-label=\"Settings views\""))));
     }
 }

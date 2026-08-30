@@ -83,11 +83,12 @@ Tests do not require PostgreSQL or Docker. They cover EPUB layout, HTML sanitiza
 
 ## Using the app
 
-1. **Add a feed** on the home page (direct feed URL or site homepage).
+1. Open **Add a feed** below the feed list (direct feed URL or site homepage).
    You do not need to hunt down an XML URL: open the Extrablatt website on your
    phone, paste the normal website address, and feed autodiscovery will usually
    find its RSS/Atom feed. The optional **Quick start** checkboxes can populate a
-   new reader without typing URLs; no suggested feed is added unless you select it.
+   new reader without typing URLs; they disappear after the first subscription,
+   and no suggested feed is added unless you select it.
    Give a feed a category while adding it, or change its category later. A
    category heading on the Feeds page can also be renamed in place, which moves
    every feed in it to the new name at once.
@@ -101,6 +102,9 @@ Tests do not require PostgreSQL or Docker. They cover EPUB layout, HTML sanitiza
 5. **Send to Kindle** builds an EPUB and emails it; `sent_at` is recorded only after SMTP succeeds.
    With JavaScript available it sends in place, without reloading or moving the
    current page; the normal form submission remains as a no-JavaScript fallback.
+   Less common article actions — opening the original, comments, image controls,
+   and marking unread — are available under **More** so the reading toolbar stays
+   on one row on small e-readers.
 
 ### How much gets loaded
 
