@@ -153,6 +153,20 @@ class PostgresRepositoryTest {
     }
 
     @Test
+    void aClippingFeedIsFoundOrCreatedOncePerAccount() {
+        var first = feeds.findOrCreateClippingFeed(userId);
+        assertTrue(first.isClipping());
+        assertEquals("clippings:", first.url());
+        assertEquals("Pasted URLs", first.title());
+
+        var again = feeds.findOrCreateClippingFeed(userId);
+        assertEquals(first.id(), again.id());
+
+        var theirs = feeds.findOrCreateClippingFeed(otherUserId);
+        assertTrue(theirs.id() != first.id());
+    }
+
+    @Test
     void anIssueSentToTheNewslettersInboxBecomesAnArticleOfItsAutoCreatedFeed() {
         var newsletter = feeds.findOrCreateNewsletterFeed(userId, "newsletter:weekly@example.com",
                 "Weekly Digest", "Newsletters");

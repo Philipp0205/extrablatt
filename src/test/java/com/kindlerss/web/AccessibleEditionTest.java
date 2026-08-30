@@ -427,4 +427,30 @@ class AccessibleEditionTest {
                 .andExpect(view().name("accessible/help"))
                 .andExpect(content().string(containsString("You do not need to know anything about feeds")));
     }
+
+    @Test
+    @WithMockUser
+    void topicsOffersAPasteUrlForm() throws Exception {
+        mockMvc.perform(get("/topics").header("Host", ACCESSIBLE_HOST))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("Send a page to your Kindle")))
+                .andExpect(content().string(containsString("action=\"/articles/from-url\"")));
+    }
+
+    @Test
+    @WithMockUser
+    void pastingAUrlFromTheAccessibleEditionOpensTheAccessibleArticle() throws Exception {
+        Article imported = new Article(8L, 11L, "https://example.com/a", "A story",
+                "https://example.com/a", null, Instant.now(), null, null, "<p>Hi</p>",
+                false, null, Instant.now(), Instant.now(), "Pasted URLs");
+        when(articleService.importFromUrl(UID, "https://example.com/a")).thenReturn(imported);
+
+        mockMvc.perform(post("/articles/from-url").with(csrf())
+                        .header("Host", ACCESSIBLE_HOST)
+                        .param("url", "https://example.com/a"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/read/8"));
+
+        verify(kindleMailService).sendToKindle(UID, 8L, false);
+    }
 }
