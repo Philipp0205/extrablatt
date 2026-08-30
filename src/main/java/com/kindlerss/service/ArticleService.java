@@ -1,19 +1,23 @@
 package com.kindlerss.service;
 
 import com.kindlerss.domain.Article;
+import com.kindlerss.domain.Feed;
 import com.kindlerss.repository.ArticleRepository;
+import com.kindlerss.repository.FeedRepository;
 import net.dankito.readability4j.Readability4J;
 import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
-import java.time.Instant;
 
 /** Loads, extracts, and updates article read/sent state. */
 @Service
@@ -22,13 +26,16 @@ public class ArticleService {
     private static final Logger log = LoggerFactory.getLogger(ArticleService.class);
 
     private final ArticleRepository articleRepository;
+    private final FeedRepository feedRepository;
     private final SafeHttpClient httpClient;
     private final HtmlSanitizer sanitizer;
 
     public ArticleService(ArticleRepository articleRepository,
+                          FeedRepository feedRepository,
                           SafeHttpClient httpClient,
                           HtmlSanitizer sanitizer) {
         this.articleRepository = articleRepository;
+        this.feedRepository = feedRepository;
         this.httpClient = httpClient;
         this.sanitizer = sanitizer;
     }
@@ -145,6 +152,142 @@ public class ArticleService {
         }
         return "<p>No content available.</p>";
     }
+
+    /**
+     * Fetches a web page, extracts the readable article, and stores it on the
+     * account's pasted-URL feed. Pasting the same address again refreshes that
+     * row rather than creating a duplicate.
+     */
+    @Transactional
+    public Article importFromUrl(long userId, String rawUrl) {
+        String url = normalizeHttpUrl(rawUrl);
+        ExtractedPage page = extractPage(url);
+        Feed feed = feedRepository.findOrCreateClippingFeed(userId);
+        String guid = page.url();
+        Optional<Article> existing = articleRepository.findByFeedIdAndGuid(userId, feed.id(), guid);
+        if (existing.isPresent()) {
+            articleRepository.updateImportedContent(existing.get().id(), page.title(), page.author(),
+                    page.contentHtml());
+            return articleRepository.findById(userId, existing.get().id()).orElseThrow();
+        }
+        long id = articleRepository.insert(feed.id(), guid, page.title(), page.url(), page.author(),
+                Instant.now(), null, null);
+        if (id < 0) {
+            Article raced = articleRepository.findByFeedIdAndGuid(userId, feed.id(), guid)
+                    .orElseThrow(() -> new IllegalStateException("Could not store the article"));
+            articleRepository.updateImportedContent(raced.id(), page.title(), page.author(),
+                    page.contentHtml());
+            return articleRepository.findById(userId, raced.id()).orElse(raced);
+        }
+        articleRepository.updateExtractedContent(id, page.contentHtml());
+        return articleRepository.findById(userId, id)
+                .orElseThrow(() -> new IllegalStateException("Could not store the article"));
+    }
+
+    static String normalizeHttpUrl(String raw) {
+        String value = raw == null ? "" : raw.trim();
+        if (value.isEmpty()) {
+            throw new IllegalArgumentException("Paste an article URL first");
+        }
+        value = value.replaceAll("^[<(\\[\"']+", "").replaceAll("[>)\\]\"']+$", "").trim();
+        String lower = value.toLowerCase(Locale.ROOT);
+        if (!lower.startsWith("http://") && !lower.startsWith("https://")) {
+            value = "https://" + value;
+        }
+        return value;
+    }
+
+    private ExtractedPage extractPage(String url) {
+        SafeHttpClient.FetchedContent fetched;
+        try {
+            fetched = httpClient.get(url);
+        } catch (SafeHttpClient.FetchException e) {
+            throw new IllegalArgumentException(e.getMessage() == null
+                    ? "That page could not be fetched" : e.getMessage(), e);
+        }
+        String finalUrl = fetched.finalUri().toString();
+        if (looksLikeFeed(fetched)) {
+            throw new IllegalArgumentException(
+                    "That looks like an RSS or Atom feed. Add it under Add feed instead.");
+        }
+        try {
+            Readability4J readability = new Readability4J(finalUrl, fetched.body());
+            net.dankito.readability4j.Article parsed = readability.parse();
+            String content = parsed == null ? null : parsed.getContent();
+            if (content == null || content.isBlank()) {
+                throw new IllegalArgumentException("Could not extract an article from that page");
+            }
+            String sanitized = sanitizer.sanitizeWithImages(content);
+            if (sanitized.isBlank()) {
+                throw new IllegalArgumentException("Could not extract an article from that page");
+            }
+            String title = firstNonBlank(
+                    parsed.getTitle(),
+                    pageTitle(fetched.body()),
+                    fallbackTitle(finalUrl));
+            String author = parsed.getByline();
+            if (author != null) {
+                author = author.isBlank() ? null : author.trim();
+            }
+            return new ExtractedPage(finalUrl, title, author, sanitized);
+        } catch (IllegalArgumentException e) {
+            throw e;
+        } catch (Exception e) {
+            log.debug("Extraction failed for {}: {}", finalUrl, e.getMessage());
+            throw new IllegalArgumentException("Could not extract an article from that page");
+        }
+    }
+
+    private static boolean looksLikeFeed(SafeHttpClient.FetchedContent fetched) {
+        String type = fetched.contentType() == null ? "" : fetched.contentType().toLowerCase(Locale.ROOT);
+        if (type.contains("html")) {
+            return false;
+        }
+        if (type.contains("rss") || type.contains("atom") || type.contains("xml")) {
+            return true;
+        }
+        String body = fetched.body() == null ? "" : fetched.body().stripLeading();
+        String head = body.substring(0, Math.min(body.length(), 400)).toLowerCase(Locale.ROOT);
+        return head.contains("<rss")
+                || (head.contains("<feed") && head.contains("xmlns"))
+                || head.contains("<rdf:rdf");
+    }
+
+    private static String pageTitle(String html) {
+        if (html == null || html.isBlank()) {
+            return null;
+        }
+        Document document = Jsoup.parse(html);
+        String title = document.title();
+        return title == null || title.isBlank() ? null : title.trim();
+    }
+
+    private static String fallbackTitle(String url) {
+        try {
+            String host = java.net.URI.create(url).getHost();
+            if (host != null && !host.isBlank()) {
+                return host;
+            }
+        } catch (IllegalArgumentException ignored) {
+            // Fall through to a generic title.
+        }
+        return "Untitled article";
+    }
+
+    private static String firstNonBlank(String first, String second, String third) {
+        if (first != null && !first.isBlank()) {
+            return first.trim();
+        }
+        if (second != null && !second.isBlank()) {
+            return second.trim();
+        }
+        if (third != null && !third.isBlank()) {
+            return third.trim();
+        }
+        return "Untitled article";
+    }
+
+    private record ExtractedPage(String url, String title, String author, String contentHtml) {}
 
     private String extractFromSource(Article article) {
         if (article.url() == null || article.url().isBlank()) {
