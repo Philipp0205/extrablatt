@@ -76,7 +76,14 @@ public class AppController {
         for (Feed feed : feeds) {
             feedGroups.computeIfAbsent(feed.categoryName(), ignored -> new ArrayList<>()).add(feed);
         }
-        model.addAttribute("feedGroups", feedGroups);
+        List<FeedCategorySummary> feedCategories = feedGroups.entrySet().stream()
+                .map(entry -> new FeedCategorySummary(
+                        entry.getKey(),
+                        entry.getValue().size(),
+                        entry.getValue().stream().mapToLong(Feed::unreadCount).sum()))
+                .sorted(Comparator.comparing(FeedCategorySummary::name, CATEGORY_ORDER))
+                .toList();
+        model.addAttribute("feedCategories", feedCategories);
         List<String> categories = existingCategories(feeds);
         model.addAttribute("categories", categories);
         model.addAttribute("defaultFeeds", feedService.defaultFeeds(userId));
@@ -93,6 +100,12 @@ public class AppController {
                 };
         model.addAttribute("activeView", activeView);
         model.addAttribute("selectedCategory", selectedCategory);
+        List<Feed> selectedFeeds = selectedCategory == null
+                ? List.of()
+                : feedGroups.getOrDefault(selectedCategory, List.of());
+        model.addAttribute("selectedFeeds", selectedFeeds);
+        model.addAttribute("selectedUnread",
+                selectedFeeds.stream().mapToLong(Feed::unreadCount).sum());
         model.addAttribute("kindleConfigured", isKindleConfigured(userId));
         model.addAttribute("mailFrom", mailFrom);
         boolean newslettersEnabled = properties.newsletters().enabled();
@@ -102,6 +115,9 @@ public class AppController {
             model.addAttribute("newsletterAddress", token + "@" + properties.newsletters().inboundDomain());
         }
         return "index";
+    }
+
+    record FeedCategorySummary(String name, int feedCount, long unreadCount) {
     }
 
     /** The distinct categories already in use, so they can fill a category drop-down. */
@@ -173,13 +189,14 @@ public class AppController {
     public String categorizeFeed(@PathVariable("id") long id,
                                  @RequestParam(value = "category", required = false) String category,
                                  @RequestParam(value = "newCategory", required = false) String newCategory,
+                                 @RequestParam(value = "redirect", defaultValue = "/") String redirect,
                                  RedirectAttributes redirectAttributes) {
         if (feedService.categorizeFeed(currentUser.requireId(), id, resolveCategory(category, newCategory))) {
             redirectAttributes.addFlashAttribute("message", "Feed category updated");
         } else {
             redirectAttributes.addFlashAttribute("error", "Feed not found");
         }
-        return "redirect:/";
+        return "redirect:" + safeRedirect(redirect);
     }
 
     /**
@@ -202,6 +219,7 @@ public class AppController {
     @PostMapping("/categories/rename")
     public String renameCategory(@RequestParam("oldCategory") String oldCategory,
                                  @RequestParam("newCategory") String newCategory,
+                                 @RequestParam(value = "redirect", defaultValue = "/") String redirect,
                                  RedirectAttributes redirectAttributes) {
         try {
             int updated = feedService.renameCategory(currentUser.requireId(), oldCategory, newCategory);
@@ -211,17 +229,19 @@ public class AppController {
         } catch (IllegalArgumentException e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
         }
-        return "redirect:/";
+        return "redirect:" + safeRedirect(redirect);
     }
 
     @PostMapping("/feeds/{id}/delete")
-    public String deleteFeed(@PathVariable("id") long id, RedirectAttributes redirectAttributes) {
+    public String deleteFeed(@PathVariable("id") long id,
+                             @RequestParam(value = "redirect", defaultValue = "/") String redirect,
+                             RedirectAttributes redirectAttributes) {
         if (!feedService.deleteFeed(currentUser.requireId(), id)) {
             redirectAttributes.addFlashAttribute("error", "Feed not found");
         } else {
             redirectAttributes.addFlashAttribute("message", "Feed deleted");
         }
-        return "redirect:/";
+        return "redirect:" + safeRedirect(redirect);
     }
 
     @PostMapping("/refresh")
