@@ -130,33 +130,49 @@ public class FeedRepository {
      * re-reads what the winner inserted.
      */
     public Feed findOrCreateNewsletterFeed(long userId, String senderUrl, String title, String category) {
-        Optional<Feed> existing = findByUrl(userId, senderUrl);
+        return findOrCreateSyntheticFeed(userId, senderUrl, title, category, FeedSource.NEWSLETTER);
+    }
+
+    /**
+     * The one feed that holds pages sent by pasting a URL. Created on first paste
+     * and reused afterwards; it is never polled.
+     */
+    public Feed findOrCreateClippingFeed(long userId) {
+        return findOrCreateSyntheticFeed(userId, Feed.CLIPPING_URL, "Pasted URLs", "Pasted",
+                FeedSource.CLIPPING);
+    }
+
+    private Feed findOrCreateSyntheticFeed(long userId, String url, String title, String category,
+                                           FeedSource source) {
+        Optional<Feed> existing = findByUrl(userId, url);
         if (existing.isPresent()) {
             return existing.get();
         }
         try {
-            return insertNewsletterFeed(userId, title, senderUrl, category);
+            return insertSyntheticFeed(userId, title, url, category, source);
         } catch (DuplicateKeyException raced) {
-            return findByUrl(userId, senderUrl).orElseThrow();
+            return findByUrl(userId, url).orElseThrow();
         }
     }
 
-    private Feed insertNewsletterFeed(long userId, String title, String senderUrl, String category) {
+    private Feed insertSyntheticFeed(long userId, String title, String url, String category,
+                                     FeedSource source) {
         KeyHolder keyHolder = new GeneratedKeyHolder();
         jdbc.update(con -> {
             PreparedStatement ps = con.prepareStatement("""
                     INSERT INTO feeds (user_id, title, url, category, source)
-                    VALUES (?, ?, ?, ?, 'NEWSLETTER')
+                    VALUES (?, ?, ?, ?, ?)
                     """, new String[]{"id"});
             ps.setLong(1, userId);
             ps.setString(2, title);
-            ps.setString(3, senderUrl);
+            ps.setString(3, url);
             ps.setString(4, normalizeCategory(category));
+            ps.setString(5, source.name());
             return ps;
         }, keyHolder);
         Number key = keyHolder.getKey();
         if (key == null) {
-            throw new IllegalStateException("Failed to insert newsletter feed");
+            throw new IllegalStateException("Failed to insert " + source.name().toLowerCase() + " feed");
         }
         return findById(userId, key.longValue()).orElseThrow();
     }
