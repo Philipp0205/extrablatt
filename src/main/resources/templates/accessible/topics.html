@@ -76,6 +76,21 @@
       </form>
     </div>
   </div>
+
+  <section aria-labelledby="send-url-heading">
+    <h2 id="send-url-heading">Send a page to your Kindle</h2>
+    <p>Paste the address of an article. We fetch it, strip it down to the text,
+      and email it to your Kindle.</p>
+    <form th:action="@{/articles/from-url}" method="post" class="form-stack">
+      <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+      <label for="articleUrl">Article address</label>
+      <input id="articleUrl" name="url" type="text" inputmode="url" autocomplete="url"
+             required placeholder="https://example.com/article"
+             aria-describedby="article-url-help"/>
+      <p id="article-url-help" class="quiet">For example: a news story or a blog post.</p>
+      <button class="btn btn-strong" type="submit">Send it to my Kindle</button>
+    </form>
+  </section>
 </main>
 
 <footer th:replace="~{accessible/fragments/page :: foot}"></footer>

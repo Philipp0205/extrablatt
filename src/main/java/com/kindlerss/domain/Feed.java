@@ -9,7 +9,10 @@ import java.time.Instant;
  * inbox (see {@code AppUser.newsletterInboundToken}) receives an issue from a new
  * sender; {@code url} holds a synthetic {@code newsletter:<sender-address>} value
  * (never fetched) so the column can stay non-null and unique per account, and also
- * doubles as the key used to find that sender's feed again next time.
+ * doubles as the key used to find that sender's feed again next time. A
+ * {@link FeedSource#CLIPPING} feed is the account's bucket for pages sent by
+ * pasting a URL; it uses the synthetic {@code clippings:} address and is never
+ * polled.
  */
 public record Feed(
         Long id,
@@ -29,6 +32,9 @@ public record Feed(
     /** Prefix of the synthetic {@code url} a newsletter feed is stored under. */
     private static final String NEWSLETTER_URL_PREFIX = "newsletter:";
 
+    /** Synthetic {@code url} of the one-per-account pasted-URL feed. */
+    public static final String CLIPPING_URL = "clippings:";
+
     public Feed {
         if (source == null) {
             source = FeedSource.RSS;
@@ -42,6 +48,10 @@ public record Feed(
 
     public boolean isNewsletter() {
         return source == FeedSource.NEWSLETTER;
+    }
+
+    public boolean isClipping() {
+        return source == FeedSource.CLIPPING;
     }
 
     /** The newsletter's sender address, or null for an RSS feed. */
