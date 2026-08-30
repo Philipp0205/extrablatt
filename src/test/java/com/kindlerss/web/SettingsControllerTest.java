@@ -145,9 +145,9 @@ class SettingsControllerTest {
     @Test
     @WithMockUser
     void settingsRendersOnlyTheSelectedSubview() throws Exception {
-        mockMvc.perform(get("/settings").param("view", "accessibility"))
+        mockMvc.perform(get("/settings").param("view", "kindle"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("Switch to the accessible version")))
+                .andExpect(content().string(containsString("Send-to-Kindle")))
                 .andExpect(content().string(not(containsString("Signed in as"))))
                 .andExpect(content().string(not(containsString("Delete my account"))));
     }

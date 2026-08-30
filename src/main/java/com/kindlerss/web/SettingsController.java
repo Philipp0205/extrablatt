@@ -55,7 +55,7 @@ public class SettingsController {
         }
         boolean admin = currentUser.details().map(AppUserDetails::admin).orElse(false);
         String activeView = switch (view) {
-            case "kindle", "accessibility", "version", "support", "delete" -> view;
+            case "kindle", "version", "support", "delete" -> view;
             case "telemetry" -> admin ? view : "accounts";
             default -> "accounts";
         };

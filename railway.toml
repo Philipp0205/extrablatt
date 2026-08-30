@@ -14,12 +14,6 @@
 #   SMTP_PORT      = 587
 #   SMTP_USERNAME  = resend
 #   SMTP_PASSWORD  = <Resend API key, starts with re_>
-#
-# Optional, when the accessibility edition has a custom domain of its own (add it
-# to the service under Settings -> Networking as well, or Railway will not route
-# the host at all):
-#   ACCESSIBILITY_DOMAIN = accessibility.<your-domain>
-# A host named accessibility.<something> is recognised without this variable.
 
 [build]
 builder = "DOCKERFILE"
