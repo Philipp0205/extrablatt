@@ -89,7 +89,8 @@ nav.top {
    below names them rather than leaning on a `> *` that they would outrank. */
 nav.top > a,
 nav.top > button,
-nav.top > form.inline {
+nav.top > form.inline,
+nav.top > details {
   margin: 0 0.5rem 0.5rem 0;
 }
 
@@ -118,6 +119,36 @@ nav.top > form.inline.refresh-control > button {
   width: auto;
   padding: 0.3rem 0.55rem;
   font-size: 0.82rem;
+}
+
+/* Article actions used on nearly every visit stay in the toolbar. Less common
+   actions expand onto a second row only when requested, saving a row of e-ink
+   screen height during reading. */
+nav.top > details.action-menu {
+  flex: 0 0 auto;
+}
+
+nav.top > details.action-menu[open] {
+  flex-basis: 100%;
+}
+
+details.action-menu > summary {
+  list-style: none;
+}
+
+details.action-menu > summary::-webkit-details-marker {
+  display: none;
+}
+
+.action-menu-items {
+  display: flex;
+  flex-wrap: wrap;
+  margin: 0.4rem -0.4rem -0.4rem 0;
+}
+
+.action-menu-items > a,
+.action-menu-items > form.inline {
+  margin: 0 0.4rem 0.4rem 0;
 }
 
 nav.top a, button, .btn {
@@ -572,6 +603,27 @@ details.tools > .tools-body {
   margin-top: 0.5rem;
 }
 
+details.add-feed {
+  border-top: 2px solid #000;
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+}
+
+details.nested-tools {
+  margin-top: 0.75rem;
+}
+
+.settings-section {
+  border-top: 1px solid #000;
+  margin-top: 1.5rem;
+  padding-top: 0.25rem;
+}
+
+.settings-section:first-of-type {
+  border-top: 0;
+  margin-top: 0;
+}
+
 .feed-list details.tools {
   margin-top: 0.5rem;
 }
@@ -894,7 +946,8 @@ dialog.donate-dialog .row {
 @media (max-width: 640px) {
   nav.top > a,
   nav.top > button,
-  nav.top > form.inline {
+  nav.top > form.inline,
+  nav.top > details {
     flex: 0 0 auto;
   }
 
