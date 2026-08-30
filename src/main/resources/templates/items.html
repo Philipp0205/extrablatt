@@ -25,19 +25,6 @@
   <div th:if="${error}" class="flash error" th:text="${error}"></div>
   <div th:replace="~{fragments/donation-dialog :: donationDialog}"></div>
 
-  <details class="tools paste-url">
-    <summary>Send a URL to Kindle</summary>
-    <form class="tools-body" th:action="@{/articles/from-url}" method="post">
-      <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-      <label for="articleUrl">Article URL</label>
-      <div class="row">
-        <input id="articleUrl" name="url" type="url" inputmode="url" required
-               placeholder="https://example.com/article" autocomplete="url"/>
-        <button class="btn" type="submit">Send to Kindle</button>
-      </div>
-    </form>
-  </details>
-
   <!-- The article list always opens at the top: unlike a single article, there is
        no reading position worth restoring, and returning to "Articles" should show
        page one from its start. -->

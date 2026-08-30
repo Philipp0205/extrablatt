@@ -386,6 +386,10 @@ h1 {
   margin: 0 0 1rem;
 }
 
+form.paste-url {
+  margin: 0 0 1.25rem;
+}
+
 .subview > h1:first-child,
 .subview > h2:first-child {
   margin-top: 0;
@@ -574,12 +578,6 @@ details.tools > .tools-body {
 
 .feed-list details.tools {
   margin-top: 0.5rem;
-}
-
-header.app + .flash + .paste-url,
-.flash.error + .paste-url,
-.paste-url {
-  margin: 0 0 0.75rem;
 }
 
 .actions {
