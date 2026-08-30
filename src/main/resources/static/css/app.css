@@ -603,14 +603,88 @@ details.tools > .tools-body {
   margin-top: 0.5rem;
 }
 
-details.add-feed {
-  border-top: 2px solid #000;
-  margin-top: 1.25rem;
-  padding-top: 1rem;
+.back-link {
+  display: inline-block;
+  margin-bottom: 0.65rem;
+}
+
+.feed-page-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  margin: 0 -0.5rem 1rem 0;
+}
+
+.feed-page-heading > div {
+  flex: 1 1 auto;
+  min-width: 10rem;
+  margin-right: 0.5rem;
+}
+
+.feed-page-heading h1 {
+  margin-bottom: 0.25rem;
+}
+
+.feed-page-heading .meta {
+  margin-bottom: 0;
+}
+
+.feed-page-heading details.add-feed {
+  flex: 0 0 auto;
+  margin: 0 0.5rem 0 0;
+}
+
+.feed-page-heading details.add-feed[open] {
+  flex-basis: 100%;
+  margin-top: 0.75rem;
+}
+
+.feed-page-heading details.add-feed > .tools-body {
+  border-top: 1px solid #000;
+  padding-top: 0.75rem;
 }
 
 details.nested-tools {
   margin-top: 0.75rem;
+}
+
+.category-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.category-list li {
+  border-top: 1px solid #000;
+}
+
+.category-list li:last-child {
+  border-bottom: 1px solid #000;
+}
+
+.category-list a {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 3.5rem;
+  padding: 0.65rem 0.25rem;
+  text-decoration: none;
+}
+
+.category-list a strong {
+  text-decoration: underline;
+}
+
+.category-list a .meta {
+  flex: 0 0 auto;
+  margin: 0 0 0 0.75rem;
+  text-align: right;
+}
+
+.feed-group > .category-heading:first-child {
+  justify-content: flex-end;
+  margin-top: 0;
+  margin-bottom: 0.5rem;
 }
 
 .settings-section {
