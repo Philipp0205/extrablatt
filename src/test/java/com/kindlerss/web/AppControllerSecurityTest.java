@@ -392,7 +392,10 @@ class AppControllerSecurityTest {
                 .andExpect(content().string(containsString("data-reader-prev")))
                 .andExpect(content().string(containsString("data-reader-next")))
                 .andExpect(content().string(containsString("/js/reader.js")))
-                .andExpect(content().string(containsString("<button class=\"btn\" type=\"submit\">Send to Kindle</button>")));
+                .andExpect(content().string(containsString("<button class=\"btn\" type=\"submit\">Send to Kindle</button>")))
+                .andExpect(content().string(containsString("<details class=\"action-menu\" data-reader-refit>")))
+                .andExpect(content().string(containsString("<summary class=\"btn\">More</summary>")))
+                .andExpect(content().string(containsString(">Mark unread</button>")));
     }
 
     @Test
