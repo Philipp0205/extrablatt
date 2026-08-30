@@ -66,6 +66,16 @@ header.app.compact nav.top button {
   font-size: 0.95rem;
 }
 
+header.app.compact nav.top > form.inline.refresh-control {
+  flex-basis: 2.4rem;
+  width: 2.4rem;
+}
+
+header.app.compact nav.top > form.inline.refresh-control > button {
+  min-height: 2.4rem;
+  padding: 0;
+}
+
 header.app .brand {
   display: block;
   font-size: 1.75rem;
@@ -93,7 +103,7 @@ nav.top > form.inline {
   margin: 0 0.5rem 0.5rem 0;
 }
 
-/* The navigation fills the width, so every button is a wide target. Growing by
+/* The destination links share the row so each is a wide target. Growing by
    content keeps the longer labels from being squeezed onto two lines. */
 nav.top > a,
 nav.top > button,
@@ -105,19 +115,29 @@ nav.top > form.inline > button {
   width: 100%;
 }
 
-/* Refresh is a utility action rather than a destination. Keep it visibly
-   secondary to the three full-size view buttons. */
+/* Refresh is a utility action, not a destination. Keep a fixed square footprint
+   at the end of the row so the three view links can claim the remaining width,
+   and stretch to the same height as those neighbours. */
 nav.top > form.inline.refresh-control {
-  flex: 0 0 auto;
-  align-self: center;
+  flex: 0 0 2.75rem;
+  width: 2.75rem;
 }
 
 nav.top > form.inline.refresh-control > button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
   min-width: 0;
-  min-height: 2.1rem;
-  width: auto;
-  padding: 0.3rem 0.55rem;
-  font-size: 0.82rem;
+  min-height: 2.75rem;
+  padding: 0;
+}
+
+nav.top > form.inline.refresh-control > button svg {
+  display: block;
+  width: 1.15rem;
+  height: 1.15rem;
 }
 
 nav.top a, button, .btn {
@@ -883,21 +903,14 @@ dialog.donate-dialog .row {
  *
  * A toolbar built for a Kindle's landscape screen wraps onto two and three rows
  * at 375px, and on a reading page each of those rows is taken straight out of
- * the page of text. The rules below spend less on the controls and let them keep
- * their own width instead of stretching to fill a row they cannot fill — five
- * buttons packed tightly are one row shorter than five buttons spread out.
- *
- * Labels stop wrapping here as well. A control that wraps is a control whose
- * height nobody measured, which is how the pager ended up half off the bottom of
- * the screen on the very screens it was meant for.
+ * the page of text. The rules below spend less padding on the controls and keep
+ * labels on one line. Destination links still share the full row width (see the
+ * flex rules above); only the square refresh control keeps a fixed footprint.
+ * A control that wraps is a control whose height nobody measured, which is how
+ * the pager ended up half off the bottom of the screen on the very screens it
+ * was meant for.
  */
 @media (max-width: 640px) {
-  nav.top > a,
-  nav.top > button,
-  nav.top > form.inline {
-    flex: 0 0 auto;
-  }
-
   nav.top a, nav.top button, nav.top .btn {
     min-height: 2.5rem;
     padding: 0.45rem 0.6rem;
@@ -905,11 +918,33 @@ dialog.donate-dialog .row {
     white-space: nowrap;
   }
 
+  /* The icon-only refresh button has no label to pad; keep it square and match
+     the reduced neighbour height without inheriting the text padding above. */
+  nav.top > form.inline.refresh-control {
+    flex-basis: 2.5rem;
+    width: 2.5rem;
+  }
+
+  nav.top > form.inline.refresh-control > button {
+    min-height: 2.5rem;
+    padding: 0;
+  }
+
   header.app.compact nav.top a,
   header.app.compact nav.top button {
     min-height: 2.25rem;
     padding: 0.35rem 0.55rem;
     font-size: 0.9rem;
+  }
+
+  header.app.compact nav.top > form.inline.refresh-control {
+    flex-basis: 2.25rem;
+    width: 2.25rem;
+  }
+
+  header.app.compact nav.top > form.inline.refresh-control > button {
+    min-height: 2.25rem;
+    padding: 0;
   }
 
   header.app .brand {
@@ -988,6 +1023,16 @@ dialog.donate-dialog .row {
     min-height: 2.1rem;
     padding: 0.25rem 0.5rem;
     font-size: 0.85rem;
+  }
+
+  header.app.compact nav.top > form.inline.refresh-control {
+    flex-basis: 2.1rem;
+    width: 2.1rem;
+  }
+
+  header.app.compact nav.top > form.inline.refresh-control > button {
+    min-height: 2.1rem;
+    padding: 0;
   }
 
   .pager .btn {
