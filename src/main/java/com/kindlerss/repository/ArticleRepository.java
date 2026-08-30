@@ -124,6 +124,16 @@ public class ArticleRepository {
         return Boolean.TRUE.equals(exists);
     }
 
+    public Optional<Article> findByFeedIdAndGuid(long userId, long feedId, String guid) {
+        var list = jdbc.query("""
+                SELECT a.*, f.title AS feed_title
+                FROM articles a
+                JOIN feeds f ON f.id = a.feed_id
+                WHERE a.feed_id = ? AND a.guid = ? AND f.user_id = ?
+                """, MAPPER, feedId, guid, userId);
+        return list.stream().findFirst();
+    }
+
     public long insert(long feedId, String guid, String title, String url, String author,
                        Instant publishedAt, String summaryHtml, String feedContentHtml) {
         KeyHolder keyHolder = new GeneratedKeyHolder();
@@ -153,6 +163,15 @@ public class ArticleRepository {
         jdbc.update("""
                 UPDATE articles SET extracted_content_html = ?, updated_at = NOW() WHERE id = ?
                 """, extractedHtml, id);
+    }
+
+    /** Refreshes the extracted body of a pasted-URL article, keeping the same row. */
+    public void updateImportedContent(long id, String title, String author, String extractedHtml) {
+        jdbc.update("""
+                UPDATE articles
+                SET title = ?, author = ?, extracted_content_html = ?, updated_at = NOW()
+                WHERE id = ?
+                """, title, author, extractedHtml, id);
     }
 
     public void markRead(long userId, long id, boolean read) {

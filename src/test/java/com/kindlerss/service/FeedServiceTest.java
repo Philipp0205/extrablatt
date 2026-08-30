@@ -232,7 +232,9 @@ class FeedServiceTest {
     @Test
     void refreshingAllFeedsSkipsNewslettersSinceTheyHaveNothingToPoll() {
         Feed newsletter = newsletterFeed("newsletter:editor@example.com");
-        when(feedRepository.findAllAcrossUsers()).thenReturn(java.util.List.of(newsletter));
+        Feed clipping = new Feed(3L, "Pasted URLs", Feed.CLIPPING_URL, null, "Pasted", null,
+                Instant.EPOCH, Instant.EPOCH, 0, FeedSource.CLIPPING);
+        when(feedRepository.findAllAcrossUsers()).thenReturn(java.util.List.of(newsletter, clipping));
 
         service(100).refreshAll();
 

@@ -7,6 +7,7 @@ import com.rometools.rome.io.SyndFeedInput;
 import com.rometools.rome.io.XmlReader;
 import com.kindlerss.config.AppProperties;
 import com.kindlerss.domain.Feed;
+import com.kindlerss.domain.FeedSource;
 import com.kindlerss.repository.ArticleRepository;
 import com.kindlerss.repository.FeedRepository;
 import org.jsoup.Jsoup;
@@ -229,8 +230,8 @@ public class FeedService {
 
     private void refreshFeeds(List<Feed> feeds) {
         for (Feed feed : feeds) {
-            // Newsletters have nothing to poll; their articles arrive by e-mail.
-            if (feed.isNewsletter()) {
+            // Newsletters arrive by e-mail; pasted URLs are fetched once on send.
+            if (feed.source() != FeedSource.RSS) {
                 continue;
             }
             try {

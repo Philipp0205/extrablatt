@@ -34,6 +34,7 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.not;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -624,5 +625,80 @@ class AppControllerSecurityTest {
         org.junit.jupiter.api.Assertions.assertEquals("/items?feed=1", AppController.safeRedirect("/items?feed=1"));
         org.junit.jupiter.api.Assertions.assertNull(AppController.safeHttpUrl("javascript:alert(1)"));
         org.junit.jupiter.api.Assertions.assertEquals("https://example.com/a", AppController.safeHttpUrl("https://example.com/a"));
+    }
+
+    @Test
+    @WithMockUser
+    void homeOffersAPasteUrlFormOnTheFeedsView() throws Exception {
+        when(feedService.listFeeds(UID)).thenReturn(List.of());
+        mockMvc.perform(get("/"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("Send a URL to Kindle")))
+                .andExpect(content().string(containsString("action=\"/articles/from-url\"")));
+
+        mockMvc.perform(get("/").param("view", "add"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(not(containsString("action=\"/articles/from-url\""))));
+    }
+
+    @Test
+    @WithMockUser
+    void itemsPageDoesNotOfferAPasteUrlForm() throws Exception {
+        when(articleService.findPage(eq(UID), isNull(), isNull(), eq(1), eq(20))).thenReturn(List.of());
+        when(articleService.count(eq(UID), isNull(), isNull())).thenReturn(0L);
+        when(feedService.listFeeds(UID)).thenReturn(List.of());
+        mockMvc.perform(get("/items").param("unread", "false"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(not(containsString("action=\"/articles/from-url\""))));
+    }
+
+    @Test
+    @WithMockUser
+    void pastingAUrlImportsTheArticleAndSendsIt() throws Exception {
+        Article imported = new Article(8L, 11L, "https://example.com/a", "A story",
+                "https://example.com/a", null, Instant.now(), null, null, "<p>Hi</p>",
+                false, null, Instant.now(), Instant.now(), "Pasted URLs");
+        when(articleService.importFromUrl(UID, "https://example.com/a")).thenReturn(imported);
+
+        mockMvc.perform(post("/articles/from-url").with(csrf())
+                        .param("url", "https://example.com/a"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/articles/8"))
+                .andExpect(flash().attribute("message", "Sent to Kindle"));
+
+        verify(kindleMailService).sendToKindle(UID, 8L, false);
+    }
+
+    @Test
+    @WithMockUser
+    void aFailedImportDoesNotTryToSend() throws Exception {
+        when(articleService.importFromUrl(UID, "https://example.com/missing"))
+                .thenThrow(new IllegalArgumentException("Could not extract an article from that page"));
+
+        mockMvc.perform(post("/articles/from-url").with(csrf())
+                        .param("url", "https://example.com/missing"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/"))
+                .andExpect(flash().attribute("error", "Could not extract an article from that page"));
+
+        verify(kindleMailService, never()).sendToKindle(anyLong(), anyLong(), anyBoolean());
+    }
+
+    @Test
+    @WithMockUser
+    void aFailedSendStillKeepsTheImportedArticle() throws Exception {
+        Article imported = new Article(8L, 11L, "https://example.com/a", "A story",
+                "https://example.com/a", null, Instant.now(), null, null, "<p>Hi</p>",
+                false, null, Instant.now(), Instant.now(), "Pasted URLs");
+        when(articleService.importFromUrl(UID, "https://example.com/a")).thenReturn(imported);
+        org.mockito.Mockito.doThrow(new IllegalStateException("Add your Kindle e-mail address in Settings first"))
+                .when(kindleMailService).sendToKindle(UID, 8L, false);
+
+        mockMvc.perform(post("/articles/from-url").with(csrf())
+                        .param("url", "https://example.com/a"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/articles/8"))
+                .andExpect(flash().attribute("error",
+                        "Add your Kindle e-mail address in Settings first"));
     }
 }

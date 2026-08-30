@@ -56,6 +56,7 @@
       <li th:each="source : ${group.value}">
         <a th:href="@{/list(source=${source.id}, show='all')}" th:text="${source.title}">Source</a>
         <span class="tag" th:if="${source.isNewsletter()}">Newsletter</span>
+        <span class="tag" th:if="${source.isClipping()}">Pasted pages</span>
         <span class="quiet" th:text="${source.unreadCount} + ' new'">0 new</span>
         <p class="quiet bad" th:if="${source.lastError != null}">
           This one could not be read last time we tried.

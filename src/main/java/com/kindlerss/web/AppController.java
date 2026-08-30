@@ -18,6 +18,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+import jakarta.servlet.http.HttpServletRequest;
+
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -167,6 +169,42 @@ public class AppController {
             redirectAttributes.addFlashAttribute("error", String.join("; ", errors));
         }
         return "redirect:/";
+    }
+
+    /**
+     * Fetches a pasted page, stores it as an article, and emails the EPUB. The
+     * article is kept even when sending fails, so a Kindle address that is not
+     * set yet can be filled in and the send retried from the article page.
+     */
+    @PostMapping("/articles/from-url")
+    public String sendFromUrl(@RequestParam("url") String url,
+                              @RequestParam(value = "images", defaultValue = "false") boolean images,
+                              HttpServletRequest request,
+                              RedirectAttributes redirectAttributes) {
+        boolean accessible = EditionInterceptor.isAccessible(request);
+        String failureTarget = accessible ? "/topics" : "/";
+        Article article;
+        try {
+            article = articleService.importFromUrl(currentUser.requireId(), url);
+        } catch (Exception e) {
+            redirectAttributes.addFlashAttribute("error",
+                    e.getMessage() == null ? "That page could not be sent" : e.getMessage());
+            return "redirect:" + failureTarget;
+        }
+        String successTarget = accessible
+                ? "/read/" + article.id()
+                : "/articles/" + article.id() + (images ? "?images=true" : "");
+        try {
+            boolean donationPrompt = kindleMailService.sendToKindle(
+                    currentUser.requireId(), article.id(), images);
+            redirectAttributes.addFlashAttribute("message", "Sent to Kindle");
+            if (donationPrompt) {
+                redirectAttributes.addFlashAttribute("donationPrompt", true);
+            }
+        } catch (Exception e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+        }
+        return "redirect:" + successTarget;
     }
 
     @PostMapping("/feeds/{id}/category")

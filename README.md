@@ -8,6 +8,7 @@ Multi-user RSS/Atom reader that extracts readable article HTML and emails EPUB f
 - Per-user feeds and articles — every account has its own, isolated subscriptions
 - Add feeds by RSS/Atom URL or homepage (autodiscovery from `<link>` tags,
   feed-like links, and the site's conventional feed paths)
+- Send any web article to Kindle by pasting its URL (extracted, stored, emailed as EPUB)
 - Optional newsletter subscriptions: one inbound e-mail address per account —
   subscribe any newsletter to it and issues show up as articles, sent to Kindle
   the same way as any other
@@ -91,14 +92,17 @@ Tests do not require PostgreSQL or Docker. They cover EPUB layout, HTML sanitiza
    Give a feed a category while adding it, or change its category later. A
    category heading on the Feeds page can also be renamed in place, which moves
    every feed in it to the new name at once.
-2. Open **Articles** and filter by feed, category, or the **Unread** toggle in the
+2. **Send a URL** from **Feeds**: paste any article address. The page is fetched,
+   stripped to readable HTML, saved under a **Pasted URLs** feed, and emailed to
+   your Kindle as an EPUB.
+3. Open **Articles** and filter by feed, category, or the **Unread** toggle in the
    filter bar.
-3. Page through the list; articles you page past are marked read.
-4. Tap an article's title to mark it read and view extracted content (images off by default).
+4. Page through the list; articles you page past are marked read.
+5. Tap an article's title to mark it read and view extracted content (images off by default).
    An unread list keeps articles opened during that visit in place, so returning
    to the list does not make the entries jump. A feed-provided discussion link
    (for example Hacker News comments) remains available beside **Original**.
-5. **Send to Kindle** builds an EPUB and emails it; `sent_at` is recorded only after SMTP succeeds.
+6. **Send to Kindle** builds an EPUB and emails it; `sent_at` is recorded only after SMTP succeeds.
    With JavaScript available it sends in place, without reloading or moving the
    current page; the normal form submission remains as a no-JavaScript fallback.
 
