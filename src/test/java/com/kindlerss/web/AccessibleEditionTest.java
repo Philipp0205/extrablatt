@@ -430,11 +430,10 @@ class AccessibleEditionTest {
 
     @Test
     @WithMockUser
-    void topicsOffersAPasteUrlForm() throws Exception {
+    void topicsDoesNotOfferAPasteUrlForm() throws Exception {
         mockMvc.perform(get("/topics").header("Host", ACCESSIBLE_HOST))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("Send a page to your Kindle")))
-                .andExpect(content().string(containsString("action=\"/articles/from-url\"")));
+                .andExpect(content().string(not(containsString("action=\"/articles/from-url\""))));
     }
 
     @Test

@@ -90,7 +90,7 @@ public class AppController {
         }
         String activeView = selectedCategory != null ? "category"
                 : switch (view) {
-                    case "add", "free-test", "send-url" -> view;
+                    case "add", "free-test" -> view;
                     default -> "feeds";
                 };
         model.addAttribute("activeView", activeView);
@@ -182,7 +182,7 @@ public class AppController {
                               HttpServletRequest request,
                               RedirectAttributes redirectAttributes) {
         boolean accessible = EditionInterceptor.isAccessible(request);
-        String failureTarget = accessible ? "/topics" : "/?view=send-url";
+        String failureTarget = accessible ? "/topics" : "/";
         Article article;
         try {
             article = articleService.importFromUrl(currentUser.requireId(), url);

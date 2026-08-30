@@ -629,25 +629,27 @@ class AppControllerSecurityTest {
 
     @Test
     @WithMockUser
-    void homeOffersAPasteUrlForm() throws Exception {
+    void homeOffersAPasteUrlFormOnTheFeedsView() throws Exception {
         when(feedService.listFeeds(UID)).thenReturn(List.of());
-        mockMvc.perform(get("/").param("view", "send-url"))
+        mockMvc.perform(get("/"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("Send a URL to Kindle")))
-                .andExpect(content().string(containsString("action=\"/articles/from-url\"")))
-                .andExpect(content().string(containsString("Paste the address of a web page")));
+                .andExpect(content().string(containsString("action=\"/articles/from-url\"")));
+
+        mockMvc.perform(get("/").param("view", "add"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(not(containsString("action=\"/articles/from-url\""))));
     }
 
     @Test
     @WithMockUser
-    void itemsPageOffersAFoldedPasteUrlForm() throws Exception {
+    void itemsPageDoesNotOfferAPasteUrlForm() throws Exception {
         when(articleService.findPage(eq(UID), isNull(), isNull(), eq(1), eq(20))).thenReturn(List.of());
         when(articleService.count(eq(UID), isNull(), isNull())).thenReturn(0L);
         when(feedService.listFeeds(UID)).thenReturn(List.of());
         mockMvc.perform(get("/items").param("unread", "false"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("Send a URL to Kindle")))
-                .andExpect(content().string(containsString("action=\"/articles/from-url\"")));
+                .andExpect(content().string(not(containsString("action=\"/articles/from-url\""))));
     }
 
     @Test
@@ -676,7 +678,7 @@ class AppControllerSecurityTest {
         mockMvc.perform(post("/articles/from-url").with(csrf())
                         .param("url", "https://example.com/missing"))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/?view=send-url"))
+                .andExpect(redirectedUrl("/"))
                 .andExpect(flash().attribute("error", "Could not extract an article from that page"));
 
         verify(kindleMailService, never()).sendToKindle(anyLong(), anyLong(), anyBoolean());

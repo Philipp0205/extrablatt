@@ -92,9 +92,9 @@ Tests do not require PostgreSQL or Docker. They cover EPUB layout, HTML sanitiza
    Give a feed a category while adding it, or change its category later. A
    category heading on the Feeds page can also be renamed in place, which moves
    every feed in it to the new name at once.
-2. **Send a URL** from the home page (or the article list): paste any article
-   address. The page is fetched, stripped to readable HTML, saved under a
-   **Pasted URLs** feed, and emailed to your Kindle as an EPUB.
+2. **Send a URL** from **Feeds**: paste any article address. The page is fetched,
+   stripped to readable HTML, saved under a **Pasted URLs** feed, and emailed to
+   your Kindle as an EPUB.
 3. Open **Articles** and filter by feed, category, or the **Unread** toggle in the
    filter bar.
 4. Page through the list; articles you page past are marked read.
