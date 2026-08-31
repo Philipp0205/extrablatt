@@ -224,9 +224,12 @@ p {
   min-height: 24rem;
 }
 
+/* font-size is the single knob the faked browser chrome scales from, so the
+   smaller mock needs one number rather than a set of overrides. */
 .kindle-mock {
   margin: 0;
   width: 15.5rem;
+  font-size: 0.44rem;
   background: linear-gradient(180deg, #333336, #1b1b1d);
   border-radius: 20px;
   padding: 1.1rem 1rem 2.1rem;
@@ -238,6 +241,7 @@ p {
   right: 0;
   bottom: -1.5rem;
   width: 13rem;
+  font-size: 0.38rem;
   transform: rotate(3deg);
   z-index: 2;
 }
@@ -250,54 +254,27 @@ p {
   padding-bottom: 2.4rem;
 }
 
-/* The Kindle Web Browser draws its address bar above the page, like a desktop browser. */
+/* The Kindle Web Browser draws its address bar above the page, like a desktop
+   browser. A back arrow and a menu button are a few pixels wide at this scale,
+   where they read as specks of dirt, so the bar keeps only the address. */
 .kindle-browser-bar {
   flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  gap: 0.3rem;
-  padding: 0.22rem 0.3rem;
-  background: #eaeaea;
-  border-bottom: 1px solid #b9b9b9;
-}
-
-.kindle-browser-back {
-  flex: 0 0 auto;
-  width: 0.28rem;
-  height: 0.28rem;
-  border-left: 1.5px solid #4a4a4a;
-  border-bottom: 1.5px solid #4a4a4a;
-  transform: rotate(45deg);
+  padding: 0.45em 0.6em;
+  background: #e6e6e6;
+  border-bottom: 1px solid #c4c4c4;
 }
 
 .kindle-address-field {
-  flex: 1 1 auto;
-  min-width: 0;
+  display: block;
+  padding: 0.3em 0.5em;
   background: #fff;
-  border: 1px solid #9c9c9c;
-  border-radius: 2px;
-  padding: 0.1rem 0.25rem;
+  border: 1px solid #b0b0b0;
   font-family: "Courier New", Courier, monospace;
-  font-size: 0.5rem;
-  line-height: 1.25;
-  color: #2b2b2b;
-  letter-spacing: -0.02em;
+  line-height: 1.4;
+  color: #333;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.kindle-browser-menu {
-  flex: 0 0 auto;
-  width: 0.13rem;
-  height: 0.13rem;
-  border-radius: 50%;
-  background: #4a4a4a;
-  box-shadow: 0 -0.22rem 0 #4a4a4a, 0 0.22rem 0 #4a4a4a;
-}
-
-.kindle-mock-secondary .kindle-address-field {
-  font-size: 0.44rem;
 }
 
 .kindle-screen {
@@ -361,126 +338,6 @@ p {
   font-size: 1.05rem;
 }
 
-.open-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.9fr);
-  gap: 2.5rem;
-  align-items: start;
-}
-
-.open-steps {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.open-steps li {
-  display: flex;
-  gap: 1.25rem;
-  align-items: flex-start;
-  margin-bottom: 1.5rem;
-}
-
-.open-steps p {
-  margin-bottom: 0;
-  color: #222;
-}
-
-.browser-mock {
-  margin: 0;
-}
-
-.browser-mock-frame {
-  border: 2px solid #000;
-  background: #f7f6f3;
-  padding: 1.25rem 1.35rem 1.4rem;
-}
-
-.browser-mock-label {
-  margin: 0 0 0.85rem;
-  font-size: 0.85rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
-.browser-mock-toolbar {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  margin-bottom: 0.85rem;
-  padding-bottom: 0.75rem;
-  border-bottom: 1px solid #bbb;
-}
-
-.browser-mock-menu {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 2rem;
-  height: 2rem;
-  border: 2px solid #000;
-  font-size: 1.25rem;
-  font-weight: 700;
-  line-height: 1;
-}
-
-.browser-mock-menu-hint {
-  font-size: 0.95rem;
-  color: #222;
-}
-
-.browser-mock-address {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0;
-  padding: 0.85rem 1rem;
-  border: 2px solid #000;
-  background: #fff;
-  font-family: "Courier New", Courier, monospace;
-}
-
-.browser-mock-prefix {
-  color: #666;
-  font-size: 1rem;
-}
-
-.browser-mock-host {
-  font-size: 1.35rem;
-  font-weight: 700;
-  color: #000;
-  word-break: break-all;
-  user-select: all;
-  -webkit-user-select: all;
-}
-
-.browser-mock-caret {
-  display: inline-block;
-  width: 0.12rem;
-  height: 1.2rem;
-  margin-left: 0.15rem;
-  background: #000;
-  vertical-align: text-bottom;
-  animation: caret-blink 1.1s steps(1) infinite;
-}
-
-@keyframes caret-blink {
-  50% { opacity: 0; }
-}
-
-.browser-mock-note {
-  margin: 0.75rem 0 0;
-  color: #444;
-  font-size: 0.95rem;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .browser-mock-caret {
-    animation: none;
-  }
-}
-
 /* Feature grid */
 .features {
   padding: 4rem 0;
@@ -506,26 +363,31 @@ p {
   color: #222;
 }
 
-/* Steps */
-.steps {
-  padding: 4.5rem 0;
-}
-
+/* Numbered steps. The number is drawn from a counter on the list itself, so it
+   exists in exactly one place; without this stylesheet the browser's own
+   <ol> markers take over instead of adding a second number. */
 .step-list {
   list-style: none;
+  counter-reset: step;
   margin: 0 auto;
   padding: 0;
   max-width: 40rem;
 }
 
 .step-list li {
+  counter-increment: step;
   display: flex;
   gap: 1.25rem;
   align-items: flex-start;
   margin-bottom: 1.75rem;
 }
 
-.step-number {
+.step-list li:last-child {
+  margin-bottom: 0;
+}
+
+.step-list li::before {
+  content: counter(step);
   flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
@@ -539,12 +401,21 @@ p {
 }
 
 .step-list p {
-  margin-bottom: 0;
+  margin-bottom: 0.5rem;
   color: #222;
 }
 
-.steps-cta {
+.step-list p:last-child {
+  margin-bottom: 0;
+}
+
+/* Closing call to action */
+.closing {
+  padding: 4rem 0;
   text-align: center;
+}
+
+.section-cta {
   margin-top: 2.5rem;
 }
 
@@ -591,14 +462,6 @@ p {
   .hero-copy h1 {
     font-size: 2.1rem;
   }
-
-  .open-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .browser-mock {
-    order: -1;
-  }
 }
 
 @media (max-width: 520px) {
@@ -611,12 +474,8 @@ p {
   .kindle-mock { width: 11.5rem; }
   .kindle-mock-secondary { width: 9.5rem; }
 
-  .kindle-address-field { font-size: 0.44rem; }
-  .kindle-mock-secondary .kindle-address-field { font-size: 0.38rem; }
-
   .kindle-url { font-size: 1.25rem; }
   .kindle-url-inline { font-size: 1.1rem; }
-  .browser-mock-host { font-size: 1.15rem; }
 
   .hero-actions { flex-direction: column; align-items: stretch; }
   .hero-actions .btn { width: 100%; }

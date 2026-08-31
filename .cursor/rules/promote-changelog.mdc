@@ -8,27 +8,25 @@ alwaysApply: true
 A PR from `staging` into `main` is a production release. Before opening or merging it:
 
 1. Diff `origin/main...origin/staging`.
-2. Write a short PR summary of **reader-facing** changes (what someone on a Kindle would notice). Skip chores, CI, deploy wiring, and refactors unless they change behaviour.
-3. Prepend a dated entry to `src/main/resources/templates/changelog.html` (newest first). Use today's date. Keep bullets plain and specific. Do not rewrite older entries.
+2. Summarize **reader-facing** changes in the PR body (what someone on a Kindle would notice). Skip chores, CI, deploy wiring, and refactors unless they change behaviour.
+3. Prepend a release object to `src/main/resources/changelog.json` (newest first). That file feeds Settings → Changelog and the what's-new popup. Do not rewrite older releases.
 
-```html
-<!-- ✅ GOOD — prepend this article above existing ones -->
-<article class="changelog-entry">
-  <h2>31 August 2026</h2>
-  <ul>
-    <li>Feeds can be renamed from the category row.</li>
-    <li>Send-to-Kindle stays on the current article page instead of jumping away.</li>
-  </ul>
-</article>
-
-<!-- ❌ BAD -->
-<article class="changelog-entry">
-  <h2>Update</h2>
-  <ul>
-    <li>Various fixes and improvements.</li>
-    <li>Bump CI and Railway config.</li>
-  </ul>
-</article>
+```json
+{
+  "id": "2026-08-31",
+  "date": "31 August 2026",
+  "title": "Category rename and send-in-place",
+  "highlights": [
+    "Feeds can be renamed from the category row.",
+    "Send-to-Kindle stays on the current article page."
+  ],
+  "changes": [
+    "Feeds can be renamed from the category row.",
+    "Send-to-Kindle stays on the current article page instead of jumping away."
+  ]
+}
 ```
 
-If nothing user-visible shipped, say so in the PR body and **do not** add a changelog article.
+`id` is `YYYY-MM-DD` (today). `highlights` are the popup; `changes` is the Settings list. Be specific. No “various fixes”.
+
+If nothing user-visible shipped, say so in the PR body and **do not** add a release.

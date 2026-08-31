@@ -102,7 +102,6 @@ class BuildInfoViewTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("1.0.0-SNAPSHOT")))
                 .andExpect(content().string(containsString("abc1234")))
-                .andExpect(content().string(containsString("2026-01-01 00:00 UTC")))
-                .andExpect(content().string(containsString("href=\"/changelog\"")));
+                .andExpect(content().string(containsString("2026-01-01 00:00 UTC")));
     }
 }
