@@ -157,6 +157,19 @@ class SettingsControllerTest {
 
     @Test
     @WithMockUser
+    void settingsIncludesMailtoFeedbackWithPhoneNotEreaderNote() throws Exception {
+        mockMvc.perform(get("/settings"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString(
+                        "href=\"mailto:philippk@mailbox.org?subject=Extrablatt%20feedback\"")))
+                .andExpect(content().string(containsString(">Send feedback</a>")))
+                .andExpect(content().string(containsString(
+                        "Open this from a phone or computer — the Kindle / e-reader browser")))
+                .andExpect(content().string(containsString("cannot send e-mail.")));
+    }
+
+    @Test
+    @WithMockUser
     void readingSettingsCanTurnMarkOnNextPageOff() throws Exception {
         mockMvc.perform(get("/settings"))
                 .andExpect(status().isOk())
