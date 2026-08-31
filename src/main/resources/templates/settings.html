@@ -16,28 +16,9 @@
       <a class="active" aria-current="page" th:href="@{/settings}">Settings</a>
       <form class="inline refresh-control" th:action="@{/refresh}" method="post">
         <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-        <input type="hidden" name="redirect" th:value="@{/settings(view=${activeView})}"/>
+        <input type="hidden" name="redirect" th:value="@{/settings}"/>
         <button type="submit">Refresh</button>
       </form>
-    </nav>
-    <nav class="subnav" aria-label="Settings views">
-      <a th:href="@{/settings(view='accounts')}" th:classappend="${activeView == 'accounts'} ? ' active'"
-         th:attr="aria-current=${activeView == 'accounts'} ? 'page' : null">Accounts</a>
-      <a th:href="@{/settings(view='kindle')}" th:classappend="${activeView == 'kindle'} ? ' active'"
-         th:attr="aria-current=${activeView == 'kindle'} ? 'page' : null">Send to Kindle</a>
-      <a th:href="@{/settings(view='reading')}" th:classappend="${activeView == 'reading'} ? ' active'"
-         th:attr="aria-current=${activeView == 'reading'} ? 'page' : null">Reading</a>
-      <a th:href="@{/settings(view='accessibility')}" th:classappend="${activeView == 'accessibility'} ? ' active'"
-         th:attr="aria-current=${activeView == 'accessibility'} ? 'page' : null">Accessibility</a>
-      <a th:href="@{/settings(view='version')}" th:classappend="${activeView == 'version'} ? ' active'"
-         th:attr="aria-current=${activeView == 'version'} ? 'page' : null">Version</a>
-      <a th:href="@{/settings(view='support')}" th:classappend="${activeView == 'support'} ? ' active'"
-         th:attr="aria-current=${activeView == 'support'} ? 'page' : null">Support the project</a>
-      <a th:href="@{/settings(view='delete')}" th:classappend="${activeView == 'delete'} ? ' active'"
-         th:attr="aria-current=${activeView == 'delete'} ? 'page' : null">Delete account</a>
-      <a th:if="${admin}" th:href="@{/settings(view='telemetry')}"
-         th:classappend="${activeView == 'telemetry'} ? ' active'"
-         th:attr="aria-current=${activeView == 'telemetry'} ? 'page' : null">Telemetry</a>
     </nav>
   </header>
 
@@ -46,22 +27,7 @@
 
   <h1>Settings</h1>
 
-  <section class="subview" th:if="${activeView == 'accounts'}">
-  <h2>Account</h2>
-  <p class="meta">
-    Signed in as <strong th:text="${account.email}">you@example.com</strong>.
-    <span th:if="${account.emailVerified}">E-mail verified.</span>
-    <span th:unless="${account.emailVerified}" class="error">
-      E-mail not verified — check your inbox for the confirmation link.
-    </span>
-  </p>
-  <form th:action="@{/logout}" method="post">
-    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-    <button class="btn" type="submit">Log out</button>
-  </form>
-  </section>
-
-  <section class="subview" th:if="${activeView == 'kindle'}">
+  <section class="settings-section" id="kindle">
   <h2>Send-to-Kindle</h2>
   <form th:action="@{/settings/kindle-email}" method="post">
     <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
@@ -112,7 +78,7 @@
   </div>
   </section>
 
-  <section class="subview" th:if="${activeView == 'reading'}">
+  <section class="settings-section" id="reading">
   <h2>Reading</h2>
   <p class="meta">Feeds are asked for as many entries as they will give. How those
     articles become read is up to you.</p>
@@ -133,29 +99,22 @@
   </form>
   </section>
 
-  <section class="subview" th:if="${activeView == 'accessibility'}">
-  <h2>Accessible version</h2>
+  <section class="settings-section" id="account">
+  <h2>Account</h2>
   <p class="meta">
-    Hard to read this screen? The accessible version of Extrablatt has a black
-    background with very large text, colours that separate headings from quotes,
-    each article's main points before its full text, and a button that reads it
-    aloud. Same account, same feeds, and you can switch back at any time.
+    Signed in as <strong th:text="${account.email}">you@example.com</strong>.
+    <span th:if="${account.emailVerified}">E-mail verified.</span>
+    <span th:unless="${account.emailVerified}" class="error">
+      E-mail not verified — check your inbox for the confirmation link.
+    </span>
   </p>
-  <p>
-    <a class="btn" th:href="@{/(display='accessible')}">Switch to the accessible version</a>
-  </p>
+  <form th:action="@{/logout}" method="post">
+    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+    <button class="btn" type="submit">Log out</button>
+  </form>
   </section>
 
-  <section class="subview" th:if="${activeView == 'version'}">
-  <h2>Version</h2>
-  <p class="meta">
-    Version <strong th:text="${appVersion.number}">development build</strong><br/>
-    Revision <span th:text="${appVersion.revision}">unknown</span><br/>
-    Built <span th:text="${appVersion.builtAt}">unknown</span>
-  </p>
-  </section>
-
-  <section class="subview" th:if="${activeView == 'support'}">
+  <section class="settings-section" id="support">
   <h2>Support this project</h2>
   <p class="meta">
     Extrablatt is free to use, with no ads and no accounts to sell.
@@ -171,7 +130,16 @@
   </p>
   </section>
 
-  <section class="subview" th:if="${activeView == 'delete'}">
+  <section class="settings-section" id="version">
+  <h2>Version</h2>
+  <p class="meta">
+    Version <strong th:text="${appVersion.number}">development build</strong><br/>
+    Revision <span th:text="${appVersion.revision}">unknown</span><br/>
+    Built <span th:text="${appVersion.builtAt}">unknown</span>
+  </p>
+  </section>
+
+  <section class="settings-section" id="delete">
   <h2>Delete account</h2>
   <p class="meta">This permanently removes your account, feeds, and saved articles.</p>
   <form th:action="@{/account/delete}" method="post"
@@ -181,7 +149,7 @@
   </form>
   </section>
 
-  <section class="subview" th:if="${admin and activeView == 'telemetry'}">
+  <section class="settings-section" id="telemetry" th:if="${admin}">
     <h2>Telemetry</h2>
     <p class="meta">Application totals derived from the database. No article content is exposed here.</p>
 
