@@ -334,7 +334,7 @@ This repo's Railway project has two environments:
 |---|---|---|
 | GitHub branch | `main` | `staging` |
 | App URL | https://reader.extrablatt.app | https://staging.extrablatt.app |
-| Landing page URL | https://extrablatt.app | its Railway URL, or a name of your choosing |
+| Landing page URL | https://extrablatt.app | https://marketing-site-staging-staging.up.railway.app |
 | Database | live Postgres | **copy** of production (own instance) |
 | How it deploys | Railway GitHub trigger on `main` | Railway GitHub trigger on `staging`, plus `.github/workflows/deploy-railway.yml` |
 
@@ -372,38 +372,55 @@ pages, so it needs somewhere to be read before it is live. Staging gets its own
 `marketing-site` service, in the `staging` environment, with one variable the
 production one does not have:
 
+It already exists, as **`marketing-site-staging`**, live on
+<https://marketing-site-staging-staging.up.railway.app>. Its configuration is the
+production service with one branch changed:
+
+| | `marketing-site` (production) | `marketing-site-staging` |
+|---|---|---|
+| Branch | `main` | `staging` |
+| Root directory | `marketing` | `marketing` |
+| Builder | Dockerfile | Dockerfile |
+| `SITE_ENV` | unset (so, production) | `staging` |
+| Domain | `extrablatt.app` | generated `*.up.railway.app` |
+
+The name has to differ because **Railway service names are unique across a
+project, not per environment** — `railway add --service marketing-site` fails
+with "already exists in this project" even from the staging environment. The app
+service is called `kindle-rss-app` in both only because it predates the split.
+
+A generated domain rather than a custom one keeps the DNS zone free of a
+hostname only you will visit. If you do add one, note that the production zone
+is behind Cloudflare, which serves its own content-signals `robots.txt` — worth
+checking that it does not shadow the one in the image. The `noindex` tag in the
+page holds either way, which is why the build writes both.
+
+To recreate it from scratch, or to build a second one:
+
 ```bash
 railway environment staging                                          # switch the linked environment
-railway add --service marketing-site --repo Philipp0205/kindle-rss \
+railway add --service marketing-site-staging --repo Philipp0205/kindle-rss \
     --branch staging --variables "SITE_ENV=staging"
-railway domain --service marketing-site --environment staging        # generated *.up.railway.app URL
+railway domain --service marketing-site-staging --environment staging
 ```
 
-Then one thing the CLI cannot set, in the dashboard: **Settings → Source → Root
-Directory → `marketing`**. Without it Railway builds the repo root and deploys
-the app instead of the landing page.
-
-That mirrors the production service exactly — same repo, same root directory,
-same Dockerfile builder — with `main` swapped for `staging`. Deploys come from
-Railway's own GitHub trigger, which is what actually ships the production page;
-the `railway up` step in `deploy-railway.yml` is a belt-and-braces extra that
-only runs when the `RAILWAY_TOKEN` repository secret exists.
+Then, in the dashboard, **Settings → Source → Root Directory → `marketing`**.
+The CLI has no flag for it, and without it Railway builds the repo root and
+deploys the app instead of the landing page.
 
 `railway add` has no `--environment` flag — it creates the service in whichever
 environment is currently linked, which is why the switch comes first. Check with
-`railway status` if you are not sure where you are. The other two commands do
-take `--environment`, so only `add` depends on the linked context.
+`railway status` if you are not sure where you are.
 
-`railway domain` with no domain argument is deliberate: Railway hands out a free
-`*.up.railway.app` name, which is all a staging landing page needs, and it keeps
-the DNS zone free of a hostname only you will ever visit. Pass
-`staging-www.extrablatt.app` instead if you would rather have a memorable one —
-one label deep, because `www.staging.extrablatt.app` sits two levels down and
-falls outside Cloudflare's universal certificate.
+Deploys come from Railway's own GitHub trigger on the `staging` branch, the same
+mechanism that ships the production page. The `railway up` step in
+`deploy-railway.yml` is a belt-and-braces extra that does nothing today: it
+guards on a `RAILWAY_TOKEN` repository secret that is not set, so it prints a
+skip notice and exits 0 on every run.
 
 To change `SITE_ENV` later, it is `railway variable set SITE_ENV=staging
---service marketing-site --environment staging` (`railway variables --set …` is
-the deprecated spelling).
+--service marketing-site-staging --environment staging` (`railway variables
+--set …` is the deprecated spelling).
 
 `SITE_ENV=staging` is what makes it a staging copy rather than a second live
 one. Railway passes it into the Docker build, where `marketing/make-staging.sh`:
