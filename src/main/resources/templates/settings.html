@@ -14,11 +14,6 @@
       <a th:href="@{/}">Feeds</a>
       <a th:href="@{/items}">Articles</a>
       <a class="active" aria-current="page" th:href="@{/settings}">Settings</a>
-      <form class="inline refresh-control" th:action="@{/refresh}" method="post">
-        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-        <input type="hidden" name="redirect" th:value="@{/settings}"/>
-        <button type="submit">Refresh</button>
-      </form>
     </nav>
   </header>
 

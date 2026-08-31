@@ -214,7 +214,10 @@ class AppControllerSecurityTest {
         when(feedService.listFeeds(UID)).thenReturn(List.of());
         mockMvc.perform(get("/"))
                 .andExpect(status().isOk())
-                .andExpect(view().name("index"));
+                .andExpect(view().name("index"))
+                .andExpect(content().string(not(containsString("action=\"/refresh\""))))
+                .andExpect(content().string(not(containsString(">Refresh</button>"))));
+        verify(feedService).refreshForUserSoon(UID);
     }
 
     @Test
@@ -288,7 +291,10 @@ class AppControllerSecurityTest {
         when(feedService.listFeeds(UID)).thenReturn(List.of());
         mockMvc.perform(get("/items").param("unread", "false"))
                 .andExpect(status().isOk())
-                .andExpect(view().name("items"));
+                .andExpect(view().name("items"))
+                .andExpect(content().string(not(containsString("action=\"/refresh\""))))
+                .andExpect(content().string(not(containsString(">Refresh</button>"))));
+        verify(feedService).refreshForUserSoon(UID);
     }
 
     @Test
