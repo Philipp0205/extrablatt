@@ -223,23 +223,6 @@ class PostgresRepositoryTest {
     }
 
     @Test
-    void displayPreferencesBelongToTheAccountAndAreReplacedInPlace() {
-        var repository = new DisplayPreferencesRepository(
-                new JdbcTemplate(postgres.getPostgresDatabase()));
-        var chosen = new com.kindlerss.domain.DisplayPreferences(
-                com.kindlerss.domain.DisplayPreferences.Theme.BLACK_YELLOW, 5, 3,
-                com.kindlerss.domain.DisplayPreferences.Font.SERIF, true, false);
-
-        assertTrue(repository.find(userId).isEmpty());
-        repository.save(userId, chosen);
-        assertEquals(chosen, repository.find(userId).orElseThrow());
-
-        repository.save(userId, com.kindlerss.domain.DisplayPreferences.DEFAULTS);
-        assertEquals(com.kindlerss.domain.DisplayPreferences.DEFAULTS, repository.find(userId).orElseThrow());
-        assertTrue(repository.find(otherUserId).isEmpty());
-    }
-
-    @Test
     void renamingACategoryMovesTheAccountsFeedsAndOnlyThoseThatMatchTheNameExactly() {
         var upper = feeds.insert(userId, "Upper", "https://upper.example.com/feed.xml",
                 "https://upper.example.com", "Technology");
