@@ -13,63 +13,98 @@
   </header>
 
   <!-- Wrapped as a fragment so the accessible edition shows the same imprint in its
-       own layout instead of keeping a second copy. -->
+       own layout instead of keeping a second copy.
+
+       The company details below are taken from the Zürich commercial register entry
+       for CHE-349.063.262. Two lines are still unfilled and are marked in place: an
+       imprint with a wrong contact address is worse than a late one, and only the
+       operator can confirm which mailbox is actually read.
+
+       Note on the register purpose: it reads "Entwicklung und Vertrieb von
+       Softwarelösungen, insbesondere für Zahnarzt- und Arztpraxen" — dental and
+       medical practice software. Extrablatt is a consumer reader, which is outside
+       that. It does not limit the partnership's capacity to contract, but it is
+       worth settling with the accountant whether this revenue belongs in the KlG's
+       books, and worth widening the purpose if it does. -->
   <div th:fragment="content">
   <h1>Imprint</h1>
-  <p class="meta">Information under § 5 DDG (Digitale-Dienste-Gesetz) and Art. 3 Swiss UWG.</p>
+  <p class="meta">Information under §§ 5, 6 DDG (Digitale-Dienste-Gesetz).</p>
 
-  <!--
-    TODO Fill in before charging anyone. Every line below is a legal requirement,
-    not a placeholder that can be left as prose:
-
-      * The company name exactly as registered, and its legal form.
-      * A postal address. A PO box is not enough; it has to be an address where
-        post is actually received.
-      * A telephone number or another means of "fast electronic contact" alongside
-        the e-mail address.
-      * The commercial register and the registration number. A Swiss company gives
-        its Handelsregister entry and CHE number: the LG Frankfurt (28.03.2003,
-        3-12 O 151/02) held that a foreign register has to be disclosed too, and the
-        consumer's interest in knowing which law an operator sits under is exactly
-        why.
-      * The VAT number, once there is one (CHE-… MWST, and the EU OSS number).
-      * The person responsible for the content, if that is a different person.
-      * The EU representative under Art. 27 GDPR — required for a non-EU operator
-        offering a service to people in the EU, and it has to be named where data
-        subjects can find it.
-  -->
   <h2>Operator</h2>
   <p>
-    <strong>[Registered company name, legal form]</strong><br/>
-    [Street and number]<br/>
-    [Postcode and town]<br/>
+    <strong>Kubri by Philipp Kurrle und Ali Abriani KLG</strong><br/>
+    Kollektivgesellschaft (Swiss general partnership)<br/>
+    Wehntalerstrasse 17<br/>
+    8057 Zürich<br/>
     Switzerland
+  </p>
+
+  <h2>Partners with sole signing authority</h2>
+  <p>
+    Dr. Ali Abriani, Zürich<br/>
+    Philipp Kurrle, Stuttgart
+  </p>
+  <p class="meta">
+    Both partners are entered in the commercial register as Gesellschafter with
+    Einzelunterschrift, and are personally and jointly liable for the partnership's
+    obligations.
   </p>
 
   <h2>Contact</h2>
   <p>
-    E-mail: <a href="mailto:hello@extrablatt.app">hello@extrablatt.app</a><br/>
-    Telephone: [number]
+    E-mail: <a href="mailto:hello@extrablatt.app">hello@extrablatt.app</a>
   </p>
+  <!-- § 5 Abs. 1 Nr. 2 DDG needs details allowing fast electronic contact and direct
+       communication, "including the e-mail address". A telephone number is not
+       strictly required — the CJEU held in C-649/17 (Amazon EU) that a trader need
+       not set one up, and in C-298/07 that another equally direct and efficient
+       channel can do instead — but the mailbox above must be genuinely monitored and
+       answered, which is the whole point of the provision. Add a telephone number
+       here if one exists for the business; it is the safest second channel. -->
 
   <h2>Register</h2>
   <p>
-    Commercial register: [cantonal Handelsregister]<br/>
-    Registration number: [CHE-xxx.xxx.xxx]
+    Commercial register: Handelsregisteramt des Kantons Zürich<br/>
+    Registration number: CH-020.2.010.172-0<br/>
+    Company identification number (UID): CHE-349.063.262<br/>
+    Registered: 11 September 2025
   </p>
 
   <h2>VAT</h2>
+  <!-- TODO Replace both lines once the position is settled.
+         * Swiss VAT (MWST) becomes mandatory once WORLDWIDE taxable turnover
+           reaches CHF 100,000. Registered numbers read CHE-349.063.262 MWST.
+         * EU VAT is owed on digital services to EU consumers from the first sale
+           when the seller is established outside the EU — there is no threshold.
+           Either register for the Non-Union One Stop Shop and put the number here,
+           or sell through a merchant of record, which is then the seller of record
+           and this line says so instead. -->
   <p>
-    Swiss VAT number: [CHE-xxx.xxx.xxx MWST, or "not registered — below the
-    CHF 100,000 threshold"]<br/>
-    EU VAT (Non-Union OSS): [number, or "not yet registered"]
+    Swiss VAT number: not registered — below the CHF 100,000 threshold<br/>
+    EU VAT: <em>to be completed before the first paid subscription</em>
   </p>
 
-  <h2>Responsible for content</h2>
-  <p>[Name, address if different from above]</p>
+  <h2>Responsible for this website</h2>
+  <p>Philipp Kurrle, at the address above</p>
 
   <h2>Representative in the European Union (Art. 27 GDPR)</h2>
-  <p>[Name and address of the EU representative]</p>
+  <!-- TODO Settle this before charging, and note that the answer may be "none
+       required". Art. 27 only applies where the GDPR reaches the operator through
+       Art. 3(2) — offering services to people in the EU from outside it. Where it
+       applies through Art. 3(1) instead, because the operator has an establishment
+       in the Union and the processing happens in the context of its activities, the
+       EDPB's Guidelines 3/2018 are explicit that no representative is needed.
+
+       That is a live question here rather than a theoretical one: a partner with
+       sole signing authority is domiciled in Stuttgart. The EDPB says the threshold
+       for a "stable arrangement" is low for an online service — one person acting
+       with sufficient stability can be enough — but the processing must be carried
+       out in the context of that person's activities in the Union. The same fact
+       also bears on VAT and on which supervisory authority leads, so it is one
+       question to put to an advisor, not three. -->
+  <p><em>To be completed: either the name and address of the designated
+    representative, or a statement that the operator is established in the Union and
+    therefore falls under Art. 3(1) GDPR.</em></p>
 
   <h2>Consumer dispute resolution</h2>
   <p>
