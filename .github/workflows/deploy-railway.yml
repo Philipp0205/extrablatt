@@ -50,7 +50,16 @@ jobs:
           else
             ENV=staging
           fi
+          # Railway service names are unique across the whole project, not per
+          # environment, so the staging landing page could not also be called
+          # marketing-site. The app service predates the split and is shared.
+          if [ "$ENV" = "production" ]; then
+            MARKETING=marketing-site
+          else
+            MARKETING=marketing-site-staging
+          fi
           echo "environment=$ENV" >> "$GITHUB_OUTPUT"
+          echo "marketing_service=$MARKETING" >> "$GITHUB_OUTPUT"
 
       - name: Install Railway CLI
         run: npm install -g @railway/cli
@@ -70,9 +79,9 @@ jobs:
             --project "$RAILWAY_PROJECT_ID"
 
       # The landing page carries prices and legal links, so it needs somewhere to
-      # be read before it is live. The staging environment has its own
-      # marketing-site service; SITE_ENV=staging on it makes the build retarget
-      # the page at the staging app and keep the copy out of search results.
+      # be read before it is live. Staging has its own service for it, with
+      # SITE_ENV=staging set, which makes the build retarget the page at the
+      # staging app and keep the copy out of search results.
       - name: Deploy marketing site
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
@@ -84,6 +93,6 @@ jobs:
             exit 0
           fi
           railway up --ci --yes --path-as-root \
-            --service marketing-site \
+            --service "${{ steps.target.outputs.marketing_service }}" \
             --environment "${{ steps.target.outputs.environment }}" \
             --project "$RAILWAY_PROJECT_ID"
