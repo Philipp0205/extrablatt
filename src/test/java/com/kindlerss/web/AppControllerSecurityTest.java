@@ -506,6 +506,10 @@ class AppControllerSecurityTest {
                 .andExpect(content().string(not(containsString("data-reader-next-end-label=\"Mark read\""))))
                 .andExpect(content().string(not(containsString("Older articles"))));
     }
+
+    @Test
+    @WithMockUser
+    void advanceWithoutArticlesMarksNothing() throws Exception {
         mockMvc.perform(post("/items/advance").with(csrf()).param("page", "1"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/items?page=2&unread=false#start"));
