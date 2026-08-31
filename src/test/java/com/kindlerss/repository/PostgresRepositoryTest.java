@@ -238,6 +238,37 @@ class PostgresRepositoryTest {
         assertTrue(users.findById(otherUserId).orElseThrow().markReadOnNextPage());
     }
 
+    @Test
+    void renamingACategoryMovesTheAccountsFeedsAndOnlyThoseThatMatchTheNameExactly() {
+        var upper = feeds.insert(userId, "Upper", "https://upper.example.com/feed.xml",
+                "https://upper.example.com", "Technology");
+        var second = feeds.insert(userId, "Second", "https://second.example.com/feed.xml",
+                "https://second.example.com", "Technology");
+        var lower = feeds.insert(userId, "Lower", "https://lower.example.com/feed.xml",
+                "https://lower.example.com", "technology");
+        var theirs = feeds.insert(otherUserId, "Theirs", "https://theirs.example.com/feed.xml",
+                "https://theirs.example.com", "Technology");
+
+        assertEquals(2, feeds.renameCategory(userId, "Technology", "Tech"));
+        assertEquals("Tech", feeds.findById(userId, upper.id()).orElseThrow().category());
+        assertEquals("Tech", feeds.findById(userId, second.id()).orElseThrow().category());
+        assertEquals("technology", feeds.findById(userId, lower.id()).orElseThrow().category(),
+                "a differently capitalized category is a category of its own");
+        assertEquals("Technology", feeds.findById(otherUserId, theirs.id()).orElseThrow().category(),
+                "another account's feeds are not touched");
+
+        // Capitalization is part of the name, so correcting it is a rename too.
+        assertEquals(1, feeds.renameCategory(userId, "technology", "Technology"));
+        assertEquals("Technology", feeds.findById(userId, lower.id()).orElseThrow().category());
+
+        assertEquals(0, feeds.renameCategory(userId, "No Such Category", "Tech"));
+
+        feeds.deleteById(userId, upper.id());
+        feeds.deleteById(userId, second.id());
+        feeds.deleteById(userId, lower.id());
+        feeds.deleteById(otherUserId, theirs.id());
+    }
+
     private long insertArticle(long feedId, String guid) {
         return articles.insert(feedId, guid, "Article " + guid, "https://bulk.example.com/" + guid,
                 "Author", Instant.parse("2026-08-10T00:00:00Z"), "<p>Summary</p>", "<p>Content</p>");
