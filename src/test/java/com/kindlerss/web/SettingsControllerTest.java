@@ -183,10 +183,36 @@ class SettingsControllerTest {
 
     @Test
     @WithMockUser
-    void changelogPageListsDatedEntries() throws Exception {
-        mockMvc.perform(get("/changelog"))
+    void settingsShowsThePackagedChangelog() throws Exception {
+        mockMvc.perform(get("/settings"))
                 .andExpect(status().isOk())
+                .andExpect(content().string(containsString("id=\"changelog\"")))
                 .andExpect(content().string(containsString("Changelog")))
-                .andExpect(content().string(containsString("31 August 2026")));
+                .andExpect(content().string(containsString("What's new")))
+                .andExpect(content().string(containsString("id=\"whats-new-dialog\"")));
+    }
+
+    @Test
+    @WithMockUser
+    void alreadySeenReleaseDoesNotOpenTheWhatsNewNotice() throws Exception {
+        String latest = ChangelogCatalog.instance().latestId().orElseThrow();
+        AppUser seen = new AppUser(UID, "user@example.com", "hash", "reader@kindle.com",
+                Instant.now(), null, Instant.now(), Instant.now(), null, true, latest);
+        when(userService.findById(UID)).thenReturn(Optional.of(seen));
+
+        mockMvc.perform(get("/settings"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("id=\"changelog\"")))
+                .andExpect(content().string(not(containsString("id=\"whats-new-dialog\""))));
+    }
+
+    @Test
+    @WithMockUser
+    void acknowledgingTheChangelogStoresTheLatestReleaseAndReturnsToThePage() throws Exception {
+        mockMvc.perform(post("/settings/changelog/ack").with(csrf())
+                        .param("redirect", "/items?unread=true"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/items?unread=true"));
+        verify(userService).acknowledgeChangelog(UID, ChangelogCatalog.instance().latestId().orElseThrow());
     }
 }

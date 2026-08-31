@@ -14,3 +14,11 @@ header {
 	X-Frame-Options DENY
 	-Server
 }
+
+# The page and its stylesheet only make sense as a pair, so the HTML is
+# revalidated on every visit while the versioned asset URLs carry the caching.
+# Without this, a browser can keep last week's CSS and render the new markup
+# with it.
+@page path / /*.html
+header @page Cache-Control "no-cache"
+header /assets/* Cache-Control "public, max-age=604800"

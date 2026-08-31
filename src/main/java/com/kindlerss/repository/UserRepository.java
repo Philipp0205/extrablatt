@@ -27,7 +27,8 @@ public class UserRepository {
             toInstant(rs.getTimestamp("created_at")),
             toInstant(rs.getTimestamp("updated_at")),
             rs.getString("newsletter_inbound_token"),
-            rs.getBoolean("mark_read_on_next_page")
+            rs.getBoolean("mark_read_on_next_page"),
+            rs.getString("last_seen_changelog_id")
     );
 
     private final JdbcTemplate jdbc;
@@ -95,6 +96,12 @@ public class UserRepository {
         jdbc.update("""
                 UPDATE users SET mark_read_on_next_page = ?, updated_at = NOW() WHERE id = ?
                 """, markReadOnNextPage, id);
+    }
+
+    public void updateLastSeenChangelogId(long id, String changelogId) {
+        jdbc.update("""
+                UPDATE users SET last_seen_changelog_id = ?, updated_at = NOW() WHERE id = ?
+                """, changelogId, id);
     }
 
     /**

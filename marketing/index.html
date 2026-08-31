@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>Extrablatt — RSS feeds, delivered to your Kindle</title>
 <meta name="description" content="Extrablatt is an RSS reader designed to run on your Kindle's built-in Web Browser. Open reader.extrablatt.app on the device, then send articles to your library as paginated e-books."/>
-<link rel="stylesheet" href="assets/css/style.css"/>
+<link rel="stylesheet" href="assets/css/style.css?v=2"/>
 </head>
 <body>
 
@@ -49,9 +49,7 @@
         <figure class="kindle-mock">
           <div class="kindle-screen">
             <div class="kindle-browser-bar" aria-hidden="true">
-              <span class="kindle-browser-back"></span>
               <span class="kindle-address-field">reader.extrablatt.app</span>
-              <span class="kindle-browser-menu"></span>
             </div>
             <div class="kindle-viewport">
               <img src="assets/img/kindle-articles-list.png"
@@ -63,9 +61,7 @@
         <figure class="kindle-mock kindle-mock-secondary">
           <div class="kindle-screen">
             <div class="kindle-browser-bar" aria-hidden="true">
-              <span class="kindle-browser-back"></span>
               <span class="kindle-address-field">reader.extrablatt.app</span>
-              <span class="kindle-browser-menu"></span>
             </div>
             <div class="kindle-viewport">
               <img src="assets/img/kindle-article-reading.png"
@@ -77,71 +73,50 @@
     </div>
   </section>
 
+  <!-- A single numbered list covers the whole journey: getting into the Kindle
+       browser, then getting a first article out of it. -->
   <section class="open-on-kindle" id="open-on-kindle">
     <div class="wrap">
       <h2>How to open Extrablatt on your Kindle</h2>
       <p class="section-lede">
-        Extrablatt runs in the Kindle's built-in browser (Amazon calls it
-        <em>Web Browser</em>; older firmware still says <em>Experimental Browser</em>).
-        You type the address on the Kindle keyboard — no app store install.
+        Extrablatt runs in the Kindle's own browser — Amazon calls it
+        <em>Web Browser</em>, older firmware still says <em>Experimental
+        Browser</em>. There is nothing to install: you type the address on the
+        Kindle keyboard.
       </p>
 
-      <div class="open-grid">
-        <ol class="open-steps">
-          <li>
-            <span class="step-number">1</span>
-            <div>
-              <h3>Connect to Wi&#8209;Fi</h3>
-              <p>The browser needs an active network. Turn off Airplane Mode if it is on.</p>
-            </div>
-          </li>
-          <li>
-            <span class="step-number">2</span>
-            <div>
-              <h3>Open the menu from Home</h3>
-              <p>Go to the Home screen. Tap near the top of the screen so the toolbar
-                appears, then tap the three-dot menu (<span aria-hidden="true">⋮</span>)
-                in the upper right.</p>
-            </div>
-          </li>
-          <li>
-            <span class="step-number">3</span>
-            <div>
-              <h3>Choose Web Browser</h3>
-              <p>On current Kindles, tap <strong>Web Browser</strong>. On older
-                firmware the same item may still be labelled
-                <strong>Experimental Browser</strong>, or sit under
-                <strong>Experimental</strong> → launch browser. Menu wording
-                varies by model and software version.</p>
-            </div>
-          </li>
-          <li>
-            <span class="step-number">4</span>
-            <div>
-              <h3>Type the address</h3>
-              <p>Tap the address bar and enter exactly:</p>
-              <p class="kindle-url kindle-url-inline" translate="no">reader.extrablatt.app</p>
-              <p>Then go. Sign in or create a free account on the device.</p>
-            </div>
-          </li>
-        </ol>
-
-        <aside class="browser-mock" aria-label="Kindle browser address bar example">
-          <div class="browser-mock-frame">
-            <p class="browser-mock-label">Kindle Web Browser</p>
-            <div class="browser-mock-toolbar">
-              <span class="browser-mock-menu" aria-hidden="true">⋮</span>
-              <span class="browser-mock-menu-hint">Menu → Web Browser</span>
-            </div>
-            <div class="browser-mock-address">
-              <span class="browser-mock-prefix">https://</span>
-              <span class="browser-mock-host" translate="no">reader.extrablatt.app</span>
-              <span class="browser-mock-caret" aria-hidden="true"></span>
-            </div>
-            <p class="browser-mock-note">Type this on the on&#8209;screen Kindle keyboard</p>
+      <ol class="step-list">
+        <li>
+          <div>
+            <h3>Open the browser on your Kindle</h3>
+            <p>With Wi&#8209;Fi on, tap the top of the Home screen so the toolbar
+              appears, open the three-dot menu (<span aria-hidden="true">⋮</span>)
+              and choose <strong>Web Browser</strong>. On older Kindles that entry
+              is called <strong>Experimental Browser</strong>.</p>
           </div>
-        </aside>
-      </div>
+        </li>
+        <li>
+          <div>
+            <h3>Enter the address</h3>
+            <p>Type it into the browser's address bar:</p>
+            <p class="kindle-url kindle-url-inline" translate="no">reader.extrablatt.app</p>
+          </div>
+        </li>
+        <li>
+          <div>
+            <h3>Create a free account</h3>
+            <p>Sign up with an e-mail and password and confirm your address — on
+              the Kindle, or from any other device.</p>
+          </div>
+        </li>
+        <li>
+          <div>
+            <h3>Add feeds and send articles</h3>
+            <p>Paste a website or feed URL, save your Kindle's e-mail address
+              under Settings, then tap <em>Send to Kindle</em> on any article.</p>
+          </div>
+        </li>
+      </ol>
     </div>
   </section>
 
@@ -189,38 +164,15 @@
     </div>
   </section>
 
-  <section class="steps">
+  <section class="closing">
     <div class="wrap">
-      <h2>Three steps to your first article</h2>
-      <ol class="step-list">
-        <li>
-          <span class="step-number">1</span>
-          <div>
-            <h3>Create a free account</h3>
-            <p>Sign up with an e-mail and password, and confirm your address —
-              on the Kindle browser at <span class="url-inline" translate="no">reader.extrablatt.app</span>,
-              or from any other device.</p>
-          </div>
-        </li>
-        <li>
-          <span class="step-number">2</span>
-          <div>
-            <h3>Add your feeds</h3>
-            <p>Paste a website or feed URL, and add your Kindle's e-mail
-              address under Settings.</p>
-          </div>
-        </li>
-        <li>
-          <span class="step-number">3</span>
-          <div>
-            <h3>Send to Kindle</h3>
-            <p>Read on the web whenever you like, tap <em>Send to
-              Kindle</em> on a feed article, or paste any page URL to have
-              the full article waiting on your device.</p>
-          </div>
-        </li>
-      </ol>
-      <div class="steps-cta">
+      <h2>Ready when your Kindle is</h2>
+      <p class="section-lede">
+        Create an account here, then open
+        <span class="url-inline" translate="no">reader.extrablatt.app</span>
+        on the device.
+      </p>
+      <div class="section-cta">
         <a class="btn btn-primary btn-large" href="https://reader.extrablatt.app/register">Create a free account</a>
       </div>
     </div>

@@ -1,0 +1,51 @@
+{
+  "releases": [
+    {
+      "id": "2026-08-31",
+      "date": "31 August 2026",
+      "title": "Changelog, reading preference, and what's new",
+      "highlights": [
+        "Settings now includes a changelog of recent changes.",
+        "After a new release, a short notice highlights what changed.",
+        "Marking articles read when you turn the page is a Settings choice."
+      ],
+      "changes": [
+        "A changelog in Settings lists recent changes; a popup highlights the most important ones after each new release.",
+        "Marking articles as read when you go to the next page can be turned off in Settings. When it is off, new feed articles arrive already marked read so a refresh does not fill Unread with a backlog.",
+        "The Older articles list is gone; paging through Articles is the way to go further back.",
+        "A category can be renamed even when the new name only differs in capitalization.",
+        "The top Refresh button is gone. Feeds still refresh in the background when you open Feeds or Articles, and on the usual schedule."
+      ]
+    },
+    {
+      "id": "2026-08-20",
+      "date": "August 2026",
+      "title": "Paste a URL, categories, and e-reader reading",
+      "highlights": [
+        "Send any web page to Kindle by pasting its address on Feeds.",
+        "Organize feeds in categories, including renaming a category at once.",
+        "Page-at-a-time reading is sized for e-ink screens."
+      ],
+      "changes": [
+        "Paste any article URL from Feeds: the page is extracted, stored, and emailed to Kindle like a feed article.",
+        "Give feeds a category when adding them, browse by category, and rename a category to move every feed in it.",
+        "Page-at-a-time reading and list paging are sized to the device screen so Kindle page turns stay snappy.",
+        "Less common article actions sit under More so the reading toolbar stays on one row on small screens."
+      ]
+    },
+    {
+      "id": "2026-08-01",
+      "date": "Early August 2026",
+      "title": "Newsletters and keeping the servers running",
+      "highlights": [
+        "Subscribe to e-mail newsletters with one inbox address per account.",
+        "A donation reminder appears every so often after Send-to-Kindle."
+      ],
+      "changes": [
+        "Each account can have a newsletter inbox address. Issues show up as articles and send to Kindle like anything else.",
+        "A donation link lives in Settings, and a short reminder can appear after every tenth article sent. The app stays free and ad-free either way.",
+        "Administrators can see usage telemetry and per-account send limits from Settings."
+      ]
+    }
+  ]
+}

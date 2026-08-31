@@ -157,6 +157,15 @@ public class UserService {
         return userRepository.findById(userId).map(AppUser::markReadOnNextPage).orElse(true);
     }
 
+    /** Records that the account has seen this changelog release, so the notice stays dismissed. */
+    @Transactional
+    public void acknowledgeChangelog(long userId, String changelogId) {
+        if (changelogId == null || changelogId.isBlank()) {
+            return;
+        }
+        userRepository.updateLastSeenChangelogId(userId, changelogId.trim());
+    }
+
     @Transactional
     public void updateKindleEmail(long userId, String kindleEmail) {
         String value = kindleEmail == null ? "" : kindleEmail.trim();
