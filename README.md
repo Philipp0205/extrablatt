@@ -19,9 +19,13 @@ Multi-user RSS/Atom reader that extracts readable article HTML and emails EPUB f
 - Page-at-a-time reading sized to the device screen, instead of scrolling
 - Send-to-Kindle as EPUB 3 through one shared, provider-verified sender
 - Per-account limits and IP-based rate limiting on auth endpoints
+- Optional paid subscriptions: a free plan and a "Supporter" plan at €1.50/month
+  billed yearly or €2.50/month, with a subscription menu, a publicly reachable
+  cancellation page, and the order and withdrawal wording German consumer law
+  requires. Off unless `BILLING_ENABLED` is set, so a self-hosted copy charges
+  nobody (see [Subscriptions](#subscriptions-optional))
 - Optional "help keep the servers running" reminder every 10th article sent,
-  plus a permanent donation link in Settings — the app itself stays free and
-  ad-free either way
+  plus a permanent donation link in Settings — the app stays ad-free either way
 - A second, accessibility-first edition on its own subdomain for blind and
   low-vision readers: subjects instead of feed URLs, large high-contrast type,
   an article's own headings and bullet points before its full text, read-aloud,
@@ -196,6 +200,55 @@ belongs to, and names that feed the first time), `Subject`, `HtmlBody`/
 `TextBody`, `MessageID` (deduplicates re-deliveries the way a feed's `guid`
 does), and `Date`. Leaving `NEWSLETTER_INBOUND_DOMAIN` unset hides the feature
 entirely; existing RSS feeds are unaffected either way.
+
+## Subscriptions (optional)
+
+Left alone, this feature does not exist: with `BILLING_ENABLED` unset there are no
+prices, no subscription menu, no cancellation page, and every account keeps the
+full `MAX_*` allowances. That is the right setting for a self-hosted copy, which is
+not the one collecting the money.
+
+Turned on, accounts fall into two plans. The gate sits on Kindle delivery, because
+that is the only thing with a real unit cost — one article sent is one e-mail —
+so reading in the browser, saved articles and the whole accessibility edition stay
+free and unmetered.
+
+| | Free | Supporter |
+|---|---|---|
+| Send to Kindle | `BILLING_FREE_SENDS_PER_DAY` (3) | `MAX_SENDS_PER_DAY` (50) |
+| Feeds | `BILLING_FREE_MAX_FEEDS` (15) | `MAX_FEEDS_PER_USER` (50) |
+| Newsletter inbox | — | yes |
+| Price | €0 | €1.50/month billed yearly (€18.00), or €2.50/month |
+
+Every account that exists when the migration runs is grandfathered permanently: it
+was never advertised as something with a subscription, and capping it afterwards
+would be both unfair and bad for the project. An administrator can also grant the
+plan by hand from **Settings → Telemetry**, which is how a reader whose payment
+went through but whose callback went missing gets fixed.
+
+Setup is a hosted checkout link per interval plus a webhook:
+
+1. Create two prices at your payment provider — one yearly, one monthly — and take
+   the hosted checkout (Stripe payment link or Paddle checkout) URL for each.
+2. Point the provider's webhook at `https://<your-app>/webhooks/billing` and copy
+   the signing secret. Stripe's `Stripe-Signature` and Paddle's `Paddle-Signature`
+   schemes are both understood; `BILLING_PROVIDER` says which to expect.
+3. Set the `BILLING_*` variables (see `.env.example`) and redeploy.
+
+The callback is the only thing that grants a subscription — the page a reader lands
+on after paying grants nothing — so a reader who closes the tab still ends up
+subscribed. Losing a subscription never deletes anything; feeds, articles and
+reading position stay, and the free plan's limits apply from then on.
+
+Two things are deliberately manual, because the app holds no provider API key: a
+cancellation is e-mailed to `BILLING_OPERATOR_EMAIL` so the payment is stopped at
+the provider by hand, and a missed callback is fixed with the admin grant above.
+
+Before charging anyone there is legal work that no configuration flag covers —
+filling in `/imprint`, EU VAT registration (a non-EU seller owes VAT from its first
+sale, with no threshold), and appointing an EU representative under Art. 27 GDPR.
+[`docs/subscriptions-and-payments.md`](docs/subscriptions-and-payments.md) works
+through the pricing, the Stripe-versus-Paddle decision and the full checklist.
 
 ## Deploy on Railway (recommended, no personal VPS)
 

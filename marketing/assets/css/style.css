@@ -237,6 +237,73 @@ p {
   color: #222;
 }
 
+/* Pricing. Same flat boxes as the feature grid, because a price is information and
+   the rest of this page does not shout either. */
+.pricing {
+  padding: 4rem 0;
+}
+
+.pricing .lede {
+  max-width: 40rem;
+}
+
+.price-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: 1.75rem;
+  margin: 2rem 0 1.5rem;
+}
+
+.price-card {
+  background: #fff;
+  border: 2px solid #000;
+  padding: 1.25rem 1.4rem;
+}
+
+/* The plan most people should pick, marked by weight rather than by colour so it
+   still reads as the recommendation in high contrast or in print. */
+.price-card-best {
+  border-width: 4px;
+}
+
+.price-card h3 {
+  margin-top: 0;
+}
+
+.price-figure {
+  font-size: 2.25rem;
+  font-weight: 700;
+  margin: 0;
+  line-height: 1.1;
+}
+
+.price-figure span {
+  font-size: 1rem;
+  font-weight: 400;
+}
+
+.price-sub {
+  color: #444;
+  margin: 0.25rem 0 1rem;
+  font-size: 0.95rem;
+}
+
+.price-card ul {
+  margin: 0;
+  padding-left: 1.15rem;
+  color: #222;
+}
+
+.price-card li + li {
+  margin-top: 0.35rem;
+}
+
+.price-note {
+  max-width: 40rem;
+  color: #444;
+  font-size: 0.95rem;
+}
+
 /* Steps */
 .steps {
   padding: 4.5rem 0;
