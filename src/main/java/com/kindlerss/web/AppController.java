@@ -293,6 +293,7 @@ public class AppController {
         }
         Instant unreadSnapshot = unreadByDefault && snapshot != null
                 ? Instant.ofEpochMilli(Math.min(snapshot, System.currentTimeMillis())) : null;
+        boolean markReadOnNextPage = userService.markReadOnNextPage(userId);
         long total = category == null && unreadSnapshot == null
                 ? articleService.count(userId, feedId, unreadOnly)
                 : articleService.count(userId, feedId, category, unreadOnly, unreadSnapshot);
@@ -318,6 +319,7 @@ public class AppController {
                 itemsPath(feedId, category, unreadByDefault, safePage, snapshot));
         model.addAttribute("firstIndex", articles.isEmpty() ? 0 : (long) (safePage - 1) * pageSize + 1);
         model.addAttribute("lastIndex", (long) (safePage - 1) * pageSize + articles.size());
+        model.addAttribute("markReadOnNextPage", markReadOnNextPage);
         return "items";
     }
 
@@ -400,12 +402,10 @@ public class AppController {
     public record FilterChip(String label, String href, boolean active) {}
 
     /**
-     * Marks the articles of the current list page read and moves on, so a list can be
-     * worked through by paging instead of marking every article by hand.
-     *
-     * <p>An unread list shrinks by exactly the articles that were just marked, which
-     * shifts the following ones into the page that was posted from — so that page,
-     * not the next one, holds what comes next.
+     * Posts the current list page and moves on. When the account marks articles
+     * read on the next page, the posted ids are marked first; an unread list then
+     * shrinks into the same page. Otherwise the next page of the archive is shown
+     * and nothing is marked.
      */
     @PostMapping("/items/advance")
     public String advance(@RequestParam(value = "feed", required = false) Long feedId,
@@ -415,16 +415,20 @@ public class AppController {
                           @RequestParam(value = "page", defaultValue = "1") int page,
                           @RequestParam(value = "id", required = false) List<Long> ids,
                           RedirectAttributes redirectAttributes) {
-        int marked = ids == null || ids.isEmpty() ? 0
-                : articleService.markRead(currentUser.requireId(), ids, true);
-        redirectAttributes.addFlashAttribute("message", marked == 0
-                ? "Nothing left to mark as read"
-                : marked == 1 ? "1 article marked as read" : marked + " articles marked as read");
+        boolean markReadOnNextPage = userService.markReadOnNextPage(currentUser.requireId());
+        int marked = 0;
+        if (markReadOnNextPage) {
+            marked = ids == null || ids.isEmpty() ? 0
+                    : articleService.markRead(currentUser.requireId(), ids, true);
+            redirectAttributes.addFlashAttribute("message", marked == 0
+                    ? "Nothing left to mark as read"
+                    : marked == 1 ? "1 article marked as read" : marked + " articles marked as read");
+        }
 
         boolean unreadOnly = Boolean.TRUE.equals(unread);
         int current = Math.max(page, 1);
         return "redirect:" + itemsPath(
-                feedId, category, unreadOnly, unreadOnly ? current : current + 1, snapshot) + "#start";
+                feedId, category, unreadOnly, unreadOnly && markReadOnNextPage ? current : current + 1, snapshot) + "#start";
     }
 
     static String itemsPath(Long feedId, boolean unread, int page) {

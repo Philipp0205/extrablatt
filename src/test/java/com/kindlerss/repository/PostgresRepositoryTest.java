@@ -11,6 +11,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import javax.sql.DataSource;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -237,6 +238,21 @@ class PostgresRepositoryTest {
         repository.save(userId, com.kindlerss.domain.DisplayPreferences.DEFAULTS);
         assertEquals(com.kindlerss.domain.DisplayPreferences.DEFAULTS, repository.find(userId).orElseThrow());
         assertTrue(repository.find(otherUserId).isEmpty());
+    }
+
+    @Test
+    void markReadOnNextPageIsStoredOnTheAccountAndLookedUpByFeed() {
+        var feed = feeds.insert(userId, "Pref", "https://pref.example.com/feed.xml",
+                "https://pref.example.com", null);
+
+        assertTrue(users.findById(userId).orElseThrow().markReadOnNextPage());
+        assertEquals(Optional.of(true), users.findMarkReadOnNextPageByFeedId(feed.id()));
+        assertEquals(Optional.of(userId), users.findIdByFeedId(feed.id()));
+
+        users.updateMarkReadOnNextPage(userId, false);
+        assertFalse(users.findById(userId).orElseThrow().markReadOnNextPage());
+        assertEquals(Optional.of(false), users.findMarkReadOnNextPageByFeedId(feed.id()));
+        assertTrue(users.findById(otherUserId).orElseThrow().markReadOnNextPage());
     }
 
     private long insertArticle(long feedId, String guid) {
