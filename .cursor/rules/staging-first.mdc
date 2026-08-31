@@ -1,0 +1,33 @@
+---
+description: Land all new work on the staging branch before production
+alwaysApply: true
+---
+
+# Staging first
+
+Ship every code change through `staging` before `main`. Staging is https://staging.extrablatt.app (Railway `staging` environment). Production is https://reader.extrablatt.app from `main`.
+
+## Branch and PRs
+
+- Branch off `origin/staging`, not `main`.
+- Push the feature branch, then merge to `staging` (PR base `staging`).
+- Do not merge app/docs/workflow changes straight to `main`.
+- After staging looks right, promote with a PR from `staging` into `main`.
+
+```text
+# ❌ BAD — PR into production
+git checkout -b cursor/fix-foo origin/main
+# open PR → main
+
+# ✅ GOOD — staging, then production
+git fetch origin staging
+git checkout -b cursor/fix-foo origin/staging
+# open PR → staging
+# later: PR staging → main
+```
+
+## Do not
+
+- Point new PRs at `main` by default
+- Push commits to `main` to “just get it live”
+- Treat a green staging deploy as a production deploy
