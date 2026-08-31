@@ -334,7 +334,7 @@ This repo's Railway project has two environments:
 |---|---|---|
 | GitHub branch | `main` | `staging` |
 | App URL | https://reader.extrablatt.app | https://staging.extrablatt.app |
-| Landing page URL | https://extrablatt.app | https://staging-www.extrablatt.app |
+| Landing page URL | https://extrablatt.app | its Railway URL, or a name of your choosing |
 | Database | live Postgres | **copy** of production (own instance) |
 | How it deploys | Railway GitHub trigger on `main` | Railway GitHub trigger on `staging`, plus `.github/workflows/deploy-railway.yml` |
 
@@ -375,8 +375,15 @@ production one does not have:
 ```bash
 railway add --service marketing-site --environment staging
 railway variables --set SITE_ENV=staging --service marketing-site --environment staging
-railway domain staging-www.extrablatt.app --service marketing-site --environment staging
+railway domain --service marketing-site --environment staging   # generated *.up.railway.app URL
 ```
+
+That last line takes no argument on purpose: Railway hands out a free
+`*.up.railway.app` name, which is all a staging landing page needs and keeps the
+DNS zone free of a hostname only you will ever visit. Pass
+`staging-www.extrablatt.app` instead if you would rather have a memorable one —
+one label deep, because `www.staging.extrablatt.app` sits two levels down and
+falls outside Cloudflare's universal certificate.
 
 `SITE_ENV=staging` is what makes it a staging copy rather than a second live
 one. Railway passes it into the Docker build, where `marketing/make-staging.sh`:
@@ -397,10 +404,6 @@ pointing at production.
 One thing this does *not* solve: the staging app's own `BILLING_*` variables
 decide what its checkout does. Point them at your payment provider's test mode,
 or the staging landing page will walk you into a real payment.
-
-`staging-www` is one label deep on purpose — a `www.staging.extrablatt.app`
-style name is two levels down and is not covered by Cloudflare's universal
-certificate, so it would need a certificate of its own.
 
 ## Marketing / landing page
 
