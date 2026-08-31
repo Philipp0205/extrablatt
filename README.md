@@ -215,13 +215,13 @@ free and unmetered.
 
 | | Free | Supporter |
 |---|---|---|
-| Send to Kindle | `BILLING_FREE_SENDS_PER_MONTH` (4) a month | no monthly limit, up to `MAX_SENDS_PER_DAY` (50) a day |
+| Send to Kindle | `BILLING_FREE_SENDS_PER_MONTH` (5) a month | no monthly limit, up to `MAX_SENDS_PER_DAY` (50) a day |
 | Feeds | `BILLING_FREE_MAX_FEEDS` (15) | `MAX_FEEDS_PER_USER` (50) |
 | Newsletter inbox | — | yes |
 | Price | €0 | €1.50/month billed yearly (€18.00), or €2.50/month |
 
 The free allowance is a calendar month and refills on the 1st, which is what a reader
-assumes "four a month" means. `MAX_SENDS_PER_DAY` stays in force for everyone,
+assumes "five a month" means. `MAX_SENDS_PER_DAY` stays in force for everyone,
 including subscribers, as an abuse guardrail rather than a plan limit.
 
 Every account that exists when the migration runs is grandfathered permanently: it

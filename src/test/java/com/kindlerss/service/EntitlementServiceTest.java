@@ -63,9 +63,9 @@ class EntitlementServiceTest {
 
         assertEquals(Plan.FREE, entitlement.plan());
         assertTrue(entitlement.hasMonthlyCap());
-        assertEquals(4, entitlement.maxSendsPerMonth());
-        // The daily cap matches the monthly one, so all four can go in one morning.
-        assertEquals(4, entitlement.maxSendsPerDay());
+        assertEquals(5, entitlement.maxSendsPerMonth());
+        // The daily cap matches the monthly one, so all five can go in one morning.
+        assertEquals(5, entitlement.maxSendsPerDay());
         assertEquals(15, entitlement.maxFeeds());
         assertFalse(entitlement.newsletters());
     }
@@ -171,7 +171,7 @@ class EntitlementServiceTest {
         assertEquals(Plan.FREE, entitlement.plan());
         assertEquals(25, entitlement.maxSendsPerDay());
         // The override is about daily behaviour and deliberately leaves the month alone.
-        assertEquals(4, entitlement.maxSendsPerMonth());
+        assertEquals(5, entitlement.maxSendsPerMonth());
         // The feed cap is not something the override covers, so the plan still sets it.
         assertEquals(15, entitlement.maxFeeds());
     }
