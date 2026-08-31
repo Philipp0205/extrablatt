@@ -128,6 +128,19 @@ p {
   align-items: center;
 }
 
+.kindle-eyebrow {
+  display: inline-block;
+  margin: 0 0 0.85rem;
+  padding: 0.35rem 0.7rem;
+  border: 2px solid #000;
+  background: #000;
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
 .hero-copy h1 {
   font-size: 2.6rem;
   margin-bottom: 1rem;
@@ -137,6 +150,56 @@ p {
   font-size: 1.15rem;
   color: #222;
   max-width: 34rem;
+}
+
+.kindle-callout {
+  margin: 1.5rem 0 0;
+  padding: 1rem 1.15rem;
+  border: 2px solid #000;
+  background: #f7f6f3;
+  max-width: 34rem;
+}
+
+.kindle-callout-label {
+  margin: 0 0 0.35rem;
+  font-size: 0.9rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.kindle-url {
+  margin: 0;
+  font-family: "Courier New", Courier, monospace;
+  font-size: 1.55rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  word-break: break-all;
+  user-select: all;
+  -webkit-user-select: all;
+}
+
+.kindle-url-inline {
+  display: inline-block;
+  margin: 0.5rem 0;
+  padding: 0.55rem 0.75rem;
+  border: 2px solid #000;
+  background: #fff;
+  font-size: 1.35rem;
+}
+
+.kindle-callout-hint {
+  margin: 0.45rem 0 0;
+  color: #444;
+  font-size: 0.95rem;
+}
+
+.url-inline {
+  font-family: "Courier New", Courier, monospace;
+  font-weight: 700;
+  word-break: break-all;
+  user-select: all;
+  -webkit-user-select: all;
 }
 
 .hero-actions {
@@ -158,7 +221,7 @@ p {
   display: flex;
   justify-content: center;
   align-items: flex-end;
-  min-height: 22rem;
+  min-height: 24rem;
 }
 
 .kindle-mock {
@@ -166,7 +229,7 @@ p {
   width: 15.5rem;
   background: linear-gradient(180deg, #333336, #1b1b1d);
   border-radius: 20px;
-  padding: 1.35rem 1rem 2.5rem;
+  padding: 1.1rem 1rem 2.1rem;
   box-shadow: 0 30px 55px -22px rgba(0, 0, 0, 0.55);
 }
 
@@ -184,11 +247,77 @@ p {
   z-index: 1;
   transform: rotate(-3deg);
   margin-right: 4.5rem;
+  padding-bottom: 2.4rem;
+}
+
+.kindle-browser-chrome {
+  background: #e8e8e8;
+  border: 1px solid #222;
+  border-bottom: none;
+  border-radius: 5px 5px 0 0;
+  padding: 0.35rem 0.4rem 0.3rem;
+}
+
+.kindle-browser-dots {
+  display: block;
+  width: 1.6rem;
+  height: 0.28rem;
+  margin: 0 auto 0.3rem;
+  border-radius: 999px;
+  background: #999;
+}
+
+.kindle-address-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  background: #fff;
+  border: 1px solid #000;
+  border-radius: 2px;
+  padding: 0.2rem 0.35rem;
+  min-height: 1.35rem;
+}
+
+.kindle-address-lock {
+  flex: 0 0 auto;
+  width: 0.45rem;
+  height: 0.55rem;
+  border: 1.5px solid #333;
+  border-radius: 1px 1px 0 0;
+  position: relative;
+}
+
+.kindle-address-lock::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: -0.28rem;
+  width: 0.28rem;
+  height: 0.28rem;
+  margin-left: -0.14rem;
+  border: 1.5px solid #333;
+  border-bottom: none;
+  border-radius: 0.2rem 0.2rem 0 0;
+}
+
+.kindle-address-url {
+  font-family: "Courier New", Courier, monospace;
+  font-size: 0.62rem;
+  font-weight: 700;
+  line-height: 1.2;
+  color: #000;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.kindle-mock-secondary .kindle-address-url {
+  font-size: 0.55rem;
 }
 
 .kindle-screen {
   background: #fff;
-  border-radius: 5px;
+  border-radius: 0 0 5px 5px;
   overflow: hidden;
   aspect-ratio: 3 / 4;
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.25);
@@ -202,14 +331,162 @@ p {
   object-position: top center;
 }
 
+.kindle-caption {
+  position: absolute;
+  left: 50%;
+  bottom: 0.55rem;
+  transform: translateX(-50%);
+  margin: 0;
+  color: #ddd;
+  font-size: 0.68rem;
+  text-align: center;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
 .kindle-mock::after {
   content: "";
   display: block;
   width: 2.6rem;
   height: 0.35rem;
-  margin: 1rem auto 0;
+  margin: 0.85rem auto 0;
   border-radius: 999px;
   background: #55555a;
+}
+
+/* How to open on Kindle */
+.open-on-kindle {
+  padding: 4rem 0;
+  border-top: 2px solid #000;
+  background: #fff;
+}
+
+.section-lede {
+  text-align: center;
+  max-width: 40rem;
+  margin: -1.5rem auto 2.5rem;
+  color: #222;
+  font-size: 1.05rem;
+}
+
+.open-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.9fr);
+  gap: 2.5rem;
+  align-items: start;
+}
+
+.open-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.open-steps li {
+  display: flex;
+  gap: 1.25rem;
+  align-items: flex-start;
+  margin-bottom: 1.5rem;
+}
+
+.open-steps p {
+  margin-bottom: 0;
+  color: #222;
+}
+
+.browser-mock {
+  margin: 0;
+}
+
+.browser-mock-frame {
+  border: 2px solid #000;
+  background: #f7f6f3;
+  padding: 1.25rem 1.35rem 1.4rem;
+}
+
+.browser-mock-label {
+  margin: 0 0 0.85rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.browser-mock-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.85rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid #bbb;
+}
+
+.browser-mock-menu {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border: 2px solid #000;
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.browser-mock-menu-hint {
+  font-size: 0.95rem;
+  color: #222;
+}
+
+.browser-mock-address {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0;
+  padding: 0.85rem 1rem;
+  border: 2px solid #000;
+  background: #fff;
+  font-family: "Courier New", Courier, monospace;
+}
+
+.browser-mock-prefix {
+  color: #666;
+  font-size: 1rem;
+}
+
+.browser-mock-host {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #000;
+  word-break: break-all;
+  user-select: all;
+  -webkit-user-select: all;
+}
+
+.browser-mock-caret {
+  display: inline-block;
+  width: 0.12rem;
+  height: 1.2rem;
+  margin-left: 0.15rem;
+  background: #000;
+  vertical-align: text-bottom;
+  animation: caret-blink 1.1s steps(1) infinite;
+}
+
+@keyframes caret-blink {
+  50% { opacity: 0; }
+}
+
+.browser-mock-note {
+  margin: 0.75rem 0 0;
+  color: #444;
+  font-size: 0.95rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .browser-mock-caret {
+    animation: none;
+  }
 }
 
 /* Feature grid */
@@ -315,12 +592,20 @@ p {
 
   .hero-devices {
     order: -1;
-    min-height: 18rem;
+    min-height: 20rem;
     margin-bottom: 1rem;
   }
 
   .hero-copy h1 {
     font-size: 2.1rem;
+  }
+
+  .open-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .browser-mock {
+    order: -1;
   }
 }
 
@@ -333,6 +618,10 @@ p {
 
   .kindle-mock { width: 11.5rem; }
   .kindle-mock-secondary { width: 9.5rem; }
+
+  .kindle-url { font-size: 1.25rem; }
+  .kindle-url-inline { font-size: 1.1rem; }
+  .browser-mock-host { font-size: 1.15rem; }
 
   .hero-actions { flex-direction: column; align-items: stretch; }
   .hero-actions .btn { width: 100%; }
