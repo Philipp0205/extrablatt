@@ -84,7 +84,8 @@ public class AccountMailService {
         return baseUrl + path + "?token=" + token;
     }
 
-    private void send(String toEmail, String subject, String body) {
+    /** Package-private so billing e-mail reuses the one sender and its error handling. */
+    void send(String toEmail, String subject, String body) {
         if (!StringUtils.hasText(properties.mailFrom())) {
             throw new IllegalStateException("MAIL_FROM must be configured to send account e-mail");
         }
@@ -98,8 +99,10 @@ public class AccountMailService {
             mailSender.send(message);
         } catch (Exception e) {
             // Surface the failure so registration/reset can report it, but keep the
-            // message generic to callers to avoid leaking address existence.
-            log.warn("Failed to send account e-mail to {}: {}", toEmail, e.getMessage());
+            // message generic to callers to avoid leaking address existence. The
+            // address stays out of the log line too: production logs at WARN, and a
+            // log file is a place personal data ends up and is never cleaned out.
+            log.warn("Failed to send account e-mail ({}): {}", subject, e.getMessage());
             throw new IllegalStateException("Could not send e-mail", e);
         }
     }

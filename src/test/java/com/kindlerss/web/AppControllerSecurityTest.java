@@ -8,6 +8,7 @@ import com.kindlerss.security.CurrentUser;
 import com.kindlerss.security.RateLimiter;
 import com.kindlerss.security.RateLimitingFilter;
 import com.kindlerss.service.ArticleService;
+import com.kindlerss.service.EntitlementService;
 import com.kindlerss.service.FeedService;
 import com.kindlerss.service.KindleMailService;
 import com.kindlerss.service.UserService;
@@ -68,6 +69,9 @@ class AppControllerSecurityTest {
 
     @Autowired
     MockMvc mockMvc;
+
+    @MockitoBean
+    EntitlementService entitlementService;
 
     @MockitoBean
     FeedService feedService;

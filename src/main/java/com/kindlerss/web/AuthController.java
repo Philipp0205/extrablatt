@@ -143,4 +143,22 @@ public class AuthController {
     public String terms() {
         return "terms";
     }
+
+    /**
+     * § 5 DDG. A provider outside the EU has no origin-country shield to hide behind
+     * — the OLG Hamm held (17 December 2013, 4 U 100/13) that German information
+     * duties reach a site aimed at German consumers wherever it is run from — so an
+     * imprint is required here as soon as the site is commercial, and it has to name
+     * the foreign register and registration number too.
+     */
+    @GetMapping("/imprint")
+    public String imprint() {
+        return "imprint";
+    }
+
+    /** The withdrawal instructions required by Art. 246a EGBGB, on their own page. */
+    @GetMapping("/withdrawal")
+    public String withdrawal() {
+        return "withdrawal";
+    }
 }

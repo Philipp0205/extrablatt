@@ -45,4 +45,24 @@ public class AdminController {
         // reachable at its own address for anything still linking directly to it.
         return "redirect:" + ("/admin".equals(redirect) ? "/admin" : "/settings?view=telemetry");
     }
+
+    /**
+     * Grants the paid plan by hand, for the reader whose payment went through and
+     * whose callback did not.
+     */
+    @PostMapping("/admin/users/plan")
+    public String updatePlan(@RequestParam("userId") long userId,
+                            @RequestParam("months") int months,
+                            @RequestParam(value = "redirect", defaultValue = "/settings") String redirect,
+                            RedirectAttributes redirectAttributes) {
+        try {
+            telemetryService.grantSupporter(userId, months);
+            redirectAttributes.addFlashAttribute("message", months <= 0
+                    ? "Account moved back to the free plan"
+                    : "Supporter plan granted for " + months + " month(s)");
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+        }
+        return "redirect:" + ("/admin".equals(redirect) ? "/admin" : "/settings?view=telemetry");
+    }
 }
