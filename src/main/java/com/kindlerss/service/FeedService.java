@@ -191,10 +191,15 @@ public class FeedService {
         return matcher.find() ? matcher.group().toLowerCase(Locale.ROOT) : null;
     }
 
+    /** Returned by {@link #renameCategory} when the category already has the requested name. */
+    public static final int CATEGORY_NAME_UNCHANGED = -1;
+
     /**
      * Renames a category across all of an account's feeds. "Uncategorized" is a
      * placeholder for feeds with no category rather than a real one, so it cannot
      * be renamed; giving feeds a category through the usual form is how they leave it.
+     * Capitalization is part of the name, so "tech" to "Tech" is a rename like any
+     * other; only the very same name is nothing to do.
      */
     @Transactional
     public int renameCategory(long userId, String oldCategory, String newCategory) {
@@ -206,8 +211,8 @@ public class FeedService {
         if (to.isEmpty()) {
             throw new IllegalArgumentException("New category name is required");
         }
-        if (to.equalsIgnoreCase(from)) {
-            return 0;
+        if (to.equals(from)) {
+            return CATEGORY_NAME_UNCHANGED;
         }
         return feedRepository.renameCategory(userId, from, to);
     }
