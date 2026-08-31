@@ -145,9 +145,9 @@ class SettingsControllerTest {
     @Test
     @WithMockUser
     void settingsRendersAllSectionsWithoutATabStrip() throws Exception {
-        mockMvc.perform(get("/settings").param("view", "accessibility"))
+        mockMvc.perform(get("/settings"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("Switch to the accessible version")))
+                .andExpect(content().string(containsString("Send-to-Kindle")))
                 .andExpect(content().string(containsString("Signed in as")))
                 .andExpect(content().string(containsString("Delete my account")))
                 .andExpect(content().string(not(containsString("aria-label=\"Settings views\""))));
