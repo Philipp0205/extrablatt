@@ -2,9 +2,12 @@ package com.kindlerss.web;
 
 import com.kindlerss.security.CurrentUser;
 import com.kindlerss.service.UserService;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.util.List;
 import java.util.Optional;
@@ -33,6 +36,20 @@ public class ChangelogAdvice {
         Optional<ChangelogCatalog.Release> unseen = unseenRelease();
         model.addAttribute("whatsNew", unseen.orElse(null));
         model.addAttribute("whatsNewPrompt", unseen.isPresent());
+        model.addAttribute("changelogRedirect", currentPath());
+    }
+
+    private static String currentPath() {
+        if (!(RequestContextHolder.getRequestAttributes() instanceof ServletRequestAttributes attrs)) {
+            return "/";
+        }
+        HttpServletRequest request = attrs.getRequest();
+        String uri = request.getRequestURI();
+        if (uri == null || uri.isBlank()) {
+            return "/";
+        }
+        String query = request.getQueryString();
+        return query == null || query.isBlank() ? uri : uri + "?" + query;
     }
 
     private Optional<ChangelogCatalog.Release> unseenRelease() {
