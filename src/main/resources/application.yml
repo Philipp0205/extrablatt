@@ -107,9 +107,12 @@ app:
     # custom_data[user_id].
     reference-param: ${BILLING_REFERENCE_PARAM:client_reference_id}
     # Gross prices in euro cents: a consumer price in the EU is the total paid.
-    # 250 = €2.50 a month; 1800 = €18.00 a year, which is €1.50 a month.
+    # 250 = €2.50 a month; 2400 = €24.00 a year, which is €2.00 a month — a 20%
+    # annual discount, which steers to yearly without the monthly plan reading as a
+    # penalty. The fee matters more than the amount: €24 once costs 3.7%, the same
+    # money as twelve monthly charges costs 12.7%.
     monthly-price-cents: ${BILLING_MONTHLY_PRICE_CENTS:250}
-    yearly-price-cents: ${BILLING_YEARLY_PRICE_CENTS:1800}
+    yearly-price-cents: ${BILLING_YEARLY_PRICE_CENTS:2400}
     # What an account gets without paying: five articles to a Kindle a month, on a
     # calendar month that refills on the 1st. Reading in the browser, saved articles
     # and the whole accessibility edition are never metered. Five sends is about

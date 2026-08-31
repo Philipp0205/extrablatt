@@ -1,7 +1,7 @@
-# Subscriptions and payments — €1.50 a month, and what it takes to charge it legally
+# Subscriptions and payments — €2 a month, and what it takes to charge it legally
 
-Extrablatt now has a free plan and a paid **Supporter** plan: €1.50 a month billed
-yearly (€18.00 at once), or €2.50 a month billed monthly. This note records why
+Extrablatt now has a free plan and a paid **Supporter** plan: €2.00 a month billed
+yearly (€24.00 at once), or €2.50 a month billed monthly. This note records why
 those numbers, what a Swiss company changes about charging European consumers,
 how the code implements it, and what still has to be filled in by hand before
 anyone is charged.
@@ -13,7 +13,7 @@ the cancellation page — changed the routing rather than the copy, and one of t
 is why the app has a public `/cancel` page instead of relying on the payment
 provider's customer portal.
 
-## Why €1.50 and €2.50
+## Why €24 a year and €2.50 a month
 
 A payment processor's fixed per-transaction fee does not shrink with the price, so
 at these amounts it is the only thing that matters. Stripe in Germany takes
@@ -24,13 +24,31 @@ at these amounts it is the only thing that matters. Stripe in Germany takes
 | €1 / month | 27.7% | 51.0% |
 | €2 / month | 15.2% | 28.0% |
 | €2.50 / month | 12.7% | 23.4% |
+| €4 / month | 9.0% | 20.3% |
 | €18 / year | 4.1% | 7.6% |
+| **€24 / year** | **3.7%** | 6.9% |
 
 Twelve small charges cost twelve fixed fees; one larger charge costs one. Hence
 the shape of the offer: **the yearly plan is the one to steer people to**, at
-€18.00 — advertised as €1.50 a month, which is what it works out to — and the
-monthly plan exists for people who will not prepay a year, priced at €2.50 so
-that choosing it is not a loss.
+€24.00 — advertised as €2.00 a month, which is what it works out to — and the
+monthly plan exists for people who will not prepay a year.
+
+Two decisions inside that are worth recording, because both are easy to get wrong.
+
+**Why €24 and not €18.** €18 was underpriced. It is well under what comparable
+readers charge — Feedly and Inoreader Pro are around $8 a month — and the extra €6
+moves break-even from about 22 subscribers to about 16 while barely registering with
+anyone deciding whether to pay. The fee also improves, from 4.1% to 3.7%.
+
+**Why €2.50 and not €4 for the monthly plan.** €4 was considered and rejected. It
+yields more per monthly subscriber — €43.70 a year against €26.19 — and the fee is
+better at 9.0% against 12.7%. But €48 a year against €24 is a 50% discount for paying
+annually, where the conventional range is 15–25%. At 50%, almost nobody who intends to
+stay picks monthly, so the higher price rarely fires; and for those who do pick it,
+doubling the headline reads as a penalty for indecision, on a product whose whole pitch
+is no ads, no tracking and cancel-from-anywhere. €24 with €2.50 is a 20% discount,
+which steers to yearly without the monthly plan looking punitive. The margin given up
+is real and deliberate.
 
 Running costs are almost entirely fixed, plus roughly €0.05 a month per active
 reader, because the only cost with a real unit price is e-mail: one article sent is
@@ -134,7 +152,7 @@ people to yearly without making the monthly plan look like a punishment:
 | Yearly | Monthly | Monthly per year | Implied discount | |
 |---|---|---|---|---|
 | €18.00 | €2.50 | €30.00 | 40% | steep |
-| €24.00 | €2.50 | €30.00 | **20%** | conventional |
+| **€24.00** | **€2.50** | €30.00 | **20%** | **conventional — chosen** |
 | €24.00 | €3.00 | €36.00 | 33% | steep |
 | €24.00 | €4.00 | €48.00 | 50% | steep |
 
@@ -177,7 +195,7 @@ accountant whether this revenue belongs in the KlG's books, and widening the
 purpose if it does.
 
 **Liability is unlimited and joint.** That is what a Kollektivgesellschaft is. For a
-business collecting €18 at a time the exposure is small, but it is the reason to
+business collecting €24 at a time the exposure is small, but it is the reason to
 keep the terms, the withdrawal policy and the refund practice tidy rather than
 approximate.
 
@@ -232,7 +250,7 @@ fee, and it is not the API — it is **who the law considers the seller.**
 | Quarterly OSS filings | Yours | None |
 | Invoices to consumers | Yours to issue | Paddle issues them |
 | Chargebacks and fraud | Yours to absorb | Paddle absorbs them |
-| Cost on €18/year | ~€0.74 (4.1%) | ~€1.36 (7.6%) |
+| Cost on €24/year | ~€0.90 (3.7%) | ~€1.66 (6.9%) |
 | Cost on €2.50/month | ~€0.32 (12.7%) | ~€0.58 (23.4%) |
 | Payout | Direct, rolling | Weekly or monthly, net of fees |
 
