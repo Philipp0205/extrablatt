@@ -68,18 +68,44 @@ Einzelfirma would be enough for Stripe alone. A merchant of record like Paddle
 expects a registered business, and a Kollektivgesellschaft entered in the
 cantonal Handelsregister is one.
 
-Using the KlG has one consequence worth being deliberate about: partners in a
-Kollektivgesellschaft are personally and jointly liable without limit. For a
-subscription business collecting €18 at a time that is a small exposure, but it is
-the reason to keep the terms, the withdrawal policy and the refund practice tidy
-rather than approximate.
+The entity is registered as follows, from the Zürich commercial register entry for
+CHE-349.063.262. These are the details now in `/imprint`:
+
+| | |
+|---|---|
+| Registered name | Kubri by Philipp Kurrle und Ali Abriani KLG |
+| Legal form | Kollektivgesellschaft |
+| Seat and address | Wehntalerstrasse 17, 8057 Zürich |
+| Register | Handelsregisteramt des Kantons Zürich |
+| Registration number | CH-020.2.010.172-0 |
+| UID | CHE-349.063.262 |
+| Registered | 11 September 2025 |
+| Partners | Dr. Ali Abriani (Zürich) and Philipp Kurrle (Stuttgart), each with sole signing authority |
+| Registered purpose | Development and distribution of software solutions, in particular for dental and medical practices |
+
+Three things about that entry are worth acting on rather than filing away.
+
+**The registered purpose does not cover this.** It describes dental and medical
+practice software; Extrablatt is a consumer reader. That does not limit the
+partnership's capacity to enter contracts, but it is worth settling with the
+accountant whether this revenue belongs in the KlG's books, and widening the
+purpose if it does.
+
+**Liability is unlimited and joint.** That is what a Kollektivgesellschaft is. For a
+business collecting €18 at a time the exposure is small, but it is the reason to
+keep the terms, the withdrawal policy and the refund practice tidy rather than
+approximate.
+
+**One partner is domiciled in Stuttgart**, which is inside the EU. That single fact
+bears on both of the hard questions below — the VAT one and the EU representative
+one — and it is why they should go to an advisor as one question rather than three.
+
+### The Swiss part that changes everything
 
 Two registration thresholds apply on the Swiss side. Commercial-register entry is
 mandatory once annual revenue passes CHF 100,000, and Swiss VAT registration is
 mandatory once **worldwide** taxable turnover passes CHF 100,000 — worldwide, not
 Swiss. Below that, no Swiss VAT is charged.
-
-### The Swiss part that changes everything
 
 For EU VAT, Switzerland is a third country, and this is the single most consequential
 fact in this document:
@@ -98,6 +124,14 @@ EU member state of your choosing (Germany's BZSt runs one), charging destination
 rates, filing quarterly and keeping the records to back it up. Registration takes
 effect from the start of the quarter after you apply, so it has to be done before
 you sell, not after.
+
+One caveat, and it is the Stuttgart partner again: all of the above assumes the
+partnership has no fixed establishment inside the EU. If the business is in fact
+partly run from Germany, that assumption may not hold, and the VAT position changes
+— potentially to German registration, or to the Union scheme with its €10,000
+threshold. Which way it falls depends on facts an advisor has to establish, not on
+anything in this repository. A merchant of record makes the question moot for VAT
+purposes, which is one more reason to prefer one.
 
 ## Stripe or Paddle: the actual difference
 
@@ -202,13 +236,71 @@ and CHE number** (the LG Frankfurt held on 28 March 2003, 3-12 O 151/02, that a
 foreign register must be disclosed), the VAT numbers, and the EU representative
 below.
 
-### 5. EU representative (Art. 27 GDPR) — appoint one, then name it
+### 5. EU representative (Art. 27 GDPR) — establish whether you need one at all
 
-A non-EU controller offering a service to people in the EU must designate a
-representative in the Union in writing. The "occasional processing" exemption does
-not apply to a service people sign up to and use continuously. The representative
-must be named where data subjects can find it — the imprint and privacy pages both
-have the slot.
+The usual advice is that a non-EU controller offering a service to people in the EU
+must designate a representative in the Union in writing, and that the "occasional
+processing" exemption never applies to a service people sign up to and use
+continuously. Both halves of that are true. But there is a prior question that is
+easy to skip, and skipping it here would probably get the wrong answer.
+
+**Art. 27 only applies "where Article 3(2) applies"** — that is, where the GDPR
+reaches you *because* you offer services into the Union from outside it. If the GDPR
+reaches you through Art. 3(1) instead, because you have an establishment in the
+Union and the processing is carried out in the context of its activities, then no
+representative is required. The EDPB says so explicitly in Guidelines 3/2018: a
+controller subject to the GDPR under Art. 3(1) does not have to appoint one.
+
+That is a live question here, not a technicality. A partner with sole signing
+authority is domiciled in Stuttgart. The EDPB notes that the threshold for a "stable
+arrangement" is low where the centre of activities is an online service — a single
+person acting with sufficient stability can amount to an establishment. The catch is
+the second limb: mere residence is not enough, the processing must actually be
+carried out in the context of that person's activities in the Union. So the answer
+turns on how the work is really organised, which is a fact, not a reading.
+
+Two outcomes, and the imprint has room for either:
+
+- **Established in Germany (Art. 3(1)).** No Art. 27 representative. Instead you get
+  a lead supervisory authority in Germany and the one-stop-shop mechanism, and the
+  VAT question above reopens.
+- **Not established in the EU (Art. 3(2)).** Appoint a representative. What that
+  actually takes is below.
+
+Worth knowing either way: appointing a representative does **not** create an
+establishment, does not trigger the one-stop-shop, and under Art. 27(5) does not
+shield the partnership from action. It is a point of contact, not a liability buffer.
+
+#### What appointing one involves
+
+Not much, and it is mostly a contract rather than a project:
+
+- **A written mandate.** Art. 27(1) requires the designation to be in writing; an
+  e-mail exchange is not really it. The mandate should name the representative
+  unambiguously and set out the scope of processing covered, the authority to be
+  addressed by supervisory authorities and data subjects, how requests get forwarded
+  in both directions and how fast, the representative's access to your Art. 30
+  record, termination, and indemnities.
+- **Established in a member state where your data subjects are.** One is enough even
+  when readers are spread across the EU; Germany or Ireland are the usual choices.
+  It can be a person or a company, and it can serve several clients — but it must not
+  also be your data protection officer.
+- **An Art. 30 record of processing activities.** This is the part with real work in
+  it. Art. 30(4) puts an independent obligation on the representative to hold the
+  record and produce it to a supervisory authority on request, so you have to write
+  one and keep it current: purposes, categories of data subjects and data,
+  recipients, transfers, retention, security measures. For Extrablatt that is a short
+  document — accounts, feeds and articles, Kindle addresses, subscription state, and
+  the e-mail and payment providers as recipients.
+- **Naming it publicly**, in the imprint and the privacy notice, so data subjects and
+  authorities can find it. Both pages have the slot.
+- **A yearly fee.** Commodity services run roughly €200–€1,500 a year for something
+  this size; the €2,000–€10,000 figures quoted around the web are for larger
+  operations with audit support attached.
+
+Sequence matters slightly: settle the Art. 3(1) question first, because if you are
+established in Germany you would be paying a yearly fee for something the law does
+not ask of you.
 
 ### 6. Prices are gross — done
 
@@ -218,13 +310,23 @@ different number from the confirmation e-mail.
 
 ### Checklist before switching `BILLING_ENABLED` on
 
+- [ ] **Settle one question with an advisor first:** does the partnership have a
+      fixed establishment in Germany, given a partner in Stuttgart? The answer
+      decides the VAT route, whether an Art. 27 representative is needed, and which
+      supervisory authority leads.
 - [ ] Decide Stripe or Paddle; open the account under the KlG.
 - [ ] If Stripe: register for Non-Union OSS **before** the first sale, and enable
       Stripe Tax. If Paddle: nothing, which is the point.
 - [ ] Check whether worldwide turnover will pass CHF 100,000 (Swiss VAT) and
       whether the KlG's Handelsregister entry is current.
-- [ ] Appoint an EU representative under Art. 27 GDPR.
-- [ ] Fill in `/imprint` completely.
+- [ ] Appoint an EU representative under Art. 27 GDPR — **unless** the establishment
+      question above says you are covered by Art. 3(1), in which case say so on the
+      imprint instead.
+- [ ] Finish `/imprint`: a monitored contact mailbox, optionally a telephone number,
+      the VAT position and the representative line. The registered company details
+      are already in.
+- [ ] Consider widening the KlG's registered purpose, which currently covers dental
+      and medical practice software rather than a consumer reader.
 - [ ] Have terms, withdrawal notice and privacy reviewed by a German lawyer. If the
       site is ever presented in German, the two statutory buttons must carry the
       literal wording "Verträge hier kündigen" and "jetzt kündigen"; the English
