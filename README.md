@@ -374,9 +374,20 @@ production one does not have:
 
 ```bash
 railway environment staging                                          # switch the linked environment
-railway add --service marketing-site --variables "SITE_ENV=staging"
+railway add --service marketing-site --repo Philipp0205/kindle-rss \
+    --branch staging --variables "SITE_ENV=staging"
 railway domain --service marketing-site --environment staging        # generated *.up.railway.app URL
 ```
+
+Then one thing the CLI cannot set, in the dashboard: **Settings → Source → Root
+Directory → `marketing`**. Without it Railway builds the repo root and deploys
+the app instead of the landing page.
+
+That mirrors the production service exactly — same repo, same root directory,
+same Dockerfile builder — with `main` swapped for `staging`. Deploys come from
+Railway's own GitHub trigger, which is what actually ships the production page;
+the `railway up` step in `deploy-railway.yml` is a belt-and-braces extra that
+only runs when the `RAILWAY_TOKEN` repository secret exists.
 
 `railway add` has no `--environment` flag — it creates the service in whichever
 environment is currently linked, which is why the switch comes first. Check with
