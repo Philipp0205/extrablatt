@@ -250,9 +250,74 @@ p {
   padding-bottom: 2.4rem;
 }
 
+.kindle-browser-chrome {
+  background: #e8e8e8;
+  border: 1px solid #222;
+  border-bottom: none;
+  border-radius: 5px 5px 0 0;
+  padding: 0.35rem 0.4rem 0.3rem;
+}
+
+.kindle-browser-dots {
+  display: block;
+  width: 1.6rem;
+  height: 0.28rem;
+  margin: 0 auto 0.3rem;
+  border-radius: 999px;
+  background: #999;
+}
+
+.kindle-address-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  background: #fff;
+  border: 1px solid #000;
+  border-radius: 2px;
+  padding: 0.2rem 0.35rem;
+  min-height: 1.35rem;
+}
+
+.kindle-address-lock {
+  flex: 0 0 auto;
+  width: 0.45rem;
+  height: 0.55rem;
+  border: 1.5px solid #333;
+  border-radius: 1px 1px 0 0;
+  position: relative;
+}
+
+.kindle-address-lock::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: -0.28rem;
+  width: 0.28rem;
+  height: 0.28rem;
+  margin-left: -0.14rem;
+  border: 1.5px solid #333;
+  border-bottom: none;
+  border-radius: 0.2rem 0.2rem 0 0;
+}
+
+.kindle-address-url {
+  font-family: "Courier New", Courier, monospace;
+  font-size: 0.62rem;
+  font-weight: 700;
+  line-height: 1.2;
+  color: #000;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.kindle-mock-secondary .kindle-address-url {
+  font-size: 0.55rem;
+}
+
 .kindle-screen {
   background: #fff;
-  border-radius: 5px;
+  border-radius: 0 0 5px 5px;
   overflow: hidden;
   aspect-ratio: 3 / 4;
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.25);
