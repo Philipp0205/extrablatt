@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Imprint — Extrablatt</title>
+  <link rel="stylesheet" th:href="@{/css/app.css}"/>
+</head>
+<body>
+<div class="wrap">
+  <header class="app">
+    <a class="brand" th:href="@{/}">Extrablatt</a>
+  </header>
+
+  <!-- Wrapped as a fragment so the accessible edition shows the same imprint in its
+       own layout instead of keeping a second copy. -->
+  <div th:fragment="content">
+  <h1>Imprint</h1>
+  <p class="meta">Information under § 5 DDG (Digitale-Dienste-Gesetz) and Art. 3 Swiss UWG.</p>
+
+  <!--
+    TODO Fill in before charging anyone. Every line below is a legal requirement,
+    not a placeholder that can be left as prose:
+
+      * The company name exactly as registered, and its legal form.
+      * A postal address. A PO box is not enough; it has to be an address where
+        post is actually received.
+      * A telephone number or another means of "fast electronic contact" alongside
+        the e-mail address.
+      * The commercial register and the registration number. A Swiss company gives
+        its Handelsregister entry and CHE number: the LG Frankfurt (28.03.2003,
+        3-12 O 151/02) held that a foreign register has to be disclosed too, and the
+        consumer's interest in knowing which law an operator sits under is exactly
+        why.
+      * The VAT number, once there is one (CHE-… MWST, and the EU OSS number).
+      * The person responsible for the content, if that is a different person.
+      * The EU representative under Art. 27 GDPR — required for a non-EU operator
+        offering a service to people in the EU, and it has to be named where data
+        subjects can find it.
+  -->
+  <h2>Operator</h2>
+  <p>
+    <strong>[Registered company name, legal form]</strong><br/>
+    [Street and number]<br/>
+    [Postcode and town]<br/>
+    Switzerland
+  </p>
+
+  <h2>Contact</h2>
+  <p>
+    E-mail: <a href="mailto:hello@extrablatt.app">hello@extrablatt.app</a><br/>
+    Telephone: [number]
+  </p>
+
+  <h2>Register</h2>
+  <p>
+    Commercial register: [cantonal Handelsregister]<br/>
+    Registration number: [CHE-xxx.xxx.xxx]
+  </p>
+
+  <h2>VAT</h2>
+  <p>
+    Swiss VAT number: [CHE-xxx.xxx.xxx MWST, or "not registered — below the
+    CHF 100,000 threshold"]<br/>
+    EU VAT (Non-Union OSS): [number, or "not yet registered"]
+  </p>
+
+  <h2>Responsible for content</h2>
+  <p>[Name, address if different from above]</p>
+
+  <h2>Representative in the European Union (Art. 27 GDPR)</h2>
+  <p>[Name and address of the EU representative]</p>
+
+  <h2>Consumer dispute resolution</h2>
+  <p>
+    We are not obliged to take part in, and do not take part in, dispute resolution
+    proceedings before a consumer arbitration body.
+  </p>
+
+  <h2>Cancelling a contract</h2>
+  <p>
+    You can end a subscription at any time on the
+    <a th:href="@{/cancel}">cancellation page</a>, without signing in.
+  </p>
+  </div>
+
+  <p class="meta" style="margin-top:1rem"><a th:href="@{/login}">Back</a></p>
+</div>
+</body>
+</html>

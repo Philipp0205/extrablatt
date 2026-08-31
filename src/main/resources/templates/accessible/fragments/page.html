@@ -100,9 +100,16 @@
     <a th:href="@{/settings}">Your account</a>
     <a th:href="@{/help}">Help</a>
     <a th:href="@{/privacy}">Privacy</a>
+    <a th:href="@{/imprint}">Imprint</a>
+    <!-- § 312k Abs. 2 BGB wants this reachable from wherever the reader is, and it
+         has to say that it cancels rather than that it manages something. -->
+    <a th:if="${billingEnabled}" th:href="@{/cancel}">Cancel your contract here</a>
     <a th:href="${standardEditionUrl} ?: @{/(display='standard')}">Standard version</a>
   </nav>
-  <p class="quiet">Extrablatt is free, with no adverts and nothing to buy.</p>
+  <p class="quiet" th:if="${billingEnabled}">Reading here is free, with no adverts and
+    nothing about you for sale.</p>
+  <p class="quiet" th:unless="${billingEnabled}">Extrablatt is free, with no adverts
+    and nothing to buy.</p>
 </footer>
 
 <!-- The signed-out header: no navigation to speak of, but the same brand, the same

@@ -5,6 +5,7 @@ import com.kindlerss.security.CurrentUser;
 import com.kindlerss.security.RateLimiter;
 import com.kindlerss.security.RateLimitingFilter;
 import com.kindlerss.service.AdminTelemetryService;
+import com.kindlerss.service.EntitlementService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -29,6 +30,9 @@ class AdminControllerSecurityTest {
 
     @Autowired
     MockMvc mockMvc;
+
+    @MockitoBean
+    EntitlementService entitlementService;
 
     @MockitoBean
     AdminTelemetryService telemetryService;

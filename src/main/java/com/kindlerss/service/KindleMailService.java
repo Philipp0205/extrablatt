@@ -3,6 +3,7 @@ package com.kindlerss.service;
 import com.kindlerss.config.AppProperties;
 import com.kindlerss.domain.AppUser;
 import com.kindlerss.domain.Article;
+import com.kindlerss.domain.Entitlement;
 import com.kindlerss.repository.ArticleRepository;
 import com.kindlerss.repository.UserRepository;
 import com.kindlerss.repository.UserSendLimitRepository;
@@ -38,8 +39,8 @@ public class KindleMailService {
     private final ArticleRepository articleRepository;
     private final UserRepository userRepository;
     private final UserSendLimitRepository sendLimitRepository;
+    private final EntitlementService entitlements;
     private final AppProperties properties;
-    private final int maxSendsPerDay;
 
     public KindleMailService(JavaMailSender mailSender,
                              EpubService epubService,
@@ -47,6 +48,7 @@ public class KindleMailService {
                              ArticleRepository articleRepository,
                              UserRepository userRepository,
                              UserSendLimitRepository sendLimitRepository,
+                             EntitlementService entitlements,
                              AppProperties properties) {
         this.mailSender = mailSender;
         this.epubService = epubService;
@@ -54,8 +56,8 @@ public class KindleMailService {
         this.articleRepository = articleRepository;
         this.userRepository = userRepository;
         this.sendLimitRepository = sendLimitRepository;
+        this.entitlements = entitlements;
         this.properties = properties;
-        this.maxSendsPerDay = properties.limits().maxSendsPerDay();
     }
 
     /**
@@ -123,18 +125,30 @@ public class KindleMailService {
         return user.kindleEmail();
     }
 
+    /**
+     * A block is not an allowance, so it stays here rather than moving into
+     * {@link EntitlementService}: an administrator pausing an account overrides
+     * whatever that account has paid for. The number of sends it is allowed, on the
+     * other hand, is a plan question, and comes from the entitlement.
+     */
     private void requireWithinDailyQuota(long userId) {
         var override = sendLimitRepository.findByUserId(userId);
         if (override.isPresent() && override.get().blocked(Instant.now())) {
             throw new IllegalStateException("Sending is temporarily paused for this account");
         }
-        int effectiveLimit = override.map(limit -> limit.maxSendsPerDay() == null
-                        ? maxSendsPerDay : limit.maxSendsPerDay())
-                .orElse(maxSendsPerDay);
+        Entitlement entitlement = entitlements.forUser(userId);
+        int effectiveLimit = entitlement.maxSendsPerDay();
         Instant dayAgo = Instant.now().minus(1, ChronoUnit.DAYS);
         if (articleRepository.countSentSince(userId, dayAgo) >= effectiveLimit) {
+            // For most readers this is where they meet the price, so it says what the
+            // paid plan would give them instead of only refusing.
+            String upgrade = !entitlement.paid() && properties.billing().enabled()
+                    ? " The Supporter plan raises this to "
+                            + properties.limits().maxSendsPerDay()
+                            + " a day — see Settings."
+                    : " Try again later.";
             throw new IllegalStateException(
-                    "Daily send limit reached (" + effectiveLimit + "). Try again later.");
+                    "Daily send limit reached (" + effectiveLimit + ")." + upgrade);
         }
     }
 

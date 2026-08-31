@@ -5,6 +5,7 @@ import com.kindlerss.domain.AppUser;
 import com.kindlerss.domain.Article;
 import com.kindlerss.domain.UserSendLimit;
 import com.kindlerss.repository.ArticleRepository;
+import com.kindlerss.repository.SubscriptionRepository;
 import com.kindlerss.repository.UserRepository;
 import com.kindlerss.repository.UserSendLimitRepository;
 import jakarta.mail.Session;
@@ -38,6 +39,7 @@ class KindleMailServiceTest {
     private ArticleRepository articleRepository;
     private UserRepository userRepository;
     private UserSendLimitRepository sendLimitRepository;
+    private SubscriptionRepository subscriptionRepository;
     private KindleMailService service;
     private Article article;
 
@@ -48,6 +50,7 @@ class KindleMailServiceTest {
         articleRepository = mock(ArticleRepository.class);
         userRepository = mock(UserRepository.class);
         sendLimitRepository = mock(UserSendLimitRepository.class);
+        subscriptionRepository = mock(SubscriptionRepository.class);
         AppProperties properties = new AppProperties(
                 "approved@example.com",
                 null,
@@ -58,8 +61,12 @@ class KindleMailServiceTest {
                 null,
                 null,
                 null,
+                null,
                 null
         );
+        // A real entitlement service over mocked repositories: the administrator
+        // override these tests exercise lives inside it now, so mocking it away would
+        // stop testing the thing they are about.
         service = new KindleMailService(
                 mailSender,
                 new EpubService(),
@@ -67,6 +74,7 @@ class KindleMailServiceTest {
                 articleRepository,
                 userRepository,
                 sendLimitRepository,
+                new EntitlementService(subscriptionRepository, sendLimitRepository, properties),
                 properties
         );
         AppUser account = new AppUser(UID, "user@example.com", "hash", "reader@kindle.com",

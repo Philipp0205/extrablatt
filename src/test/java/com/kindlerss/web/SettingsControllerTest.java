@@ -8,6 +8,8 @@ import com.kindlerss.security.RateLimiter;
 import com.kindlerss.security.RateLimitingFilter;
 import com.kindlerss.service.AdminTelemetryService;
 import com.kindlerss.service.ArticleService;
+import com.kindlerss.service.EntitlementService;
+import com.kindlerss.service.SubscriptionService;
 import com.kindlerss.service.UserService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -52,6 +54,12 @@ class SettingsControllerTest {
 
     @Autowired
     MockMvc mockMvc;
+
+    @MockitoBean
+    EntitlementService entitlementService;
+
+    @MockitoBean
+    SubscriptionService subscriptionService;
 
     @MockitoBean
     UserService userService;
