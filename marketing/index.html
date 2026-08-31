@@ -13,6 +13,7 @@
   <div class="wrap bar">
     <span class="brand">Extrablatt</span>
     <nav>
+      <a class="btn" href="#pricing">Pricing</a>
       <a class="btn" href="https://reader.extrablatt.app/login">Sign in</a>
       <a class="btn btn-primary" href="https://reader.extrablatt.app/register">Create a free account</a>
     </nav>
@@ -35,7 +36,7 @@
           <a class="btn btn-primary btn-large" href="https://reader.extrablatt.app/register">Create a free account</a>
           <a class="btn btn-large" href="https://reader.extrablatt.app/login">Sign in</a>
         </div>
-        <p class="hero-note">10 articles a month free. No ads, no tracking. €1.50 a
+        <p class="hero-note">4 articles a month free. No ads, no tracking. €1.50 a
           month if you want more.</p>
       </div>
 
@@ -100,7 +101,7 @@
     </div>
   </section>
 
-  <section class="pricing">
+  <section class="pricing" id="pricing">
     <div class="wrap">
       <h2>What it costs</h2>
       <p class="lede">
@@ -115,11 +116,12 @@
           <p class="price-figure">€0</p>
           <p class="price-sub">no card, no trial clock</p>
           <ul>
-            <li>10 articles to your Kindle a month</li>
+            <li>4 articles to your Kindle a month</li>
             <li>Up to 15 feeds</li>
             <li>Unlimited reading in the browser</li>
             <li>The accessible version in full</li>
           </ul>
+          <a class="btn" href="https://reader.extrablatt.app/register">Create a free account</a>
         </div>
 
         <div class="price-card price-card-best">
@@ -132,6 +134,10 @@
             <li>Your own newsletter inbox address</li>
             <li>Cancel any time, no notice period</li>
           </ul>
+          <!-- Deep-links straight to the order page. Signing in first is required and
+               happens automatically: the app keeps the destination through the login
+               and lands the reader back here rather than on the home page. -->
+          <a class="btn btn-primary" href="https://reader.extrablatt.app/billing/order?interval=yearly">Choose yearly</a>
         </div>
 
         <div class="price-card">
@@ -143,9 +149,16 @@
             <li>Nothing paid a year ahead</li>
             <li>Cancel any time, no notice period</li>
           </ul>
+          <a class="btn" href="https://reader.extrablatt.app/billing/order?interval=monthly">Choose monthly</a>
         </div>
       </div>
 
+      <p class="price-note">
+        Subscribing needs an account, so you will be asked to sign in on the way — you
+        come straight back to the plan you picked. Already subscribed, or want to check
+        what you are on? It is under
+        <a href="https://reader.extrablatt.app/settings?view=subscription">Settings &rsaquo; Subscription</a>.
+      </p>
       <p class="price-note">
         Had an account before we started charging? It keeps the full allowances,
         permanently and at no cost — that is what you signed up to.
@@ -223,6 +236,7 @@
     <nav class="footer-links">
       <a href="https://reader.extrablatt.app/login">Sign in</a>
       <a href="https://reader.extrablatt.app/register">Create an account</a>
+      <a href="#pricing">Pricing</a>
       <a href="https://accessibility.extrablatt.app/help">Accessible version</a>
       <a href="https://reader.extrablatt.app/privacy">Privacy</a>
       <a href="https://reader.extrablatt.app/terms">Terms</a>

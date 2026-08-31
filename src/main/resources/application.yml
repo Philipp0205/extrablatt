@@ -110,12 +110,12 @@ app:
     # 250 = €2.50 a month; 1800 = €18.00 a year, which is €1.50 a month.
     monthly-price-cents: ${BILLING_MONTHLY_PRICE_CENTS:250}
     yearly-price-cents: ${BILLING_YEARLY_PRICE_CENTS:1800}
-    # What an account gets without paying: ten articles to a Kindle a month, on a
+    # What an account gets without paying: four articles to a Kindle a month, on a
     # calendar month that refills on the 1st. Reading in the browser, saved articles
-    # and the whole accessibility edition are never metered. Ten sends is about
-    # EUR 0.008 of e-mail a month, so the free plan costs almost nothing to serve even
+    # and the whole accessibility edition are never metered. Four sends is about
+    # EUR 0.003 of e-mail a month, so the free plan costs almost nothing to serve even
     # if it never converts.
-    free-max-sends-per-month: ${BILLING_FREE_SENDS_PER_MONTH:10}
+    free-max-sends-per-month: ${BILLING_FREE_SENDS_PER_MONTH:4}
     free-max-feeds: ${BILLING_FREE_MAX_FEEDS:15}
     # Days of continued access after a renewal fails, or after a renewal
     # confirmation goes missing. A declined card should not cut off a reader

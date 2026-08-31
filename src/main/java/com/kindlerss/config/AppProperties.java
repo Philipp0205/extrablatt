@@ -191,7 +191,7 @@ public record AppProperties(
     ) {
         public static final int DEFAULT_MONTHLY_PRICE_CENTS = 250;
         public static final int DEFAULT_YEARLY_PRICE_CENTS = 1_800;
-        public static final int DEFAULT_FREE_MAX_SENDS_PER_MONTH = 10;
+        public static final int DEFAULT_FREE_MAX_SENDS_PER_MONTH = 4;
         public static final int DEFAULT_FREE_MAX_FEEDS = 15;
         public static final int DEFAULT_GRACE_DAYS = 7;
 

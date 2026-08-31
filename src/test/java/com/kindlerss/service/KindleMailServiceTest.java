@@ -144,31 +144,31 @@ class KindleMailServiceTest {
     void aFreeAccountOutOfMonthlyArticlesIsToldBothWaysOut() {
         service = freeTierService();
         when(subscriptionRepository.findByUserId(UID)).thenReturn(Optional.empty());
-        when(articleRepository.countSentSince(eq(UID), any())).thenReturn(10L);
+        when(articleRepository.countSentSince(eq(UID), any())).thenReturn(4L);
 
         IllegalStateException error = assertThrows(IllegalStateException.class,
                 () -> service.sendToKindle(UID, 7L, false));
 
-        assertTrue(error.getMessage().contains("all 10 of this month's free articles"),
+        assertTrue(error.getMessage().contains("all 4 of this month's free articles"),
                 error.getMessage());
         assertTrue(error.getMessage().contains("Supporter plan"), error.getMessage());
         assertTrue(error.getMessage().contains("come back on"), error.getMessage());
         verify(mailSender, never()).send(any(MimeMessage.class));
     }
 
-    /** Nine used is still one to go: the cap is a ceiling, not a countdown to zero. */
+    /** One below the cap is still one to go: it is a ceiling, not a countdown to zero. */
     @Test
     void aFreeAccountWithOneArticleLeftCanStillSendIt() {
         service = freeTierService();
         when(subscriptionRepository.findByUserId(UID)).thenReturn(Optional.empty());
-        when(articleRepository.countSentSince(eq(UID), any())).thenReturn(9L);
+        when(articleRepository.countSentSince(eq(UID), any())).thenReturn(3L);
 
         service.sendToKindle(UID, 7L, false);
 
         verify(mailSender).send(any(MimeMessage.class));
     }
 
-    /** All ten in one morning is allowed — the offer is ten a month, not ten a day. */
+    /** The whole allowance in one morning is allowed: it is a month's worth, not a day's. */
     @Test
     void aSupporterIsNotMeteredByTheMonth() {
         service = freeTierService();
@@ -209,7 +209,7 @@ class KindleMailServiceTest {
     void theDonationNudgeStandsAsideForTheSubscriptionOnAFreePlan() {
         service = freeTierService();
         when(subscriptionRepository.findByUserId(UID)).thenReturn(Optional.empty());
-        when(articleRepository.countSentSince(eq(UID), any())).thenReturn(5L);
+        when(articleRepository.countSentSince(eq(UID), any())).thenReturn(1L);
         when(articleRepository.countSentTotal(UID)).thenReturn(10L);
 
         assertFalse(service.sendToKindle(UID, 7L, false));
