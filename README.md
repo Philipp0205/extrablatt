@@ -24,9 +24,6 @@ Multi-user RSS/Atom reader that extracts readable article HTML and emails EPUB f
   plus a permanent donation link in Settings — the app itself stays free and
   ad-free either way
 
-Need large type, topics instead of feed URLs, and read-aloud? That lives in the
-sibling app **[Klarblatt](https://github.com/Philipp0205/klarblatt)**.
-
 ## Requirements
 
 - Java 21 and Maven 3.9+ (or the included Maven Wrapper)
@@ -275,13 +272,6 @@ railway domain extrablatt.app --service marketing-site   # reader.extrablatt.app
 
 Any static file host (GitHub Pages, Cloudflare Pages, Netlify, …) works
 just as well if you'd rather not run it on Railway.
-
-## Klarblatt
-
-The accessibility-first reader is a separate app and repository:
-**[Klarblatt](https://github.com/Philipp0205/klarblatt)**. Topics instead of feed
-URLs, large high-contrast type, key points before full text, and read-aloud. It
-is deployed on its own, not as a second face of this process.
 
 ## Marketing / landing page
 

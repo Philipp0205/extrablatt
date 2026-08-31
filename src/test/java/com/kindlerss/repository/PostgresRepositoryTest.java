@@ -25,6 +25,7 @@ class PostgresRepositoryTest {
     private static UserRepository users;
     private static UserSendLimitRepository sendLimits;
     private static TelemetryRepository telemetry;
+    private static JdbcTemplate jdbc;
     private static long userId;
     private static long otherUserId;
 
@@ -33,7 +34,7 @@ class PostgresRepositoryTest {
         postgres = EmbeddedPostgres.builder().start();
         DataSource dataSource = postgres.getPostgresDatabase();
         Flyway.configure().dataSource(dataSource).load().migrate();
-        JdbcTemplate jdbc = new JdbcTemplate(dataSource);
+        jdbc = new JdbcTemplate(dataSource);
         feeds = new FeedRepository(jdbc);
         articles = new ArticleRepository(jdbc);
         users = new UserRepository(jdbc);
@@ -48,6 +49,20 @@ class PostgresRepositoryTest {
         if (postgres != null) {
             postgres.close();
         }
+    }
+
+    @Test
+    void accessibilityEditionTablesAndColumnsAreGone() {
+        Integer preferenceTables = jdbc.queryForObject("""
+                SELECT COUNT(*) FROM information_schema.tables
+                WHERE table_schema = 'public' AND table_name = 'display_preferences'
+                """, Integer.class);
+        Integer savedAtColumns = jdbc.queryForObject("""
+                SELECT COUNT(*) FROM information_schema.columns
+                WHERE table_schema = 'public' AND table_name = 'articles' AND column_name = 'saved_at'
+                """, Integer.class);
+        assertEquals(0, preferenceTables);
+        assertEquals(0, savedAtColumns);
     }
 
     @Test
@@ -195,32 +210,6 @@ class PostgresRepositoryTest {
         users.updateNewsletterInboundToken(third.id(), "rotated-token");
         assertTrue(users.findByNewsletterInboundToken("inbox-token").isEmpty());
         assertEquals(third.id(), users.findByNewsletterInboundToken("rotated-token").orElseThrow().id());
-    }
-
-    @Test
-    void savedArticlesAreKeptApartFromReadStateAndFromOtherAccounts() {
-        var feed = feeds.insert(userId, "Saved", "https://saved.example.com/feed.xml",
-                "https://saved.example.com", null);
-        long articleId = insertArticle(feed.id(), "saved-1");
-
-        assertTrue(articles.setSaved(userId, articleId, true));
-        var saved = articles.findById(userId, articleId).orElseThrow();
-        assertTrue(saved.saved());
-        assertFalse(saved.read(), "saving an article must not mark it read");
-
-        // Reading it afterwards leaves the bookmark alone: an article is usually
-        // saved precisely because it has been read.
-        articles.markRead(userId, articleId, true);
-        assertTrue(articles.findById(userId, articleId).orElseThrow().saved());
-
-        assertEquals(1, articles.findSavedPage(userId, 20, 0).size());
-        assertEquals(1, articles.countSaved(userId));
-        assertEquals(0, articles.countSaved(otherUserId));
-        assertFalse(articles.setSaved(otherUserId, articleId, false), "not their article to unsave");
-
-        assertTrue(articles.setSaved(userId, articleId, false));
-        assertFalse(articles.findById(userId, articleId).orElseThrow().saved());
-        assertEquals(0, articles.countSaved(userId));
     }
 
     @Test
