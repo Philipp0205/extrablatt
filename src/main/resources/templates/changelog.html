@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Changelog — Extrablatt</title>
+  <link rel="stylesheet" th:href="@{/css/app.css}"/>
+</head>
+<body>
+<div class="wrap">
+  <header class="app">
+    <a class="brand" th:href="@{/}">Extrablatt</a>
+    <nav class="top">
+      <a th:href="@{/}">Feeds</a>
+      <a th:href="@{/items}">Articles</a>
+      <a class="active" aria-current="page" th:href="@{/settings}">Settings</a>
+    </nav>
+  </header>
+
+  <a class="back-link" th:href="@{/settings#version}">← Settings</a>
+  <h1>Changelog</h1>
+  <p class="meta">What changed for readers when a build moved from staging to production. Newest first.</p>
+
+  <!-- PREPEND a new <article> here when promoting staging → main. Do not rewrite older entries. -->
+
+  <article class="changelog-entry">
+    <h2>31 August 2026</h2>
+    <ul>
+      <li>Changelog page in Settings, filled when a staging build is promoted to production.</li>
+    </ul>
+  </article>
+</div>
+</body>
+</html>

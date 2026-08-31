@@ -61,6 +61,10 @@ public class SettingsController {
         return "settings";
     }
 
+    @GetMapping("/changelog")
+    public String changelog() {
+        return "changelog";
+    }
 
     @PostMapping("/settings/kindle-email")
     public String updateKindleEmail(@RequestParam(value = "kindleEmail", required = false) String kindleEmail,

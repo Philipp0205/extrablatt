@@ -702,6 +702,21 @@ details.nested-tools {
   margin-top: 0;
 }
 
+.changelog-entry {
+  margin: 1.25rem 0 0;
+  padding-top: 0.25rem;
+}
+
+.changelog-entry h2 {
+  font-size: 1.1rem;
+  margin: 0 0 0.35rem;
+}
+
+.changelog-entry ul {
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
 .feed-list details.tools {
   margin-top: 0.5rem;
 }
