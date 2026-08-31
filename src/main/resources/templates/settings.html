@@ -137,7 +137,7 @@
 
   <section class="settings-section" id="delete">
   <h2>Delete account</h2>
-  <p class="meta">This permanently removes your account, feeds, and saved articles.</p>
+  <p class="meta">This permanently removes your account, feeds, and articles.</p>
   <form th:action="@{/account/delete}" method="post"
         onsubmit="return confirm('Delete your account and all its data? This cannot be undone.');">
     <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
