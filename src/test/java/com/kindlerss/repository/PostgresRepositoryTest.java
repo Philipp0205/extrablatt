@@ -239,6 +239,118 @@ class PostgresRepositoryTest {
         assertTrue(repository.find(otherUserId).isEmpty());
     }
 
+    @Test
+    void aSubscriptionIsStoredAndFoundByEitherProviderIdentifier() {
+        var repository = new SubscriptionRepository(new JdbcTemplate(postgres.getPostgresDatabase()));
+        var end = Instant.parse("2027-03-01T00:00:00Z");
+        var subscription = new com.kindlerss.domain.Subscription(userId,
+                com.kindlerss.domain.Plan.SUPPORTER,
+                com.kindlerss.domain.SubscriptionStatus.ACTIVE,
+                com.kindlerss.domain.BillingInterval.YEARLY,
+                "stripe", "cus_1", "sub_1", end, false, Instant.parse("2026-03-01T00:00:00Z"));
+
+        assertTrue(repository.findByUserId(userId).isEmpty());
+        repository.save(subscription);
+
+        assertEquals(subscription, repository.findByUserId(userId).orElseThrow());
+        assertEquals(userId, repository.findByProviderSubscriptionId("sub_1").orElseThrow().userId());
+        assertEquals(userId, repository.findByProviderCustomerId("cus_1").orElseThrow().userId());
+        assertTrue(repository.findByUserId(otherUserId).isEmpty());
+    }
+
+    /**
+     * A later event often carries only what changed. Saving one must not wipe the
+     * provider identifiers or the withdrawal consent that arrived with the order.
+     */
+    @Test
+    void savingAnUpdateKeepsIdentifiersAndConsentItDoesNotMention() {
+        var repository = new SubscriptionRepository(new JdbcTemplate(postgres.getPostgresDatabase()));
+        long id = users.insert("keeps@example.com", "hash").id();
+        var consentAt = Instant.parse("2026-03-01T00:00:00Z");
+        repository.save(new com.kindlerss.domain.Subscription(id,
+                com.kindlerss.domain.Plan.SUPPORTER,
+                com.kindlerss.domain.SubscriptionStatus.ACTIVE,
+                com.kindlerss.domain.BillingInterval.YEARLY,
+                "stripe", "cus_2", "sub_2", Instant.parse("2027-03-01T00:00:00Z"), false, consentAt));
+
+        repository.save(new com.kindlerss.domain.Subscription(id,
+                com.kindlerss.domain.Plan.SUPPORTER,
+                com.kindlerss.domain.SubscriptionStatus.PAST_DUE,
+                null, "stripe", null, null, Instant.parse("2027-03-01T00:00:00Z"), true, null));
+
+        var stored = repository.findByUserId(id).orElseThrow();
+        assertEquals(com.kindlerss.domain.SubscriptionStatus.PAST_DUE, stored.status());
+        assertEquals("cus_2", stored.providerCustomerId());
+        assertEquals("sub_2", stored.providerSubscriptionId());
+        assertEquals(consentAt, stored.withdrawalConsentAt());
+        assertTrue(stored.cancelAtPeriodEnd());
+    }
+
+    @Test
+    void lapsedSubscriptionsAreTheOnesWhosePaidPeriodHasPassed() {
+        var repository = new SubscriptionRepository(new JdbcTemplate(postgres.getPostgresDatabase()));
+        long lapsed = users.insert("lapsed@example.com", "hash").id();
+        long current = users.insert("current@example.com", "hash").id();
+        repository.save(new com.kindlerss.domain.Subscription(lapsed,
+                com.kindlerss.domain.Plan.SUPPORTER,
+                com.kindlerss.domain.SubscriptionStatus.ACTIVE,
+                com.kindlerss.domain.BillingInterval.MONTHLY, "stripe", "cus_3", "sub_3",
+                Instant.parse("2020-01-01T00:00:00Z"), false, null));
+        repository.save(new com.kindlerss.domain.Subscription(current,
+                com.kindlerss.domain.Plan.SUPPORTER,
+                com.kindlerss.domain.SubscriptionStatus.ACTIVE,
+                com.kindlerss.domain.BillingInterval.MONTHLY, "stripe", "cus_4", "sub_4",
+                Instant.parse("2099-01-01T00:00:00Z"), false, null));
+
+        var found = repository.findLapsed(Instant.parse("2026-01-01T00:00:00Z")).stream()
+                .map(com.kindlerss.domain.Subscription::userId).toList();
+
+        assertTrue(found.contains(lapsed));
+        assertFalse(found.contains(current));
+    }
+
+    /** The provider's event id is the lock, so a replay cannot be claimed twice. */
+    @Test
+    void aBillingEventCanOnlyBeClaimedOnce() {
+        var repository = new BillingEventRepository(new JdbcTemplate(postgres.getPostgresDatabase()));
+
+        assertTrue(repository.claim("evt_once", "stripe", "invoice.paid", "{}"));
+        assertFalse(repository.claim("evt_once", "stripe", "invoice.paid", "{}"));
+
+        repository.markProcessed("evt_once");
+        repository.markFailed("evt_once", "something went wrong");
+    }
+
+    @Test
+    void aCancellationDeclarationIsStoredWithWhenItArrived() {
+        var repository = new CancellationRequestRepository(
+                new JdbcTemplate(postgres.getPostgresDatabase()));
+
+        var stored = repository.insert(userId, "owner@example.com", "A Reader", "ref-1",
+                com.kindlerss.domain.CancellationRequest.Kind.IMMEDIATE,
+                java.time.LocalDate.parse("2027-01-31"), "too many newsletters",
+                Instant.parse("2027-01-31T00:00:00Z"));
+
+        assertEquals("owner@example.com", stored.email());
+        assertEquals(com.kindlerss.domain.CancellationRequest.Kind.IMMEDIATE, stored.kind());
+        assertEquals("too many newsletters", stored.reason());
+        assertTrue(stored.receivedAt() != null, "the time it arrived is what gets confirmed");
+        repository.markConfirmed(stored.id());
+    }
+
+    /** Somebody cancelling without an account still has their declaration recorded. */
+    @Test
+    void aCancellationWithNoMatchingAccountIsStillRecorded() {
+        var repository = new CancellationRequestRepository(
+                new JdbcTemplate(postgres.getPostgresDatabase()));
+
+        var stored = repository.insert(null, "stranger@example.com", null, null,
+                com.kindlerss.domain.CancellationRequest.Kind.ORDINARY, null, null, null);
+
+        assertEquals(null, stored.userId());
+        assertEquals("stranger@example.com", stored.email());
+    }
+
     private long insertArticle(long feedId, String guid) {
         return articles.insert(feedId, guid, "Article " + guid, "https://bulk.example.com/" + guid,
                 "Author", Instant.parse("2026-08-10T00:00:00Z"), "<p>Summary</p>", "<p>Content</p>");

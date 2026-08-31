@@ -3,6 +3,10 @@ package com.kindlerss.service;
 import com.kindlerss.config.AppProperties;
 import com.kindlerss.domain.AppUser;
 import com.kindlerss.domain.Article;
+import com.kindlerss.domain.BillingInterval;
+import com.kindlerss.domain.Plan;
+import com.kindlerss.domain.Subscription;
+import com.kindlerss.domain.SubscriptionStatus;
 import com.kindlerss.domain.UserSendLimit;
 import com.kindlerss.repository.ArticleRepository;
 import com.kindlerss.repository.SubscriptionRepository;
@@ -127,6 +131,53 @@ class KindleMailServiceTest {
 
         verify(articleRepository, never()).recordSend(any(Long.class), any(Long.class), any(Instant.class));
         verify(articleRepository, never()).markRead(UID, 7L, true);
+    }
+
+    /**
+     * The daily cap is where most readers will meet the price, so the refusal has to
+     * say what the paid plan would give them rather than only saying no.
+     */
+    @Test
+    void aFreeAccountHittingItsCapIsToldWhatTheSupporterPlanAllows() {
+        service = new KindleMailService(mailSender, new EpubService(), articleService,
+                articleRepository, userRepository, sendLimitRepository,
+                new EntitlementService(subscriptionRepository, sendLimitRepository, billingOn()),
+                billingOn());
+        when(subscriptionRepository.findByUserId(UID)).thenReturn(Optional.empty());
+        when(articleRepository.countSentSince(eq(UID), any())).thenReturn(3L);
+
+        IllegalStateException error = assertThrows(IllegalStateException.class,
+                () -> service.sendToKindle(UID, 7L, false));
+
+        assertTrue(error.getMessage().contains("Daily send limit reached (3)"));
+        assertTrue(error.getMessage().contains("Supporter plan"));
+        verify(mailSender, never()).send(any(MimeMessage.class));
+    }
+
+    @Test
+    void aSupporterGetsTheFullDailyAllowance() {
+        service = new KindleMailService(mailSender, new EpubService(), articleService,
+                articleRepository, userRepository, sendLimitRepository,
+                new EntitlementService(subscriptionRepository, sendLimitRepository, billingOn()),
+                billingOn());
+        when(subscriptionRepository.findByUserId(UID)).thenReturn(Optional.of(
+                new Subscription(UID, Plan.SUPPORTER, SubscriptionStatus.ACTIVE,
+                        BillingInterval.YEARLY, "stripe", "cus_1", "sub_1",
+                        Instant.now().plusSeconds(86_400), false, Instant.now())));
+        when(articleRepository.countSentSince(eq(UID), any())).thenReturn(3L);
+
+        service.sendToKindle(UID, 7L, false);
+
+        verify(mailSender).send(any(MimeMessage.class));
+    }
+
+    /** Billing switched on, with the free tier at three sends a day. */
+    private static AppProperties billingOn() {
+        AppProperties.Billing billing = new AppProperties.Billing(true, "stripe", "whsec",
+                "https://pay/monthly", "https://pay/yearly", null, null, null,
+                null, null, null, null, null);
+        return new AppProperties("approved@example.com", null, "remember-key", null, null, null,
+                null, null, null, null, billing);
     }
 
     @Test
