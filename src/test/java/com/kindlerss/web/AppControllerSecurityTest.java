@@ -226,23 +226,32 @@ class AppControllerSecurityTest {
 
         // Suggested feeds are only offered before anything has been subscribed.
         when(feedService.listFeeds(UID)).thenReturn(List.of());
-        mockMvc.perform(get("/").param("view", "free-test"))
+        mockMvc.perform(get("/"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("Quick start")))
-                .andExpect(content().string(containsString("value=\"hacker-news\"")));
+                .andExpect(content().string(containsString("value=\"hacker-news\"")))
+                .andExpect(content().string(containsString("<summary>Add feed</summary>")))
+                .andExpect(content().string(not(containsString("aria-label=\"Feed views\""))));
 
         when(feedService.listFeeds(UID)).thenReturn(List.of(
                 new Feed(5L, "Android", "https://example.com/feed", "https://example.com",
                         "Technology", null, null, null)));
+        // Level one shows one compact category row, not every feed.
         mockMvc.perform(get("/").param("view", "free-test"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(not(containsString("Quick start"))))
-                .andExpect(content().string(containsString("Your test is complete")));
+                .andExpect(content().string(not(containsString("Your test is complete"))))
+                .andExpect(content().string(containsString("href=\"/?category=Technology\"")))
+                .andExpect(content().string(containsString("1 feed · 0 unread")))
+                .andExpect(content().string(not(containsString(">Android</a>"))));
 
+        // Level two shows only the feeds in the selected category and a way back.
         mockMvc.perform(get("/").param("category", "Technology"))
                 .andExpect(status().isOk())
+                .andExpect(content().string(containsString("href=\"/\">← All categories</a>")))
                 .andExpect(content().string(containsString("action=\"/feeds/5/category\"")))
-                .andExpect(content().string(containsString(">Technology</h3>")));
+                .andExpect(content().string(containsString(">Technology</h1>")))
+                .andExpect(content().string(containsString(">Android</a>")));
     }
 
     @Test
@@ -390,7 +399,10 @@ class AppControllerSecurityTest {
                 .andExpect(content().string(containsString("data-reader-prev")))
                 .andExpect(content().string(containsString("data-reader-next")))
                 .andExpect(content().string(containsString("/js/reader.js")))
-                .andExpect(content().string(containsString("<button class=\"btn\" type=\"submit\">Send to Kindle</button>")));
+                .andExpect(content().string(containsString("<button class=\"btn\" type=\"submit\">Send to Kindle</button>")))
+                .andExpect(content().string(containsString("<details class=\"action-menu\" data-reader-refit>")))
+                .andExpect(content().string(containsString("<summary class=\"btn\">More</summary>")))
+                .andExpect(content().string(containsString(">Mark unread</button>")));
     }
 
     @Test
@@ -651,6 +663,13 @@ class AppControllerSecurityTest {
                 .andExpect(content().string(containsString("action=\"/articles/from-url\"")));
 
         mockMvc.perform(get("/").param("view", "add"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(not(containsString("action=\"/articles/from-url\""))));
+
+        when(feedService.listFeeds(UID)).thenReturn(List.of(
+                new Feed(5L, "Android", "https://example.com/feed", "https://example.com",
+                        "Technology", null, null, null)));
+        mockMvc.perform(get("/").param("category", "Technology"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(not(containsString("action=\"/articles/from-url\""))));
     }
