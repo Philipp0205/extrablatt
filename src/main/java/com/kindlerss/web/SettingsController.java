@@ -82,6 +82,13 @@ public class SettingsController {
         return "redirect:/settings#reading";
     }
 
+    @PostMapping("/settings/changelog/ack")
+    public String acknowledgeChangelog(@RequestParam(value = "redirect", defaultValue = "/") String redirect) {
+        ChangelogCatalog.instance().latestId()
+                .ifPresent(id -> userService.acknowledgeChangelog(currentUser.requireId(), id));
+        return "redirect:" + AppController.safeRedirect(redirect);
+    }
+
     @PostMapping("/settings/newsletter-address/regenerate")
     public String regenerateNewsletterAddress(RedirectAttributes redirectAttributes) {
         if (!properties.newsletters().enabled()) {

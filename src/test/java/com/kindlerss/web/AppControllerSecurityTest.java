@@ -223,6 +223,27 @@ class AppControllerSecurityTest {
 
     @Test
     @WithMockUser
+    void homeShowsWhatsNewUntilTheLatestReleaseIsAcknowledged() throws Exception {
+        when(feedService.listFeeds(UID)).thenReturn(List.of());
+        when(userService.findById(UID)).thenReturn(Optional.of(new AppUser(UID, "user@example.com",
+                "hash", "reader@kindle.com", Instant.now(), null, Instant.now(), Instant.now())));
+
+        mockMvc.perform(get("/"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("id=\"whats-new-dialog\"")))
+                .andExpect(content().string(containsString("What's new")));
+
+        String latest = ChangelogCatalog.instance().latestId().orElseThrow();
+        when(userService.findById(UID)).thenReturn(Optional.of(new AppUser(UID, "user@example.com",
+                "hash", "reader@kindle.com", Instant.now(), null, Instant.now(), Instant.now(),
+                null, true, latest)));
+        mockMvc.perform(get("/"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(not(containsString("id=\"whats-new-dialog\""))));
+    }
+
+    @Test
+    @WithMockUser
     void homeOffersOptionalDefaultsAndFeedCategories() throws Exception {
         when(feedService.defaultFeeds(UID)).thenReturn(List.of(
                 new FeedService.DefaultFeed("hacker-news", "Hacker News",
