@@ -19,6 +19,7 @@
 
   <div th:if="${message}" class="flash" th:text="${message}"></div>
   <div th:if="${error}" class="flash error" th:text="${error}"></div>
+  <div th:replace="~{fragments/whats-new-dialog :: whatsNewDialog}"></div>
 
   <h1>Settings</h1>
 
@@ -132,6 +133,18 @@
     Revision <span th:text="${appVersion.revision}">unknown</span><br/>
     Built <span th:text="${appVersion.builtAt}">unknown</span>
   </p>
+  </section>
+
+  <section class="settings-section" id="changelog">
+  <h2>Changelog</h2>
+  <p class="meta">What changed in recent releases. A short notice also appears after each new one.</p>
+  <article class="changelog-release" th:each="release : ${changelogReleases}">
+    <h3 th:text="${release.title}">Release</h3>
+    <p class="meta" th:text="${release.date}">date</p>
+    <ul class="changelog-list">
+      <li th:each="item : ${release.changes}" th:text="${item}">change</li>
+    </ul>
+  </article>
   </section>
 
   <section class="settings-section" id="delete">

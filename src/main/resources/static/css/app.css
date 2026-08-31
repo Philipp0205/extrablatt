@@ -980,6 +980,23 @@ dialog.donate-dialog .row {
   margin: 1rem 0 0;
 }
 
+.changelog-list {
+  margin: 0.5rem 0 0;
+  padding-left: 1.25rem;
+}
+
+.changelog-release {
+  margin-top: 1.25rem;
+}
+
+.changelog-release h3 {
+  margin: 0;
+}
+
+.changelog-release .meta {
+  margin: 0.25rem 0 0;
+}
+
 .build-info {
   border-top: 1px solid #000;
   margin-top: 2rem;
