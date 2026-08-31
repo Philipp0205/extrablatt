@@ -603,6 +603,77 @@ class AppControllerSecurityTest {
 
     @Test
     @WithMockUser
+    void turningAScreenMarksThatScreensArticlesRead() throws Exception {
+        when(articleService.markRead(eq(UID), anyList(), eq(true))).thenReturn(2);
+        when(articleService.count(eq(UID), eq(5L), isNull(), eq(Boolean.TRUE), isNull())).thenReturn(38L);
+
+        // The reader turns several screens inside one loaded page; each screen is
+        // posted as it is left behind, and the list stays where it is.
+        mockMvc.perform(post("/items/read").with(csrf())
+                        .param("feed", "5")
+                        .param("id", "1", "2"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("\"marked\":2")))
+                .andExpect(content().string(containsString("\"unreadLeft\":38")));
+
+        verify(articleService).markRead(UID, List.of(1L, 2L), true);
+    }
+
+    @Test
+    @WithMockUser
+    void turningAScreenMarksNothingWhenThePreferenceIsOff() throws Exception {
+        when(userService.markReadOnNextPage(UID)).thenReturn(false);
+
+        mockMvc.perform(post("/items/read").with(csrf()).param("id", "1", "2"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("\"marked\":0")));
+
+        verify(articleService, never()).markRead(eq(UID), anyList(), anyBoolean());
+    }
+
+    @Test
+    @WithMockUser
+    void itemsPageCountsWhatIsStillUnreadUnderThePage() throws Exception {
+        when(articleService.findPage(eq(UID), isNull(), isNull(), eq(1), eq(20)))
+                .thenReturn(List.of(new Article(4L, 1L, "guid-4", "Article 4", null, null,
+                        null, null, null, null, false, null, null, null, "Example Feed")));
+        when(articleService.count(eq(UID), isNull(), isNull())).thenReturn(4L);
+        // Counted without the snapshot: three of the four have been read through.
+        when(articleService.count(eq(UID), isNull(), isNull(), eq(Boolean.TRUE), isNull())).thenReturn(1L);
+        when(feedService.listFeeds(UID)).thenReturn(List.of());
+
+        mockMvc.perform(get("/items").param("unread", "false"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("data-unread-left=\"1\"")))
+                .andExpect(content().string(containsString("width:75%")))
+                .andExpect(content().string(containsString(">1 unread<")))
+                .andExpect(content().string(containsString("data-reader-mark-form=\"mark-screen\"")))
+                .andExpect(content().string(containsString("action=\"/items/read\"")))
+                // The entry carries its id so a screen turn knows what it passed.
+                .andExpect(content().string(containsString("data-article-id=\"4\"")));
+    }
+
+    @Test
+    @WithMockUser
+    void itemsPageOffersNoScreenMarkingWhenThePreferenceIsOff() throws Exception {
+        when(userService.markReadOnNextPage(UID)).thenReturn(false);
+        when(articleService.findPage(eq(UID), isNull(), isNull(), eq(1), eq(20)))
+                .thenReturn(List.of(new Article(4L, 1L, "guid-4", "Article 4", null, null,
+                        null, null, null, null, false, null, null, null, "Example Feed")));
+        when(articleService.count(eq(UID), isNull(), isNull())).thenReturn(4L);
+        when(articleService.count(eq(UID), isNull(), isNull(), eq(Boolean.TRUE), isNull())).thenReturn(4L);
+        when(feedService.listFeeds(UID)).thenReturn(List.of());
+
+        mockMvc.perform(get("/items").param("unread", "false"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(not(containsString("data-reader-mark-form"))))
+                .andExpect(content().string(not(containsString("action=\"/items/read\""))))
+                // The count is still worth showing; only the marking is switched off.
+                .andExpect(content().string(containsString(">4 unread<")));
+    }
+
+    @Test
+    @WithMockUser
     void advanceWithoutArticlesMarksNothing() throws Exception {
         mockMvc.perform(post("/items/advance").with(csrf()).param("page", "1"))
                 .andExpect(status().is3xxRedirection())

@@ -28,7 +28,8 @@
        th:attr="data-reader-key='items-' + ${feedId} + '-' + ${category} + '-' + ${unread} + '-' + ${snapshot} + '-' + ${page},
                 data-reader-prev-url=${page > 1} ? @{/items(feed=${feedId}, category=${category}, unread=${unread} ? true : null, snapshot=${snapshot}, page=${page - 1})} : null,
                 data-reader-next-form=${!#lists.isEmpty(articles)} ? 'advance' : null,
-                data-reader-next-end-label=${markReadOnNextPage and !#lists.isEmpty(articles)} ? 'Mark read' : null">
+                data-reader-next-end-label=${markReadOnNextPage and !#lists.isEmpty(articles)} ? 'Mark read' : null,
+                data-reader-mark-form=${markReadOnNextPage and !#lists.isEmpty(articles)} ? 'mark-screen' : null">
     <div class="reader-frame" data-reader-frame>
       <div class="reader-content" data-reader-content>
         <h1>Articles</h1>
@@ -63,9 +64,13 @@
 
         <p th:if="${#lists.isEmpty(articles)}" class="muted">No articles.</p>
         <ul class="item-list" th:if="${!#lists.isEmpty(articles)}">
-          <li th:each="a : ${articles}">
+          <!-- The unread mark is always in the markup and merely hidden once read:
+               turning a page marks articles read where the reader stands, and a mark
+               that was removed outright would reflow the columns under them. -->
+          <li th:each="a : ${articles}"
+              th:attr="data-article-id=${a.id}, data-read=${a.read} ? 'true' : 'false'">
             <a class="item-title" th:href="@{/articles/{id}(id=${a.id})}">
-              <strong th:if="${!a.read}">●</strong>
+              <strong class="unread-mark" th:classappend="${a.read} ? ' read'">●</strong>
               <span th:text="${a.title}">Title</span>
             </a>
             <div class="item-row">
@@ -108,12 +113,34 @@
         </div>
       </div>
     </div>
+    <!-- How much of this list is behind the reader, and how many articles are still
+         waiting. It sits directly under the page because that is where the eye
+         already is when the last line runs out. -->
+    <div class="unread-meter" th:if="${total > 0}" data-unread-meter
+         th:attr="data-unread-total=${total}, data-unread-left=${unreadLeft}">
+      <span class="unread-meter-track">
+        <span class="unread-meter-fill" data-unread-fill
+              th:style="'width:' + ${readThroughPercent} + '%'"></span>
+      </span>
+      <span class="unread-meter-count" data-unread-count
+            th:text="${unreadLeft == 0} ? 'All read' : ${unreadLeft} + ' unread'">20 unread</span>
+    </div>
     <nav class="pager" data-reader-pager>
       <button class="btn" type="button" data-reader-prev>Previous page</button>
       <span class="pager-label" data-reader-label>Page 1</span>
       <button class="btn" type="button" data-reader-next>Next page</button>
     </nav>
   </div>
+
+  <!-- Posted by the reader as each screen is turned past, so that a page turn
+       inside the loaded list marks what it left behind. The visible fallback for
+       browsers without the reader is the Mark read and continue button above. -->
+  <form th:if="${markReadOnNextPage and !#lists.isEmpty(articles)}"
+        id="mark-screen" th:action="@{/items/read}" method="post" hidden>
+    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+    <input type="hidden" name="feed" th:if="${feedId != null}" th:value="${feedId}"/>
+    <input type="hidden" name="category" th:if="${category != null}" th:value="${category}"/>
+  </form>
 </div>
 <!-- Before the reader: clipping the filter rows to one line changes how much room
      is left for the article list, and the reader measures that on load. -->

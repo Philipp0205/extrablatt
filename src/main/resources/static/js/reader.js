@@ -42,6 +42,9 @@
   var prevUrl = root.getAttribute('data-reader-prev-url');
   var nextUrl = root.getAttribute('data-reader-next-url');
   var nextForm = document.getElementById(root.getAttribute('data-reader-next-form') || '');
+  // Present only on a list whose account marks articles read on the next page.
+  var markForm = document.getElementById(root.getAttribute('data-reader-mark-form') || '');
+  var meter = document.querySelector('[data-unread-meter]');
   var nextEndLabel = root.getAttribute('data-reader-next-end-label');
   var nextLabel = nextButton ? nextButton.innerHTML : '';
   var storageKey = root.getAttribute('data-reader-key');
@@ -260,12 +263,104 @@
     }
   }
 
+  /*
+   * Which column an element sits in. Pages are turned by pulling the content left
+   * with a negative margin, so the element's own offset moves with every turn;
+   * measured against the content's offset it does not.
+   */
+  function columnOf(node) {
+    return Math.round((node.offsetLeft - content.offsetLeft) / (pageWidth + COLUMN_GAP));
+  }
+
+  /*
+   * Marks the articles of every screen before `index` read.
+   *
+   * A loaded list is several screens long, and the account setting promises that
+   * going to the next page marks the page left behind — the screen, not the fifty
+   * articles the server happened to send. The marks come off straight away and go
+   * back on if the request fails, so the next page turn tries again.
+   */
+  function markPassed(index) {
+    if (!markForm || !window.fetch || !window.FormData) {
+      return;
+    }
+    var nodes = content.querySelectorAll('[data-article-id]');
+    var body = new window.FormData(markForm);
+    var passed = [];
+    for (var i = 0; i < nodes.length; i++) {
+      if (nodes[i].getAttribute('data-read') !== 'true' && columnOf(nodes[i]) < index) {
+        passed.push(nodes[i]);
+      }
+    }
+    if (!passed.length) {
+      return;
+    }
+    for (i = 0; i < passed.length; i++) {
+      setRead(passed[i], true);
+      body.append('id', passed[i].getAttribute('data-article-id'));
+    }
+    showUnread(unreadLeft() - passed.length);
+    window.fetch(markForm.getAttribute('action'), {
+      method: 'POST',
+      credentials: 'same-origin',
+      body: body,
+      headers: {'Accept': 'application/json'}
+    }).then(function (response) {
+      if (!response.ok) {
+        throw new Error('Could not mark the page read');
+      }
+      return response.json();
+    }).then(function (data) {
+      if (data && typeof data.unreadLeft === 'number') {
+        showUnread(data.unreadLeft);
+      }
+    }).catch(function () {
+      for (var i = 0; i < passed.length; i++) {
+        setRead(passed[i], false);
+      }
+      showUnread(unreadLeft() + passed.length);
+    });
+  }
+
+  function setRead(node, read) {
+    node.setAttribute('data-read', read ? 'true' : 'false');
+    var mark = node.querySelector('.unread-mark');
+    if (mark) {
+      mark.className = read ? 'unread-mark read' : 'unread-mark';
+    }
+  }
+
+  function unreadLeft() {
+    return meter ? parseInt(meter.getAttribute('data-unread-left'), 10) || 0 : 0;
+  }
+
+  /* The count under the page, and the share of the list already behind it. */
+  function showUnread(left) {
+    if (!meter) {
+      return;
+    }
+    var total = parseInt(meter.getAttribute('data-unread-total'), 10) || 0;
+    var remaining = Math.max(0, Math.min(total, left));
+    meter.setAttribute('data-unread-left', String(remaining));
+    var count = meter.querySelector('[data-unread-count]');
+    if (count) {
+      count.textContent = remaining === 0 ? 'All read' : remaining + ' unread';
+    }
+    var fill = meter.querySelector('[data-unread-fill]');
+    if (fill && total > 0) {
+      fill.style.width = Math.round((total - remaining) * 100 / total) + '%';
+    }
+  }
+
   function turn(delta) {
     if (!paged) {
       return;
     }
     var target = page + delta;
     if (target >= 0 && target < pageCount) {
+      if (delta > 0) {
+        markPassed(target);
+      }
       show(target);
       return;
     }
