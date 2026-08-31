@@ -1,0 +1,32 @@
+---
+description: When promoting staging to main, summarize the release and update the in-app changelog
+alwaysApply: true
+---
+
+# Staging → main changelog
+
+A PR from `staging` into `main` is a production release. Before opening or merging it:
+
+1. Diff `origin/main...origin/staging`.
+2. Summarize **reader-facing** changes in the PR body (what someone on a Kindle would notice). Skip chores, CI, deploy wiring, and refactors unless they change behaviour.
+3. Prepend a release object to `src/main/resources/changelog.json` (newest first). That file feeds Settings → Changelog and the what's-new popup. Do not rewrite older releases.
+
+```json
+{
+  "id": "2026-08-31",
+  "date": "31 August 2026",
+  "title": "Category rename and send-in-place",
+  "highlights": [
+    "Feeds can be renamed from the category row.",
+    "Send-to-Kindle stays on the current article page."
+  ],
+  "changes": [
+    "Feeds can be renamed from the category row.",
+    "Send-to-Kindle stays on the current article page instead of jumping away."
+  ]
+}
+```
+
+`id` is `YYYY-MM-DD` (today). `highlights` are the popup; `changes` is the Settings list. Be specific. No “various fixes”.
+
+If nothing user-visible shipped, say so in the PR body and **do not** add a release.
