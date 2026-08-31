@@ -19,6 +19,7 @@
   <div th:if="${message}" class="flash" th:text="${message}"></div>
   <div th:if="${error}" class="flash error" th:text="${error}"></div>
   <div th:replace="~{fragments/donation-dialog :: donationDialog}"></div>
+  <div th:replace="~{fragments/whats-new-dialog :: whatsNewDialog}"></div>
 
   <!-- The article list always opens at the top: unlike a single article, there is
        no reading position worth restoring, and returning to "Articles" should show
@@ -97,8 +98,12 @@
             <input type="hidden" name="snapshot" th:if="${snapshot != null}" th:value="${snapshot}"/>
             <input type="hidden" name="page" th:value="${page}"/>
             <input type="hidden" name="id" th:each="a : ${articles}" th:value="${a.id}"/>
+            <!-- The pager turns pages where the reader script runs; where it cannot,
+                 this is the only way forward. -->
+            <button class="btn reader-hide-when-paged" type="submit"
+                    th:text="${markReadOnNextPage} ? 'Mark read and continue' : 'Next articles'">Next articles</button>
           </form>
-          <a class="btn" th:if="${page > 1}"
+          <a class="btn reader-hide-when-paged" th:if="${page > 1}"
              th:href="@{/items(feed=${feedId}, category=${category}, unread=${unread} ? true : null, snapshot=${snapshot}, page=${page - 1})}">Newer articles</a>
         </div>
       </div>

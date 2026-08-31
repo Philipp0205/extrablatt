@@ -223,6 +223,27 @@ class AppControllerSecurityTest {
 
     @Test
     @WithMockUser
+    void homeShowsWhatsNewUntilTheLatestReleaseIsAcknowledged() throws Exception {
+        when(feedService.listFeeds(UID)).thenReturn(List.of());
+        when(userService.findById(UID)).thenReturn(Optional.of(new AppUser(UID, "user@example.com",
+                "hash", "reader@kindle.com", Instant.now(), null, Instant.now(), Instant.now())));
+
+        mockMvc.perform(get("/"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("id=\"whats-new-dialog\"")))
+                .andExpect(content().string(containsString("What's new")));
+
+        String latest = ChangelogCatalog.instance().latestId().orElseThrow();
+        when(userService.findById(UID)).thenReturn(Optional.of(new AppUser(UID, "user@example.com",
+                "hash", "reader@kindle.com", Instant.now(), null, Instant.now(), Instant.now(),
+                null, true, latest)));
+        mockMvc.perform(get("/"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(not(containsString("id=\"whats-new-dialog\""))));
+    }
+
+    @Test
+    @WithMockUser
     void homeOffersOptionalDefaultsAndFeedCategories() throws Exception {
         when(feedService.defaultFeeds(UID)).thenReturn(List.of(
                 new FeedService.DefaultFeed("hacker-news", "Hacker News",
@@ -480,11 +501,11 @@ class AppControllerSecurityTest {
 
     @Test
     @WithMockUser
-    void advanceOnAnUnreadListStaysOnTheSamePage() throws Exception {
+    void advanceOnAnUnreadListWithoutASnapshotStaysOnTheSamePage() throws Exception {
         when(articleService.markRead(eq(UID), anyList(), eq(true))).thenReturn(20);
 
-        // The unread list shrinks by the articles just marked, so what comes next
-        // moves into the page that was posted from.
+        // Without a snapshot the unread list shrinks by the articles just marked, so
+        // what comes next moves into the page that was posted from.
         mockMvc.perform(post("/items/advance").with(csrf())
                         .param("page", "2")
                         .param("unread", "true")
@@ -492,6 +513,61 @@ class AppControllerSecurityTest {
                         .param("id", "11", "12"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/items?page=2&feed=5&unread=true#start"));
+    }
+
+    @Test
+    @WithMockUser
+    void advanceOnASnapshotUnreadListMovesToTheNextPage() throws Exception {
+        when(articleService.markRead(eq(UID), anyList(), eq(true))).thenReturn(20);
+        // The list keeps the articles it just marked read — they were read after the
+        // snapshot it was taken from — so what comes next is on the next page.
+        when(articleService.count(eq(UID), isNull(), isNull(), eq(Boolean.TRUE),
+                eq(Instant.ofEpochMilli(100)))).thenReturn(60L);
+
+        mockMvc.perform(post("/items/advance").with(csrf())
+                        .param("page", "1")
+                        .param("unread", "true")
+                        .param("snapshot", "100")
+                        .param("id", "1", "2"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/items?page=2&unread=true&snapshot=100#start"));
+
+        verify(articleService).markRead(UID, List.of(1L, 2L), true);
+    }
+
+    @Test
+    @WithMockUser
+    void advancePastTheLastPageOfAnUnreadListOpensAFreshOne() throws Exception {
+        when(articleService.markRead(eq(UID), anyList(), eq(true))).thenReturn(20);
+        when(articleService.count(eq(UID), eq(5L), isNull(), eq(Boolean.TRUE),
+                eq(Instant.ofEpochMilli(100)))).thenReturn(60L);
+
+        // Read through to the end of the snapshot: the next list is taken fresh, so
+        // that everything just marked read drops out of it.
+        mockMvc.perform(post("/items/advance").with(csrf())
+                        .param("page", "3")
+                        .param("unread", "true")
+                        .param("feed", "5")
+                        .param("snapshot", "100")
+                        .param("id", "41", "42"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/items?page=1&feed=5&unread=true#start"));
+    }
+
+    @Test
+    @WithMockUser
+    void advancePastTheLastPageKeepsTheListWhenNothingIsMarkedRead() throws Exception {
+        when(userService.markReadOnNextPage(UID)).thenReturn(false);
+
+        // Nothing was read, so there is no stale list to leave behind; the last page
+        // is simply where the list ends.
+        mockMvc.perform(post("/items/advance").with(csrf())
+                        .param("page", "3")
+                        .param("unread", "true")
+                        .param("snapshot", "100")
+                        .param("id", "41", "42"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/items?page=4&unread=true&snapshot=100#start"));
     }
 
     @Test
@@ -553,6 +629,39 @@ class AppControllerSecurityTest {
                 .andExpect(content().string(not(containsString("Mark these read"))))
                 // Paging marks articles read, so entries carry no read/unread button.
                 .andExpect(content().string(not(containsString("/articles/4/read"))));
+    }
+
+    @Test
+    @WithMockUser
+    void itemsPageCanBePagedForwardWithoutTheReaderScript() throws Exception {
+        when(articleService.findPage(eq(UID), isNull(), isNull(), eq(1), eq(20)))
+                .thenReturn(List.of(new Article(4L, 1L, "guid-4", "Article 4", null, null,
+                        null, null, null, null, false, null, null, null, "Example Feed")));
+        when(articleService.count(eq(UID), isNull(), isNull())).thenReturn(1L);
+        when(feedService.listFeeds(UID)).thenReturn(List.of());
+
+        // Hidden by CSS wherever the pager runs, and the only way forward where it
+        // does not.
+        mockMvc.perform(get("/items").param("unread", "false"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString(
+                        "<button class=\"btn reader-hide-when-paged\" type=\"submit\">Mark read and continue</button>")));
+    }
+
+    @Test
+    @WithMockUser
+    void fallbackForwardControlSaysOnlyWhatItDoesWhenNothingIsMarkedRead() throws Exception {
+        when(userService.markReadOnNextPage(UID)).thenReturn(false);
+        when(articleService.findPage(eq(UID), isNull(), isNull(), eq(1), eq(20)))
+                .thenReturn(List.of(new Article(4L, 1L, "guid-4", "Article 4", null, null,
+                        null, null, null, null, false, null, null, null, "Example Feed")));
+        when(articleService.count(eq(UID), isNull(), isNull())).thenReturn(1L);
+        when(feedService.listFeeds(UID)).thenReturn(List.of());
+
+        mockMvc.perform(get("/items").param("unread", "false"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString(
+                        "<button class=\"btn reader-hide-when-paged\" type=\"submit\">Next articles</button>")));
     }
 
     @Test
