@@ -151,8 +151,16 @@ fee, and it is not the API — it is **who the law considers the seller.**
 | Cost on €2.50/month | ~€0.32 (12.7%) | ~€0.58 (23.4%) |
 | Payout | Direct, rolling | Weekly or monthly, net of fees |
 
-**For this app, as a Swiss company, Paddle is the recommendation.** The reasoning
-is entirely about the row that says "from sale one":
+> **This recommendation is conditional, and the condition may not hold.** Everything
+> below assumes the partnership has no fixed establishment inside the EU. A managing
+> partner lives in Stuttgart and runs the service from there, which may well make it
+> EU-established — in which case the Union OSS scheme and its €10,000 threshold apply,
+> the "from sale one" argument disappears, and **Stripe becomes the better choice** on
+> both fee and integration effort. `docs/going-live.md` sets out how to settle that
+> before choosing.
+
+**For a Swiss company with no EU establishment, Paddle is the recommendation.** The
+reasoning is entirely about the row that says "from sale one":
 
 - Paddle costs about €0.62 more per subscriber per year — €124 a year at 200
   subscribers. That is less than one afternoon of a tax advisor's time, and OSS
@@ -164,11 +172,15 @@ is entirely about the row that says "from sale one":
 - It also covers Swiss VAT (Paddle is registered for it at 8.1%), so the same
   arrangement handles Swiss customers.
 
-Choose Stripe instead if you would rather own the tax stack — the fee is roughly
-half — or if monthly billing becomes the main plan, where a merchant of record's
-23% is not payable. Nothing in the code prefers either: the integration is a
-hosted checkout link plus a signed webhook, and both signature schemes are
-implemented and tested.
+Choose Stripe instead if the establishment question comes back "EU-established", if
+you would rather own the tax stack — the fee is roughly half — or if monthly billing
+becomes the main plan, where a merchant of record's 23% is not payable.
+
+Both signature schemes are implemented and tested, but the two are not equally
+finished. Stripe works with no code change, because a payment link carries
+`client_reference_id` in its URL and hands it back on the callback. Paddle passes
+account references through Paddle.js `customData` rather than a URL parameter, so it
+needs one addition before it can go live; `docs/going-live.md` spells out what.
 
 ## What the law requires, and what the code does about it
 

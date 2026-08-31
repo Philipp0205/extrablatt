@@ -244,11 +244,12 @@ Two things are deliberately manual, because the app holds no provider API key: a
 cancellation is e-mailed to `BILLING_OPERATOR_EMAIL` so the payment is stopped at
 the provider by hand, and a missed callback is fixed with the admin grant above.
 
-Before charging anyone there is legal work that no configuration flag covers —
-filling in `/imprint`, EU VAT registration (a non-EU seller owes VAT from its first
-sale, with no threshold), and appointing an EU representative under Art. 27 GDPR.
-[`docs/subscriptions-and-payments.md`](docs/subscriptions-and-payments.md) works
-through the pricing, the Stripe-versus-Paddle decision and the full checklist.
+Before charging anyone there is work no configuration flag covers.
+[`docs/going-live.md`](docs/going-live.md) is the runbook: the tax and establishment
+question that has to be settled first because it decides the provider, then the
+dashboard steps for Stripe or Paddle, then the mailbox the imprint needs.
+[`docs/subscriptions-and-payments.md`](docs/subscriptions-and-payments.md) has the
+pricing arithmetic and the reasoning behind the Stripe-versus-Paddle choice.
 
 ## Data protection
 
