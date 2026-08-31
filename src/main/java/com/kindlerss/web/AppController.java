@@ -243,13 +243,22 @@ public class AppController {
                                  RedirectAttributes redirectAttributes) {
         try {
             int updated = feedService.renameCategory(currentUser.requireId(), oldCategory, newCategory);
-            redirectAttributes.addFlashAttribute("message", updated == 0
-                    ? "No feeds found in that category"
-                    : "Renamed category for " + updated + (updated == 1 ? " feed" : " feeds"));
+            redirectAttributes.addFlashAttribute("message", renameResult(updated));
         } catch (IllegalArgumentException e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
         }
         return "redirect:/";
+    }
+
+    /** What a rename did, told from the number of feeds it moved. */
+    static String renameResult(int updatedFeeds) {
+        if (updatedFeeds == FeedService.CATEGORY_NAME_UNCHANGED) {
+            return "That is already the name of this category";
+        }
+        if (updatedFeeds == 0) {
+            return "No feeds found in that category";
+        }
+        return "Renamed category for " + updatedFeeds + (updatedFeeds == 1 ? " feed" : " feeds");
     }
 
     @PostMapping("/feeds/{id}/delete")
