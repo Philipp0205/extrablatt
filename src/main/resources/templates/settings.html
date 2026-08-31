@@ -73,6 +73,27 @@
   </div>
   </section>
 
+  <section class="settings-section" id="reading">
+  <h2>Reading</h2>
+  <p class="meta">Feeds are asked for as many entries as they will give. How those
+    articles become read is up to you.</p>
+  <form th:action="@{/settings/reading}" method="post">
+    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+    <label class="check">
+      <input type="checkbox" name="markReadOnNextPage" value="true"
+             th:checked="${account.markReadOnNextPage}"/>
+      <span>Mark articles as read when I go to the next page</span>
+    </label>
+    <p class="meta">When this is on, paging past a list of articles marks them read —
+      the same as tapping Next page at the end of a Kindle screen. When it is off,
+      new feed articles arrive already marked read, so a refresh does not fill
+      Unread with a backlog, and Next page only loads the next articles.</p>
+    <div class="row" style="margin-top:1rem">
+      <button class="btn" type="submit">Save</button>
+    </div>
+  </form>
+  </section>
+
   <section class="settings-section" id="account">
   <h2>Account</h2>
   <p class="meta">

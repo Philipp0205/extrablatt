@@ -93,6 +93,7 @@ class AppControllerSecurityTest {
                 Instant.now(), null, Instant.now(), Instant.now());
         when(currentUser.requireId()).thenReturn(UID);
         when(currentUser.details()).thenReturn(Optional.of(new AppUserDetails(user)));
+        when(userService.markReadOnNextPage(UID)).thenReturn(true);
     }
 
     @Test
@@ -413,7 +414,7 @@ class AppControllerSecurityTest {
 
     @Test
     @WithMockUser
-    void itemsPageOffersBothMarkingAndPlainForwardNavigation() throws Exception {
+    void itemsPageHasNoOlderArticlesSkipHatch() throws Exception {
         List<Article> articles = new ArrayList<>();
         for (int i = 1; i <= 20; i++) {
             articles.add(new Article((long) i, 1L, "guid-" + i, "Article " + i, null, null,
@@ -427,7 +428,8 @@ class AppControllerSecurityTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("1–20 of 33 articles")))
                 .andExpect(content().string(not(containsString("Mark read &amp; continue"))))
-                .andExpect(content().string(containsString("Older articles")))
+                .andExpect(content().string(not(containsString("Older articles"))))
+                .andExpect(content().string(containsString("data-reader-next-form=\"advance\"")))
                 .andExpect(content().string(not(containsString("data-reader-prev-url"))));
     }
 
@@ -490,6 +492,37 @@ class AppControllerSecurityTest {
                         .param("id", "11", "12"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/items?page=2&feed=5&unread=true#start"));
+    }
+
+    @Test
+    @WithMockUser
+    void advanceLeavesArticlesUnreadWhenMarkOnNextPageIsOff() throws Exception {
+        when(userService.markReadOnNextPage(UID)).thenReturn(false);
+
+        mockMvc.perform(post("/items/advance").with(csrf())
+                        .param("page", "1")
+                        .param("id", "1", "2", "3"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/items?page=2&unread=false#start"));
+
+        verify(articleService, never()).markRead(eq(UID), anyList(), anyBoolean());
+    }
+
+    @Test
+    @WithMockUser
+    void itemsPageDoesNotSayMarkReadWhenThePreferenceIsOff() throws Exception {
+        when(userService.markReadOnNextPage(UID)).thenReturn(false);
+        when(articleService.findPage(eq(UID), isNull(), isNull(), eq(1), eq(20)))
+                .thenReturn(List.of(new Article(4L, 1L, "guid-4", "Article 4", null, null,
+                        null, null, null, null, false, null, null, null, "Example Feed")));
+        when(articleService.count(eq(UID), isNull(), isNull())).thenReturn(1L);
+        when(feedService.listFeeds(UID)).thenReturn(List.of());
+
+        mockMvc.perform(get("/items").param("unread", "false"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("data-reader-next-form=\"advance\"")))
+                .andExpect(content().string(not(containsString("data-reader-next-end-label=\"Mark read\""))))
+                .andExpect(content().string(not(containsString("Older articles"))));
     }
 
     @Test

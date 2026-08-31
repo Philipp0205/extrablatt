@@ -26,7 +26,8 @@ public class UserRepository {
             toInstant(rs.getTimestamp("disabled_at")),
             toInstant(rs.getTimestamp("created_at")),
             toInstant(rs.getTimestamp("updated_at")),
-            rs.getString("newsletter_inbound_token")
+            rs.getString("newsletter_inbound_token"),
+            rs.getBoolean("mark_read_on_next_page")
     );
 
     private final JdbcTemplate jdbc;
@@ -88,6 +89,32 @@ public class UserRepository {
         jdbc.update("""
                 UPDATE users SET kindle_email = ?, updated_at = NOW() WHERE id = ?
                 """, kindleEmail, id);
+    }
+
+    public void updateMarkReadOnNextPage(long id, boolean markReadOnNextPage) {
+        jdbc.update("""
+                UPDATE users SET mark_read_on_next_page = ?, updated_at = NOW() WHERE id = ?
+                """, markReadOnNextPage, id);
+    }
+
+    /**
+     * The article-list preference of the account that owns this feed, used when a
+     * refresh has the feed but not the signed-in user.
+     */
+    public Optional<Boolean> findMarkReadOnNextPageByFeedId(long feedId) {
+        return jdbc.query("""
+                SELECT u.mark_read_on_next_page
+                FROM users u
+                JOIN feeds f ON f.user_id = u.id
+                WHERE f.id = ?
+                """, (rs, row) -> rs.getBoolean("mark_read_on_next_page"), feedId)
+                .stream().findFirst();
+    }
+
+    public Optional<Long> findIdByFeedId(long feedId) {
+        return jdbc.query("SELECT user_id FROM feeds WHERE id = ?",
+                        (rs, row) -> rs.getLong("user_id"), feedId)
+                .stream().findFirst();
     }
 
     /** Finds the account whose newsletter inbox address this token belongs to. */

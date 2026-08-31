@@ -120,6 +120,18 @@ class UserServiceTest {
         verify(tokenRepository).markUsed("rst");
     }
 
+    @Test
+    void markReadOnNextPageDefaultsToOnWhenTheAccountIsMissing() {
+        when(userRepository.findById(99L)).thenReturn(Optional.empty());
+        assertTrue(service.markReadOnNextPage(99L));
+    }
+
+    @Test
+    void updatingMarkReadOnNextPageWritesThrough() {
+        service.updateMarkReadOnNextPage(1L, false);
+        verify(userRepository).updateMarkReadOnNextPage(1L, false);
+    }
+
     private static Instant any() {
         return org.mockito.ArgumentMatchers.any(Instant.class);
     }
