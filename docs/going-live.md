@@ -68,6 +68,49 @@ Art. 27 representative and its yearly fee disappear. It also flips the provider
 recommendation in the next section. But it is an expectation, not a finding, and it is
 cheap to have it confirmed before money starts moving.
 
+### "I have no Betriebsstätte, I just work from my flat"
+
+This is the intuition to be most careful with, because it is probably backwards on both
+halves.
+
+**A flat is not a way to avoid a Betriebsstätte — for a managing partner it is the
+textbook way to create one.** The rule that a home office does not create a permanent
+establishment is about *employees*, and it works because the employer has no
+Verfügungsmacht over the rooms. It does not apply to management. Under the BMF letter
+of 18 June 2026 (Rn. 143), exercising management functions from a home office can create
+a *Geschäftsleitungsbetriebsstätte*, and that kind expressly does **not** require power
+of disposition over the premises — only that the day-to-day management decisions are
+actually taken there. The letter names the riskiest constellation directly: the manager
+of a *foreign* company who is resident in Germany. That is this situation exactly.
+
+Note also that the three tests are genuinely separate. VAT uses "feste Niederlassung"
+(Art. 11 VAT Implementing Regulation — sufficient permanence plus human and technical
+resources), income tax uses § 12 AO, and a treaty uses Art. 5 OECD-MA. One can be met
+without the others, which is why they are three questions and not one.
+
+**And no Betriebsstätte would make the VAT position worse, not better.** This is the
+part worth reading twice:
+
+| | No EU establishment (third country) | Established in Germany |
+|---|---|---|
+| EU B2C digital sales | VAT due in the customer's country **from the first euro** | German VAT, with thresholds below |
+| Kleinunternehmer (§ 19 UStG) | **Not available.** Third-country businesses are excluded outright | Available: ≤ €25,000 previous year and ≤ €100,000 current year |
+| Cross-border relief | None | The EU-wide SME scheme (§ 19a UStG, since 2025): ≤ €100,000 EU-wide, with a `KU-IdNr.` ending `EX` from the BZSt and quarterly reporting |
+| Registration needed | Non-Union OSS, before the first sale | Possibly none at all, at this turnover |
+
+So the honest answer to the question as asked: **yes, VAT has to be dealt with either
+way — but being established in Germany is the thing that might mean you never have to
+charge it.** At €18 a year per subscriber, staying under €25,000 domestically and
+€100,000 EU-wide is not a near thing. If the KlG is German-established and registers for
+the SME scheme, the likely outcome is no VAT charged to anyone, and the app's
+tax-inclusive prices simply become prices.
+
+One more correction, because it changes who the taxpayer is: **this is not a solo
+business.** A Kollektivgesellschaft has two partners, and the partnership is the entity
+that sells, invoices and owes. That also means the second partner's position matters to
+the answer, and that a German-resident partner generally has German income tax exposure
+on their share of the profit regardless of where the partnership sits.
+
 ## 2. Set up the payment provider
 
 ### Which one, given the above
@@ -197,38 +240,55 @@ metadata, and you then fetch the body and attachments and send a new message. Th
 code to write, host and monitor, for something a mail provider does natively. Use
 Resend for what it is already doing well, which is sending.
 
-### Option A — an IONOS alias, and nothing changes (recommended)
+### Cloudflare Email Routing — four clicks, and why they have to be yours
 
-The MX records already point at IONOS, so if there is a mail product on that domain,
-the whole job is one alias in the IONOS control panel: `hello@extrablatt.app` forwards
-to `philippk@mailbox.org`. No DNS change, no risk to anything, five minutes.
+Free, native forwarding with no code. I attempted it with the Cloudflare API token
+available to the agent and got far enough to establish exactly where the wall is:
 
-Check first: log in to IONOS and look for an active Mail Basic/Business package on
-`extrablatt.app`. If there is one, do it there and stop reading.
+- Enabling Email Routing on the zone **is** permitted by the token, but Cloudflare
+  refuses while non-Cloudflare MX records exist (`code 2008`).
+- Adding a **destination address** is not permitted: that is an account-level
+  endpoint, and the token returns `code 10000 Authentication error` on it. The same
+  goes for reading or writing routing rules.
+- A destination address has to be confirmed by clicking a link Cloudflare e-mails to
+  it, which only you can do in any case.
 
-### Option B — Cloudflare Email Routing, if IONOS mail is dead
+So the missing piece cannot be done from here, and doing the *possible* half would have
+been worse than doing nothing: deleting the IONOS MX records and enabling routing with
+no rule behind it would point the domain's mail at a service that then rejects it.
+**The zone was therefore left exactly as it was found** — both IONOS MX records present,
+verified afterwards in public DNS.
 
-Free, native forwarding with no code. The catch is in the second fact above:
-**enabling it on the root domain replaces the IONOS MX records**, so anything currently
-delivered to an IONOS mailbox on `extrablatt.app` stops arriving. Only do this if you
-are sure nothing there is in use.
+Do it in the dashboard instead; the UI handles the MX conflict itself, which is the
+thing the API refused:
 
-1. Cloudflare dashboard → the `extrablatt.app` zone → **Email → Email Routing** →
-   *Get started*. Let it add the MX and TXT records it proposes; it will replace the
-   IONOS MX.
-2. **Destination addresses** → add `philippk@mailbox.org`. Cloudflare e-mails it a
-   verification link — open it, or the rule stays disabled.
-3. **Routing rules** → `hello` → *Send to an email* → `philippk@mailbox.org`. Leave the
-   catch-all off unless you want every made-up address to reach you.
-4. Send a test from an outside address and confirm it lands in mailbox.org.
-5. Afterwards, tidy the IONOS leftovers: the `_dmarc` CNAME to `dmarc.ionos.de`, the
-   `autodiscover` CNAME, and the IONOS `include:_spf-eu.ionos.com` in the root SPF —
-   that SPF record should end up listing Resend rather than IONOS, or outbound mail from
-   the app will be authorised by the wrong sender.
+1. Cloudflare → the `extrablatt.app` zone → **Email → Email Routing** → *Get started*.
+   When it offers to remove the conflicting IONOS MX records and add its own, accept.
+2. **Destination addresses** → add `philippk@mailbox.org`, then open the verification
+   e-mail Cloudflare sends there and click the link. Until that is done, any rule
+   pointing at the address stays disabled.
+3. **Routing rules** → pattern `hello`, action *Send to an email*, destination
+   `philippk@mailbox.org`. Leave the catch-all off unless you want every invented
+   address to reach you.
+4. Send a test from an outside mailbox and confirm it arrives.
 
-I could not do this part directly: the Cloudflare API token available to the agent
-carries DNS permissions but not Email Routing, and the destination address needs a
-verification link clicked in your mailbox in any case.
+Afterwards, three IONOS leftovers are worth tidying — and one of them is a real trap:
+
+- `_dmarc.extrablatt.app` → CNAME to `dmarc.ionos.de`, and the `autodiscover` CNAME.
+  Both dead once IONOS mail is gone; delete them.
+- The root SPF record is `v=spf1 include:_spf-eu.ionos.com ~all`. **Do not simply
+  delete this one.** The app sends its own mail — verification e-mails and every Kindle
+  delivery — through Resend, so this record should end up authorising Resend rather
+  than IONOS. Getting it wrong does not produce an error; it quietly sends the app's
+  mail to spam folders. Change it deliberately, then send yourself a test registration
+  and a test Kindle delivery before assuming it is fine.
+
+### Option B — an IONOS alias, if you would rather not move anything
+
+The MX records point at IONOS today, so if there is still an active mail package on the
+domain, the whole job is one alias in the IONOS panel: `hello@extrablatt.app` forwards
+to `philippk@mailbox.org`. No DNS change and no SPF question at all. Slower to
+administer later, but it is five minutes and nothing can break.
 
 ### Then
 

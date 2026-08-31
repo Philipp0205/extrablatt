@@ -12,6 +12,8 @@ import com.kindlerss.repository.UserSendLimitRepository;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.Optional;
 
@@ -50,18 +52,50 @@ class EntitlementServiceTest {
         assertEquals(50, entitlement.maxSendsPerDay());
         assertEquals(50, entitlement.maxFeeds());
         assertTrue(entitlement.newsletters());
+        assertFalse(entitlement.hasMonthlyCap(), "nothing is metered by the month");
     }
 
     @Test
-    void anAccountThatNeverOrderedGetsTheFreeAllowances() {
+    void anAccountThatNeverOrderedGetsTenArticlesAMonth() {
         when(subscriptions.findByUserId(UID)).thenReturn(Optional.empty());
 
         Entitlement entitlement = service(true).forUser(UID);
 
         assertEquals(Plan.FREE, entitlement.plan());
-        assertEquals(3, entitlement.maxSendsPerDay());
+        assertTrue(entitlement.hasMonthlyCap());
+        assertEquals(10, entitlement.maxSendsPerMonth());
+        // The daily cap matches the monthly one, so all ten can go in one morning.
+        assertEquals(10, entitlement.maxSendsPerDay());
         assertEquals(15, entitlement.maxFeeds());
         assertFalse(entitlement.newsletters());
+    }
+
+    /** Paying removes the monthly meter; the daily guardrail stays for everyone. */
+    @Test
+    void theSupporterPlanHasNoMonthlyCapButKeepsTheDailyGuardrail() {
+        when(subscriptions.findByUserId(UID)).thenReturn(Optional.of(
+                subscription(SubscriptionStatus.ACTIVE, Instant.now().plus(30, ChronoUnit.DAYS), false)));
+
+        Entitlement entitlement = service(true).forUser(UID);
+
+        assertFalse(entitlement.hasMonthlyCap());
+        assertEquals(50, entitlement.maxSendsPerDay());
+    }
+
+    /**
+     * The allowance is a calendar month, so it refills on the first rather than
+     * drifting with whenever the account happened to be created.
+     */
+    @Test
+    void theFreeAllowanceResetsOnTheFirstOfTheMonth() {
+        EntitlementService service = service(true);
+
+        LocalDate start = LocalDate.ofInstant(service.startOfCurrentMonth(),
+                ZoneId.of("Europe/Berlin"));
+
+        assertEquals(1, start.getDayOfMonth());
+        assertEquals(1, service.nextResetDate().getDayOfMonth());
+        assertTrue(service.nextResetDate().isAfter(start));
     }
 
     @Test
@@ -136,6 +170,8 @@ class EntitlementServiceTest {
 
         assertEquals(Plan.FREE, entitlement.plan());
         assertEquals(25, entitlement.maxSendsPerDay());
+        // The override is about daily behaviour and deliberately leaves the month alone.
+        assertEquals(10, entitlement.maxSendsPerMonth());
         // The feed cap is not something the override covers, so the plan still sets it.
         assertEquals(15, entitlement.maxFeeds());
     }

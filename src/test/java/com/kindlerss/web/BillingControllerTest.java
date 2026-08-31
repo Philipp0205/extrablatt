@@ -81,7 +81,7 @@ class BillingControllerTest {
         when(currentUser.requireId()).thenReturn(UID);
         when(currentUser.details()).thenReturn(Optional.of(new AppUserDetails(user)));
         when(entitlementService.forUser(anyLong()))
-                .thenReturn(new Entitlement(Plan.FREE, 3, 15, false));
+                .thenReturn(new Entitlement(Plan.FREE, 10, 10, 15, false));
         when(subscriptionService.forUser(anyLong())).thenReturn(Subscription.free(UID));
     }
 

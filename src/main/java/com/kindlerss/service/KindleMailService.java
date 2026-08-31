@@ -15,7 +15,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import java.time.Instant;
+import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
+import java.util.Locale;
 
 /**
  * Builds an EPUB from an article and emails it to the account's Kindle address.
@@ -32,6 +34,10 @@ public class KindleMailService {
      * showing on every send.
      */
     static final int DONATION_REMINDER_INTERVAL = 10;
+
+    /** "1 September 2026" rather than "2026-09-01", since a reader reads this. */
+    private static final DateTimeFormatter RESET_DATE =
+            DateTimeFormatter.ofPattern("d MMMM yyyy", Locale.ENGLISH);
 
     private final JavaMailSender mailSender;
     private final EpubService epubService;
@@ -71,7 +77,8 @@ public class KindleMailService {
         requireSenderConfig();
         requireVerified(user);
         String kindleEmail = requireKindleEmail(user);
-        requireWithinDailyQuota(userId);
+        Entitlement entitlement = entitlements.forUser(userId);
+        requireWithinQuota(userId, entitlement);
 
         Article article = articleRepository.findById(userId, articleId)
                 .orElseThrow(() -> new ArticleService.NotFoundException("Article not found"));
@@ -103,7 +110,12 @@ public class KindleMailService {
         articleRepository.markRead(userId, articleId, true);
 
         long totalSent = articleRepository.countSentTotal(userId);
-        return totalSent > 0 && totalSent % DONATION_REMINDER_INTERVAL == 0;
+        boolean everyTenth = totalSent > 0 && totalSent % DONATION_REMINDER_INTERVAL == 0;
+        // With billing switched on, a free reader who has just used their tenth article
+        // is about to meet the paywall. Asking them for a donation in the same breath
+        // muddles two different requests, so the subscription is left to make the case.
+        boolean askInsteadForASubscription = properties.billing().enabled() && !entitlement.paid();
+        return everyTenth && !askInsteadForASubscription;
     }
 
     private void requireSenderConfig() {
@@ -131,24 +143,32 @@ public class KindleMailService {
      * whatever that account has paid for. The number of sends it is allowed, on the
      * other hand, is a plan question, and comes from the entitlement.
      */
-    private void requireWithinDailyQuota(long userId) {
+    private void requireWithinQuota(long userId, Entitlement entitlement) {
         var override = sendLimitRepository.findByUserId(userId);
         if (override.isPresent() && override.get().blocked(Instant.now())) {
             throw new IllegalStateException("Sending is temporarily paused for this account");
         }
-        Entitlement entitlement = entitlements.forUser(userId);
-        int effectiveLimit = entitlement.maxSendsPerDay();
+
+        // The monthly allowance is checked first because it is the one the free plan is
+        // actually about, and because it is where most readers will meet the price. The
+        // message therefore says what happens next rather than only refusing.
+        if (entitlement.hasMonthlyCap()) {
+            long usedThisMonth = articleRepository.countSentSince(
+                    userId, entitlements.startOfCurrentMonth());
+            if (usedThisMonth >= entitlement.maxSendsPerMonth()) {
+                throw new IllegalStateException(
+                        "You have used all " + entitlement.maxSendsPerMonth()
+                                + " of this month's free articles. The Supporter plan removes the "
+                                + "monthly limit — see Settings. Otherwise your free articles come "
+                                + "back on " + RESET_DATE.format(entitlements.nextResetDate()) + ".");
+            }
+        }
+
+        int dailyLimit = entitlement.maxSendsPerDay();
         Instant dayAgo = Instant.now().minus(1, ChronoUnit.DAYS);
-        if (articleRepository.countSentSince(userId, dayAgo) >= effectiveLimit) {
-            // For most readers this is where they meet the price, so it says what the
-            // paid plan would give them instead of only refusing.
-            String upgrade = !entitlement.paid() && properties.billing().enabled()
-                    ? " The Supporter plan raises this to "
-                            + properties.limits().maxSendsPerDay()
-                            + " a day — see Settings."
-                    : " Try again later.";
+        if (articleRepository.countSentSince(userId, dayAgo) >= dailyLimit) {
             throw new IllegalStateException(
-                    "Daily send limit reached (" + effectiveLimit + ")." + upgrade);
+                    "Daily send limit reached (" + dailyLimit + "). Try again later.");
         }
     }
 

@@ -81,9 +81,16 @@
       <p>Reading here costs you nothing, and it never will. Everything on this page —
         the topics, the large type, the colours, reading aloud, saving articles — is
         free and is not part of any subscription.</p>
-      <p>What a subscription pays for is sending articles to a Kindle in bulk. Without
-        one you can send <strong th:text="${freeSends}">3</strong> a day. With one you
-        can send <strong th:text="${supporterSends}">50</strong>.</p>
+      <p>What a subscription pays for is sending articles to a Kindle. Without one you
+        can send <strong th:text="${freeSends}">10</strong> a month. With one there is
+        no monthly limit at all.</p>
+      <p th:if="${leftThisMonth != null}">
+        <span th:if="${leftThisMonth > 0}">You have
+          <strong th:text="${leftThisMonth}">7</strong> left this month.</span>
+        <span th:if="${leftThisMonth == 0}">You have used all
+          <strong th:text="${freeSends}">10</strong> of them this month.</span>
+        They come back on <strong th:text="${resetsOn}">1 October</strong>.
+      </p>
       <p>It costs <strong th:text="${yearlyPerMonth}">€1.50</strong> a month if you pay
         for a year at a time (<span th:text="${yearlyPrice}">€18.00</span> in one go),
         or <strong th:text="${monthlyPrice}">€2.50</strong> a month if you would rather

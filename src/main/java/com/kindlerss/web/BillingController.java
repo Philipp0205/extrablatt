@@ -54,6 +54,7 @@ public class BillingController {
                 ? billing.monthlyPriceCents() : billing.yearlyPricePerMonthCents()));
         model.addAttribute("supporterSends", properties.limits().maxSendsPerDay());
         model.addAttribute("supporterFeeds", properties.limits().maxFeedsPerUser());
+        model.addAttribute("freeSends", billing.freeMaxSendsPerMonth());
         model.addAttribute("checkoutConfigured", billing.checkoutConfigured());
         return "billing-order";
     }

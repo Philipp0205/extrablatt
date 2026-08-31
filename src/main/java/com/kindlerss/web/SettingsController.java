@@ -122,8 +122,17 @@ public class SettingsController {
         model.addAttribute("monthlyPrice", Money.priceTag(billing.monthlyPriceCents()));
         model.addAttribute("yearlyPrice", Money.priceTag(billing.yearlyPriceCents()));
         model.addAttribute("yearlyPerMonth", Money.priceTag(billing.yearlyPricePerMonthCents()));
-        model.addAttribute("freeSends", billing.freeMaxSendsPerDay());
+        model.addAttribute("freeSends", billing.freeMaxSendsPerMonth());
         model.addAttribute("freeFeeds", billing.freeMaxFeeds());
+        // How many of the month's free articles are gone. A reader on the free plan
+        // needs to know where they stand far more than they need to know the rule.
+        if (entitlement.hasMonthlyCap()) {
+            long used = articleService.countSentSince(userId, entitlementService.startOfCurrentMonth());
+            model.addAttribute("usedThisMonth", used);
+            model.addAttribute("leftThisMonth", Math.max(0, entitlement.maxSendsPerMonth() - used));
+            model.addAttribute("resetsOn", DateTimeFormatter.ofPattern("d MMMM", Locale.ENGLISH)
+                    .format(entitlementService.nextResetDate()));
+        }
         model.addAttribute("supporterSends", properties.limits().maxSendsPerDay());
         model.addAttribute("supporterFeeds", properties.limits().maxFeedsPerUser());
         model.addAttribute("checkoutConfigured", billing.checkoutConfigured());
