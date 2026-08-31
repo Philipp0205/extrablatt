@@ -18,8 +18,6 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
-import jakarta.servlet.http.HttpServletRequest;
-
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -195,21 +193,16 @@ public class AppController {
     @PostMapping("/articles/from-url")
     public String sendFromUrl(@RequestParam("url") String url,
                               @RequestParam(value = "images", defaultValue = "false") boolean images,
-                              HttpServletRequest request,
                               RedirectAttributes redirectAttributes) {
-        boolean accessible = EditionInterceptor.isAccessible(request);
-        String failureTarget = accessible ? "/topics" : "/";
         Article article;
         try {
             article = articleService.importFromUrl(currentUser.requireId(), url);
         } catch (Exception e) {
             redirectAttributes.addFlashAttribute("error",
                     e.getMessage() == null ? "That page could not be sent" : e.getMessage());
-            return "redirect:" + failureTarget;
+            return "redirect:/";
         }
-        String successTarget = accessible
-                ? "/read/" + article.id()
-                : "/articles/" + article.id() + (images ? "?images=true" : "");
+        String successTarget = "/articles/" + article.id() + (images ? "?images=true" : "");
         try {
             boolean donationPrompt = kindleMailService.sendToKindle(
                     currentUser.requireId(), article.id(), images);
