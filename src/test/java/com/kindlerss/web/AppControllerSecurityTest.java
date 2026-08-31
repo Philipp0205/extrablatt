@@ -608,6 +608,20 @@ class AppControllerSecurityTest {
 
     @Test
     @WithMockUser
+    void renamingACategoryToTheNameItAlreadyHasSaysSoInsteadOfClaimingItIsEmpty() throws Exception {
+        when(feedService.renameCategory(UID, "Technology", "Technology"))
+                .thenReturn(FeedService.CATEGORY_NAME_UNCHANGED);
+
+        mockMvc.perform(post("/categories/rename").with(csrf())
+                        .param("oldCategory", "Technology")
+                        .param("newCategory", "Technology"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/"))
+                .andExpect(flash().attribute("message", "That is already the name of this category"));
+    }
+
+    @Test
+    @WithMockUser
     void renamingUncategorizedIsRejected() throws Exception {
         when(feedService.renameCategory(UID, "Uncategorized", "Tech"))
                 .thenThrow(new IllegalArgumentException("Choose a category to rename"));

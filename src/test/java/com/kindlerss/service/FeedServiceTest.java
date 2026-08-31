@@ -289,7 +289,17 @@ class FeedServiceTest {
     void renamingACategoryToItsOwnNameIsANoOp() {
         int updated = service(100).renameCategory(UID, "Technology", " Technology ");
 
-        assertEquals(0, updated);
+        assertEquals(FeedService.CATEGORY_NAME_UNCHANGED, updated);
         verify(feedRepository, never()).renameCategory(anyLong(), anyString(), anyString());
+    }
+
+    @Test
+    void changingOnlyACategorysCapitalizationIsARename() {
+        when(feedRepository.renameCategory(UID, "technology", "Technology")).thenReturn(2);
+
+        int updated = service(100).renameCategory(UID, "technology", "Technology");
+
+        assertEquals(2, updated);
+        verify(feedRepository).renameCategory(UID, "technology", "Technology");
     }
 }
