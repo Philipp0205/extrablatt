@@ -250,6 +250,40 @@ sale, with no threshold), and appointing an EU representative under Art. 27 GDPR
 [`docs/subscriptions-and-payments.md`](docs/subscriptions-and-payments.md) works
 through the pricing, the Stripe-versus-Paddle decision and the full checklist.
 
+## Data protection
+
+Every account can download everything held about it from **Settings → Your data** —
+a JSON file, no request to make and nobody to ask. That covers the right of access
+and the right to portability without anyone having to remember to answer an e-mail
+within a month.
+
+Deleting an account really deletes it. Feeds, articles, delivery history, tokens,
+display preferences, send limits and subscription all go through database cascades;
+the stored payment payload is emptied explicitly, since a payment event's id has to
+outlive the account to keep a replayed webhook harmless. The one thing kept is a
+payment or cancellation record, unlinked from the account, where tax and commercial
+law require it.
+
+A nightly sweep stops anything growing for ever — delivery history, spent
+confirmation links, raw payment payloads, and cached article text for articles
+already read and not saved, which is re-extracted from its own URL when next needed.
+The periods are `RETENTION_*` in `.env.example`, and `0` switches any of them off.
+
+There is **no cookie banner and no need for one**: the four cookies (session,
+opt-in "remember me", and two display settings written only when a reader changes
+them) all fall inside the strictly-necessary exception in § 25 TDDDG, and there is
+no analytics, advertising or third-party script anywhere in the app. They are listed
+in the privacy notice, which is what that exception does require.
+
+Logs deliberately carry no e-mail addresses, Kindle addresses or IP addresses. Worth
+keeping in mind when adding a log line: log files are where personal data quietly
+accumulates with no retention period at all.
+
+[`docs/data-protection.md`](docs/data-protection.md) is the Art. 30 record of
+processing activities — what is held, on what legal basis, for how long, who receives
+it, and the known gaps. It is written to be handed to an EU representative, who has
+their own obligation to hold it.
+
 ## Deploy on Railway (recommended, no personal VPS)
 
 The app is a small always-on service, which fits [Railway](https://railway.app)

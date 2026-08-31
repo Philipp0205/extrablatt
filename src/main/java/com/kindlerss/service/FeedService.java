@@ -168,7 +168,9 @@ public class FeedService {
         Feed feed = feedRepository.findByUrl(userId, senderUrl).orElse(null);
         if (feed == null) {
             if (feedRepository.countByUser(userId) >= entitlements.forUser(userId).maxFeeds()) {
-                log.info("Dropping newsletter issue from {} for user {}: feed limit reached", sender, userId);
+                // The sender's address is deliberately not logged: it is a third party's
+                // e-mail address, and the account id is enough to work out what happened.
+                log.info("Dropping newsletter issue for user {}: feed limit reached", userId);
                 return NEWSLETTER_FEED_LIMIT_REACHED;
             }
             String title = senderName == null || senderName.isBlank() ? sender : senderName.trim();

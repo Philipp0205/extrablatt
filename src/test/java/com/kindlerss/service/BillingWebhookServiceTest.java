@@ -35,13 +35,13 @@ class BillingWebhookServiceTest {
                 "https://pay/monthly", "https://pay/yearly", null, null, null,
                 null, null, null, null, null);
         AppProperties properties = new AppProperties("from@example.com", null, null, null, null,
-                null, null, null, null, null, billing);
+                null, null, null, null, null, billing, null);
         return new BillingWebhookService(events, subscriptions, users, properties);
     }
 
     @Test
     void aStripeCheckoutTiesTheProviderIdsToTheAccountThatOrdered() {
-        when(events.claim(anyString(), anyString(), anyString(), anyString())).thenReturn(true);
+        when(events.claim(anyString(), anyString(), anyString(), anyString(), any())).thenReturn(true);
         String body = """
                 {"id":"evt_1","type":"checkout.session.completed","data":{"object":{
                   "id":"cs_1","client_reference_id":"42","customer":"cus_9","subscription":"sub_7"}}}
@@ -58,7 +58,7 @@ class BillingWebhookServiceTest {
 
     @Test
     void aStripeSubscriptionUpdateCarriesTheStatusAndPeriodEnd() {
-        when(events.claim(anyString(), anyString(), anyString(), anyString())).thenReturn(true);
+        when(events.claim(anyString(), anyString(), anyString(), anyString(), any())).thenReturn(true);
         String body = """
                 {"id":"evt_2","type":"customer.subscription.updated","data":{"object":{
                   "id":"sub_7","customer":"cus_9","status":"past_due",
@@ -77,7 +77,7 @@ class BillingWebhookServiceTest {
 
     @Test
     void aPaddleSubscriptionUpdateIsUnderstoodToo() {
-        when(events.claim(anyString(), anyString(), anyString(), anyString())).thenReturn(true);
+        when(events.claim(anyString(), anyString(), anyString(), anyString(), any())).thenReturn(true);
         String body = """
                 {"event_id":"evt_p1","event_type":"subscription.updated","data":{
                   "id":"sub_abc","status":"active","customer_id":"ctm_1",
@@ -103,7 +103,7 @@ class BillingWebhookServiceTest {
      */
     @Test
     void aReplayedEventIsAcceptedWithoutBeingAppliedAgain() {
-        when(events.claim(anyString(), anyString(), anyString(), anyString())).thenReturn(false);
+        when(events.claim(anyString(), anyString(), anyString(), anyString(), any())).thenReturn(false);
         String body = """
                 {"id":"evt_1","type":"customer.subscription.updated","data":{"object":{
                   "id":"sub_7","status":"active","current_period_end":1799999999}}}
@@ -126,7 +126,7 @@ class BillingWebhookServiceTest {
                         body.getBytes(StandardCharsets.UTF_8));
 
         assertEquals(BillingWebhookService.Result.REJECTED, result);
-        verify(events, never()).claim(anyString(), anyString(), anyString(), anyString());
+        verify(events, never()).claim(anyString(), anyString(), anyString(), anyString(), any());
         verify(subscriptions, never()).applyProviderUpdate(any());
     }
 
@@ -139,7 +139,7 @@ class BillingWebhookServiceTest {
 
         assertEquals(BillingWebhookService.Result.IGNORED, handle("stripe", body));
 
-        verify(events, never()).claim(anyString(), anyString(), anyString(), anyString());
+        verify(events, never()).claim(anyString(), anyString(), anyString(), anyString(), any());
     }
 
     /**
@@ -148,7 +148,7 @@ class BillingWebhookServiceTest {
      */
     @Test
     void anEventThatCannotBeAppliedIsRecordedWithItsReason() {
-        when(events.claim(anyString(), anyString(), anyString(), anyString())).thenReturn(true);
+        when(events.claim(anyString(), anyString(), anyString(), anyString(), any())).thenReturn(true);
         doThrowOnApply();
         String body = """
                 {"id":"evt_3","type":"customer.subscription.updated","data":{"object":{

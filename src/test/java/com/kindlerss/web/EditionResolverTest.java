@@ -68,7 +68,7 @@ class EditionResolverTest {
 
     private static EditionResolver resolverFor(String domain, String publicUrl) {
         AppProperties properties = new AppProperties(null, publicUrl, null, null, null, null, null, null,
-                new AppProperties.Accessibility(domain), null, null);
+                new AppProperties.Accessibility(domain), null, null, null);
         return new EditionResolver(properties, new MockEnvironment());
     }
 

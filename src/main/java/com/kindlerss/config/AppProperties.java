@@ -20,7 +20,8 @@ public record AppProperties(
         Newsletters newsletters,
         Accessibility accessibility,
         String donateUrl,
-        Billing billing
+        Billing billing,
+        Retention retention
 ) {
     public AppProperties {
         if (http == null) {
@@ -45,6 +46,9 @@ public record AppProperties(
         if (billing == null) {
             billing = new Billing(false, null, null, null, null, null, null, null,
                     null, null, null, null, null);
+        }
+        if (retention == null) {
+            retention = new Retention(null, null, null, null);
         }
         if (publicUrl == null || publicUrl.isBlank()) {
             // Base URL used to build links in verification / password-reset e-mails.
@@ -260,6 +264,42 @@ public record AppProperties(
             }
             String trimmed = value.trim();
             return trimmed.isEmpty() ? null : trimmed;
+        }
+    }
+
+    /**
+     * How long data is kept. Art. 5(1)(e) GDPR asks for personal data to be held no
+     * longer than necessary, and "necessary" is a decision an operator has to make
+     * rather than something a default can make for them — so each figure is separate,
+     * and zero switches that particular sweep off.
+     *
+     * <p>The values are deliberately generous. Nothing here deletes anything a reader
+     * would miss: an article's cached text is re-extracted from its URL on demand, and
+     * send history beyond the window only ever fed a lifetime counter.
+     */
+    public record Retention(
+            Integer sendEventDays,
+            Integer billingPayloadDays,
+            Integer usedTokenDays,
+            Integer articleCacheDays
+    ) {
+        public static final int DEFAULT_SEND_EVENT_DAYS = 730;
+        public static final int DEFAULT_BILLING_PAYLOAD_DAYS = 90;
+        public static final int DEFAULT_USED_TOKEN_DAYS = 30;
+        public static final int DEFAULT_ARTICLE_CACHE_DAYS = 365;
+
+        public Retention {
+            sendEventDays = atLeastZero(sendEventDays, DEFAULT_SEND_EVENT_DAYS);
+            billingPayloadDays = atLeastZero(billingPayloadDays, DEFAULT_BILLING_PAYLOAD_DAYS);
+            usedTokenDays = atLeastZero(usedTokenDays, DEFAULT_USED_TOKEN_DAYS);
+            articleCacheDays = atLeastZero(articleCacheDays, DEFAULT_ARTICLE_CACHE_DAYS);
+        }
+
+        private static int atLeastZero(Integer value, int fallback) {
+            if (value == null) {
+                return fallback;
+            }
+            return Math.max(value, 0);
         }
     }
 

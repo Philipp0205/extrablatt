@@ -21,13 +21,18 @@ public class BillingEventRepository {
      * Records an event, returning false when it has been seen before. The insert
      * itself is the lock: two concurrent deliveries of the same event cannot both
      * win the primary key.
+     *
+     * <p>{@code userId} may be null when the provider sent nothing that identifies an
+     * account. When it is present it is what lets the payload be erased with the
+     * account, since the event id itself has to outlive it.
      */
-    public boolean claim(String providerEventId, String provider, String type, String payload) {
+    public boolean claim(String providerEventId, String provider, String type, String payload,
+                         Long userId) {
         int inserted = jdbc.update("""
-                INSERT INTO billing_events (provider_event_id, provider, type, payload)
-                VALUES (?, ?, ?, ?)
+                INSERT INTO billing_events (provider_event_id, provider, type, payload, user_id)
+                VALUES (?, ?, ?, ?, ?)
                 ON CONFLICT (provider_event_id) DO NOTHING
-                """, providerEventId, provider, type, payload);
+                """, providerEventId, provider, type, payload, userId);
         return inserted == 1;
     }
 

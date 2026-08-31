@@ -99,8 +99,10 @@ public class AccountMailService {
             mailSender.send(message);
         } catch (Exception e) {
             // Surface the failure so registration/reset can report it, but keep the
-            // message generic to callers to avoid leaking address existence.
-            log.warn("Failed to send account e-mail to {}: {}", toEmail, e.getMessage());
+            // message generic to callers to avoid leaking address existence. The
+            // address stays out of the log line too: production logs at WARN, and a
+            // log file is a place personal data ends up and is never cleaned out.
+            log.warn("Failed to send account e-mail ({}): {}", subject, e.getMessage());
             throw new IllegalStateException("Could not send e-mail", e);
         }
     }

@@ -11,7 +11,7 @@ class AppPropertiesTest {
     @Test
     void readingSettingsFallBackToTheirDefaults() {
         AppProperties properties = new AppProperties("from@example.com", null, null,
-                null, null, null, null, null, null, null, null);
+                null, null, null, null, null, null, null, null, null);
 
         assertEquals(AppProperties.Feeds.DEFAULT_MAX_ENTRIES, properties.feeds().maxEntries());
         assertEquals(AppProperties.Articles.DEFAULT_PAGE_SIZE, properties.articles().pageSize());
@@ -27,11 +27,37 @@ class AppPropertiesTest {
     @Test
     void billingIsOffUntilAnOperatorTurnsItOn() {
         AppProperties properties = new AppProperties("from@example.com", null, null,
-                null, null, null, null, null, null, null, null);
+                null, null, null, null, null, null, null, null, null);
 
         assertFalse(properties.billing().enabled());
         assertFalse(properties.billing().checkoutConfigured());
         assertFalse(properties.billing().webhookConfigured());
+    }
+
+    /**
+     * Retention has to have real periods even when nobody configured any, since the
+     * alternative is keeping everything for ever by accident.
+     */
+    @Test
+    void retentionPeriodsExistWithoutBeingConfigured() {
+        AppProperties properties = new AppProperties("from@example.com", null, null,
+                null, null, null, null, null, null, null, null, null);
+
+        assertEquals(730, properties.retention().sendEventDays());
+        assertEquals(90, properties.retention().billingPayloadDays());
+        assertEquals(30, properties.retention().usedTokenDays());
+        assertEquals(365, properties.retention().articleCacheDays());
+    }
+
+    /** Zero switches one sweep off; a negative number is a typo, not a request. */
+    @Test
+    void aSweepCanBeSwitchedOffButNotSetToNonsense() {
+        AppProperties.Retention off = new AppProperties.Retention(0, 0, 0, 0);
+        AppProperties.Retention negative = new AppProperties.Retention(-5, -5, -5, -5);
+
+        assertEquals(0, off.sendEventDays());
+        assertEquals(0, negative.sendEventDays());
+        assertEquals(0, negative.articleCacheDays());
     }
 
     @Test

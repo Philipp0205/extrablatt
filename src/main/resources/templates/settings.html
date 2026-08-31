@@ -34,6 +34,8 @@
          th:attr="aria-current=${activeView == 'version'} ? 'page' : null">Version</a>
       <a th:href="@{/settings(view='support')}" th:classappend="${activeView == 'support'} ? ' active'"
          th:attr="aria-current=${activeView == 'support'} ? 'page' : null">Support the project</a>
+      <a th:href="@{/settings(view='data')}" th:classappend="${activeView == 'data'} ? ' active'"
+         th:attr="aria-current=${activeView == 'data'} ? 'page' : null">Your data</a>
       <a th:href="@{/settings(view='delete')}" th:classappend="${activeView == 'delete'} ? ' active'"
          th:attr="aria-current=${activeView == 'delete'} ? 'page' : null">Delete account</a>
       <a th:if="${admin}" th:href="@{/settings(view='telemetry')}"
@@ -244,9 +246,73 @@
   </p>
   </section>
 
+  <section class="subview" th:if="${activeView == 'data'}">
+  <h2>Your data</h2>
+
+  <p class="meta">
+    You can download everything we hold about this account, at any time and without
+    asking. The file is JSON — readable in any text editor, and structured so another
+    program can import it.
+  </p>
+
+  <p>
+    <a class="btn" th:href="@{/account/export}">Download my data</a>
+  </p>
+
+  <h3>What is in it</h3>
+  <ul class="meta">
+    <li>Your e-mail address, Kindle address, and when the account was created and confirmed</li>
+    <li>Your display settings and, if you have one, your newsletter inbox address</li>
+    <li>Your subscription, if any: plan, status, renewal date, and your payment
+      provider's identifiers for you</li>
+    <li>Every feed you follow</li>
+    <li>Every article we hold, with its title, address, and whether you read, saved or
+      sent it</li>
+    <li>Every Kindle delivery, with the time it happened</li>
+    <li>Any cancellation you have declared</li>
+  </ul>
+
+  <h3>What is not, and why</h3>
+  <ul class="meta">
+    <li><strong>Article text.</strong> Titles and addresses are included, but not the
+      stored text of each article: that is the publisher's writing rather than data
+      about you, and it is still at the address in the file.</li>
+    <li><strong>Your password.</strong> We only ever store a bcrypt hash of it, which
+      cannot be turned back into the password.</li>
+    <li><strong>Card details.</strong> They never reach us. Your payment provider holds
+      those, and you can ask them for a copy separately.</li>
+  </ul>
+
+  <h3>How long we keep things</h3>
+  <ul class="meta">
+    <li>Your account, feeds and articles: until you delete the account</li>
+    <li>Kindle delivery history: <span th:text="${retention.sendEventDays()}">730</span> days</li>
+    <li>Cached article text, once read and not saved:
+      <span th:text="${retention.articleCacheDays()}">365</span> days, then re-fetched
+      from the original address when you next open it</li>
+    <li>Used confirmation and password-reset links:
+      <span th:text="${retention.usedTokenDays()}">30</span> days</li>
+    <li th:if="${billingEnabled}">Payment records: as long as tax and commercial law
+      require, which outlasts the account. The raw data our payment provider sends us
+      is emptied after
+      <span th:text="${retention.billingPayloadDays()}">90</span> days.</li>
+  </ul>
+
+  <p class="meta">
+    The <a th:href="@{/privacy}">privacy notice</a> explains what we do with all of it.
+    To correct anything, or to object to how it is used, write to us at the address on
+    the <a th:href="@{/imprint}">imprint page</a>.
+  </p>
+  </section>
+
   <section class="subview" th:if="${activeView == 'delete'}">
   <h2>Delete account</h2>
   <p class="meta">This permanently removes your account, feeds, and saved articles.</p>
+  <p class="meta" th:if="${billingEnabled}">
+    One exception, and the law requires it: if you have ever paid or cancelled, the
+    record of that payment or cancellation is kept for as long as tax and commercial
+    law say it must be. It is unlinked from your account, and everything else goes.
+  </p>
   <form th:action="@{/account/delete}" method="post"
         onsubmit="return confirm('Delete your account and all its data? This cannot be undone.');">
     <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>

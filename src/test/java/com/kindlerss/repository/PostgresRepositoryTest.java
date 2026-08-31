@@ -314,8 +314,8 @@ class PostgresRepositoryTest {
     void aBillingEventCanOnlyBeClaimedOnce() {
         var repository = new BillingEventRepository(new JdbcTemplate(postgres.getPostgresDatabase()));
 
-        assertTrue(repository.claim("evt_once", "stripe", "invoice.paid", "{}"));
-        assertFalse(repository.claim("evt_once", "stripe", "invoice.paid", "{}"));
+        assertTrue(repository.claim("evt_once", "stripe", "invoice.paid", "{}", userId));
+        assertFalse(repository.claim("evt_once", "stripe", "invoice.paid", "{}", userId));
 
         repository.markProcessed("evt_once");
         repository.markFailed("evt_once", "something went wrong");
@@ -349,6 +349,146 @@ class PostgresRepositoryTest {
 
         assertEquals(null, stored.userId());
         assertEquals("stranger@example.com", stored.email());
+    }
+
+    /**
+     * The guarantee behind "Delete account": everything linked to the account goes, in
+     * one statement, through the cascades. Written as one test over every table that
+     * holds personal data, because a migration that adds a table without a cascade
+     * would otherwise be invisible until somebody asked to be forgotten.
+     */
+    @Test
+    void deletingAnAccountRemovesEverythingLinkedToIt() {
+        JdbcTemplate jdbc = new JdbcTemplate(postgres.getPostgresDatabase());
+        long doomed = users.insert("doomed@example.com", "hash").id();
+
+        var feed = feeds.insert(doomed, "Doomed", "https://doomed.example.com/feed.xml",
+                "https://doomed.example.com", "News");
+        long articleId = articles.insert(feed.id(), "doomed-1", "Article", "https://doomed.example.com/1",
+                "Author", Instant.parse("2026-08-10T00:00:00Z"), "<p>s</p>", "<p>c</p>");
+        articles.recordSend(doomed, articleId, Instant.now());
+        articles.setSaved(doomed, articleId, true);
+        sendLimits.save(doomed, 7, null);
+        new DisplayPreferencesRepository(jdbc).save(doomed,
+                com.kindlerss.domain.DisplayPreferences.DEFAULTS);
+        new SubscriptionRepository(jdbc).save(new com.kindlerss.domain.Subscription(doomed,
+                com.kindlerss.domain.Plan.SUPPORTER,
+                com.kindlerss.domain.SubscriptionStatus.ACTIVE,
+                com.kindlerss.domain.BillingInterval.YEARLY, "stripe", "cus_doomed", "sub_doomed",
+                Instant.parse("2027-01-01T00:00:00Z"), false, Instant.now()));
+        new BillingEventRepository(jdbc)
+                .claim("evt_doomed", "stripe", "invoice.paid", "{\"email\":\"doomed@example.com\"}", doomed);
+
+        assertTrue(users.deleteById(doomed));
+
+        assertEquals(0, count(jdbc, "SELECT count(*) FROM feeds WHERE user_id = ?", doomed));
+        assertEquals(0, count(jdbc, "SELECT count(*) FROM articles WHERE id = ?", articleId));
+        assertEquals(0, count(jdbc, "SELECT count(*) FROM article_send_events WHERE user_id = ?", doomed));
+        assertEquals(0, count(jdbc, "SELECT count(*) FROM user_send_limits WHERE user_id = ?", doomed));
+        assertEquals(0, count(jdbc, "SELECT count(*) FROM display_preferences WHERE user_id = ?", doomed));
+        assertEquals(0, count(jdbc, "SELECT count(*) FROM subscriptions WHERE user_id = ?", doomed));
+        assertEquals(0, count(jdbc, "SELECT count(*) FROM email_tokens WHERE user_id = ?", doomed));
+
+        // The payment event id survives on purpose — it is what stops a replayed
+        // webhook being applied twice — but it must no longer point at anybody.
+        assertEquals(1, count(jdbc,
+                "SELECT count(*) FROM billing_events WHERE provider_event_id = 'evt_doomed'"));
+        assertEquals(0, count(jdbc,
+                "SELECT count(*) FROM billing_events WHERE user_id = ?", doomed));
+    }
+
+    /** A cancellation record is the one thing kept, and it must lose its account link. */
+    @Test
+    void aCancellationRecordOutlivesTheAccountButNotTheLinkToIt() {
+        JdbcTemplate jdbc = new JdbcTemplate(postgres.getPostgresDatabase());
+        long leaving = users.insert("leaving@example.com", "hash").id();
+        var repository = new CancellationRequestRepository(jdbc);
+        var stored = repository.insert(leaving, "leaving@example.com", null, null,
+                com.kindlerss.domain.CancellationRequest.Kind.ORDINARY, null, null, Instant.now());
+
+        assertTrue(users.deleteById(leaving));
+
+        assertEquals(1, count(jdbc, "SELECT count(*) FROM cancellation_requests WHERE id = ?",
+                stored.id()));
+        assertEquals(1, count(jdbc,
+                "SELECT count(*) FROM cancellation_requests WHERE id = ? AND user_id IS NULL",
+                stored.id()));
+    }
+
+    /** Every sweep in the retention policy, against rows old enough to be swept. */
+    @Test
+    void theRetentionSweepClearsWhatItSaysItClears() {
+        JdbcTemplate jdbc = new JdbcTemplate(postgres.getPostgresDatabase());
+        var repository = new RetentionRepository(jdbc);
+        long ancient = users.insert("ancient@example.com", "hash").id();
+        var feed = feeds.insert(ancient, "Ancient", "https://ancient.example.com/feed.xml",
+                "https://ancient.example.com", null);
+        long articleId = articles.insert(feed.id(), "ancient-1", "Old", "https://ancient.example.com/1",
+                null, Instant.parse("2020-01-01T00:00:00Z"), "<p>s</p>", "<p>c</p>");
+        articles.updateExtractedContent(articleId, "<p>extracted</p>");
+        articles.markRead(ancient, articleId, true);
+        articles.recordSend(ancient, articleId, Instant.parse("2020-01-02T00:00:00Z"));
+        jdbc.update("UPDATE articles SET created_at = ? WHERE id = ?",
+                java.sql.Timestamp.from(Instant.parse("2020-01-01T00:00:00Z")), articleId);
+        jdbc.update("""
+                INSERT INTO email_tokens (token, user_id, purpose, expires_at, used_at)
+                VALUES ('spent-token', ?, 'RESET', ?, ?)
+                """, ancient,
+                java.sql.Timestamp.from(Instant.parse("2020-01-03T00:00:00Z")),
+                java.sql.Timestamp.from(Instant.parse("2020-01-02T00:00:00Z")));
+        new BillingEventRepository(jdbc).claim("evt_ancient", "stripe", "invoice.paid",
+                "{\"email\":\"ancient@example.com\"}", ancient);
+        jdbc.update("UPDATE billing_events SET received_at = ? WHERE provider_event_id = 'evt_ancient'",
+                java.sql.Timestamp.from(Instant.parse("2020-01-01T00:00:00Z")));
+
+        Instant cutoff = Instant.parse("2026-01-01T00:00:00Z");
+        assertEquals(1, repository.deleteSendEventsBefore(cutoff));
+        assertEquals(1, repository.redactBillingPayloadsBefore(cutoff));
+        assertEquals(1, repository.deleteSpentTokensBefore(cutoff));
+        assertEquals(1, repository.clearStaleArticleCacheBefore(cutoff));
+
+        // Redacting is not deleting: the id has to stay, so a replay is still a no-op.
+        assertEquals(1, count(jdbc,
+                "SELECT count(*) FROM billing_events WHERE provider_event_id = 'evt_ancient' AND payload = ''"));
+        // The article itself stays; only its cached text goes, and that is re-extracted.
+        assertEquals(1, count(jdbc, "SELECT count(*) FROM articles WHERE id = ?", articleId));
+        assertTrue(articles.findById(ancient, articleId).orElseThrow()
+                .extractedContentHtml() == null);
+        // Running it again finds nothing left to do.
+        assertEquals(0, repository.deleteSendEventsBefore(cutoff));
+        assertEquals(0, repository.redactBillingPayloadsBefore(cutoff));
+    }
+
+    /** A saved article keeps its text however old it gets — it was saved to be reread. */
+    @Test
+    void theSweepLeavesSavedAndUnreadArticlesAlone() {
+        JdbcTemplate jdbc = new JdbcTemplate(postgres.getPostgresDatabase());
+        var repository = new RetentionRepository(jdbc);
+        long keeper = users.insert("keeper@example.com", "hash").id();
+        var feed = feeds.insert(keeper, "Keeper", "https://keeper.example.com/feed.xml", null, null);
+        long saved = articles.insert(feed.id(), "keep-1", "Saved", "https://keeper.example.com/1",
+                null, null, "<p>s</p>", "<p>c</p>");
+        long unread = articles.insert(feed.id(), "keep-2", "Unread", "https://keeper.example.com/2",
+                null, null, "<p>s</p>", "<p>c</p>");
+        for (long id : new long[]{saved, unread}) {
+            articles.updateExtractedContent(id, "<p>extracted</p>");
+            jdbc.update("UPDATE articles SET created_at = ? WHERE id = ?",
+                    java.sql.Timestamp.from(Instant.parse("2020-01-01T00:00:00Z")), id);
+        }
+        articles.markRead(keeper, saved, true);
+        articles.setSaved(keeper, saved, true);
+
+        assertEquals(0, repository.clearStaleArticleCacheBefore(Instant.parse("2026-01-01T00:00:00Z")));
+
+        assertEquals("<p>extracted</p>",
+                articles.findById(keeper, saved).orElseThrow().extractedContentHtml());
+        assertEquals("<p>extracted</p>",
+                articles.findById(keeper, unread).orElseThrow().extractedContentHtml());
+    }
+
+    private static int count(JdbcTemplate jdbc, String sql, Object... args) {
+        Integer value = jdbc.queryForObject(sql, Integer.class, args);
+        return value == null ? 0 : value;
     }
 
     private long insertArticle(long feedId, String guid) {

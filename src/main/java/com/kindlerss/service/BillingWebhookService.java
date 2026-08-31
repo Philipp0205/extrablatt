@@ -101,7 +101,7 @@ public class BillingWebhookService {
         // The insert is the lock: two concurrent deliveries of one event cannot both
         // win the primary key, so only one of them goes on to apply it.
         if (!events.claim(update.eventId(), provider, update.type(),
-                new String(body, StandardCharsets.UTF_8))) {
+                new String(body, StandardCharsets.UTF_8), update.userId())) {
             log.info("Ignoring {} {}: already seen", provider, update.eventId());
             return Result.ACCEPTED;
         }

@@ -8,12 +8,19 @@ import com.kindlerss.security.AppUserDetails;
 import com.kindlerss.security.CurrentUser;
 import com.kindlerss.service.AdminTelemetryService;
 import com.kindlerss.service.ArticleService;
+import com.kindlerss.service.DataExportService;
+import com.kindlerss.service.DisplayPreferencesService;
 import com.kindlerss.service.EntitlementService;
 import com.kindlerss.service.Money;
+import com.kindlerss.service.RetentionService;
 import com.kindlerss.service.SubscriptionService;
 import com.kindlerss.service.UserService;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.logout.SecurityContextLogoutHandler;
 import org.springframework.stereotype.Controller;
@@ -36,6 +43,8 @@ public class SettingsController {
     private final AdminTelemetryService telemetryService;
     private final EntitlementService entitlementService;
     private final SubscriptionService subscriptionService;
+    private final DataExportService dataExportService;
+    private final RetentionService retentionService;
     private final CurrentUser currentUser;
     private final AppProperties properties;
 
@@ -43,6 +52,8 @@ public class SettingsController {
                               AdminTelemetryService telemetryService,
                               EntitlementService entitlementService,
                               SubscriptionService subscriptionService,
+                              DataExportService dataExportService,
+                              RetentionService retentionService,
                               CurrentUser currentUser,
                               AppProperties properties) {
         this.userService = userService;
@@ -50,6 +61,8 @@ public class SettingsController {
         this.telemetryService = telemetryService;
         this.entitlementService = entitlementService;
         this.subscriptionService = subscriptionService;
+        this.dataExportService = dataExportService;
+        this.retentionService = retentionService;
         this.currentUser = currentUser;
         this.properties = properties;
     }
@@ -77,8 +90,9 @@ public class SettingsController {
         model.addAttribute("entitlement", entitlement);
         addSubscriptionAttributes(model, userId, entitlement);
         boolean admin = currentUser.details().map(AppUserDetails::admin).orElse(false);
+        model.addAttribute("retention", properties.retention());
         String activeView = switch (view) {
-            case "kindle", "accessibility", "version", "support", "delete" -> view;
+            case "kindle", "accessibility", "version", "support", "delete", "data" -> view;
             case "subscription" -> properties.billing().enabled() ? view : "accounts";
             case "telemetry" -> admin ? view : "accounts";
             default -> "accounts";
@@ -145,12 +159,42 @@ public class SettingsController {
         return "redirect:/settings?view=kindle";
     }
 
+    /**
+     * The copy of their own data a person is entitled to under Art. 15 GDPR, in the
+     * machine-readable form Art. 20 asks for. Only ever the signed-in account's own.
+     */
+    @GetMapping("/account/export")
+    public ResponseEntity<byte[]> exportData() {
+        byte[] json = dataExportService.exportJson(currentUser.requireId());
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_JSON)
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=\"" + dataExportService.filename() + "\"")
+                .body(json);
+    }
+
     @PostMapping("/account/delete")
     public String deleteAccount(HttpServletRequest request, HttpServletResponse response) {
         long userId = currentUser.requireId();
+        // Payment events carry no cascade — their ids have to outlive the account so a
+        // replayed webhook stays a no-op — so what they hold is erased first, while
+        // there is still a user id to find them by.
+        retentionService.eraseForUser(userId);
         userService.deleteAccount(userId);
         new SecurityContextLogoutHandler().logout(request, response,
                 SecurityContextHolder.getContext().getAuthentication());
+        // Logout clears the session and remember-me cookies; the display and edition
+        // cookies are this account's choices too and have no reason to outlive it.
+        expire(request, response, DisplayPreferencesService.COOKIE);
+        expire(request, response, EditionResolver.COOKIE);
         return "redirect:/login?deleted";
+    }
+
+    private static void expire(HttpServletRequest request, HttpServletResponse response, String name) {
+        Cookie cookie = new Cookie(name, "");
+        String contextPath = request.getContextPath();
+        cookie.setPath(contextPath == null || contextPath.isBlank() ? "/" : contextPath);
+        cookie.setMaxAge(0);
+        response.addCookie(cookie);
     }
 }

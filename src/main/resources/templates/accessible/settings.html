@@ -110,6 +110,21 @@
     <p><a class="btn" th:href="${donateUrl}" rel="noopener noreferrer">Donate</a></p>
   </section>
 
+  <section aria-labelledby="data-heading">
+    <h2 id="data-heading">Everything we know about you</h2>
+    <p>You can have a copy whenever you like, without asking anyone. It comes as a file
+      your computer can open, listing your address, the things you follow, the articles
+      we hold and when you sent them to a Kindle.</p>
+    <p>Your password is not in it — we never keep it, only a scrambled form that cannot
+      be turned back. Card details are not in it either, because they never reach us.</p>
+    <p><a class="btn" th:href="@{/account/export}">Get my copy</a></p>
+    <p>We do not keep everything for ever. Sending history goes after
+      <strong th:text="${retention.sendEventDays()}">730</strong> days, and the stored
+      text of an article you have already read goes after
+      <strong th:text="${retention.articleCacheDays()}">365</strong> days — if you open
+      it again, it is fetched again.</p>
+  </section>
+
   <section aria-labelledby="delete-heading">
     <h2 id="delete-heading">Deleting your account</h2>
     <p>This removes your account, everything you follow, and everything you have
