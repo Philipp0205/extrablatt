@@ -224,9 +224,12 @@ p {
   min-height: 24rem;
 }
 
+/* font-size is the single knob the faked browser chrome scales from, so the
+   smaller mock needs one number rather than a set of overrides. */
 .kindle-mock {
   margin: 0;
   width: 15.5rem;
+  font-size: 0.44rem;
   background: linear-gradient(180deg, #333336, #1b1b1d);
   border-radius: 20px;
   padding: 1.1rem 1rem 2.1rem;
@@ -238,6 +241,7 @@ p {
   right: 0;
   bottom: -1.5rem;
   width: 13rem;
+  font-size: 0.38rem;
   transform: rotate(3deg);
   z-index: 2;
 }
@@ -250,54 +254,27 @@ p {
   padding-bottom: 2.4rem;
 }
 
-/* The Kindle Web Browser draws its address bar above the page, like a desktop browser. */
+/* The Kindle Web Browser draws its address bar above the page, like a desktop
+   browser. A back arrow and a menu button are a few pixels wide at this scale,
+   where they read as specks of dirt, so the bar keeps only the address. */
 .kindle-browser-bar {
   flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  gap: 0.3rem;
-  padding: 0.22rem 0.3rem;
-  background: #eaeaea;
-  border-bottom: 1px solid #b9b9b9;
-}
-
-.kindle-browser-back {
-  flex: 0 0 auto;
-  width: 0.28rem;
-  height: 0.28rem;
-  border-left: 1.5px solid #4a4a4a;
-  border-bottom: 1.5px solid #4a4a4a;
-  transform: rotate(45deg);
+  padding: 0.45em 0.6em;
+  background: #e6e6e6;
+  border-bottom: 1px solid #c4c4c4;
 }
 
 .kindle-address-field {
-  flex: 1 1 auto;
-  min-width: 0;
+  display: block;
+  padding: 0.3em 0.5em;
   background: #fff;
-  border: 1px solid #9c9c9c;
-  border-radius: 2px;
-  padding: 0.1rem 0.25rem;
+  border: 1px solid #b0b0b0;
   font-family: "Courier New", Courier, monospace;
-  font-size: 0.5rem;
-  line-height: 1.25;
-  color: #2b2b2b;
-  letter-spacing: -0.02em;
+  line-height: 1.4;
+  color: #333;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.kindle-browser-menu {
-  flex: 0 0 auto;
-  width: 0.13rem;
-  height: 0.13rem;
-  border-radius: 50%;
-  background: #4a4a4a;
-  box-shadow: 0 -0.22rem 0 #4a4a4a, 0 0.22rem 0 #4a4a4a;
-}
-
-.kindle-mock-secondary .kindle-address-field {
-  font-size: 0.44rem;
 }
 
 .kindle-screen {
@@ -496,9 +473,6 @@ p {
 
   .kindle-mock { width: 11.5rem; }
   .kindle-mock-secondary { width: 9.5rem; }
-
-  .kindle-address-field { font-size: 0.44rem; }
-  .kindle-mock-secondary .kindle-address-field { font-size: 0.38rem; }
 
   .kindle-url { font-size: 1.25rem; }
   .kindle-url-inline { font-size: 1.1rem; }
