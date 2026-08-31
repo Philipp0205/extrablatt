@@ -373,17 +373,26 @@ pages, so it needs somewhere to be read before it is live. Staging gets its own
 production one does not have:
 
 ```bash
-railway add --service marketing-site --environment staging
-railway variables --set SITE_ENV=staging --service marketing-site --environment staging
-railway domain --service marketing-site --environment staging   # generated *.up.railway.app URL
+railway environment staging                                          # switch the linked environment
+railway add --service marketing-site --variables "SITE_ENV=staging"
+railway domain --service marketing-site --environment staging        # generated *.up.railway.app URL
 ```
 
-That last line takes no argument on purpose: Railway hands out a free
-`*.up.railway.app` name, which is all a staging landing page needs and keeps the
-DNS zone free of a hostname only you will ever visit. Pass
+`railway add` has no `--environment` flag — it creates the service in whichever
+environment is currently linked, which is why the switch comes first. Check with
+`railway status` if you are not sure where you are. The other two commands do
+take `--environment`, so only `add` depends on the linked context.
+
+`railway domain` with no domain argument is deliberate: Railway hands out a free
+`*.up.railway.app` name, which is all a staging landing page needs, and it keeps
+the DNS zone free of a hostname only you will ever visit. Pass
 `staging-www.extrablatt.app` instead if you would rather have a memorable one —
 one label deep, because `www.staging.extrablatt.app` sits two levels down and
 falls outside Cloudflare's universal certificate.
+
+To change `SITE_ENV` later, it is `railway variable set SITE_ENV=staging
+--service marketing-site --environment staging` (`railway variables --set …` is
+the deprecated spelling).
 
 `SITE_ENV=staging` is what makes it a staging copy rather than a second live
 one. Railway passes it into the Docker build, where `marketing/make-staging.sh`:
