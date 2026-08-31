@@ -1125,3 +1125,24 @@ dialog.donate-dialog .row {
 .site-legal a {
   font-size: 0.9rem;
 }
+
+/* The cookie table in the privacy notice. Four rows of fact, in the same flat boxes
+   as everything else; it is there to be read once, not admired. */
+.cookie-table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1rem 0;
+  font-size: 0.9rem;
+}
+
+.cookie-table th,
+.cookie-table td {
+  border: 1px solid #000;
+  padding: 0.4rem 0.6rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+.cookie-table th {
+  font-weight: 700;
+}

@@ -75,9 +75,73 @@
   </p>
   </th:block>
 
+  <h2>Cookies</h2>
+  <!-- § 25 TDDDG requires consent before storing anything on a device, with one
+       narrow exception: storage strictly necessary to provide a service the user
+       expressly asked for. All four cookies below fall inside it — a login session,
+       an opt-in "stay signed in", and two settings that are only written when the
+       reader actively changes them. So there is no consent banner here, and adding
+       one would be asking permission for something that needs none. Disclosure is
+       what the exception does require, and that is this table. -->
+  <p>
+    We use four cookies. All of them are needed to provide what you asked for, none of
+    them tracks you, and there is no advertising or analytics cookie anywhere in this
+    app — which is why you are not being asked to agree to any of it.
+  </p>
+  <table class="cookie-table">
+    <thead>
+      <tr><th>Cookie</th><th>What it does</th><th>How long</th><th>When it is set</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>JSESSIONID</code></td>
+        <td>Keeps you signed in during a visit, and carries the token that protects
+          forms against cross-site requests</td>
+        <td>Until the session ends</td>
+        <td>When you sign in or submit a form</td>
+      </tr>
+      <tr>
+        <td><code>remember-me</code></td>
+        <td>Keeps you signed in between visits, so a Kindle browser does not have to
+          be logged in again every time</td>
+        <td>1 year</td>
+        <td>Only if you tick "remember me"</td>
+      </tr>
+      <tr>
+        <td><code>extrablatt-display</code></td>
+        <td>Your text size, colours and spacing, so the login page already arrives
+          readable before we know who you are</td>
+        <td>1 year</td>
+        <td>Only when you change a display setting</td>
+      </tr>
+      <tr>
+        <td><code>extrablatt-edition</code></td>
+        <td>Whether you asked for the standard or the accessible version</td>
+        <td>1 year</td>
+        <td>Only when you choose an edition</td>
+      </tr>
+    </tbody>
+  </table>
+  <p class="meta">
+    You can clear them in your browser at any time. Doing so signs you out and returns
+    the display settings to their defaults.
+  </p>
+
+  <h2>Getting a copy of your data</h2>
+  <p>
+    Under <strong>Settings → Your data</strong> you can download everything we hold
+    about your account as a file, at any time and without asking us. It lists what is
+    included and what is not.
+  </p>
+
   <h2>Deleting your data</h2>
   <p>You can delete your account at any time from
     <a th:href="@{/settings}">Settings</a>; this removes your account, feeds, and stored articles.</p>
+  <p th:if="${billingEnabled}">
+    One exception is required by law: if you have ever paid or cancelled, the record of
+    that payment or cancellation is kept for as long as tax and commercial law say it
+    must be. It is unlinked from your account when you delete it.
+  </p>
   </div>
 
   <p class="meta" style="margin-top:1rem"><a th:href="@{/login}">Back</a></p>

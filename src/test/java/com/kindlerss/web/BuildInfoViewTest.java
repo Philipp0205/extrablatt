@@ -7,9 +7,11 @@ import com.kindlerss.security.RateLimiter;
 import com.kindlerss.security.RateLimitingFilter;
 import com.kindlerss.service.ArticleService;
 import com.kindlerss.service.AdminTelemetryService;
+import com.kindlerss.service.DataExportService;
 import com.kindlerss.service.EntitlementService;
 import com.kindlerss.service.FeedService;
 import com.kindlerss.service.KindleMailService;
+import com.kindlerss.service.RetentionService;
 import com.kindlerss.service.SubscriptionService;
 import com.kindlerss.service.UserService;
 import org.junit.jupiter.api.BeforeEach;
@@ -66,6 +68,12 @@ class BuildInfoViewTest {
 
     @Autowired
     MockMvc mockMvc;
+
+    @MockitoBean
+    DataExportService dataExportService;
+
+    @MockitoBean
+    RetentionService retentionService;
 
     @MockitoBean
     EntitlementService entitlementService;

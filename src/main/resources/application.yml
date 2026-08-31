@@ -118,6 +118,25 @@ app:
     # confirmation goes missing. A declined card should not cut off a reader
     # mid-morning.
     grace-days: ${BILLING_GRACE_DAYS:7}
+  retention:
+    # Art. 5(1)(e) GDPR: personal data may be kept only as long as it is needed.
+    # These are the periods after which the nightly sweep clears things out. Set any
+    # of them to 0 to switch that sweep off. Nothing here removes something a reader
+    # would miss — see docs/data-protection.md for the reasoning behind each figure.
+    cron: ${RETENTION_CRON:0 40 3 * * *}
+    # Kindle delivery history. The rolling quota reads one day of it and the
+    # telemetry page seven; beyond that it only fed a lifetime counter.
+    send-event-days: ${RETENTION_SEND_EVENT_DAYS:730}
+    # Raw payment-provider webhook bodies, which can carry a customer's name and
+    # e-mail. The event id is kept for ever regardless, because it is what makes a
+    # replayed webhook a no-op.
+    billing-payload-days: ${RETENTION_BILLING_PAYLOAD_DAYS:90}
+    # Spent or expired e-mail confirmation and password-reset links.
+    used-token-days: ${RETENTION_USED_TOKEN_DAYS:30}
+    # Cached extracted article text, for articles already read and not saved. It is
+    # re-extracted from the article's own address when next needed, so clearing it
+    # costs a refetch and nothing else.
+    article-cache-days: ${RETENTION_ARTICLE_CACHE_DAYS:365}
   newsletters:
     # Domain newsletter inboxes live under, e.g. news.yourdomain.com (needs MX
     # records pointed at an inbound e-mail provider). Blank disables the feature.
