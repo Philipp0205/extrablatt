@@ -100,7 +100,7 @@ part worth reading twice:
 
 So the honest answer to the question as asked: **yes, VAT has to be dealt with either
 way — but being established in Germany is the thing that might mean you never have to
-charge it.** At €18 a year per subscriber, staying under €25,000 domestically and
+charge it.** At €24 a year per subscriber, staying under €25,000 domestically and
 €100,000 EU-wide is not a near thing. If the KlG is German-established and registers for
 the SME scheme, the likely outcome is no VAT charged to anyone, and the app's
 tax-inclusive prices simply become prices.
@@ -122,7 +122,7 @@ Germany, that argument disappears** and Stripe becomes the better choice on two 
 
 | | Stripe | Paddle |
 |---|---|---|
-| Fee on €18/year | ~€0.74 (4.1%) | ~€1.36 (7.6%) |
+| Fee on €24/year | ~€0.90 (3.7%) | ~€1.66 (6.9%) |
 | Works with this code as built | **Yes** | Needs one addition (below) |
 | VAT | Yours, but with the €10,000 threshold if EU-established | Theirs |
 
@@ -137,7 +137,7 @@ Everything below is dashboard work; the app needs no code change.
    Handelsregister number, the Zürich address and a bank account in the company's name.
    Expect an identity check on both partners.
 2. **Two products, two prices.** Products → Add product → "Extrablatt Supporter".
-   Add a recurring price of **€18.00 / year**, then a second recurring price of
+   Add a recurring price of **€24.00 / year**, then a second recurring price of
    **€2.50 / month** on the same product. Prices are gross; if you enable Stripe Tax,
    set the prices as **tax-inclusive** so the sticker matches what the app shows.
 3. **Two payment links.** Payment links → Create → pick the yearly price → under
@@ -184,7 +184,7 @@ subscription up three ways rather than one.
    involved than Stripe's because they become the seller of record. Have the
    Handelsregister extract and a description of the product ready.
 2. **Catalog → Products** → new product "Extrablatt Supporter", then two prices:
-   €18.00 yearly and €2.50 monthly. Set them tax-inclusive.
+   €24.00 yearly and €2.50 monthly. Set them tax-inclusive.
 3. **Developer tools → Notifications → New destination**, pointed at
    `https://reader.extrablatt.app/webhooks/billing`, subscribed to
    `subscription.created`, `subscription.updated` and `subscription.canceled`. Copy the

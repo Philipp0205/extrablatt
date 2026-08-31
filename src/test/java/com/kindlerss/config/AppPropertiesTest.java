@@ -66,9 +66,9 @@ class AppPropertiesTest {
                 null, null, null, null, null, null, null, null);
 
         assertEquals(250, billing.monthlyPriceCents());
-        assertEquals(1_800, billing.yearlyPriceCents());
-        // €18.00 a year is what gets advertised as €1.50 a month.
-        assertEquals(150, billing.yearlyPricePerMonthCents());
+        assertEquals(2_400, billing.yearlyPriceCents());
+        // €24.00 a year is what gets advertised as €2.00 a month.
+        assertEquals(200, billing.yearlyPricePerMonthCents());
         assertEquals(5, billing.freeMaxSendsPerMonth());
         assertEquals(15, billing.freeMaxFeeds());
     }
