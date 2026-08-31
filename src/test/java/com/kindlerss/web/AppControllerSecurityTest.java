@@ -107,7 +107,9 @@ class AppControllerSecurityTest {
     void loginPageIsAccessible() throws Exception {
         mockMvc.perform(get("/login"))
                 .andExpect(status().isOk())
-                .andExpect(view().name("login"));
+                .andExpect(view().name("login"))
+                .andExpect(content().string(not(containsString("Klarblatt"))))
+                .andExpect(content().string(not(containsString("accessible reader"))));
     }
 
     @Test
