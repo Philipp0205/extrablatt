@@ -27,6 +27,44 @@
     <li>Delivery to Kindle depends on Amazon and your own approved-sender settings, which
       are outside our control.</li>
   </ul>
+
+  <!-- Only shown where the deployment actually charges. A self-hosted copy has no
+       subscription, and terms describing one it does not have would be worse than
+       none at all. -->
+  <th:block th:if="${billingEnabled}">
+  <h2>Plans and payment</h2>
+  <ul>
+    <li>There is a free plan and a paid <strong>Supporter</strong> plan. The free plan
+      is not a trial: it does not run out.</li>
+    <li>Prices are shown before you order and include VAT. The Supporter plan is
+      charged either monthly or yearly, whichever you chose, and renews automatically
+      until you cancel.</li>
+    <li>Payment is taken by our payment provider. We never receive or store your card
+      details.</li>
+    <li>You can cancel at any time on the <a th:href="@{/cancel}">cancellation
+      page</a>, without signing in. Cancelling takes effect at the end of the period
+      you have paid for; there is no notice period and no minimum term.</li>
+    <li>As a consumer you have a 14-day right of withdrawal. What it covers, and what
+      you pay if you withdraw after the service has started, is set out in the
+      <a th:href="@{/withdrawal}">withdrawal instructions</a>.</li>
+    <li>If a renewal payment fails, your Supporter allowances continue for a short
+      grace period before the account returns to the free plan.</li>
+    <li>Losing a subscription never deletes anything. Your feeds, articles, categories
+      and reading position stay as they are, and the free plan's allowances apply from
+      then on.</li>
+    <li>If we change a price, it applies from your next renewal, and we tell you before
+      it does. Accounts created before Extrablatt began charging keep their original
+      allowances at no cost.</li>
+  </ul>
+
+  <h2>Who you are contracting with</h2>
+  <p>
+    The operator, its address and its registration details are on the
+    <a th:href="@{/imprint}">imprint page</a>. If you are a consumer resident in the
+    European Union, nothing in these terms affects the mandatory consumer protections
+    of the country you live in.
+  </p>
+  </th:block>
   </div>
 
   <p class="meta" style="margin-top:1rem"><a th:href="@{/login}">Back</a></p>

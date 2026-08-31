@@ -4,7 +4,7 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>Extrablatt — RSS feeds, delivered to your Kindle</title>
-<meta name="description" content="Extrablatt is an RSS reader designed to run on your Kindle's built-in Web Browser. Open reader.extrablatt.app on the device, then send articles to your library as paginated e-books."/>
+<meta name="description" content="Extrablatt is an RSS reader designed to run on your Kindle's built-in Web Browser. Open reader.extrablatt.app on the device, then send articles to your library as paginated e-books. Five articles a month free."/>
 <link rel="stylesheet" href="assets/css/style.css?v=2"/>
 </head>
 <body>
@@ -13,6 +13,7 @@
   <div class="wrap bar">
     <span class="brand">Extrablatt</span>
     <nav>
+      <a class="btn" href="#pricing">Pricing</a>
       <a class="btn" href="https://reader.extrablatt.app/login">Sign in</a>
       <a class="btn btn-primary" href="https://reader.extrablatt.app/register">Create a free account</a>
     </nav>
@@ -42,7 +43,8 @@
           <a class="btn btn-primary btn-large" href="#open-on-kindle">How to open it on a Kindle</a>
           <a class="btn btn-large" href="https://reader.extrablatt.app/register">Create a free account</a>
         </div>
-        <p class="hero-note">Free to use. No ads, no tracking, nothing to buy.</p>
+        <p class="hero-note">5 articles a month free. No ads, no tracking. €2 a month if
+          you want more.</p>
       </div>
 
       <div class="hero-devices" aria-hidden="false">
@@ -154,13 +156,83 @@
             and reading history belong to you and nobody else.</p>
         </div>
         <div class="feature">
-          <h3>Free, and it stays that way</h3>
-          <p>No ads, no subscriptions, nothing to sell. Running the servers
-            still costs something, so if it's useful to you, a small
-            <a href="https://paypal.me/philippkurrle" target="_blank" rel="noopener noreferrer">donation</a>
-            helps keep it running.</p>
+          <h3>No ads, ever</h3>
+          <p>Nothing about you is for sale and no advertiser pays for this.
+            Reading is free; sending a lot to your Kindle is what a
+            subscription pays for, because every article sent is an e-mail
+            that costs real money to deliver.</p>
         </div>
       </div>
+    </div>
+  </section>
+
+  <section class="pricing" id="pricing">
+    <div class="wrap">
+      <h2>What it costs</h2>
+      <p class="section-lede">
+        Reading in the browser is free and always will be. What a subscription pays
+        for is bulk delivery to your Kindle, because every article sent is an e-mail
+        somebody has to pay to deliver.
+      </p>
+
+      <div class="price-grid">
+        <div class="price-card">
+          <h3>Free</h3>
+          <p class="price-figure">€0</p>
+          <p class="price-sub">no card, no trial clock</p>
+          <ul>
+            <li>5 articles to your Kindle a month</li>
+            <li>Up to 15 feeds</li>
+            <li>Unlimited reading in the browser</li>
+            <li>Everything about reading, unmetered</li>
+          </ul>
+          <a class="btn" href="https://reader.extrablatt.app/register">Create a free account</a>
+        </div>
+
+        <div class="price-card price-card-best">
+          <h3>Supporter, yearly</h3>
+          <p class="price-figure">€2.00<span>/month</span></p>
+          <p class="price-sub">billed €24.00 once a year · incl. VAT</p>
+          <ul>
+            <li>No monthly limit — up to 50 articles a day</li>
+            <li>Up to 50 feeds</li>
+            <li>Your own newsletter inbox address</li>
+            <li>Cancel any time, no notice period</li>
+          </ul>
+          <!-- Deep-links straight to the order page. Signing in first is required and
+               happens automatically: the app keeps the destination through the login
+               and lands the reader back here rather than on the home page. -->
+          <a class="btn btn-primary" href="https://reader.extrablatt.app/billing/order?interval=yearly">Choose yearly</a>
+        </div>
+
+        <div class="price-card">
+          <h3>Supporter, monthly</h3>
+          <p class="price-figure">€2.50<span>/month</span></p>
+          <p class="price-sub">incl. VAT · nothing up front</p>
+          <ul>
+            <li>Everything in the yearly plan</li>
+            <li>Nothing paid a year ahead</li>
+            <li>Cancel any time, no notice period</li>
+          </ul>
+          <a class="btn" href="https://reader.extrablatt.app/billing/order?interval=monthly">Choose monthly</a>
+        </div>
+      </div>
+
+      <p class="price-note">
+        Subscribing needs an account, so you will be asked to sign in on the way — you
+        come straight back to the plan you picked. Already subscribed, or want to check
+        what you are on? It is under
+        <a href="https://reader.extrablatt.app/settings#subscription">Settings &rsaquo; Subscription</a>.
+      </p>
+      <p class="price-note">
+        Had an account before we started charging? It keeps the full allowances,
+        permanently and at no cost — that is what you signed up to.
+      </p>
+      <p class="price-note">
+        You can end a subscription at any time on the
+        <a href="https://reader.extrablatt.app/cancel">cancellation page</a>, without
+        signing in.
+      </p>
     </div>
   </section>
 
@@ -189,8 +261,14 @@
     <nav class="footer-links">
       <a href="https://reader.extrablatt.app/login">Sign in</a>
       <a href="https://reader.extrablatt.app/register">Create an account</a>
+      <a href="#pricing">Pricing</a>
       <a href="https://reader.extrablatt.app/privacy">Privacy</a>
       <a href="https://reader.extrablatt.app/terms">Terms</a>
+      <a href="https://reader.extrablatt.app/imprint">Imprint</a>
+      <a href="https://reader.extrablatt.app/withdrawal">Right of withdrawal</a>
+      <!-- § 312k Abs. 2 BGB wants this permanently available and saying what it does.
+           The landing page is part of the website, so it belongs here too. -->
+      <a href="https://reader.extrablatt.app/cancel">Cancel your contract here</a>
       <a href="https://paypal.me/philippkurrle" target="_blank" rel="noopener noreferrer">Donate</a>
     </nav>
   </div>

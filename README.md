@@ -20,9 +20,13 @@ Multi-user RSS/Atom reader that extracts readable article HTML and emails EPUB f
 - Page-at-a-time reading sized to the device screen, instead of scrolling
 - Send-to-Kindle as EPUB 3 through one shared, provider-verified sender
 - Per-account limits and IP-based rate limiting on auth endpoints
+- Optional paid subscriptions: a free plan and a "Supporter" plan at €2.00/month
+  billed yearly or €2.50/month, with a subscription menu, a publicly reachable
+  cancellation page, and the order and withdrawal wording German consumer law
+  requires. Off unless `BILLING_ENABLED` is set, so a self-hosted copy charges
+  nobody (see [Subscriptions](#subscriptions-optional))
 - Optional "help keep the servers running" reminder every 10th article sent,
-  plus a permanent donation link in Settings — the app itself stays free and
-  ad-free either way
+  plus a permanent donation link in Settings — the app stays ad-free either way
 
 ## Requirements
 
@@ -200,6 +204,93 @@ belongs to, and names that feed the first time), `Subject`, `HtmlBody`/
 `TextBody`, `MessageID` (deduplicates re-deliveries the way a feed's `guid`
 does), and `Date`. Leaving `NEWSLETTER_INBOUND_DOMAIN` unset hides the feature
 entirely; existing RSS feeds are unaffected either way.
+
+## Subscriptions (optional)
+
+Left alone, this feature does not exist: with `BILLING_ENABLED` unset there are no
+prices, no subscription menu, no cancellation page, and every account keeps the
+full `MAX_*` allowances. That is the right setting for a self-hosted copy, which is
+not the one collecting the money.
+
+Turned on, accounts fall into two plans. The gate sits on Kindle delivery, because
+that is the only thing with a real unit cost — one article sent is one e-mail —
+so reading in the browser stays free and unmetered.
+
+| | Free | Supporter |
+|---|---|---|
+| Send to Kindle | `BILLING_FREE_SENDS_PER_MONTH` (5) a month | no monthly limit, up to `MAX_SENDS_PER_DAY` (50) a day |
+| Feeds | `BILLING_FREE_MAX_FEEDS` (15) | `MAX_FEEDS_PER_USER` (50) |
+| Newsletter inbox | — | yes |
+| Price | €0 | €2.00/month billed yearly (€24.00), or €2.50/month |
+
+The free allowance is a calendar month and refills on the 1st, which is what a reader
+assumes "five a month" means. `MAX_SENDS_PER_DAY` stays in force for everyone,
+including subscribers, as an abuse guardrail rather than a plan limit.
+
+Every account that exists when the migration runs is grandfathered permanently: it
+was never advertised as something with a subscription, and capping it afterwards
+would be both unfair and bad for the project. An administrator can also grant the
+plan by hand from **Settings → Telemetry**, which is how a reader whose payment
+went through but whose callback went missing gets fixed.
+
+Setup is a hosted checkout link per interval plus a webhook:
+
+1. Create two prices at your payment provider — one yearly, one monthly — and take
+   the hosted checkout (Stripe payment link or Paddle checkout) URL for each.
+2. Point the provider's webhook at `https://<your-app>/webhooks/billing` and copy
+   the signing secret. Stripe's `Stripe-Signature` and Paddle's `Paddle-Signature`
+   schemes are both understood; `BILLING_PROVIDER` says which to expect.
+3. Set the `BILLING_*` variables (see `.env.example`) and redeploy.
+
+The callback is the only thing that grants a subscription — the page a reader lands
+on after paying grants nothing — so a reader who closes the tab still ends up
+subscribed. Losing a subscription never deletes anything; feeds, articles and
+reading position stay, and the free plan's limits apply from then on.
+
+Two things are deliberately manual, because the app holds no provider API key: a
+cancellation is e-mailed to `BILLING_OPERATOR_EMAIL` so the payment is stopped at
+the provider by hand, and a missed callback is fixed with the admin grant above.
+
+Before charging anyone there is work no configuration flag covers.
+[`docs/going-live.md`](docs/going-live.md) is the runbook: the tax and establishment
+question that has to be settled first because it decides the provider, then the
+dashboard steps for Stripe or Paddle, then the mailbox the imprint needs.
+[`docs/subscriptions-and-payments.md`](docs/subscriptions-and-payments.md) has the
+pricing arithmetic and the reasoning behind the Stripe-versus-Paddle choice.
+
+## Data protection
+
+Every account can download everything held about it from **Settings → Your data** —
+a JSON file, no request to make and nobody to ask. That covers the right of access
+and the right to portability without anyone having to remember to answer an e-mail
+within a month.
+
+Deleting an account really deletes it. Feeds, articles, delivery history, tokens,
+display preferences, send limits and subscription all go through database cascades;
+the stored payment payload is emptied explicitly, since a payment event's id has to
+outlive the account to keep a replayed webhook harmless. The one thing kept is a
+payment or cancellation record, unlinked from the account, where tax and commercial
+law require it.
+
+A nightly sweep stops anything growing for ever — delivery history, spent
+confirmation links, raw payment payloads, and cached article text for articles
+already read and not saved, which is re-extracted from its own URL when next needed.
+The periods are `RETENTION_*` in `.env.example`, and `0` switches any of them off.
+
+There is **no cookie banner and no need for one**: the four cookies (session,
+opt-in "remember me", and two display settings written only when a reader changes
+them) all fall inside the strictly-necessary exception in § 25 TDDDG, and there is
+no analytics, advertising or third-party script anywhere in the app. They are listed
+in the privacy notice, which is what that exception does require.
+
+Logs deliberately carry no e-mail addresses, Kindle addresses or IP addresses. Worth
+keeping in mind when adding a log line: log files are where personal data quietly
+accumulates with no retention period at all.
+
+[`docs/data-protection.md`](docs/data-protection.md) is the Art. 30 record of
+processing activities — what is held, on what legal basis, for how long, who receives
+it, and the known gaps. It is written to be handed to an EU representative, who has
+their own obligation to hold it.
 
 ## Deploy on Railway (recommended, no personal VPS)
 

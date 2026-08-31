@@ -1,12 +1,18 @@
 package com.kindlerss.web;
 
 import com.kindlerss.domain.AppUser;
+import com.kindlerss.domain.Entitlement;
+import com.kindlerss.domain.Plan;
 import com.kindlerss.security.AppUserDetails;
 import com.kindlerss.security.CurrentUser;
 import com.kindlerss.security.RateLimiter;
 import com.kindlerss.security.RateLimitingFilter;
 import com.kindlerss.service.AdminTelemetryService;
 import com.kindlerss.service.ArticleService;
+import com.kindlerss.service.DataExportService;
+import com.kindlerss.service.EntitlementService;
+import com.kindlerss.service.RetentionService;
+import com.kindlerss.service.SubscriptionService;
 import com.kindlerss.service.UserService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -51,6 +57,18 @@ class SettingsControllerNewslettersEnabledTest {
     MockMvc mockMvc;
 
     @MockitoBean
+    DataExportService dataExportService;
+
+    @MockitoBean
+    RetentionService retentionService;
+
+    @MockitoBean
+    EntitlementService entitlementService;
+
+    @MockitoBean
+    SubscriptionService subscriptionService;
+
+    @MockitoBean
     UserService userService;
 
     @MockitoBean
@@ -72,6 +90,10 @@ class SettingsControllerNewslettersEnabledTest {
         when(currentUser.requireId()).thenReturn(UID);
         when(currentUser.details()).thenReturn(Optional.of(new AppUserDetails(user)));
         when(userService.findById(UID)).thenReturn(Optional.of(user));
+        // Billing is off in this context, so every account is on the paid plan and the
+        // newsletter inbox is available — which is what these tests are about.
+        when(entitlementService.forUser(UID))
+                .thenReturn(new Entitlement(Plan.SUPPORTER, 50, 0, 50, true));
     }
 
     @Test

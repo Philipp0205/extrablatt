@@ -5,7 +5,9 @@ import com.kindlerss.domain.Feed;
 import com.kindlerss.domain.FeedSource;
 import com.kindlerss.repository.ArticleRepository;
 import com.kindlerss.repository.FeedRepository;
+import com.kindlerss.repository.SubscriptionRepository;
 import com.kindlerss.repository.UserRepository;
+import com.kindlerss.repository.UserSendLimitRepository;
 import org.junit.jupiter.api.Test;
 import org.mockito.stubbing.Answer;
 
@@ -56,10 +58,14 @@ class FeedServiceTest {
     private FeedService service(int maxEntries, Executor refreshExecutor) {
         AppProperties properties = new AppProperties(
                 "from@example.com", null, "remember-me",
-                null, new AppProperties.Feeds(maxEntries), null, null, null, null);
+                null, new AppProperties.Feeds(maxEntries), null, null, null, null, null, null);
         when(userRepository.findMarkReadOnNextPageByFeedId(anyLong())).thenReturn(Optional.of(true));
+        // A real entitlement service, not a mock: with billing off it has to hand back
+        // the configured app.limits values, which is exactly what these tests assume.
+        EntitlementService entitlements = new EntitlementService(
+                mock(SubscriptionRepository.class), mock(UserSendLimitRepository.class), properties);
         return new FeedService(feedRepository, articleRepository, userRepository, httpClient,
-                new HtmlSanitizer(), properties, refreshExecutor);
+                new HtmlSanitizer(), entitlements, properties, refreshExecutor);
     }
 
     private static Feed feed(String url) {
