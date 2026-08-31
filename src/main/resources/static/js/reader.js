@@ -281,11 +281,10 @@
    * back on if the request fails, so the next page turn tries again.
    */
   function markPassed(index) {
-    if (!markForm || !window.fetch || !window.FormData) {
+    if (!markForm || !window.fetch) {
       return;
     }
     var nodes = content.querySelectorAll('[data-article-id]');
-    var body = new window.FormData(markForm);
     var passed = [];
     for (var i = 0; i < nodes.length; i++) {
       if (nodes[i].getAttribute('data-read') !== 'true' && columnOf(nodes[i]) < index) {
@@ -295,16 +294,27 @@
     if (!passed.length) {
       return;
     }
+    var fields = markForm.querySelectorAll('input[name]');
+    var body = [];
+    for (i = 0; i < fields.length; i++) {
+      body.push(field(fields[i].name, fields[i].value));
+    }
     for (i = 0; i < passed.length; i++) {
       setRead(passed[i], true);
-      body.append('id', passed[i].getAttribute('data-article-id'));
+      body.push(field('id', passed[i].getAttribute('data-article-id')));
     }
     showUnread(unreadLeft() - passed.length);
+    // Form-encoded rather than a FormData: a screen of a long list carries more
+    // articles than the servlet container will accept parts in one multipart
+    // request, and the whole post is then thrown away before it is read.
     window.fetch(markForm.getAttribute('action'), {
       method: 'POST',
       credentials: 'same-origin',
-      body: body,
-      headers: {'Accept': 'application/json'}
+      body: body.join('&'),
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+        'Accept': 'application/json'
+      }
     }).then(function (response) {
       if (!response.ok) {
         throw new Error('Could not mark the page read');
@@ -320,6 +330,10 @@
       }
       showUnread(unreadLeft() + passed.length);
     });
+  }
+
+  function field(name, value) {
+    return encodeURIComponent(name) + '=' + encodeURIComponent(value);
   }
 
   function setRead(node, read) {
