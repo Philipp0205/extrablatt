@@ -11,9 +11,11 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import javax.sql.DataSource;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class PostgresRepositoryTest {
@@ -223,20 +225,57 @@ class PostgresRepositoryTest {
     }
 
     @Test
-    void displayPreferencesBelongToTheAccountAndAreReplacedInPlace() {
-        var repository = new DisplayPreferencesRepository(
-                new JdbcTemplate(postgres.getPostgresDatabase()));
-        var chosen = new com.kindlerss.domain.DisplayPreferences(
-                com.kindlerss.domain.DisplayPreferences.Theme.BLACK_YELLOW, 5, 3,
-                com.kindlerss.domain.DisplayPreferences.Font.SERIF, true, false);
+    void markReadOnNextPageIsStoredOnTheAccountAndLookedUpByFeed() {
+        var feed = feeds.insert(userId, "Pref", "https://pref.example.com/feed.xml",
+                "https://pref.example.com", null);
 
-        assertTrue(repository.find(userId).isEmpty());
-        repository.save(userId, chosen);
-        assertEquals(chosen, repository.find(userId).orElseThrow());
+        assertTrue(users.findById(userId).orElseThrow().markReadOnNextPage());
+        assertEquals(Optional.of(true), users.findMarkReadOnNextPageByFeedId(feed.id()));
+        assertEquals(Optional.of(userId), users.findIdByFeedId(feed.id()));
 
-        repository.save(userId, com.kindlerss.domain.DisplayPreferences.DEFAULTS);
-        assertEquals(com.kindlerss.domain.DisplayPreferences.DEFAULTS, repository.find(userId).orElseThrow());
-        assertTrue(repository.find(otherUserId).isEmpty());
+        users.updateMarkReadOnNextPage(userId, false);
+        assertFalse(users.findById(userId).orElseThrow().markReadOnNextPage());
+        assertEquals(Optional.of(false), users.findMarkReadOnNextPageByFeedId(feed.id()));
+        assertTrue(users.findById(otherUserId).orElseThrow().markReadOnNextPage());
+    }
+
+    @Test
+    void lastSeenChangelogIdIsStoredOnTheAccount() {
+        assertNull(users.findById(userId).orElseThrow().lastSeenChangelogId());
+        users.updateLastSeenChangelogId(userId, "2026-08-31");
+        assertEquals("2026-08-31", users.findById(userId).orElseThrow().lastSeenChangelogId());
+        assertNull(users.findById(otherUserId).orElseThrow().lastSeenChangelogId());
+    }
+
+    @Test
+    void renamingACategoryMovesTheAccountsFeedsAndOnlyThoseThatMatchTheNameExactly() {
+        var upper = feeds.insert(userId, "Upper", "https://upper.example.com/feed.xml",
+                "https://upper.example.com", "Technology");
+        var second = feeds.insert(userId, "Second", "https://second.example.com/feed.xml",
+                "https://second.example.com", "Technology");
+        var lower = feeds.insert(userId, "Lower", "https://lower.example.com/feed.xml",
+                "https://lower.example.com", "technology");
+        var theirs = feeds.insert(otherUserId, "Theirs", "https://theirs.example.com/feed.xml",
+                "https://theirs.example.com", "Technology");
+
+        assertEquals(2, feeds.renameCategory(userId, "Technology", "Tech"));
+        assertEquals("Tech", feeds.findById(userId, upper.id()).orElseThrow().category());
+        assertEquals("Tech", feeds.findById(userId, second.id()).orElseThrow().category());
+        assertEquals("technology", feeds.findById(userId, lower.id()).orElseThrow().category(),
+                "a differently capitalized category is a category of its own");
+        assertEquals("Technology", feeds.findById(otherUserId, theirs.id()).orElseThrow().category(),
+                "another account's feeds are not touched");
+
+        // Capitalization is part of the name, so correcting it is a rename too.
+        assertEquals(1, feeds.renameCategory(userId, "technology", "Technology"));
+        assertEquals("Technology", feeds.findById(userId, lower.id()).orElseThrow().category());
+
+        assertEquals(0, feeds.renameCategory(userId, "No Such Category", "Tech"));
+
+        feeds.deleteById(userId, upper.id());
+        feeds.deleteById(userId, second.id());
+        feeds.deleteById(userId, lower.id());
+        feeds.deleteById(otherUserId, theirs.id());
     }
 
     @Test
@@ -369,8 +408,6 @@ class PostgresRepositoryTest {
         articles.recordSend(doomed, articleId, Instant.now());
         articles.setSaved(doomed, articleId, true);
         sendLimits.save(doomed, 7, null);
-        new DisplayPreferencesRepository(jdbc).save(doomed,
-                com.kindlerss.domain.DisplayPreferences.DEFAULTS);
         new SubscriptionRepository(jdbc).save(new com.kindlerss.domain.Subscription(doomed,
                 com.kindlerss.domain.Plan.SUPPORTER,
                 com.kindlerss.domain.SubscriptionStatus.ACTIVE,
@@ -385,7 +422,6 @@ class PostgresRepositoryTest {
         assertEquals(0, count(jdbc, "SELECT count(*) FROM articles WHERE id = ?", articleId));
         assertEquals(0, count(jdbc, "SELECT count(*) FROM article_send_events WHERE user_id = ?", doomed));
         assertEquals(0, count(jdbc, "SELECT count(*) FROM user_send_limits WHERE user_id = ?", doomed));
-        assertEquals(0, count(jdbc, "SELECT count(*) FROM display_preferences WHERE user_id = ?", doomed));
         assertEquals(0, count(jdbc, "SELECT count(*) FROM subscriptions WHERE user_id = ?", doomed));
         assertEquals(0, count(jdbc, "SELECT count(*) FROM email_tokens WHERE user_id = ?", doomed));
 

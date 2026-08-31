@@ -10,11 +10,14 @@ import com.kindlerss.domain.Feed;
 import com.kindlerss.domain.FeedSource;
 import com.kindlerss.repository.ArticleRepository;
 import com.kindlerss.repository.FeedRepository;
+import com.kindlerss.repository.UserRepository;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import jakarta.annotation.PreDestroy;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,12 +25,18 @@ import org.springframework.transaction.annotation.Transactional;
 import java.io.ByteArrayInputStream;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -59,23 +68,62 @@ public class FeedService {
 
     private final FeedRepository feedRepository;
     private final ArticleRepository articleRepository;
+    private final UserRepository userRepository;
     private final SafeHttpClient httpClient;
     private final HtmlSanitizer sanitizer;
     private final EntitlementService entitlements;
     private final int maxEntries;
+    private final Executor refreshExecutor;
+    private final ConcurrentHashMap<Long, Instant> lastBackgroundRefresh = new ConcurrentHashMap<>();
+    private final Set<Long> backgroundRefreshInFlight = ConcurrentHashMap.newKeySet();
 
+    /** How long to wait before polling the same account again on a page visit. */
+    static final Duration BACKGROUND_REFRESH_COOLDOWN = Duration.ofMinutes(10);
+
+    @Autowired
     public FeedService(FeedRepository feedRepository,
                        ArticleRepository articleRepository,
+                       UserRepository userRepository,
                        SafeHttpClient httpClient,
                        HtmlSanitizer sanitizer,
                        EntitlementService entitlements,
                        AppProperties properties) {
+        this(feedRepository, articleRepository, userRepository, httpClient, sanitizer,
+                entitlements, properties, defaultRefreshExecutor());
+    }
+
+    FeedService(FeedRepository feedRepository,
+                ArticleRepository articleRepository,
+                UserRepository userRepository,
+                SafeHttpClient httpClient,
+                HtmlSanitizer sanitizer,
+                EntitlementService entitlements,
+                AppProperties properties,
+                Executor refreshExecutor) {
         this.feedRepository = feedRepository;
         this.articleRepository = articleRepository;
+        this.userRepository = userRepository;
         this.httpClient = httpClient;
         this.sanitizer = sanitizer;
         this.entitlements = entitlements;
         this.maxEntries = properties.feeds().maxEntries();
+        this.refreshExecutor = refreshExecutor;
+    }
+
+    private static Executor defaultRefreshExecutor() {
+        ThreadFactory threads = runnable -> {
+            Thread thread = new Thread(runnable, "feed-refresh");
+            thread.setDaemon(true);
+            return thread;
+        };
+        return Executors.newSingleThreadExecutor(threads);
+    }
+
+    @PreDestroy
+    void shutdownRefreshExecutor() {
+        if (refreshExecutor instanceof ExecutorService service) {
+            service.shutdownNow();
+        }
     }
 
     public List<Feed> listFeeds(long userId) {
@@ -195,10 +243,15 @@ public class FeedService {
         return matcher.find() ? matcher.group().toLowerCase(Locale.ROOT) : null;
     }
 
+    /** Returned by {@link #renameCategory} when the category already has the requested name. */
+    public static final int CATEGORY_NAME_UNCHANGED = -1;
+
     /**
      * Renames a category across all of an account's feeds. "Uncategorized" is a
      * placeholder for feeds with no category rather than a real one, so it cannot
      * be renamed; giving feeds a category through the usual form is how they leave it.
+     * Capitalization is part of the name, so "tech" to "Tech" is a rename like any
+     * other; only the very same name is nothing to do.
      */
     @Transactional
     public int renameCategory(long userId, String oldCategory, String newCategory) {
@@ -210,8 +263,8 @@ public class FeedService {
         if (to.isEmpty()) {
             throw new IllegalArgumentException("New category name is required");
         }
-        if (to.equalsIgnoreCase(from)) {
-            return 0;
+        if (to.equals(from)) {
+            return CATEGORY_NAME_UNCHANGED;
         }
         return feedRepository.renameCategory(userId, from, to);
     }
@@ -227,7 +280,34 @@ public class FeedService {
         refreshFeeds(feedRepository.findAllAcrossUsers());
     }
 
-    /** Refreshes only the given account's feeds; used by manual refresh. */
+    /**
+     * Polls this account's RSS feeds in the background when they open Feeds or
+     * Articles, so they see new entries without a Refresh button. A cooldown
+     * keeps paging through the list from hammering the same publishers.
+     */
+    public void refreshForUserSoon(long userId) {
+        Instant now = Instant.now();
+        Instant previous = lastBackgroundRefresh.get(userId);
+        if (previous != null && previous.isAfter(now.minus(BACKGROUND_REFRESH_COOLDOWN))) {
+            return;
+        }
+        if (!backgroundRefreshInFlight.add(userId)) {
+            return;
+        }
+        lastBackgroundRefresh.put(userId, now);
+        refreshExecutor.execute(() -> {
+            try {
+                refreshForUser(userId);
+            } catch (Exception e) {
+                lastBackgroundRefresh.remove(userId);
+                log.warn("Background feed refresh failed for user {}: {}", userId, e.getMessage());
+            } finally {
+                backgroundRefreshInFlight.remove(userId);
+            }
+        });
+    }
+
+    /** Refreshes only the given account's feeds. */
     public void refreshForUser(long userId) {
         refreshFeeds(feedRepository.findAll(userId));
     }
@@ -264,6 +344,10 @@ public class FeedService {
     }
 
     private int storeEntries(Feed feed, ParsedFeed parsed) {
+        // When the owner does not mark-on-page, every newly stored RSS entry is
+        // already read so a refresh of a large feed does not flood Unread.
+        boolean markReadOnNextPage = userRepository.findMarkReadOnNextPageByFeedId(feed.id()).orElse(true);
+        Long ownerId = markReadOnNextPage ? null : userRepository.findIdByFeedId(feed.id()).orElse(null);
         int inserted = 0;
         for (ParsedEntry entry : parsed.entries()) {
             if (entry.guid() == null || entry.guid().isBlank()) {
@@ -284,6 +368,9 @@ public class FeedService {
             );
             if (id > 0) {
                 inserted++;
+                if (ownerId != null) {
+                    articleRepository.markRead(ownerId, id, true);
+                }
             }
         }
         return inserted;

@@ -67,7 +67,6 @@ class KindleMailServiceTest {
                 null,
                 null,
                 null,
-                null,
                 null
         );
         // A real entitlement service over mocked repositories: the administrator
@@ -243,7 +242,7 @@ class KindleMailServiceTest {
                 "https://pay/monthly", "https://pay/yearly", null, null, null,
                 null, null, null, null, null);
         return new AppProperties("approved@example.com", null, "remember-key", null, null, null,
-                null, null, null, null, billing, null);
+                null, null, null, billing, null);
     }
 
     @Test

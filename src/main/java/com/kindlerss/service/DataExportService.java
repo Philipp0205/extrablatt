@@ -53,7 +53,6 @@ public class DataExportService {
         export.put("exported_at", Instant.now().toString());
         export.put("about", about());
         export.put("account", account);
-        export.put("display_preferences", exports.displayPreferences(userId));
         export.put("subscription", exports.subscription(userId));
         export.put("administrative_send_limit", exports.sendLimit(userId));
         export.put("feeds", exports.feeds(userId));

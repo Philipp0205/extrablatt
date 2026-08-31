@@ -29,8 +29,8 @@ controller and needs its own version of this.
 **Purpose** — letting someone sign in and own their own feeds.
 **Legal basis** — Art. 6(1)(b), performance of the contract the account is.
 **Data** — `users`: e-mail address, bcrypt password hash, Kindle address, verification
-and disabled timestamps, newsletter inbox token. `email_tokens`: confirmation and
-password-reset tokens. `display_preferences`: theme, text size, spacing, font.
+and disabled timestamps, newsletter inbox token, reading preference, last changelog
+seen. `email_tokens`: confirmation and password-reset tokens.
 **Recipients** — the e-mail provider, for confirmation and reset messages.
 **Retention** — until the account is deleted. Spent or expired tokens go after
 30 days.
@@ -127,12 +127,12 @@ anywhere in the app.
 |---|---|---|---|---|
 | `JSESSIONID` | Session and CSRF token | Session | Signing in or posting a form | HttpOnly, Secure in production, SameSite=Lax |
 | `remember-me` | Signed-in state between visits; encodes the account e-mail and an HMAC | 1 year | Only on ticking "remember me" | HttpOnly, Secure in production |
-| `extrablatt-display` | Theme, text size, spacing | 1 year | Only on changing a display setting | HttpOnly, Secure in production, SameSite=Lax |
-| `extrablatt-edition` | Standard or accessible edition | 1 year | Only on choosing an edition | HttpOnly, Secure in production, SameSite=Lax |
 
-The two settings cookies exist so that the login page arrives readable for someone who
-cannot read the default — the preference has to survive before there is an account to
-store it against. All four are cleared on logout or account deletion.
+Those two are the whole list. The display and edition cookies went with the
+accessibility edition when it moved to Klarblatt, so nothing is stored in the browser
+for a visitor who never signs in, and no consent banner is owed under § 25 TDDDG:
+both remaining cookies are strictly necessary for a service the user asked for.
+Both are cleared on logout and on account deletion.
 
 ## Data subject rights, and how each one is actually answered
 
@@ -184,6 +184,6 @@ Honest list, so nobody has to rediscover them:
 - **Backups are not selectively erasable.** A deleted account remains in older
   `pg_dump` files until they rotate out. This is normal and generally accepted, but the
   rotation period should be short enough to state, and stated.
-- **The Art. 30 record above is only true as of the last migration.** V10 is the
+- **The Art. 30 record above is only true as of the last migration.** V13 is the
   current schema. A migration that adds personal data has to update this file and
   `DataExportRepository` together, or the export quietly stops being complete.

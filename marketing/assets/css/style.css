@@ -128,6 +128,19 @@ p {
   align-items: center;
 }
 
+.kindle-eyebrow {
+  display: inline-block;
+  margin: 0 0 0.85rem;
+  padding: 0.35rem 0.7rem;
+  border: 2px solid #000;
+  background: #000;
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
 .hero-copy h1 {
   font-size: 2.6rem;
   margin-bottom: 1rem;
@@ -137,6 +150,56 @@ p {
   font-size: 1.15rem;
   color: #222;
   max-width: 34rem;
+}
+
+.kindle-callout {
+  margin: 1.5rem 0 0;
+  padding: 1rem 1.15rem;
+  border: 2px solid #000;
+  background: #f7f6f3;
+  max-width: 34rem;
+}
+
+.kindle-callout-label {
+  margin: 0 0 0.35rem;
+  font-size: 0.9rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.kindle-url {
+  margin: 0;
+  font-family: "Courier New", Courier, monospace;
+  font-size: 1.55rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  word-break: break-all;
+  user-select: all;
+  -webkit-user-select: all;
+}
+
+.kindle-url-inline {
+  display: inline-block;
+  margin: 0.5rem 0;
+  padding: 0.55rem 0.75rem;
+  border: 2px solid #000;
+  background: #fff;
+  font-size: 1.35rem;
+}
+
+.kindle-callout-hint {
+  margin: 0.45rem 0 0;
+  color: #444;
+  font-size: 0.95rem;
+}
+
+.url-inline {
+  font-family: "Courier New", Courier, monospace;
+  font-weight: 700;
+  word-break: break-all;
+  user-select: all;
+  -webkit-user-select: all;
 }
 
 .hero-actions {
@@ -158,15 +221,18 @@ p {
   display: flex;
   justify-content: center;
   align-items: flex-end;
-  min-height: 22rem;
+  min-height: 24rem;
 }
 
+/* font-size is the single knob the faked browser chrome scales from, so the
+   smaller mock needs one number rather than a set of overrides. */
 .kindle-mock {
   margin: 0;
   width: 15.5rem;
+  font-size: 0.44rem;
   background: linear-gradient(180deg, #333336, #1b1b1d);
   border-radius: 20px;
-  padding: 1.35rem 1rem 2.5rem;
+  padding: 1.1rem 1rem 2.1rem;
   box-shadow: 0 30px 55px -22px rgba(0, 0, 0, 0.55);
 }
 
@@ -175,6 +241,7 @@ p {
   right: 0;
   bottom: -1.5rem;
   width: 13rem;
+  font-size: 0.38rem;
   transform: rotate(3deg);
   z-index: 2;
 }
@@ -184,14 +251,45 @@ p {
   z-index: 1;
   transform: rotate(-3deg);
   margin-right: 4.5rem;
+  padding-bottom: 2.4rem;
+}
+
+/* The Kindle Web Browser draws its address bar above the page, like a desktop
+   browser. A back arrow and a menu button are a few pixels wide at this scale,
+   where they read as specks of dirt, so the bar keeps only the address. */
+.kindle-browser-bar {
+  flex: 0 0 auto;
+  padding: 0.45em 0.6em;
+  background: #e6e6e6;
+  border-bottom: 1px solid #c4c4c4;
+}
+
+.kindle-address-field {
+  display: block;
+  padding: 0.3em 0.5em;
+  background: #fff;
+  border: 1px solid #b0b0b0;
+  font-family: "Courier New", Courier, monospace;
+  line-height: 1.4;
+  color: #333;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .kindle-screen {
+  display: flex;
+  flex-direction: column;
   background: #fff;
-  border-radius: 5px;
+  border-radius: 4px;
   overflow: hidden;
   aspect-ratio: 3 / 4;
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.25);
+}
+
+.kindle-viewport {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .kindle-screen img {
@@ -202,14 +300,42 @@ p {
   object-position: top center;
 }
 
+.kindle-caption {
+  position: absolute;
+  left: 50%;
+  bottom: 0.55rem;
+  transform: translateX(-50%);
+  margin: 0;
+  color: #ddd;
+  font-size: 0.68rem;
+  text-align: center;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
 .kindle-mock::after {
   content: "";
   display: block;
   width: 2.6rem;
   height: 0.35rem;
-  margin: 1rem auto 0;
+  margin: 0.85rem auto 0;
   border-radius: 999px;
   background: #55555a;
+}
+
+/* How to open on Kindle */
+.open-on-kindle {
+  padding: 4rem 0;
+  border-top: 2px solid #000;
+  background: #fff;
+}
+
+.section-lede {
+  text-align: center;
+  max-width: 40rem;
+  margin: -1.5rem auto 2.5rem;
+  color: #222;
+  font-size: 1.05rem;
 }
 
 /* Feature grid */
@@ -243,7 +369,7 @@ p {
   padding: 4rem 0;
 }
 
-.pricing .lede {
+.pricing .section-lede {
   max-width: 40rem;
 }
 
@@ -304,26 +430,31 @@ p {
   font-size: 0.95rem;
 }
 
-/* Steps */
-.steps {
-  padding: 4.5rem 0;
-}
-
+/* Numbered steps. The number is drawn from a counter on the list itself, so it
+   exists in exactly one place; without this stylesheet the browser's own
+   <ol> markers take over instead of adding a second number. */
 .step-list {
   list-style: none;
+  counter-reset: step;
   margin: 0 auto;
   padding: 0;
   max-width: 40rem;
 }
 
 .step-list li {
+  counter-increment: step;
   display: flex;
   gap: 1.25rem;
   align-items: flex-start;
   margin-bottom: 1.75rem;
 }
 
-.step-number {
+.step-list li:last-child {
+  margin-bottom: 0;
+}
+
+.step-list li::before {
+  content: counter(step);
   flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
@@ -337,12 +468,21 @@ p {
 }
 
 .step-list p {
-  margin-bottom: 0;
+  margin-bottom: 0.5rem;
   color: #222;
 }
 
-.steps-cta {
+.step-list p:last-child {
+  margin-bottom: 0;
+}
+
+/* Closing call to action */
+.closing {
+  padding: 4rem 0;
   text-align: center;
+}
+
+.section-cta {
   margin-top: 2.5rem;
 }
 
@@ -382,7 +522,7 @@ p {
 
   .hero-devices {
     order: -1;
-    min-height: 18rem;
+    min-height: 20rem;
     margin-bottom: 1rem;
   }
 
@@ -400,6 +540,9 @@ p {
 
   .kindle-mock { width: 11.5rem; }
   .kindle-mock-secondary { width: 9.5rem; }
+
+  .kindle-url { font-size: 1.25rem; }
+  .kindle-url-inline { font-size: 1.1rem; }
 
   .hero-actions { flex-direction: column; align-items: stretch; }
   .hero-actions .btn { width: 100%; }

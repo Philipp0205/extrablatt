@@ -13,7 +13,7 @@
     <nav class="top">
       <a th:href="@{/}">Feeds</a>
       <a th:href="@{/items}">Articles</a>
-      <a th:href="@{/settings(view='subscription')}">Settings</a>
+      <a th:href="@{/settings} + '#subscription'">Settings</a>
     </nav>
   </header>
 
@@ -27,7 +27,7 @@
   </p>
   <p th:unless="${subscription.status.name() == 'ACTIVE'}">
     Your payment is being confirmed. This usually takes a few seconds; refresh
-    <a th:href="@{/settings(view='subscription')}">your subscription page</a> in a
+    <a th:href="@{/settings} + '#subscription'">your subscription page</a> in a
     moment and it will be there. You do not need to pay again, and nothing is lost
     if you close this page.
   </p>
@@ -40,7 +40,7 @@
 
   <div class="actions">
     <a class="btn" th:href="@{/}">Back to your feeds</a>
-    <a class="btn" th:href="@{/settings(view='subscription')}">Your subscription</a>
+    <a class="btn" th:href="@{/settings} + '#subscription'">Your subscription</a>
   </div>
 </div>
 </body>

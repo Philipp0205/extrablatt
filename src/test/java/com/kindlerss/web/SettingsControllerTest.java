@@ -40,7 +40,6 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.cookie;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.flash;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
@@ -156,18 +155,12 @@ class SettingsControllerTest {
 
     @Test
     @WithMockUser
-    void deletingAnAccountClearsTheDisplayAndEditionCookies() throws Exception {
-        mockMvc.perform(post("/account/delete").with(csrf()))
-                .andExpect(cookie().maxAge("extrablatt-display", 0))
-                .andExpect(cookie().maxAge("extrablatt-edition", 0));
-    }
-
-    @Test
-    @WithMockUser
     void newslettersSectionIsHiddenWhenNotConfigured() throws Exception {
         mockMvc.perform(get("/settings"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(not(containsString("New address"))));
+                .andExpect(content().string(not(containsString("New address"))))
+                .andExpect(content().string(not(containsString("action=\"/refresh\""))))
+                .andExpect(content().string(not(containsString(">Refresh</button>"))));
         verify(userService, never()).ensureNewsletterInboundToken(UID);
     }
 
@@ -177,7 +170,7 @@ class SettingsControllerTest {
         mockMvc.perform(post("/settings/kindle-email").with(csrf())
                         .param("kindleEmail", "me@kindle.com"))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/settings?view=kindle"))
+                .andExpect(redirectedUrl("/settings#kindle"))
                 .andExpect(flash().attribute("message", "Kindle e-mail updated"));
         verify(userService).updateKindleEmail(UID, "me@kindle.com");
     }
@@ -187,7 +180,7 @@ class SettingsControllerTest {
     void regeneratingTheNewsletterAddressWithoutConfigurationFailsGracefully() throws Exception {
         mockMvc.perform(post("/settings/newsletter-address/regenerate").with(csrf()))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/settings?view=kindle"))
+                .andExpect(redirectedUrl("/settings#kindle"))
                 .andExpect(flash().attribute("error", containsString("not configured")));
         verify(userService, never()).regenerateNewsletterInboundToken(UID);
     }
@@ -225,11 +218,73 @@ class SettingsControllerTest {
 
     @Test
     @WithMockUser
-    void settingsRendersOnlyTheSelectedSubview() throws Exception {
-        mockMvc.perform(get("/settings").param("view", "accessibility"))
+    void settingsRendersAllSectionsWithoutATabStrip() throws Exception {
+        mockMvc.perform(get("/settings"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("Switch to the accessible version")))
-                .andExpect(content().string(not(containsString("Signed in as"))))
-                .andExpect(content().string(not(containsString("Delete my account"))));
+                .andExpect(content().string(containsString("Send-to-Kindle")))
+                .andExpect(content().string(containsString("Signed in as")))
+                .andExpect(content().string(containsString("Delete my account")))
+                .andExpect(content().string(not(containsString("aria-label=\"Settings views\""))));
+    }
+
+    @Test
+    @WithMockUser
+    void readingSettingsCanTurnMarkOnNextPageOff() throws Exception {
+        mockMvc.perform(get("/settings"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("Mark articles as read when I go to the next page")))
+                .andExpect(content().string(containsString("action=\"/settings/reading\"")))
+                .andExpect(content().string(containsString("id=\"reading\"")));
+
+        mockMvc.perform(post("/settings/reading").with(csrf()))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/settings#reading"))
+                .andExpect(flash().attribute("message", "Reading preference saved"));
+        verify(userService).updateMarkReadOnNextPage(UID, false);
+    }
+
+    @Test
+    @WithMockUser
+    void readingSettingsCanTurnMarkOnNextPageOn() throws Exception {
+        mockMvc.perform(post("/settings/reading").with(csrf())
+                        .param("markReadOnNextPage", "true"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/settings#reading"));
+        verify(userService).updateMarkReadOnNextPage(UID, true);
+    }
+
+    @Test
+    @WithMockUser
+    void settingsShowsThePackagedChangelog() throws Exception {
+        mockMvc.perform(get("/settings"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("id=\"changelog\"")))
+                .andExpect(content().string(containsString("Changelog")))
+                .andExpect(content().string(containsString("What's new")))
+                .andExpect(content().string(containsString("id=\"whats-new-dialog\"")));
+    }
+
+    @Test
+    @WithMockUser
+    void alreadySeenReleaseDoesNotOpenTheWhatsNewNotice() throws Exception {
+        String latest = ChangelogCatalog.instance().latestId().orElseThrow();
+        AppUser seen = new AppUser(UID, "user@example.com", "hash", "reader@kindle.com",
+                Instant.now(), null, Instant.now(), Instant.now(), null, true, latest);
+        when(userService.findById(UID)).thenReturn(Optional.of(seen));
+
+        mockMvc.perform(get("/settings"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("id=\"changelog\"")))
+                .andExpect(content().string(not(containsString("id=\"whats-new-dialog\""))));
+    }
+
+    @Test
+    @WithMockUser
+    void acknowledgingTheChangelogStoresTheLatestReleaseAndReturnsToThePage() throws Exception {
+        mockMvc.perform(post("/settings/changelog/ack").with(csrf())
+                        .param("redirect", "/items?unread=true"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/items?unread=true"));
+        verify(userService).acknowledgeChangelog(UID, ChangelogCatalog.instance().latestId().orElseThrow());
     }
 }

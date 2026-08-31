@@ -89,7 +89,8 @@ nav.top {
    below names them rather than leaning on a `> *` that they would outrank. */
 nav.top > a,
 nav.top > button,
-nav.top > form.inline {
+nav.top > form.inline,
+nav.top > details {
   margin: 0 0.5rem 0.5rem 0;
 }
 
@@ -105,19 +106,34 @@ nav.top > form.inline > button {
   width: 100%;
 }
 
-/* Refresh is a utility action rather than a destination. Keep it visibly
-   secondary to the three full-size view buttons. */
-nav.top > form.inline.refresh-control {
+/* Article actions used on nearly every visit stay in the toolbar. Less common
+   actions expand onto a second row only when requested, saving a row of e-ink
+   screen height during reading. */
+nav.top > details.action-menu {
   flex: 0 0 auto;
-  align-self: center;
 }
 
-nav.top > form.inline.refresh-control > button {
-  min-width: 0;
-  min-height: 2.1rem;
-  width: auto;
-  padding: 0.3rem 0.55rem;
-  font-size: 0.82rem;
+nav.top > details.action-menu[open] {
+  flex-basis: 100%;
+}
+
+details.action-menu > summary {
+  list-style: none;
+}
+
+details.action-menu > summary::-webkit-details-marker {
+  display: none;
+}
+
+.action-menu-items {
+  display: flex;
+  flex-wrap: wrap;
+  margin: 0.4rem -0.4rem -0.4rem 0;
+}
+
+.action-menu-items > a,
+.action-menu-items > form.inline {
+  margin: 0 0.4rem 0.4rem 0;
 }
 
 nav.top a, button, .btn {
@@ -576,6 +592,116 @@ details.tools > .tools-body {
   margin-top: 0.5rem;
 }
 
+.back-link {
+  display: inline-block;
+  margin-bottom: 0.65rem;
+}
+
+.feed-page-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  margin: 0 -0.5rem 1rem 0;
+}
+
+.feed-page-heading > div {
+  flex: 1 1 auto;
+  min-width: 10rem;
+  margin-right: 0.5rem;
+}
+
+.feed-page-heading h1 {
+  margin-bottom: 0.25rem;
+}
+
+.feed-page-heading .meta {
+  margin-bottom: 0;
+}
+
+.feed-page-heading > details.tools {
+  flex: 0 0 auto;
+  margin: 0 0.5rem 0 0;
+}
+
+.feed-page-heading > details.tools[open] {
+  flex-basis: 100%;
+  margin-top: 0.75rem;
+}
+
+.feed-page-heading details.add-feed > .tools-body {
+  border-top: 1px solid #000;
+  padding-top: 0.75rem;
+}
+
+.rename-category .rename-form {
+  display: flex;
+}
+
+.rename-category .category-rename-input {
+  flex: 1 1 auto;
+  width: auto;
+  min-width: 0;
+  min-height: 2.25rem;
+  margin-right: 0.4rem;
+  padding: 0.3rem 0.5rem;
+  font-size: 0.85rem;
+}
+
+.rename-category .rename-form button {
+  min-height: 2.25rem;
+  padding: 0.3rem 0.6rem;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+details.nested-tools {
+  margin-top: 0.75rem;
+}
+
+.category-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.category-list li {
+  border-top: 1px solid #000;
+}
+
+.category-list li:last-child {
+  border-bottom: 1px solid #000;
+}
+
+.category-list a {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 3.5rem;
+  padding: 0.65rem 0.25rem;
+  text-decoration: none;
+}
+
+.category-list a strong {
+  text-decoration: underline;
+}
+
+.category-list a .meta {
+  flex: 0 0 auto;
+  margin: 0 0 0 0.75rem;
+  text-align: right;
+}
+
+.settings-section {
+  border-top: 1px solid #000;
+  margin-top: 1.5rem;
+  padding-top: 0.25rem;
+}
+
+.settings-section:first-of-type {
+  border-top: 0;
+  margin-top: 0;
+}
+
 .feed-list details.tools {
   margin-top: 0.5rem;
 }
@@ -854,6 +980,23 @@ dialog.donate-dialog .row {
   margin: 1rem 0 0;
 }
 
+.changelog-list {
+  margin: 0.5rem 0 0;
+  padding-left: 1.25rem;
+}
+
+.changelog-release {
+  margin-top: 1.25rem;
+}
+
+.changelog-release h3 {
+  margin: 0;
+}
+
+.changelog-release .meta {
+  margin: 0.25rem 0 0;
+}
+
 .build-info {
   border-top: 1px solid #000;
   margin-top: 2rem;
@@ -898,7 +1041,8 @@ dialog.donate-dialog .row {
 @media (max-width: 640px) {
   nav.top > a,
   nav.top > button,
-  nav.top > form.inline {
+  nav.top > form.inline,
+  nav.top > details {
     flex: 0 0 auto;
   }
 

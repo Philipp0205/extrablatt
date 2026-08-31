@@ -1,0 +1,83 @@
+# Railway deploys
+#
+# Production (main) is already wired in the Railway dashboard: a GitHub
+# deployment trigger on kindle-rss-app / marketing-site watches `main`.
+# Staging is the same pattern against the `staging` branch, plus this
+# workflow so a merge to `staging` also runs an explicit `railway up`.
+#
+# Required repository secret:
+#   RAILWAY_TOKEN  — Railway account or project token with access to the
+#                    Extrablatt project (Project settings → Tokens).
+# Optional repository variables (defaults match the live Extrablatt project):
+#   RAILWAY_PROJECT_ID
+
+name: Deploy to Railway
+
+on:
+  push:
+    branches: [staging]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Railway environment to deploy
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+
+concurrency:
+  group: railway-deploy-${{ github.event_name == 'workflow_dispatch' && inputs.environment || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Resolve target environment
+        id: target
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            ENV="${{ inputs.environment }}"
+          elif [ "${GITHUB_REF_NAME}" = "main" ]; then
+            ENV=production
+          else
+            ENV=staging
+          fi
+          echo "environment=$ENV" >> "$GITHUB_OUTPUT"
+
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+
+      - name: Deploy app
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          RAILWAY_PROJECT_ID: ${{ vars.RAILWAY_PROJECT_ID || '5acb693d-239d-4354-9146-ded20c78a027' }}
+        run: |
+          if [ -z "$RAILWAY_TOKEN" ]; then
+            echo "RAILWAY_TOKEN is not set. Skipping CLI deploy; Railway's GitHub trigger still deploys the staging branch."
+            exit 0
+          fi
+          railway up --ci --yes \
+            --service kindle-rss-app \
+            --environment "${{ steps.target.outputs.environment }}" \
+            --project "$RAILWAY_PROJECT_ID"
+
+      - name: Deploy marketing site (production only)
+        if: ${{ steps.target.outputs.environment == 'production' }}
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          RAILWAY_PROJECT_ID: ${{ vars.RAILWAY_PROJECT_ID || '5acb693d-239d-4354-9146-ded20c78a027' }}
+        working-directory: marketing
+        run: |
+          if [ -z "$RAILWAY_TOKEN" ]; then
+            echo "RAILWAY_TOKEN is not set. Skipping marketing CLI deploy."
+            exit 0
+          fi
+          railway up --ci --yes --path-as-root \
+            --service marketing-site \
+            --environment production \
+            --project "$RAILWAY_PROJECT_ID"

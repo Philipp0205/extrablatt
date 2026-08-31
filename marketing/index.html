@@ -4,8 +4,8 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>Extrablatt — RSS feeds, delivered to your Kindle</title>
-<meta name="description" content="Extrablatt turns your RSS and Atom feeds into paginated e-books, sent straight to your Kindle. Ad-free, free to read, and built for reading a page at a time."/>
-<link rel="stylesheet" href="assets/css/style.css"/>
+<meta name="description" content="Extrablatt is an RSS reader designed to run on your Kindle's built-in Web Browser. Open reader.extrablatt.app on the device, then send articles to your library as paginated e-books. Five articles a month free."/>
+<link rel="stylesheet" href="assets/css/style.css?v=2"/>
 </head>
 <body>
 
@@ -25,16 +25,23 @@
   <section class="hero">
     <div class="wrap hero-grid">
       <div class="hero-copy">
+        <p class="kindle-eyebrow">Built to run on a Kindle</p>
         <h1>Your feeds, delivered to your Kindle.</h1>
         <p class="lede">
-          Extrablatt turns the RSS and Atom feeds you already follow into clean,
-          paginated e-books that land straight in your Kindle library — no
-          scrolling, no phone, no ads. Read the whole article, a page at a time,
-          the way an e-ink screen was meant to be read.
+          Extrablatt is designed to open <strong>on the Kindle itself</strong>,
+          inside the device's built-in Web Browser — not on your phone.
+          Turn the RSS and Atom feeds you already follow into clean, paginated
+          e-books that land in your Kindle library. Read a page at a time, the
+          way an e-ink screen was meant to be read.
         </p>
+        <div class="kindle-callout" role="note">
+          <p class="kindle-callout-label">Open this on your Kindle</p>
+          <p class="kindle-url" translate="no">reader.extrablatt.app</p>
+          <p class="kindle-callout-hint">Type that address in the Kindle Web Browser. Steps below.</p>
+        </div>
         <div class="hero-actions">
-          <a class="btn btn-primary btn-large" href="https://reader.extrablatt.app/register">Create a free account</a>
-          <a class="btn btn-large" href="https://reader.extrablatt.app/login">Sign in</a>
+          <a class="btn btn-primary btn-large" href="#open-on-kindle">How to open it on a Kindle</a>
+          <a class="btn btn-large" href="https://reader.extrablatt.app/register">Create a free account</a>
         </div>
         <p class="hero-note">5 articles a month free. No ads, no tracking. €2 a month if
           you want more.</p>
@@ -43,17 +50,75 @@
       <div class="hero-devices" aria-hidden="false">
         <figure class="kindle-mock">
           <div class="kindle-screen">
-            <img src="assets/img/kindle-articles-list.png"
-                 alt="A Kindle e-reader showing the Extrablatt article list, with unread articles marked and a Send to Kindle button beside each one"/>
+            <div class="kindle-browser-bar" aria-hidden="true">
+              <span class="kindle-address-field">reader.extrablatt.app</span>
+            </div>
+            <div class="kindle-viewport">
+              <img src="assets/img/kindle-articles-list.png"
+                   alt="A Kindle e-reader showing Extrablatt's article list in the built-in Web Browser, with the address reader.extrablatt.app"/>
+            </div>
           </div>
+          <figcaption class="kindle-caption">On the Kindle Web Browser</figcaption>
         </figure>
         <figure class="kindle-mock kindle-mock-secondary">
           <div class="kindle-screen">
-            <img src="assets/img/kindle-article-reading.png"
-                 alt="A Kindle e-reader showing a full extracted article open in Extrablatt's paginated reading view"/>
+            <div class="kindle-browser-bar" aria-hidden="true">
+              <span class="kindle-address-field">reader.extrablatt.app</span>
+            </div>
+            <div class="kindle-viewport">
+              <img src="assets/img/kindle-article-reading.png"
+                   alt="A Kindle e-reader showing a full extracted article open in Extrablatt's paginated reading view"/>
+            </div>
           </div>
         </figure>
       </div>
+    </div>
+  </section>
+
+  <!-- A single numbered list covers the whole journey: getting into the Kindle
+       browser, then getting a first article out of it. -->
+  <section class="open-on-kindle" id="open-on-kindle">
+    <div class="wrap">
+      <h2>How to open Extrablatt on your Kindle</h2>
+      <p class="section-lede">
+        Extrablatt runs in the Kindle's own browser — Amazon calls it
+        <em>Web Browser</em>, older firmware still says <em>Experimental
+        Browser</em>. There is nothing to install: you type the address on the
+        Kindle keyboard.
+      </p>
+
+      <ol class="step-list">
+        <li>
+          <div>
+            <h3>Open the browser on your Kindle</h3>
+            <p>With Wi&#8209;Fi on, tap the top of the Home screen so the toolbar
+              appears, open the three-dot menu (<span aria-hidden="true">⋮</span>)
+              and choose <strong>Web Browser</strong>. On older Kindles that entry
+              is called <strong>Experimental Browser</strong>.</p>
+          </div>
+        </li>
+        <li>
+          <div>
+            <h3>Enter the address</h3>
+            <p>Type it into the browser's address bar:</p>
+            <p class="kindle-url kindle-url-inline" translate="no">reader.extrablatt.app</p>
+          </div>
+        </li>
+        <li>
+          <div>
+            <h3>Create a free account</h3>
+            <p>Sign up with an e-mail and password and confirm your address — on
+              the Kindle, or from any other device.</p>
+          </div>
+        </li>
+        <li>
+          <div>
+            <h3>Add feeds and send articles</h3>
+            <p>Paste a website or feed URL, save your Kindle's e-mail address
+              under Settings, then tap <em>Send to Kindle</em> on any article.</p>
+          </div>
+        </li>
+      </ol>
     </div>
   </section>
 
@@ -104,7 +169,7 @@
   <section class="pricing" id="pricing">
     <div class="wrap">
       <h2>What it costs</h2>
-      <p class="lede">
+      <p class="section-lede">
         Reading in the browser is free and always will be. What a subscription pays
         for is bulk delivery to your Kindle, because every article sent is an e-mail
         somebody has to pay to deliver.
@@ -119,7 +184,7 @@
             <li>5 articles to your Kindle a month</li>
             <li>Up to 15 feeds</li>
             <li>Unlimited reading in the browser</li>
-            <li>The accessible version in full</li>
+            <li>Everything about reading, unmetered</li>
           </ul>
           <a class="btn" href="https://reader.extrablatt.app/register">Create a free account</a>
         </div>
@@ -157,7 +222,7 @@
         Subscribing needs an account, so you will be asked to sign in on the way — you
         come straight back to the plan you picked. Already subscribed, or want to check
         what you are on? It is under
-        <a href="https://reader.extrablatt.app/settings?view=subscription">Settings &rsaquo; Subscription</a>.
+        <a href="https://reader.extrablatt.app/settings#subscription">Settings &rsaquo; Subscription</a>.
       </p>
       <p class="price-note">
         Had an account before we started charging? It keeps the full allowances,
@@ -171,55 +236,15 @@
     </div>
   </section>
 
-  <section class="features">
+  <section class="closing">
     <div class="wrap">
-      <h2>Hard to read a screen?</h2>
-      <p class="lede">
-        Extrablatt has a second version built for readers who are blind or losing
-        their sight. Black background and very large type, colours that tell a
-        heading from a quotation, an article's main points before its full text, a
-        button that reads it aloud, and subjects to follow instead of feed
-        addresses to hunt down. The same account and the same articles, and every part
-        of it is free — the accessible version is not behind any subscription.
+      <h2>Ready when your Kindle is</h2>
+      <p class="section-lede">
+        Create an account here, then open
+        <span class="url-inline" translate="no">reader.extrablatt.app</span>
+        on the device.
       </p>
-      <p>
-        <a class="btn btn-primary btn-large" href="https://accessibility.extrablatt.app/help">
-          See the accessible version
-        </a>
-      </p>
-    </div>
-  </section>
-
-  <section class="steps">
-    <div class="wrap">
-      <h2>Three steps to your first article</h2>
-      <ol class="step-list">
-        <li>
-          <span class="step-number">1</span>
-          <div>
-            <h3>Create a free account</h3>
-            <p>Sign up with an e-mail and password, and confirm your address.</p>
-          </div>
-        </li>
-        <li>
-          <span class="step-number">2</span>
-          <div>
-            <h3>Add your feeds</h3>
-            <p>Paste a website or feed URL, and add your Kindle's e-mail
-              address under Settings.</p>
-          </div>
-        </li>
-        <li>
-          <span class="step-number">3</span>
-          <div>
-            <h3>Send to Kindle</h3>
-            <p>Read on the web whenever you like, tap <em>Send to
-              Kindle</em> on a feed article, or paste any page URL to have
-              the full article waiting on your device.</p>
-          </div>
-        </li>
-      </ol>
-      <div class="steps-cta">
+      <div class="section-cta">
         <a class="btn btn-primary btn-large" href="https://reader.extrablatt.app/register">Create a free account</a>
       </div>
     </div>
@@ -231,13 +256,13 @@
   <div class="wrap footer-grid">
     <div>
       <span class="brand">Extrablatt</span>
-      <p class="muted">An independent, ad-free RSS reader built for Kindle.</p>
+      <p class="muted">An independent, ad-free RSS reader built to run on a Kindle's Web Browser.</p>
     </div>
     <nav class="footer-links">
       <a href="https://reader.extrablatt.app/login">Sign in</a>
       <a href="https://reader.extrablatt.app/register">Create an account</a>
       <a href="#pricing">Pricing</a>
-      <a href="https://accessibility.extrablatt.app/help">Accessible version</a>
+      <a href="https://github.com/Philipp0205/klarblatt">Klarblatt (accessible reader)</a>
       <a href="https://reader.extrablatt.app/privacy">Privacy</a>
       <a href="https://reader.extrablatt.app/terms">Terms</a>
       <a href="https://reader.extrablatt.app/imprint">Imprint</a>

@@ -120,6 +120,30 @@ class UserServiceTest {
         verify(tokenRepository).markUsed("rst");
     }
 
+    @Test
+    void markReadOnNextPageDefaultsToOnWhenTheAccountIsMissing() {
+        when(userRepository.findById(99L)).thenReturn(Optional.empty());
+        assertTrue(service.markReadOnNextPage(99L));
+    }
+
+    @Test
+    void updatingMarkReadOnNextPageWritesThrough() {
+        service.updateMarkReadOnNextPage(1L, false);
+        verify(userRepository).updateMarkReadOnNextPage(1L, false);
+    }
+
+    @Test
+    void acknowledgingTheChangelogWritesTheReleaseId() {
+        service.acknowledgeChangelog(1L, "2026-08-31");
+        verify(userRepository).updateLastSeenChangelogId(1L, "2026-08-31");
+    }
+
+    @Test
+    void acknowledgingABlankChangelogIdDoesNothing() {
+        service.acknowledgeChangelog(1L, "  ");
+        verify(userRepository, never()).updateLastSeenChangelogId(anyLong(), anyString());
+    }
+
     private static Instant any() {
         return org.mockito.ArgumentMatchers.any(Instant.class);
     }

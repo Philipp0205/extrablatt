@@ -77,12 +77,6 @@ app:
     # Per-account guardrails for open registration.
     max-feeds-per-user: ${MAX_FEEDS_PER_USER:50}
     max-sends-per-day: ${MAX_SENDS_PER_DAY:50}
-  accessibility:
-    # Host the accessibility-first edition answers on, e.g.
-    # accessibility.extrablatt.app. Same application, same accounts, same data —
-    # only the view layer differs. Blank still leaves the edition reachable
-    # through ?display=accessible, which is all a local run needs.
-    domain: ${ACCESSIBILITY_DOMAIN:}
   billing:
     # Off unless an operator deliberately turns it on. Off, nothing is charged, no
     # prices or cancellation page exist, and every account keeps the full
@@ -115,7 +109,7 @@ app:
     yearly-price-cents: ${BILLING_YEARLY_PRICE_CENTS:2400}
     # What an account gets without paying: five articles to a Kindle a month, on a
     # calendar month that refills on the 1st. Reading in the browser, saved articles
-    # and the whole accessibility edition are never metered. Five sends is about
+    # and the reading views are never metered. Five sends is about
     # EUR 0.004 of e-mail a month, so the free plan costs almost nothing to serve even
     # if it never converts.
     free-max-sends-per-month: ${BILLING_FREE_SENDS_PER_MONTH:5}
