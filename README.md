@@ -334,6 +334,7 @@ This repo's Railway project has two environments:
 |---|---|---|
 | GitHub branch | `main` | `staging` |
 | App URL | https://reader.extrablatt.app | https://staging.extrablatt.app |
+| Landing page URL | https://extrablatt.app | its Railway URL, or a name of your choosing |
 | Database | live Postgres | **copy** of production (own instance) |
 | How it deploys | Railway GitHub trigger on `main` | Railway GitHub trigger on `staging`, plus `.github/workflows/deploy-railway.yml` |
 
@@ -364,6 +365,46 @@ railway domain extrablatt.app --service marketing-site   # reader.extrablatt.app
 Any static file host (GitHub Pages, Cloudflare Pages, Netlify, …) works
 just as well if you'd rather not run it on Railway.
 
+#### The staging landing page
+
+The landing page quotes prices and links to the cancellation and withdrawal
+pages, so it needs somewhere to be read before it is live. Staging gets its own
+`marketing-site` service, in the `staging` environment, with one variable the
+production one does not have:
+
+```bash
+railway add --service marketing-site --environment staging
+railway variables --set SITE_ENV=staging --service marketing-site --environment staging
+railway domain --service marketing-site --environment staging   # generated *.up.railway.app URL
+```
+
+That last line takes no argument on purpose: Railway hands out a free
+`*.up.railway.app` name, which is all a staging landing page needs and keeps the
+DNS zone free of a hostname only you will ever visit. Pass
+`staging-www.extrablatt.app` instead if you would rather have a memorable one —
+one label deep, because `www.staging.extrablatt.app` sits two levels down and
+falls outside Cloudflare's universal certificate.
+
+`SITE_ENV=staging` is what makes it a staging copy rather than a second live
+one. Railway passes it into the Docker build, where `marketing/make-staging.sh`:
+
+- **points every link at `staging.extrablatt.app`.** The page mentions the app
+  in twenty-odd places — buttons, the address to type on the Kindle, the meta
+  description — and they are all the same string, so one substitution moves all
+  of them. Skip this and "Choose yearly" on staging opens the *live* checkout.
+- **keeps the copy out of search results,** with `robots.txt` and a `noindex`
+  meta tag. It is the live page word for word, so an indexable second copy
+  competes with the real one for the same searches.
+- **puts a banner across the top** saying which site you are on.
+
+The build refuses to finish if the substitution left a production hostname
+behind, so a misconfigured staging site fails to deploy rather than quietly
+pointing at production.
+
+One thing this does *not* solve: the staging app's own `BILLING_*` variables
+decide what its checkout does. Point them at your payment provider's test mode,
+or the staging landing page will walk you into a real payment.
+
 ## Marketing / landing page
 
 `marketing/` is a small, static (plain HTML/CSS, no JavaScript, no build step)
@@ -383,6 +424,12 @@ The production split is two names against this deployment:
 To update the landing page's copy or screenshots, edit files under
 `marketing/` and redeploy as usual — `deploy/deploy.sh` syncs the whole repo,
 including this folder, and Caddy serves whatever is on disk with no rebuild.
+
+The committed files are the *production* page: they name `reader.extrablatt.app`
+throughout, and that is what ships to `extrablatt.app`. The staging copy is
+built from the same files by `marketing/make-staging.sh`, so there is one page
+to edit rather than two that drift apart. See
+[The staging landing page](#the-staging-landing-page) for how that is wired.
 
 ## DNS / TLS
 
