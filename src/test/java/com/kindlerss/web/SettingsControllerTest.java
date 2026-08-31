@@ -180,4 +180,13 @@ class SettingsControllerTest {
                 .andExpect(redirectedUrl("/settings#reading"));
         verify(userService).updateMarkReadOnNextPage(UID, true);
     }
+
+    @Test
+    @WithMockUser
+    void changelogPageListsDatedEntries() throws Exception {
+        mockMvc.perform(get("/changelog"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("Changelog")))
+                .andExpect(content().string(containsString("31 August 2026")));
+    }
 }

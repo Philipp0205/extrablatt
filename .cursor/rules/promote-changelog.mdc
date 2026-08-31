@@ -1,0 +1,34 @@
+---
+description: When promoting staging to main, summarize the release and update the in-app changelog
+alwaysApply: true
+---
+
+# Staging → main changelog
+
+A PR from `staging` into `main` is a production release. Before opening or merging it:
+
+1. Diff `origin/main...origin/staging`.
+2. Write a short PR summary of **reader-facing** changes (what someone on a Kindle would notice). Skip chores, CI, deploy wiring, and refactors unless they change behaviour.
+3. Prepend a dated entry to `src/main/resources/templates/changelog.html` (newest first). Use today's date. Keep bullets plain and specific. Do not rewrite older entries.
+
+```html
+<!-- ✅ GOOD — prepend this article above existing ones -->
+<article class="changelog-entry">
+  <h2>31 August 2026</h2>
+  <ul>
+    <li>Feeds can be renamed from the category row.</li>
+    <li>Send-to-Kindle stays on the current article page instead of jumping away.</li>
+  </ul>
+</article>
+
+<!-- ❌ BAD -->
+<article class="changelog-entry">
+  <h2>Update</h2>
+  <ul>
+    <li>Various fixes and improvements.</li>
+    <li>Bump CI and Railway config.</li>
+  </ul>
+</article>
+```
+
+If nothing user-visible shipped, say so in the PR body and **do not** add a changelog article.
