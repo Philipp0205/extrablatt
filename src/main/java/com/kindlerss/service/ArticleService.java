@@ -88,26 +88,6 @@ public class ArticleService {
         return articleRepository.markRead(userId, ids, read);
     }
 
-    /** Bookmarks an article, or takes the bookmark off again. */
-    @Transactional
-    public Article setSaved(long userId, long id, boolean saved) {
-        if (!articleRepository.setSaved(userId, id, saved)) {
-            throw new NotFoundException("Article not found");
-        }
-        return articleRepository.findById(userId, id)
-                .orElseThrow(() -> new NotFoundException("Article not found"));
-    }
-
-    public List<Article> findSavedPage(long userId, int page, int pageSize) {
-        int safePage = Math.max(page, 1);
-        int safeSize = Math.min(Math.max(pageSize, 1), 100);
-        return articleRepository.findSavedPage(userId, safeSize, (safePage - 1) * safeSize);
-    }
-
-    public long countSaved(long userId) {
-        return articleRepository.countSaved(userId);
-    }
-
     /**
      * Returns sanitized HTML for display/EPUB. Images are stripped by default.
      * Caches extracted content when Readability succeeds.

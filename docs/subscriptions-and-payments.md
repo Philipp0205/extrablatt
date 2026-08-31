@@ -103,7 +103,7 @@ sentence a reader can hold in their head:
 | Send to Kindle | 5 per calendar month | no monthly limit, up to 50 a day |
 | Feeds | 15 | 50 |
 | Newsletter inbox | — | yes |
-| Reading, categories, saved articles, paged reader | yes | yes |
+| Reading, categories, paged reader | yes | yes |
 
 Five sends a month is about **€0.004 of e-mail a month** to serve — a Resend Pro plan's
 50,000 messages would cover ten thousand free readers. So the free plan costs

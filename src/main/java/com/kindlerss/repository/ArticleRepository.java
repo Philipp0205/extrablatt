@@ -35,8 +35,7 @@ public class ArticleRepository {
             toInstant(rs.getTimestamp("sent_at")),
             toInstant(rs.getTimestamp("created_at")),
             toInstant(rs.getTimestamp("updated_at")),
-            columnExists(rs, "feed_title") ? rs.getString("feed_title") : null,
-            toInstant(rs.getTimestamp("saved_at"))
+            columnExists(rs, "feed_title") ? rs.getString("feed_title") : null
     );
 
     private final JdbcTemplate jdbc;
@@ -200,41 +199,6 @@ public class ArticleRepository {
                 WHERE id IN (%s) AND read <> ?
                 AND feed_id IN (SELECT id FROM feeds WHERE user_id = ?)
                 """.formatted(placeholders), args.toArray());
-    }
-
-    /**
-     * Bookmarks or un-bookmarks one of the account's articles. Returns false when
-     * the article is not theirs (or does not exist), so a caller can say so
-     * instead of silently doing nothing.
-     */
-    public boolean setSaved(long userId, long id, boolean saved) {
-        return jdbc.update("""
-                UPDATE articles
-                SET saved_at = CASE WHEN ? THEN COALESCE(saved_at, NOW()) ELSE NULL END,
-                    updated_at = NOW()
-                WHERE id = ? AND feed_id IN (SELECT id FROM feeds WHERE user_id = ?)
-                """, saved, id, userId) > 0;
-    }
-
-    /** Bookmarked articles, most recently saved first — the order they were put aside in. */
-    public List<Article> findSavedPage(long userId, int limit, int offset) {
-        return jdbc.query("""
-                SELECT a.*, f.title AS feed_title
-                FROM articles a
-                JOIN feeds f ON f.id = a.feed_id
-                WHERE f.user_id = ? AND a.saved_at IS NOT NULL
-                ORDER BY a.saved_at DESC, a.id DESC
-                LIMIT ? OFFSET ?
-                """, MAPPER, userId, limit, offset);
-    }
-
-    public long countSaved(long userId) {
-        Long count = jdbc.queryForObject("""
-                SELECT COUNT(*) FROM articles a
-                JOIN feeds f ON f.id = a.feed_id
-                WHERE f.user_id = ? AND a.saved_at IS NOT NULL
-                """, Long.class, userId);
-        return count == null ? 0 : count;
     }
 
     /** Records one successful delivery and updates the article's latest-send timestamp. */

@@ -41,14 +41,14 @@ seen. `email_tokens`: confirmation and password-reset tokens.
 **Legal basis** — Art. 6(1)(b).
 **Data** — `feeds`: title, URL, site, category, source type, last error. `articles`:
 title, URL, author, publication time, summary and body HTML, cached extracted text,
-read state and time, saved time, last send time. Which feeds a person follows and
+read state and time, last send time. Which feeds a person follows and
 which articles they read is behavioural data about them, even though the article text
 is the publisher's.
 **Recipients** — none. The publishers being polled see the server's IP address and the
 URL requested; nothing identifying the reader is sent, and `SafeHttpClient` sends no
 cookies and no referrer.
 **Retention** — until the account or the feed is deleted. Cached extracted text is
-cleared after 365 days for articles already read and not saved, and re-extracted from
+cleared after 365 days for articles already read, and re-extracted from
 the article's own URL when next needed.
 
 ### 3. Delivering articles to a Kindle

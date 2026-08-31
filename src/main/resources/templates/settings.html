@@ -273,8 +273,7 @@
     <li>Your subscription, if any: plan, status, renewal date, and your payment
       provider's identifiers for you</li>
     <li>Every feed you follow</li>
-    <li>Every article we hold, with its title, address, and whether you read, saved or
-      sent it</li>
+    <li>Every article we hold, with its title, address, and whether you read or sent it</li>
     <li>Every Kindle delivery, with the time it happened</li>
     <li>Any cancellation you have declared</li>
   </ul>
@@ -294,7 +293,7 @@
   <ul class="meta">
     <li>Your account, feeds and articles: until you delete the account</li>
     <li>Kindle delivery history: <span th:text="${retention.sendEventDays()}">730</span> days</li>
-    <li>Cached article text, once read and not saved:
+    <li>Cached article text, once read:
       <span th:text="${retention.articleCacheDays()}">365</span> days, then re-fetched
       from the original address when you next open it</li>
     <li>Used confirmation and password-reset links:
@@ -314,7 +313,7 @@
 
   <section class="settings-section" id="delete">
   <h2>Delete account</h2>
-  <p class="meta">This permanently removes your account, feeds, and saved articles.</p>
+  <p class="meta">This permanently removes your account, feeds, and articles.</p>
   <p class="meta" th:if="${billingEnabled}">
     One exception, and the law requires it: if you have ever paid or cancelled, the
     record of that payment or cancellation is kept for as long as tax and commercial

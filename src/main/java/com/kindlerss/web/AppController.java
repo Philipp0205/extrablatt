@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.util.ArrayList;
@@ -344,7 +345,22 @@ public class AppController {
         model.addAttribute("firstIndex", articles.isEmpty() ? 0 : (long) (safePage - 1) * pageSize + 1);
         model.addAttribute("lastIndex", (long) (safePage - 1) * pageSize + articles.size());
         model.addAttribute("markReadOnNextPage", markReadOnNextPage);
+        // Counted without the snapshot: the snapshot deliberately holds on to the
+        // articles this sitting has already read, and what is left to read is the
+        // one number the reader cannot work out from the list in front of them.
+        long unreadLeft = articleService.count(userId, feedId, category, Boolean.TRUE, null);
+        model.addAttribute("unreadLeft", unreadLeft);
+        model.addAttribute("readThroughPercent", readThroughPercent(total, unreadLeft));
         return "items";
+    }
+
+    /** How much of the list on screen is behind the reader, as a whole percentage. */
+    static int readThroughPercent(long total, long unreadLeft) {
+        if (total <= 0) {
+            return 0;
+        }
+        long done = Math.max(0, Math.min(total, total - unreadLeft));
+        return (int) (done * 100 / total);
     }
 
     /**
@@ -470,6 +486,27 @@ public class AppController {
             return "redirect:" + itemsPath(feedId, category, true, 1, null) + "#start";
         }
         return "redirect:" + itemsPath(feedId, category, unreadOnly, next, snapshot) + "#start";
+    }
+
+    /**
+     * Marks the articles of one screen read without leaving the list.
+     *
+     * <p>The reader turns several screens inside a single loaded page, and a screen
+     * that has been turned past has been read through just as much as a whole page
+     * has. Posting it here keeps that promise while the reader stays put, and
+     * answers with what is still unread so the meter under the page can follow.
+     */
+    @PostMapping("/items/read")
+    @ResponseBody
+    public Map<String, Object> markScreenRead(@RequestParam(value = "feed", required = false) Long feedId,
+                                              @RequestParam(value = "category", required = false) String category,
+                                              @RequestParam(value = "id", required = false) List<Long> ids) {
+        long userId = currentUser.requireId();
+        int marked = userService.markReadOnNextPage(userId) && ids != null && !ids.isEmpty()
+                ? articleService.markRead(userId, ids, true)
+                : 0;
+        return Map.of("marked", marked,
+                "unreadLeft", articleService.count(userId, feedId, category, Boolean.TRUE, null));
     }
 
     /** Pages the unread list of this snapshot holds, so paging can tell where it ends. */

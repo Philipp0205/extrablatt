@@ -26,6 +26,7 @@ class PostgresRepositoryTest {
     private static UserRepository users;
     private static UserSendLimitRepository sendLimits;
     private static TelemetryRepository telemetry;
+    private static JdbcTemplate jdbc;
     private static long userId;
     private static long otherUserId;
 
@@ -34,7 +35,7 @@ class PostgresRepositoryTest {
         postgres = EmbeddedPostgres.builder().start();
         DataSource dataSource = postgres.getPostgresDatabase();
         Flyway.configure().dataSource(dataSource).load().migrate();
-        JdbcTemplate jdbc = new JdbcTemplate(dataSource);
+        jdbc = new JdbcTemplate(dataSource);
         feeds = new FeedRepository(jdbc);
         articles = new ArticleRepository(jdbc);
         users = new UserRepository(jdbc);
@@ -49,6 +50,20 @@ class PostgresRepositoryTest {
         if (postgres != null) {
             postgres.close();
         }
+    }
+
+    @Test
+    void accessibilityEditionTablesAndColumnsAreGone() {
+        Integer preferenceTables = jdbc.queryForObject("""
+                SELECT COUNT(*) FROM information_schema.tables
+                WHERE table_schema = 'public' AND table_name = 'display_preferences'
+                """, Integer.class);
+        Integer savedAtColumns = jdbc.queryForObject("""
+                SELECT COUNT(*) FROM information_schema.columns
+                WHERE table_schema = 'public' AND table_name = 'articles' AND column_name = 'saved_at'
+                """, Integer.class);
+        assertEquals(0, preferenceTables);
+        assertEquals(0, savedAtColumns);
     }
 
     @Test
@@ -196,32 +211,6 @@ class PostgresRepositoryTest {
         users.updateNewsletterInboundToken(third.id(), "rotated-token");
         assertTrue(users.findByNewsletterInboundToken("inbox-token").isEmpty());
         assertEquals(third.id(), users.findByNewsletterInboundToken("rotated-token").orElseThrow().id());
-    }
-
-    @Test
-    void savedArticlesAreKeptApartFromReadStateAndFromOtherAccounts() {
-        var feed = feeds.insert(userId, "Saved", "https://saved.example.com/feed.xml",
-                "https://saved.example.com", null);
-        long articleId = insertArticle(feed.id(), "saved-1");
-
-        assertTrue(articles.setSaved(userId, articleId, true));
-        var saved = articles.findById(userId, articleId).orElseThrow();
-        assertTrue(saved.saved());
-        assertFalse(saved.read(), "saving an article must not mark it read");
-
-        // Reading it afterwards leaves the bookmark alone: an article is usually
-        // saved precisely because it has been read.
-        articles.markRead(userId, articleId, true);
-        assertTrue(articles.findById(userId, articleId).orElseThrow().saved());
-
-        assertEquals(1, articles.findSavedPage(userId, 20, 0).size());
-        assertEquals(1, articles.countSaved(userId));
-        assertEquals(0, articles.countSaved(otherUserId));
-        assertFalse(articles.setSaved(otherUserId, articleId, false), "not their article to unsave");
-
-        assertTrue(articles.setSaved(userId, articleId, false));
-        assertFalse(articles.findById(userId, articleId).orElseThrow().saved());
-        assertEquals(0, articles.countSaved(userId));
     }
 
     @Test
@@ -406,7 +395,6 @@ class PostgresRepositoryTest {
         long articleId = articles.insert(feed.id(), "doomed-1", "Article", "https://doomed.example.com/1",
                 "Author", Instant.parse("2026-08-10T00:00:00Z"), "<p>s</p>", "<p>c</p>");
         articles.recordSend(doomed, articleId, Instant.now());
-        articles.setSaved(doomed, articleId, true);
         sendLimits.save(doomed, 7, null);
         new SubscriptionRepository(jdbc).save(new com.kindlerss.domain.Subscription(doomed,
                 com.kindlerss.domain.Plan.SUPPORTER,
@@ -495,29 +483,24 @@ class PostgresRepositoryTest {
         assertEquals(0, repository.redactBillingPayloadsBefore(cutoff));
     }
 
-    /** A saved article keeps its text however old it gets — it was saved to be reread. */
+    /**
+     * An unread article keeps its text however old it gets: clearing it would make the
+     * first read of a backlog article wait on a refetch that may no longer resolve.
+     */
     @Test
-    void theSweepLeavesSavedAndUnreadArticlesAlone() {
+    void theSweepLeavesUnreadArticlesAlone() {
         JdbcTemplate jdbc = new JdbcTemplate(postgres.getPostgresDatabase());
         var repository = new RetentionRepository(jdbc);
         long keeper = users.insert("keeper@example.com", "hash").id();
         var feed = feeds.insert(keeper, "Keeper", "https://keeper.example.com/feed.xml", null, null);
-        long saved = articles.insert(feed.id(), "keep-1", "Saved", "https://keeper.example.com/1",
-                null, null, "<p>s</p>", "<p>c</p>");
         long unread = articles.insert(feed.id(), "keep-2", "Unread", "https://keeper.example.com/2",
                 null, null, "<p>s</p>", "<p>c</p>");
-        for (long id : new long[]{saved, unread}) {
-            articles.updateExtractedContent(id, "<p>extracted</p>");
-            jdbc.update("UPDATE articles SET created_at = ? WHERE id = ?",
-                    java.sql.Timestamp.from(Instant.parse("2020-01-01T00:00:00Z")), id);
-        }
-        articles.markRead(keeper, saved, true);
-        articles.setSaved(keeper, saved, true);
+        articles.updateExtractedContent(unread, "<p>extracted</p>");
+        jdbc.update("UPDATE articles SET created_at = ? WHERE id = ?",
+                java.sql.Timestamp.from(Instant.parse("2020-01-01T00:00:00Z")), unread);
 
         assertEquals(0, repository.clearStaleArticleCacheBefore(Instant.parse("2026-01-01T00:00:00Z")));
 
-        assertEquals("<p>extracted</p>",
-                articles.findById(keeper, saved).orElseThrow().extractedContentHtml());
         assertEquals("<p>extracted</p>",
                 articles.findById(keeper, unread).orElseThrow().extractedContentHtml());
     }

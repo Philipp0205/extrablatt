@@ -42,6 +42,9 @@
   var prevUrl = root.getAttribute('data-reader-prev-url');
   var nextUrl = root.getAttribute('data-reader-next-url');
   var nextForm = document.getElementById(root.getAttribute('data-reader-next-form') || '');
+  // Present only on a list whose account marks articles read on the next page.
+  var markForm = document.getElementById(root.getAttribute('data-reader-mark-form') || '');
+  var meter = document.querySelector('[data-unread-meter]');
   var nextEndLabel = root.getAttribute('data-reader-next-end-label');
   var nextLabel = nextButton ? nextButton.innerHTML : '';
   var storageKey = root.getAttribute('data-reader-key');
@@ -260,12 +263,118 @@
     }
   }
 
+  /*
+   * Which column an element sits in. Pages are turned by pulling the content left
+   * with a negative margin, so the element's own offset moves with every turn;
+   * measured against the content's offset it does not.
+   */
+  function columnOf(node) {
+    return Math.round((node.offsetLeft - content.offsetLeft) / (pageWidth + COLUMN_GAP));
+  }
+
+  /*
+   * Marks the articles of every screen before `index` read.
+   *
+   * A loaded list is several screens long, and the account setting promises that
+   * going to the next page marks the page left behind — the screen, not the fifty
+   * articles the server happened to send. The marks come off straight away and go
+   * back on if the request fails, so the next page turn tries again.
+   */
+  function markPassed(index) {
+    if (!markForm || !window.fetch) {
+      return;
+    }
+    var nodes = content.querySelectorAll('[data-article-id]');
+    var passed = [];
+    for (var i = 0; i < nodes.length; i++) {
+      if (nodes[i].getAttribute('data-read') !== 'true' && columnOf(nodes[i]) < index) {
+        passed.push(nodes[i]);
+      }
+    }
+    if (!passed.length) {
+      return;
+    }
+    var fields = markForm.querySelectorAll('input[name]');
+    var body = [];
+    for (i = 0; i < fields.length; i++) {
+      body.push(field(fields[i].name, fields[i].value));
+    }
+    for (i = 0; i < passed.length; i++) {
+      setRead(passed[i], true);
+      body.push(field('id', passed[i].getAttribute('data-article-id')));
+    }
+    showUnread(unreadLeft() - passed.length);
+    // Form-encoded rather than a FormData: a screen of a long list carries more
+    // articles than the servlet container will accept parts in one multipart
+    // request, and the whole post is then thrown away before it is read.
+    window.fetch(markForm.getAttribute('action'), {
+      method: 'POST',
+      credentials: 'same-origin',
+      body: body.join('&'),
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+        'Accept': 'application/json'
+      }
+    }).then(function (response) {
+      if (!response.ok) {
+        throw new Error('Could not mark the page read');
+      }
+      return response.json();
+    }).then(function (data) {
+      if (data && typeof data.unreadLeft === 'number') {
+        showUnread(data.unreadLeft);
+      }
+    }).catch(function () {
+      for (var i = 0; i < passed.length; i++) {
+        setRead(passed[i], false);
+      }
+      showUnread(unreadLeft() + passed.length);
+    });
+  }
+
+  function field(name, value) {
+    return encodeURIComponent(name) + '=' + encodeURIComponent(value);
+  }
+
+  function setRead(node, read) {
+    node.setAttribute('data-read', read ? 'true' : 'false');
+    var mark = node.querySelector('.unread-mark');
+    if (mark) {
+      mark.className = read ? 'unread-mark read' : 'unread-mark';
+    }
+  }
+
+  function unreadLeft() {
+    return meter ? parseInt(meter.getAttribute('data-unread-left'), 10) || 0 : 0;
+  }
+
+  /* The count under the page, and the share of the list already behind it. */
+  function showUnread(left) {
+    if (!meter) {
+      return;
+    }
+    var total = parseInt(meter.getAttribute('data-unread-total'), 10) || 0;
+    var remaining = Math.max(0, Math.min(total, left));
+    meter.setAttribute('data-unread-left', String(remaining));
+    var count = meter.querySelector('[data-unread-count]');
+    if (count) {
+      count.textContent = remaining === 0 ? 'All read' : remaining + ' unread';
+    }
+    var fill = meter.querySelector('[data-unread-fill]');
+    if (fill && total > 0) {
+      fill.style.width = Math.round((total - remaining) * 100 / total) + '%';
+    }
+  }
+
   function turn(delta) {
     if (!paged) {
       return;
     }
     var target = page + delta;
     if (target >= 0 && target < pageCount) {
+      if (delta > 0) {
+        markPassed(target);
+      }
       show(target);
       return;
     }

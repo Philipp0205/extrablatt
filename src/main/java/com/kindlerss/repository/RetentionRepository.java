@@ -63,9 +63,9 @@ public class RetentionRepository {
 
     /**
      * Clears cached extracted article text that has served its purpose: old, already
-     * read, and not saved for later. Nothing is lost — {@code ArticleService}
-     * re-extracts from the article's URL when the text is next needed — so this trades
-     * a rare refetch for not holding a reader's whole reading history in full text.
+     * read. Nothing is lost — {@code ArticleService} re-extracts from the article's
+     * URL when the text is next needed — so this trades a rare refetch for not holding
+     * a reader's whole reading history in full text.
      */
     public int clearStaleArticleCacheBefore(Instant cutoff) {
         return jdbc.update("""
@@ -74,7 +74,6 @@ public class RetentionRepository {
                 WHERE extracted_content_html IS NOT NULL
                   AND created_at < ?
                   AND read = TRUE
-                  AND saved_at IS NULL
                 """, Timestamp.from(cutoff));
     }
 }
