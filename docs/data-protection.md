@@ -141,7 +141,7 @@ Both are cleared on logout and on account deletion.
 | Access (Art. 15) | **Settings → Your data → Download my data.** Self-service JSON, no request to handle. |
 | Portability (Art. 20) | The same file: structured, machine-readable, in a common format. |
 | Erasure (Art. 17) | **Settings → Delete account.** Cascades through feeds, articles, delivery history, tokens, display preferences, send limits and subscription; empties stored payment payloads; clears the display and edition cookies. The one thing that survives is a payment or cancellation record, unlinked from the account, where law requires it to be kept. |
-| Rectification (Art. 16) | Kindle address and display settings in Settings; anything else by writing to the address on `/imprint`. |
+| Rectification (Art. 16) | Kindle address and reading preference in Settings; anything else by writing to the address on `/imprint`. |
 | Restriction and objection (Art. 18, 21) | By writing. The only Art. 6(1)(f) processing is abuse prevention and aggregate telemetry. |
 | Withdrawal of consent (Art. 7(3)) | No processing here relies on consent, so there is none to withdraw. |
 | Complaint (Art. 77) | To the supervisory authority where the reader lives. |
