@@ -13,8 +13,9 @@ Multi-user RSS/Atom reader that extracts readable article HTML and emails EPUB f
   subscribe any newsletter to it and issues show up as articles, sent to Kindle
   the same way as any other
 - Optional quick-start feed suggestions and categories for organizing subscriptions
-- Scheduled refresh every 30 minutes, plus manual refresh, asking each feed for
-  more than the handful of entries it publishes by default
+- Scheduled refresh of every account's feeds every 30 minutes, plus a background
+  poll when someone opens Feeds or Articles, asking each feed for more than the
+  handful of entries it publishes by default
 - Article extraction (Readability4J) with sanitized HTML caching
 - Page-at-a-time reading sized to the device screen, instead of scrolling
 - Send-to-Kindle as EPUB 3 through one shared, provider-verified sender

@@ -69,6 +69,7 @@ public class AppController {
                        @RequestParam(value = "category", required = false) String category,
                        Model model) {
         long userId = currentUser.requireId();
+        feedService.refreshForUserSoon(userId);
         List<Feed> feeds = feedService.listFeeds(userId);
         long totalUnread = feeds.stream().mapToLong(Feed::unreadCount).sum();
         model.addAttribute("feeds", feeds);
@@ -295,6 +296,7 @@ public class AppController {
                         @RequestParam(value = "page", defaultValue = "1") int page,
                         Model model) {
         long userId = currentUser.requireId();
+        feedService.refreshForUserSoon(userId);
         if (feedId != null && feedService.findById(userId, feedId).isEmpty()) {
             throw new ArticleService.NotFoundException("Feed not found");
         }

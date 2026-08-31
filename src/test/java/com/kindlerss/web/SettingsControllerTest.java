@@ -86,7 +86,9 @@ class SettingsControllerTest {
     void newslettersSectionIsHiddenWhenNotConfigured() throws Exception {
         mockMvc.perform(get("/settings"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(not(containsString("New address"))));
+                .andExpect(content().string(not(containsString("New address"))))
+                .andExpect(content().string(not(containsString("action=\"/refresh\""))))
+                .andExpect(content().string(not(containsString(">Refresh</button>"))));
         verify(userService, never()).ensureNewsletterInboundToken(UID);
     }
 
