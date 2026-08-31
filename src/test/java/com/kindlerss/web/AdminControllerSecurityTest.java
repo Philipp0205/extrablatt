@@ -6,6 +6,7 @@ import com.kindlerss.security.RateLimiter;
 import com.kindlerss.security.RateLimitingFilter;
 import com.kindlerss.service.AdminTelemetryService;
 import com.kindlerss.service.EntitlementService;
+import com.kindlerss.service.UserService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -42,6 +43,9 @@ class AdminControllerSecurityTest {
 
     @MockitoBean
     CurrentUser currentUser;
+
+    @MockitoBean
+    UserService userService;
 
     @Test
     @WithMockUser(roles = "USER")

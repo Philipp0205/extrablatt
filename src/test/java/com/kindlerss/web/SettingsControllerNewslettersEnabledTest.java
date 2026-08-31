@@ -113,7 +113,7 @@ class SettingsControllerNewslettersEnabledTest {
 
         mockMvc.perform(post("/settings/newsletter-address/regenerate").with(csrf()))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/settings?view=kindle"))
+                .andExpect(redirectedUrl("/settings#kindle"))
                 .andExpect(flash().attribute("message", containsString("freshtoken@news.example.com")));
         verify(userService).regenerateNewsletterInboundToken(UID);
     }

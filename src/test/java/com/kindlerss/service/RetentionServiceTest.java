@@ -27,7 +27,7 @@ class RetentionServiceTest {
 
     private RetentionService service(AppProperties.Retention policy) {
         AppProperties properties = new AppProperties("from@example.com", null, null, null, null,
-                null, null, null, null, null, null, policy);
+                null, null, null, null, null, policy);
         return new RetentionService(retention, properties);
     }
 

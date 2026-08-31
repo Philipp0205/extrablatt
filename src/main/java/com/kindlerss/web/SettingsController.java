@@ -9,13 +9,11 @@ import com.kindlerss.security.CurrentUser;
 import com.kindlerss.service.AdminTelemetryService;
 import com.kindlerss.service.ArticleService;
 import com.kindlerss.service.DataExportService;
-import com.kindlerss.service.DisplayPreferencesService;
 import com.kindlerss.service.EntitlementService;
 import com.kindlerss.service.Money;
 import com.kindlerss.service.RetentionService;
 import com.kindlerss.service.SubscriptionService;
 import com.kindlerss.service.UserService;
-import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.HttpHeaders;
@@ -68,8 +66,7 @@ public class SettingsController {
     }
 
     @GetMapping("/settings")
-    public String settings(@RequestParam(value = "view", defaultValue = "accounts") String view,
-                           Model model) {
+    public String settings(Model model) {
         long userId = currentUser.requireId();
         AppUser user = userService.findById(userId)
                 .orElseThrow(() -> new IllegalStateException("Account not found"));
@@ -91,13 +88,6 @@ public class SettingsController {
         addSubscriptionAttributes(model, userId, entitlement);
         boolean admin = currentUser.details().map(AppUserDetails::admin).orElse(false);
         model.addAttribute("retention", properties.retention());
-        String activeView = switch (view) {
-            case "kindle", "accessibility", "version", "support", "delete", "data" -> view;
-            case "subscription" -> properties.billing().enabled() ? view : "accounts";
-            case "telemetry" -> admin ? view : "accounts";
-            default -> "accounts";
-        };
-        model.addAttribute("activeView", activeView);
         if (admin) {
             model.addAttribute("summary", telemetryService.summary());
             model.addAttribute("users", telemetryService.users());
@@ -153,19 +143,34 @@ public class SettingsController {
         } catch (IllegalArgumentException e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
         }
-        return "redirect:/settings?view=kindle";
+        return "redirect:/settings#kindle";
+    }
+
+    @PostMapping("/settings/reading")
+    public String updateReading(@RequestParam(value = "markReadOnNextPage", required = false) String markReadOnNextPage,
+                                RedirectAttributes redirectAttributes) {
+        userService.updateMarkReadOnNextPage(currentUser.requireId(), markReadOnNextPage != null);
+        redirectAttributes.addFlashAttribute("message", "Reading preference saved");
+        return "redirect:/settings#reading";
+    }
+
+    @PostMapping("/settings/changelog/ack")
+    public String acknowledgeChangelog(@RequestParam(value = "redirect", defaultValue = "/") String redirect) {
+        ChangelogCatalog.instance().latestId()
+                .ifPresent(id -> userService.acknowledgeChangelog(currentUser.requireId(), id));
+        return "redirect:" + AppController.safeRedirect(redirect);
     }
 
     @PostMapping("/settings/newsletter-address/regenerate")
     public String regenerateNewsletterAddress(RedirectAttributes redirectAttributes) {
         if (!properties.newsletters().enabled()) {
             redirectAttributes.addFlashAttribute("error", "Newsletters are not configured on this server");
-            return "redirect:/settings?view=kindle";
+            return "redirect:/settings#kindle";
         }
         String token = userService.regenerateNewsletterInboundToken(currentUser.requireId());
         redirectAttributes.addFlashAttribute("message",
                 "New newsletter address: " + token + "@" + properties.newsletters().inboundDomain());
-        return "redirect:/settings?view=kindle";
+        return "redirect:/settings#kindle";
     }
 
     /**
@@ -190,20 +195,11 @@ public class SettingsController {
         // there is still a user id to find them by.
         retentionService.eraseForUser(userId);
         userService.deleteAccount(userId);
+        // Logout clears both cookies the app sets — the session and remember-me — so
+        // nothing of this account's is left in the browser. There is no display or
+        // edition cookie to clear any more; those went with the accessibility edition.
         new SecurityContextLogoutHandler().logout(request, response,
                 SecurityContextHolder.getContext().getAuthentication());
-        // Logout clears the session and remember-me cookies; the display and edition
-        // cookies are this account's choices too and have no reason to outlive it.
-        expire(request, response, DisplayPreferencesService.COOKIE);
-        expire(request, response, EditionResolver.COOKIE);
         return "redirect:/login?deleted";
-    }
-
-    private static void expire(HttpServletRequest request, HttpServletResponse response, String name) {
-        Cookie cookie = new Cookie(name, "");
-        String contextPath = request.getContextPath();
-        cookie.setPath(contextPath == null || contextPath.isBlank() ? "/" : contextPath);
-        cookie.setMaxAge(0);
-        response.addCookie(cookie);
     }
 }

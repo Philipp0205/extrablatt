@@ -35,7 +35,7 @@ class EntitlementServiceTest {
                 "https://pay/monthly", "https://pay/yearly", null, null, null,
                 null, null, null, null, null);
         AppProperties properties = new AppProperties("from@example.com", null, null, null, null,
-                null, new AppProperties.Limits(50, 50), null, null, null, billing, null);
+                null, new AppProperties.Limits(50, 50), null, null, billing, null);
         return new EntitlementService(subscriptions, sendLimits, properties);
     }
 

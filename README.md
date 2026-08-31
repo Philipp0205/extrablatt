@@ -13,8 +13,9 @@ Multi-user RSS/Atom reader that extracts readable article HTML and emails EPUB f
   subscribe any newsletter to it and issues show up as articles, sent to Kindle
   the same way as any other
 - Optional quick-start feed suggestions and categories for organizing subscriptions
-- Scheduled refresh every 30 minutes, plus manual refresh, asking each feed for
-  more than the handful of entries it publishes by default
+- Scheduled refresh of every account's feeds every 30 minutes, plus a background
+  poll when someone opens Feeds or Articles, asking each feed for more than the
+  handful of entries it publishes by default
 - Article extraction (Readability4J) with sanitized HTML caching
 - Page-at-a-time reading sized to the device screen, instead of scrolling
 - Send-to-Kindle as EPUB 3 through one shared, provider-verified sender
@@ -26,10 +27,9 @@ Multi-user RSS/Atom reader that extracts readable article HTML and emails EPUB f
   nobody (see [Subscriptions](#subscriptions-optional))
 - Optional "help keep the servers running" reminder every 10th article sent,
   plus a permanent donation link in Settings — the app stays ad-free either way
-- A second, accessibility-first edition on its own subdomain for blind and
-  low-vision readers: subjects instead of feed URLs, large high-contrast type,
-  an article's own headings and bullet points before its full text, read-aloud,
-  and saved articles (see [Accessibility edition](#accessibility-edition))
+
+Need large type, topics instead of feed URLs, and read-aloud? That lives in the
+sibling app **[Klarblatt](https://github.com/Philipp0205/klarblatt)**.
 
 ## Requirements
 
@@ -88,14 +88,16 @@ Tests do not require PostgreSQL or Docker. They cover EPUB layout, HTML sanitiza
 
 ## Using the app
 
-1. **Add a feed** on the home page (direct feed URL or site homepage).
+1. Open **Add feed** beside the Feeds heading (direct feed URL or site homepage).
    You do not need to hunt down an XML URL: open the Extrablatt website on your
    phone, paste the normal website address, and feed autodiscovery will usually
    find its RSS/Atom feed. The optional **Quick start** checkboxes can populate a
-   new reader without typing URLs; no suggested feed is added unless you select it.
-   Give a feed a category while adding it, or change its category later. A
-   category heading on the Feeds page can also be renamed in place, which moves
-   every feed in it to the new name at once.
+   new reader without typing URLs; they disappear after the first subscription,
+   and no suggested feed is added unless you select it.
+   Give a feed a category while adding it, or change its category later. The
+   Feeds page first shows one compact row per category with feed and unread
+   counts; choose a category to see and manage only its feeds. A category can
+   also be renamed there, which moves every feed in it to the new name at once.
 2. **Send a URL** from **Feeds**: paste any article address. The page is fetched,
    stripped to readable HTML, saved under a **Pasted URLs** feed, and emailed to
    your Kindle as an EPUB.
@@ -109,6 +111,9 @@ Tests do not require PostgreSQL or Docker. They cover EPUB layout, HTML sanitiza
 6. **Send to Kindle** builds an EPUB and emails it; `sent_at` is recorded only after SMTP succeeds.
    With JavaScript available it sends in place, without reloading or moving the
    current page; the normal form submission remains as a no-JavaScript fallback.
+   Less common article actions — opening the original, comments, image controls,
+   and marking unread — are available under **More** so the reading toolbar stays
+   on one row on small e-readers.
 
 ### How much gets loaded
 
@@ -123,8 +128,8 @@ already says how many it wants (`?count=`, `?limit=`, `?n=`) is left alone, and
 
 Nothing is thrown away afterwards, so a feed keeps growing past what it
 publishes at any one moment. `ARTICLE_PAGE_SIZE` (50, at most 100) sets how many
-of those articles one page of the list holds; **Older articles** loads the next
-ones.
+of those articles one page of the list holds; **Next page** at the end of a
+Kindle screen loads the next ones.
 
 ## Reading a page at a time
 
@@ -136,12 +141,14 @@ article list are therefore laid out as whole pages:
 - **Previous page** / **Next page** sit under the text. Tapping the left quarter of
   the page goes back, tapping anywhere else goes forward, and the arrow, space and
   page keys work on a keyboard.
-- In the article list, **Next page** on the last page marks the articles you paged
-  past as read and loads the next ones, so a list can be cleared by reading through
-  it instead of marking every article by hand. The button says **Mark read** when
-  that is what it will do, and the next page reports how many were marked.
-  *Older articles* at the end of the list moves on without marking anything, and
-  an article that was opened by mistake takes **Mark unread** on its own page.
+- In the article list, **Next page** on the last page loads the next articles.
+  With **Mark articles as read when I go to the next page** on in Settings
+  (the default), that also marks the articles you paged past as read, so a list
+  can be cleared by reading through it instead of marking every article by hand.
+  The button says **Mark read** when that is what it will do, and the next page
+  reports how many were marked. Turn the setting off and new feed articles arrive
+  already read, so a refresh does not fill Unread with a backlog. An article that
+  was opened by mistake takes **Mark unread** on its own page.
 - Your position is remembered per article, so sending to Kindle or marking an
   article unread returns you to the page you were on.
 - Rotating the device or changing the browser font re-splits the pages and keeps
@@ -323,6 +330,31 @@ Flyway runs the schema migrations automatically on first boot. Rely on Railway's
 managed Postgres backups. Any SMTP provider (Postmark, SES, …) works by changing
 the `SMTP_*` / `MAIL_FROM` variables — no code change.
 
+### Production vs staging
+
+This repo's Railway project has two environments:
+
+| | Production | Staging |
+|---|---|---|
+| GitHub branch | `main` | `staging` |
+| App URL | https://reader.extrablatt.app | https://staging.extrablatt.app |
+| Database | live Postgres | **copy** of production (own instance) |
+| How it deploys | Railway GitHub trigger on `main` | Railway GitHub trigger on `staging`, plus `.github/workflows/deploy-railway.yml` |
+
+Merge (or push) to `staging` to ship a build you can try before it reaches
+readers. Merge to `main` when that build should go live. Staging has its own
+Postgres so Flyway and feed refresh cannot touch production; `deploy/sync-staging-db.sh`
+(and the **Sync staging database** GitHub Action, daily plus manual) dumps
+production and restores it onto staging.
+
+Staging still uses the production SMTP sender, so Kindle sends and account
+e-mail from that host are real. `APP_PUBLIC_URL` is `https://staging.extrablatt.app`,
+so verification and reset links stay on staging.
+
+To let GitHub Actions talk to Railway, add a repository secret named
+`RAILWAY_TOKEN` (a Railway account or project token). The dashboard trigger
+keeps deploying even without that secret.
+
 The steps above cover the application service. `marketing/` also has its own
 `Dockerfile` (a tiny Caddy container serving the folder on `$PORT`), so it can
 run as a second Railway service in the same project:
@@ -336,58 +368,12 @@ railway domain extrablatt.app --service marketing-site   # reader.extrablatt.app
 Any static file host (GitHub Pages, Cloudflare Pages, Netlify, …) works
 just as well if you'd rather not run it on Railway.
 
-## Accessibility edition
+## Klarblatt
 
-`accessibility.extrablatt.app` is the same application, the same database and the
-same accounts as the reader — served through a different view layer, chosen from
-the request's host name. It exists because the Kindle reader's paged columns and
-compact type are unusable for someone who is blind or losing their sight, and
-because the readers who need one most are the ones least served by every other
-RSS app. The full design note is in
-[`docs/accessibility-edition.md`](docs/accessibility-edition.md).
-
-What it does differently:
-
-- **Subjects, not URLs.** The first page offers ready-made topics — blindness and
-  low vision, clinical trials, eye research, accessibility, health, science, world
-  news, books, good news — each subscribing to a handful of hand-picked sources at
-  once. For anything else, "follow a website" takes `bbc.com`, unadorned, and lets
-  the existing autodiscovery find the feed. A topic is a category, so both editions
-  see the same subscriptions.
-- **Key points first.** An article opens with its own headings, bullet points and
-  quotations, listed before the full text, so it can be followed without reading
-  all of it. Extractive only — every line is the publisher's, nothing generated.
-- **Read aloud.** The browser's own speech synthesis reads the article, marking each
-  block as it goes. No server-side voice, no per-article cost, works offline.
-- **Display settings that belong to the account:** four themes (black with bright
-  accents, black on yellow, black and white, light high-contrast), five text sizes,
-  three line spacings, wider letter spacing, serif or sans. Stored in a cookie so
-  the login page is already readable, and in the database so a second device
-  inherits them. `A−` / `A+` sit in the header of every page.
-- **Saved articles**, independent of read state, shared with the standard edition.
-- Skip links, landmarks, one `h1` per page, labelled fields, live regions, 3rem
-  targets, visible focus. Every action is a plain form post; JavaScript only adds
-  read-aloud and in-place saving.
-- Send-to-Kindle appears only for accounts that have actually set a Kindle address.
-
-Configuration is one variable:
-
-```
-ACCESSIBILITY_DOMAIN=accessibility.extrablatt.app
-```
-
-It is passed to both the app (so it recognises its own host) and Caddy (so it gets
-a certificate). A host named `accessibility.<anything>` is recognised even without
-it, so a deployment that only adds the subdomain still gets the right edition
-there; set it anyway when the edition lives on a differently named host, and set it
-for Caddy either way.
-
-Leave it unset on a deployment without that subdomain and nothing changes for
-anyone; the edition is then reachable through `?display=accessible`, which also
-works on the main host and is remembered in a cookie — worth knowing, since a
-reader who needs it may arrive on the wrong subdomain. Locally,
-`http://localhost:8080/topics?display=accessible` is enough to see it with no DNS
-at all.
+The accessibility-first reader is a separate app and repository:
+**[Klarblatt](https://github.com/Philipp0205/klarblatt)**. Topics instead of feed
+URLs, large high-contrast type, key points before full text, and read-aloud. It
+is deployed on its own, not as a second face of this process.
 
 ## Marketing / landing page
 
@@ -399,13 +385,11 @@ thing to serve it with is a file server, not another JVM process. The bundled
 Caddy container already sits in front of the app, so it serves this folder
 directly as a second site (see `deploy/Caddyfile`); nothing else needs to run.
 
-The production split is three names against one deployment:
+The production split is two names against this deployment:
 
 - `extrablatt.app` (`MARKETING_DOMAIN`) — the static page in `marketing/`.
 - `reader.extrablatt.app` (`DOMAIN`) — the actual application (this repo's Spring
   Boot service).
-- `accessibility.extrablatt.app` (`ACCESSIBILITY_DOMAIN`) — the same service again,
-  serving its accessibility-first edition.
 
 To update the landing page's copy or screenshots, edit files under
 `marketing/` and redeploy as usual — `deploy/deploy.sh` syncs the whole repo,
@@ -415,9 +399,8 @@ including this folder, and Caddy serves whatever is on disk with no rebuild.
 
 Point an A/AAAA record at the VPS for `DOMAIN` (the app, e.g.
 `reader.extrablatt.app`) and, if used, for `MARKETING_DOMAIN` (the landing page,
-e.g. `extrablatt.app`) and `ACCESSIBILITY_DOMAIN` (the accessibility edition,
-e.g. `accessibility.extrablatt.app`). Caddy obtains certificates for all of them
-automatically when ports 80/443 are reachable.
+e.g. `extrablatt.app`). Caddy obtains certificates for them automatically when
+ports 80/443 are reachable.
 
 ## Build / run with Docker
 
@@ -473,9 +456,7 @@ runs its own proxy. If the server holds the only copy of `.env`, point
 Set `DOMAIN` to the app's subdomain (e.g. `reader.extrablatt.app`) and, to also
 serve the landing page from the same bundled Caddy container, `MARKETING_DOMAIN`
 to the bare domain (e.g. `extrablatt.app`) in `.env`. Leave `MARKETING_DOMAIN`
-unset to run the app on its own, with no landing page. `ACCESSIBILITY_DOMAIN`
-(e.g. `accessibility.extrablatt.app`) adds the accessibility edition as a third
-site block in front of the same app container.
+unset to run the app on its own, with no landing page.
 
 Never commit `.env`, private keys, or `VPS_SSH_KEY_B64`.
 

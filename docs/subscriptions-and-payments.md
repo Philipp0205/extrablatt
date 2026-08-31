@@ -104,7 +104,6 @@ sentence a reader can hold in their head:
 | Feeds | 15 | 50 |
 | Newsletter inbox | — | yes |
 | Reading, categories, saved articles, paged reader | yes | yes |
-| Accessibility edition | yes | yes |
 
 Five sends a month is about **€0.004 of e-mail a month** to serve — a Resend Pro plan's
 50,000 messages would cover ten thousand free readers. So the free plan costs
@@ -115,13 +114,9 @@ The daily cap stays in force for everyone, subscribers included. It is an abuse
 guardrail rather than a plan limit — the thing that stops one account emptying the
 e-mail budget in an afternoon — which is why the paid plan has one at all.
 
-The accessibility edition stays free in full: it exists because the readers who need it
-are the ones least served by everything else, and the audience is small enough that it
-changes no number above.
-
 Every account that existed before charging began is **grandfathered permanently**.
 The marketing page promised "no ads, no subscriptions, nothing to sell"; that
-promise was made to those people. `V9__subscriptions.sql` writes them all in as
+promise was made to those people. `V12__subscriptions.sql` writes them all in as
 `GRANDFATHERED` with no end date.
 
 ### How many subscribers cover hosting
@@ -461,7 +456,7 @@ self-hosted copy is unaffected, because it is not the one collecting the money.
 
 ### Data
 
-`V9__subscriptions.sql` adds three tables:
+`V12__subscriptions.sql` adds three tables:
 
 - `subscriptions` — one row per account: plan, status, interval, provider ids,
   `current_period_end`, `cancel_at_period_end`, `withdrawal_consent_at`. A missing

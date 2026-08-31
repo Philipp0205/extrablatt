@@ -97,6 +97,7 @@ class AppControllerSecurityTest {
                 Instant.now(), null, Instant.now(), Instant.now());
         when(currentUser.requireId()).thenReturn(UID);
         when(currentUser.details()).thenReturn(Optional.of(new AppUserDetails(user)));
+        when(userService.markReadOnNextPage(UID)).thenReturn(true);
     }
 
     @Test
@@ -218,7 +219,31 @@ class AppControllerSecurityTest {
         when(feedService.listFeeds(UID)).thenReturn(List.of());
         mockMvc.perform(get("/"))
                 .andExpect(status().isOk())
-                .andExpect(view().name("index"));
+                .andExpect(view().name("index"))
+                .andExpect(content().string(not(containsString("action=\"/refresh\""))))
+                .andExpect(content().string(not(containsString(">Refresh</button>"))));
+        verify(feedService).refreshForUserSoon(UID);
+    }
+
+    @Test
+    @WithMockUser
+    void homeShowsWhatsNewUntilTheLatestReleaseIsAcknowledged() throws Exception {
+        when(feedService.listFeeds(UID)).thenReturn(List.of());
+        when(userService.findById(UID)).thenReturn(Optional.of(new AppUser(UID, "user@example.com",
+                "hash", "reader@kindle.com", Instant.now(), null, Instant.now(), Instant.now())));
+
+        mockMvc.perform(get("/"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("id=\"whats-new-dialog\"")))
+                .andExpect(content().string(containsString("What's new")));
+
+        String latest = ChangelogCatalog.instance().latestId().orElseThrow();
+        when(userService.findById(UID)).thenReturn(Optional.of(new AppUser(UID, "user@example.com",
+                "hash", "reader@kindle.com", Instant.now(), null, Instant.now(), Instant.now(),
+                null, true, latest)));
+        mockMvc.perform(get("/"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(not(containsString("id=\"whats-new-dialog\""))));
     }
 
     @Test
@@ -230,23 +255,32 @@ class AppControllerSecurityTest {
 
         // Suggested feeds are only offered before anything has been subscribed.
         when(feedService.listFeeds(UID)).thenReturn(List.of());
-        mockMvc.perform(get("/").param("view", "free-test"))
+        mockMvc.perform(get("/"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("Quick start")))
-                .andExpect(content().string(containsString("value=\"hacker-news\"")));
+                .andExpect(content().string(containsString("value=\"hacker-news\"")))
+                .andExpect(content().string(containsString("<summary>Add feed</summary>")))
+                .andExpect(content().string(not(containsString("aria-label=\"Feed views\""))));
 
         when(feedService.listFeeds(UID)).thenReturn(List.of(
                 new Feed(5L, "Android", "https://example.com/feed", "https://example.com",
                         "Technology", null, null, null)));
+        // Level one shows one compact category row, not every feed.
         mockMvc.perform(get("/").param("view", "free-test"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(not(containsString("Quick start"))))
-                .andExpect(content().string(containsString("Your test is complete")));
+                .andExpect(content().string(not(containsString("Your test is complete"))))
+                .andExpect(content().string(containsString("href=\"/?category=Technology\"")))
+                .andExpect(content().string(containsString("1 feed · 0 unread")))
+                .andExpect(content().string(not(containsString(">Android</a>"))));
 
+        // Level two shows only the feeds in the selected category and a way back.
         mockMvc.perform(get("/").param("category", "Technology"))
                 .andExpect(status().isOk())
+                .andExpect(content().string(containsString("href=\"/\">← All categories</a>")))
                 .andExpect(content().string(containsString("action=\"/feeds/5/category\"")))
-                .andExpect(content().string(containsString(">Technology</h3>")));
+                .andExpect(content().string(containsString(">Technology</h1>")))
+                .andExpect(content().string(containsString(">Android</a>")));
     }
 
     @Test
@@ -283,7 +317,10 @@ class AppControllerSecurityTest {
         when(feedService.listFeeds(UID)).thenReturn(List.of());
         mockMvc.perform(get("/items").param("unread", "false"))
                 .andExpect(status().isOk())
-                .andExpect(view().name("items"));
+                .andExpect(view().name("items"))
+                .andExpect(content().string(not(containsString("action=\"/refresh\""))))
+                .andExpect(content().string(not(containsString(">Refresh</button>"))));
+        verify(feedService).refreshForUserSoon(UID);
     }
 
     @Test
@@ -394,12 +431,15 @@ class AppControllerSecurityTest {
                 .andExpect(content().string(containsString("data-reader-prev")))
                 .andExpect(content().string(containsString("data-reader-next")))
                 .andExpect(content().string(containsString("/js/reader.js")))
-                .andExpect(content().string(containsString("<button class=\"btn\" type=\"submit\">Send to Kindle</button>")));
+                .andExpect(content().string(containsString("<button class=\"btn\" type=\"submit\">Send to Kindle</button>")))
+                .andExpect(content().string(containsString("<details class=\"action-menu\" data-reader-refit>")))
+                .andExpect(content().string(containsString("<summary class=\"btn\">More</summary>")))
+                .andExpect(content().string(containsString(">Mark unread</button>")));
     }
 
     @Test
     @WithMockUser
-    void itemsPageOffersBothMarkingAndPlainForwardNavigation() throws Exception {
+    void itemsPageHasNoOlderArticlesSkipHatch() throws Exception {
         List<Article> articles = new ArrayList<>();
         for (int i = 1; i <= 20; i++) {
             articles.add(new Article((long) i, 1L, "guid-" + i, "Article " + i, null, null,
@@ -413,7 +453,8 @@ class AppControllerSecurityTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("1–20 of 33 articles")))
                 .andExpect(content().string(not(containsString("Mark read &amp; continue"))))
-                .andExpect(content().string(containsString("Older articles")))
+                .andExpect(content().string(not(containsString("Older articles"))))
+                .andExpect(content().string(containsString("data-reader-next-form=\"advance\"")))
                 .andExpect(content().string(not(containsString("data-reader-prev-url"))));
     }
 
@@ -464,11 +505,11 @@ class AppControllerSecurityTest {
 
     @Test
     @WithMockUser
-    void advanceOnAnUnreadListStaysOnTheSamePage() throws Exception {
+    void advanceOnAnUnreadListWithoutASnapshotStaysOnTheSamePage() throws Exception {
         when(articleService.markRead(eq(UID), anyList(), eq(true))).thenReturn(20);
 
-        // The unread list shrinks by the articles just marked, so what comes next
-        // moves into the page that was posted from.
+        // Without a snapshot the unread list shrinks by the articles just marked, so
+        // what comes next moves into the page that was posted from.
         mockMvc.perform(post("/items/advance").with(csrf())
                         .param("page", "2")
                         .param("unread", "true")
@@ -476,6 +517,92 @@ class AppControllerSecurityTest {
                         .param("id", "11", "12"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/items?page=2&feed=5&unread=true#start"));
+    }
+
+    @Test
+    @WithMockUser
+    void advanceOnASnapshotUnreadListMovesToTheNextPage() throws Exception {
+        when(articleService.markRead(eq(UID), anyList(), eq(true))).thenReturn(20);
+        // The list keeps the articles it just marked read — they were read after the
+        // snapshot it was taken from — so what comes next is on the next page.
+        when(articleService.count(eq(UID), isNull(), isNull(), eq(Boolean.TRUE),
+                eq(Instant.ofEpochMilli(100)))).thenReturn(60L);
+
+        mockMvc.perform(post("/items/advance").with(csrf())
+                        .param("page", "1")
+                        .param("unread", "true")
+                        .param("snapshot", "100")
+                        .param("id", "1", "2"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/items?page=2&unread=true&snapshot=100#start"));
+
+        verify(articleService).markRead(UID, List.of(1L, 2L), true);
+    }
+
+    @Test
+    @WithMockUser
+    void advancePastTheLastPageOfAnUnreadListOpensAFreshOne() throws Exception {
+        when(articleService.markRead(eq(UID), anyList(), eq(true))).thenReturn(20);
+        when(articleService.count(eq(UID), eq(5L), isNull(), eq(Boolean.TRUE),
+                eq(Instant.ofEpochMilli(100)))).thenReturn(60L);
+
+        // Read through to the end of the snapshot: the next list is taken fresh, so
+        // that everything just marked read drops out of it.
+        mockMvc.perform(post("/items/advance").with(csrf())
+                        .param("page", "3")
+                        .param("unread", "true")
+                        .param("feed", "5")
+                        .param("snapshot", "100")
+                        .param("id", "41", "42"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/items?page=1&feed=5&unread=true#start"));
+    }
+
+    @Test
+    @WithMockUser
+    void advancePastTheLastPageKeepsTheListWhenNothingIsMarkedRead() throws Exception {
+        when(userService.markReadOnNextPage(UID)).thenReturn(false);
+
+        // Nothing was read, so there is no stale list to leave behind; the last page
+        // is simply where the list ends.
+        mockMvc.perform(post("/items/advance").with(csrf())
+                        .param("page", "3")
+                        .param("unread", "true")
+                        .param("snapshot", "100")
+                        .param("id", "41", "42"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/items?page=4&unread=true&snapshot=100#start"));
+    }
+
+    @Test
+    @WithMockUser
+    void advanceLeavesArticlesUnreadWhenMarkOnNextPageIsOff() throws Exception {
+        when(userService.markReadOnNextPage(UID)).thenReturn(false);
+
+        mockMvc.perform(post("/items/advance").with(csrf())
+                        .param("page", "1")
+                        .param("id", "1", "2", "3"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/items?page=2&unread=false#start"));
+
+        verify(articleService, never()).markRead(eq(UID), anyList(), anyBoolean());
+    }
+
+    @Test
+    @WithMockUser
+    void itemsPageDoesNotSayMarkReadWhenThePreferenceIsOff() throws Exception {
+        when(userService.markReadOnNextPage(UID)).thenReturn(false);
+        when(articleService.findPage(eq(UID), isNull(), isNull(), eq(1), eq(20)))
+                .thenReturn(List.of(new Article(4L, 1L, "guid-4", "Article 4", null, null,
+                        null, null, null, null, false, null, null, null, "Example Feed")));
+        when(articleService.count(eq(UID), isNull(), isNull())).thenReturn(1L);
+        when(feedService.listFeeds(UID)).thenReturn(List.of());
+
+        mockMvc.perform(get("/items").param("unread", "false"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("data-reader-next-form=\"advance\"")))
+                .andExpect(content().string(not(containsString("data-reader-next-end-label=\"Mark read\""))))
+                .andExpect(content().string(not(containsString("Older articles"))));
     }
 
     @Test
@@ -506,6 +633,39 @@ class AppControllerSecurityTest {
                 .andExpect(content().string(not(containsString("Mark these read"))))
                 // Paging marks articles read, so entries carry no read/unread button.
                 .andExpect(content().string(not(containsString("/articles/4/read"))));
+    }
+
+    @Test
+    @WithMockUser
+    void itemsPageCanBePagedForwardWithoutTheReaderScript() throws Exception {
+        when(articleService.findPage(eq(UID), isNull(), isNull(), eq(1), eq(20)))
+                .thenReturn(List.of(new Article(4L, 1L, "guid-4", "Article 4", null, null,
+                        null, null, null, null, false, null, null, null, "Example Feed")));
+        when(articleService.count(eq(UID), isNull(), isNull())).thenReturn(1L);
+        when(feedService.listFeeds(UID)).thenReturn(List.of());
+
+        // Hidden by CSS wherever the pager runs, and the only way forward where it
+        // does not.
+        mockMvc.perform(get("/items").param("unread", "false"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString(
+                        "<button class=\"btn reader-hide-when-paged\" type=\"submit\">Mark read and continue</button>")));
+    }
+
+    @Test
+    @WithMockUser
+    void fallbackForwardControlSaysOnlyWhatItDoesWhenNothingIsMarkedRead() throws Exception {
+        when(userService.markReadOnNextPage(UID)).thenReturn(false);
+        when(articleService.findPage(eq(UID), isNull(), isNull(), eq(1), eq(20)))
+                .thenReturn(List.of(new Article(4L, 1L, "guid-4", "Article 4", null, null,
+                        null, null, null, null, false, null, null, null, "Example Feed")));
+        when(articleService.count(eq(UID), isNull(), isNull())).thenReturn(1L);
+        when(feedService.listFeeds(UID)).thenReturn(List.of());
+
+        mockMvc.perform(get("/items").param("unread", "false"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString(
+                        "<button class=\"btn reader-hide-when-paged\" type=\"submit\">Next articles</button>")));
     }
 
     @Test
@@ -594,6 +754,20 @@ class AppControllerSecurityTest {
 
     @Test
     @WithMockUser
+    void renamingACategoryToTheNameItAlreadyHasSaysSoInsteadOfClaimingItIsEmpty() throws Exception {
+        when(feedService.renameCategory(UID, "Technology", "Technology"))
+                .thenReturn(FeedService.CATEGORY_NAME_UNCHANGED);
+
+        mockMvc.perform(post("/categories/rename").with(csrf())
+                        .param("oldCategory", "Technology")
+                        .param("newCategory", "Technology"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/"))
+                .andExpect(flash().attribute("message", "That is already the name of this category"));
+    }
+
+    @Test
+    @WithMockUser
     void renamingUncategorizedIsRejected() throws Exception {
         when(feedService.renameCategory(UID, "Uncategorized", "Tech"))
                 .thenThrow(new IllegalArgumentException("Choose a category to rename"));
@@ -641,6 +815,13 @@ class AppControllerSecurityTest {
                 .andExpect(content().string(containsString("action=\"/articles/from-url\"")));
 
         mockMvc.perform(get("/").param("view", "add"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(not(containsString("action=\"/articles/from-url\""))));
+
+        when(feedService.listFeeds(UID)).thenReturn(List.of(
+                new Feed(5L, "Android", "https://example.com/feed", "https://example.com",
+                        "Technology", null, null, null)));
+        mockMvc.perform(get("/").param("category", "Technology"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(not(containsString("action=\"/articles/from-url\""))));
     }

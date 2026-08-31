@@ -401,6 +401,14 @@
     }, 250);
   }
 
+  /* Expanding the article's secondary actions changes the top of the reader
+     without changing the viewport. Refit immediately so the last text line and
+     pager remain on screen. */
+  function onReaderChromeToggle() {
+    var progress = paged && pageCount > 1 ? page / (pageCount - 1) : 0;
+    layout(function () { return Math.round(progress * (pageCount - 1)); });
+  }
+
   /*
    * The server marks every Nth lifetime send with donationPrompt: true. The
    * no-JavaScript path already renders #donation-dialog open on the next full
@@ -515,6 +523,10 @@
       on(window.visualViewport, 'resize', onResize);
     }
     on(window, 'orientationchange', onResize);
+    var refittingDetails = document.querySelectorAll('[data-reader-refit]');
+    for (var i = 0; i < refittingDetails.length; i++) {
+      on(refittingDetails[i], 'toggle', onReaderChromeToggle);
+    }
 
     layout(function () {
       return window.location.hash === '#end' ? pageCount - 1 : storedPosition();

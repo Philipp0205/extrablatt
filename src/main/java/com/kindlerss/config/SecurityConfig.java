@@ -35,14 +35,7 @@ public class SecurityConfig {
             // § 312k BGB requires the cancellation path to be permanently available
             // and not to sit behind account credentials, so it is public on purpose.
             // CSRF still applies; the form carries a token like every other.
-            "/cancel",
-            // Plain-language help for the accessible edition. Someone who cannot work
-            // out how to sign up needs to be able to read it before they have an account.
-            "/help",
-            // Display preferences live in a cookie so the login form (and help) already
-            // arrive in the reader's own colours and type size. These endpoints only
-            // write that cookie; they never touch account data. CSRF still applies.
-            "/display", "/display/**"
+            "/cancel"
     };
 
     /** Session attribute holding the e-mail from a failed login, so the form can keep it. */

@@ -37,10 +37,6 @@ public class DataExportRepository {
                 """, userId);
     }
 
-    public Map<String, Object> displayPreferences(long userId) {
-        return single("SELECT settings, updated_at FROM display_preferences WHERE user_id = ?", userId);
-    }
-
     public Map<String, Object> subscription(long userId) {
         return single("""
                 SELECT plan, status, billing_interval, provider, provider_customer_id,

@@ -18,8 +18,6 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
-import jakarta.servlet.http.HttpServletRequest;
-
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -71,6 +69,7 @@ public class AppController {
                        @RequestParam(value = "category", required = false) String category,
                        Model model) {
         long userId = currentUser.requireId();
+        feedService.refreshForUserSoon(userId);
         List<Feed> feeds = feedService.listFeeds(userId);
         long totalUnread = feeds.stream().mapToLong(Feed::unreadCount).sum();
         model.addAttribute("feeds", feeds);
@@ -78,7 +77,14 @@ public class AppController {
         for (Feed feed : feeds) {
             feedGroups.computeIfAbsent(feed.categoryName(), ignored -> new ArrayList<>()).add(feed);
         }
-        model.addAttribute("feedGroups", feedGroups);
+        List<FeedCategorySummary> feedCategories = feedGroups.entrySet().stream()
+                .map(entry -> new FeedCategorySummary(
+                        entry.getKey(),
+                        entry.getValue().size(),
+                        entry.getValue().stream().mapToLong(Feed::unreadCount).sum()))
+                .sorted(Comparator.comparing(FeedCategorySummary::name, CATEGORY_ORDER))
+                .toList();
+        model.addAttribute("feedCategories", feedCategories);
         List<String> categories = existingCategories(feeds);
         model.addAttribute("categories", categories);
         model.addAttribute("defaultFeeds", feedService.defaultFeeds(userId));
@@ -90,11 +96,17 @@ public class AppController {
         }
         String activeView = selectedCategory != null ? "category"
                 : switch (view) {
-                    case "add", "free-test" -> view;
+                    case "add" -> view;
                     default -> "feeds";
                 };
         model.addAttribute("activeView", activeView);
         model.addAttribute("selectedCategory", selectedCategory);
+        List<Feed> selectedFeeds = selectedCategory == null
+                ? List.of()
+                : feedGroups.getOrDefault(selectedCategory, List.of());
+        model.addAttribute("selectedFeeds", selectedFeeds);
+        model.addAttribute("selectedUnread",
+                selectedFeeds.stream().mapToLong(Feed::unreadCount).sum());
         model.addAttribute("kindleConfigured", isKindleConfigured(userId));
         model.addAttribute("mailFrom", mailFrom);
         boolean newslettersEnabled = properties.newsletters().enabled();
@@ -104,6 +116,9 @@ public class AppController {
             model.addAttribute("newsletterAddress", token + "@" + properties.newsletters().inboundDomain());
         }
         return "index";
+    }
+
+    record FeedCategorySummary(String name, int feedCount, long unreadCount) {
     }
 
     /** The distinct categories already in use, so they can fill a category drop-down. */
@@ -179,21 +194,16 @@ public class AppController {
     @PostMapping("/articles/from-url")
     public String sendFromUrl(@RequestParam("url") String url,
                               @RequestParam(value = "images", defaultValue = "false") boolean images,
-                              HttpServletRequest request,
                               RedirectAttributes redirectAttributes) {
-        boolean accessible = EditionInterceptor.isAccessible(request);
-        String failureTarget = accessible ? "/topics" : "/";
         Article article;
         try {
             article = articleService.importFromUrl(currentUser.requireId(), url);
         } catch (Exception e) {
             redirectAttributes.addFlashAttribute("error",
                     e.getMessage() == null ? "That page could not be sent" : e.getMessage());
-            return "redirect:" + failureTarget;
+            return "redirect:/";
         }
-        String successTarget = accessible
-                ? "/read/" + article.id()
-                : "/articles/" + article.id() + (images ? "?images=true" : "");
+        String successTarget = "/articles/" + article.id() + (images ? "?images=true" : "");
         try {
             boolean donationPrompt = kindleMailService.sendToKindle(
                     currentUser.requireId(), article.id(), images);
@@ -211,13 +221,14 @@ public class AppController {
     public String categorizeFeed(@PathVariable("id") long id,
                                  @RequestParam(value = "category", required = false) String category,
                                  @RequestParam(value = "newCategory", required = false) String newCategory,
+                                 @RequestParam(value = "redirect", defaultValue = "/") String redirect,
                                  RedirectAttributes redirectAttributes) {
         if (feedService.categorizeFeed(currentUser.requireId(), id, resolveCategory(category, newCategory))) {
             redirectAttributes.addFlashAttribute("message", "Feed category updated");
         } else {
             redirectAttributes.addFlashAttribute("error", "Feed not found");
         }
-        return "redirect:/";
+        return "redirect:" + safeRedirect(redirect);
     }
 
     /**
@@ -240,26 +251,38 @@ public class AppController {
     @PostMapping("/categories/rename")
     public String renameCategory(@RequestParam("oldCategory") String oldCategory,
                                  @RequestParam("newCategory") String newCategory,
+                                 @RequestParam(value = "redirect", defaultValue = "/") String redirect,
                                  RedirectAttributes redirectAttributes) {
         try {
             int updated = feedService.renameCategory(currentUser.requireId(), oldCategory, newCategory);
-            redirectAttributes.addFlashAttribute("message", updated == 0
-                    ? "No feeds found in that category"
-                    : "Renamed category for " + updated + (updated == 1 ? " feed" : " feeds"));
+            redirectAttributes.addFlashAttribute("message", renameResult(updated));
         } catch (IllegalArgumentException e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
         }
-        return "redirect:/";
+        return "redirect:" + safeRedirect(redirect);
+    }
+
+    /** What a rename did, told from the number of feeds it moved. */
+    static String renameResult(int updatedFeeds) {
+        if (updatedFeeds == FeedService.CATEGORY_NAME_UNCHANGED) {
+            return "That is already the name of this category";
+        }
+        if (updatedFeeds == 0) {
+            return "No feeds found in that category";
+        }
+        return "Renamed category for " + updatedFeeds + (updatedFeeds == 1 ? " feed" : " feeds");
     }
 
     @PostMapping("/feeds/{id}/delete")
-    public String deleteFeed(@PathVariable("id") long id, RedirectAttributes redirectAttributes) {
+    public String deleteFeed(@PathVariable("id") long id,
+                             @RequestParam(value = "redirect", defaultValue = "/") String redirect,
+                             RedirectAttributes redirectAttributes) {
         if (!feedService.deleteFeed(currentUser.requireId(), id)) {
             redirectAttributes.addFlashAttribute("error", "Feed not found");
         } else {
             redirectAttributes.addFlashAttribute("message", "Feed deleted");
         }
-        return "redirect:/";
+        return "redirect:" + safeRedirect(redirect);
     }
 
     @PostMapping("/refresh")
@@ -282,6 +305,7 @@ public class AppController {
                         @RequestParam(value = "page", defaultValue = "1") int page,
                         Model model) {
         long userId = currentUser.requireId();
+        feedService.refreshForUserSoon(userId);
         if (feedId != null && feedService.findById(userId, feedId).isEmpty()) {
             throw new ArticleService.NotFoundException("Feed not found");
         }
@@ -293,12 +317,13 @@ public class AppController {
         }
         Instant unreadSnapshot = unreadByDefault && snapshot != null
                 ? Instant.ofEpochMilli(Math.min(snapshot, System.currentTimeMillis())) : null;
+        boolean markReadOnNextPage = userService.markReadOnNextPage(userId);
         long total = category == null && unreadSnapshot == null
                 ? articleService.count(userId, feedId, unreadOnly)
                 : articleService.count(userId, feedId, category, unreadOnly, unreadSnapshot);
-        int totalPages = (int) Math.max(1, (total + pageSize - 1) / pageSize);
-        // Marking a page read shrinks an unread list, so a page number can end up
-        // past the end; show the last page rather than an empty one.
+        int totalPages = totalPages(total);
+        // A page number can point past the end — a link kept from a list that has
+        // since lost articles; show the last page rather than an empty one.
         int safePage = Math.min(Math.max(page, 1), totalPages);
         List<Article> articles = category == null && unreadSnapshot == null
                 ? articleService.findPage(userId, feedId, unreadOnly, safePage, pageSize)
@@ -318,6 +343,7 @@ public class AppController {
                 itemsPath(feedId, category, unreadByDefault, safePage, snapshot));
         model.addAttribute("firstIndex", articles.isEmpty() ? 0 : (long) (safePage - 1) * pageSize + 1);
         model.addAttribute("lastIndex", (long) (safePage - 1) * pageSize + articles.size());
+        model.addAttribute("markReadOnNextPage", markReadOnNextPage);
         return "items";
     }
 
@@ -400,12 +426,16 @@ public class AppController {
     public record FilterChip(String label, String href, boolean active) {}
 
     /**
-     * Marks the articles of the current list page read and moves on, so a list can be
-     * worked through by paging instead of marking every article by hand.
+     * Posts the current list page and moves on. When the account marks articles
+     * read on the next page, the posted ids are marked first; either way the list
+     * then moves forward by one page.
      *
-     * <p>An unread list shrinks by exactly the articles that were just marked, which
-     * shifts the following ones into the page that was posted from — so that page,
-     * not the next one, holds what comes next.
+     * <p>An unread list is taken from a snapshot, and keeps the articles that were
+     * read after that snapshot was taken — including the ones just marked. It
+     * therefore does not shrink under the reader, and moving on means the next
+     * page. Reading past its last page means the whole list has been read through:
+     * a fresh unread list is opened, which leaves those articles behind and shows
+     * only what is still unread.
      */
     @PostMapping("/items/advance")
     public String advance(@RequestParam(value = "feed", required = false) Long feedId,
@@ -415,16 +445,41 @@ public class AppController {
                           @RequestParam(value = "page", defaultValue = "1") int page,
                           @RequestParam(value = "id", required = false) List<Long> ids,
                           RedirectAttributes redirectAttributes) {
-        int marked = ids == null || ids.isEmpty() ? 0
-                : articleService.markRead(currentUser.requireId(), ids, true);
-        redirectAttributes.addFlashAttribute("message", marked == 0
-                ? "Nothing left to mark as read"
-                : marked == 1 ? "1 article marked as read" : marked + " articles marked as read");
+        long userId = currentUser.requireId();
+        boolean markReadOnNextPage = userService.markReadOnNextPage(userId);
+        int marked = 0;
+        if (markReadOnNextPage) {
+            marked = ids == null || ids.isEmpty() ? 0
+                    : articleService.markRead(userId, ids, true);
+            redirectAttributes.addFlashAttribute("message", marked == 0
+                    ? "Nothing left to mark as read"
+                    : marked == 1 ? "1 article marked as read" : marked + " articles marked as read");
+        }
 
         boolean unreadOnly = Boolean.TRUE.equals(unread);
+        boolean readThrough = unreadOnly && markReadOnNextPage;
         int current = Math.max(page, 1);
-        return "redirect:" + itemsPath(
-                feedId, category, unreadOnly, unreadOnly ? current : current + 1, snapshot) + "#start";
+        // An unread list with no snapshot to hold the articles just marked read is
+        // the one list that does shrink, and what comes next moves into the page
+        // that was posted from.
+        if (readThrough && snapshot == null) {
+            return "redirect:" + itemsPath(feedId, category, true, current, null) + "#start";
+        }
+        int next = current + 1;
+        if (readThrough && next > unreadPages(userId, feedId, category, snapshot)) {
+            return "redirect:" + itemsPath(feedId, category, true, 1, null) + "#start";
+        }
+        return "redirect:" + itemsPath(feedId, category, unreadOnly, next, snapshot) + "#start";
+    }
+
+    /** Pages the unread list of this snapshot holds, so paging can tell where it ends. */
+    private int unreadPages(long userId, Long feedId, String category, long snapshot) {
+        Instant taken = Instant.ofEpochMilli(Math.min(snapshot, System.currentTimeMillis()));
+        return totalPages(articleService.count(userId, feedId, category, Boolean.TRUE, taken));
+    }
+
+    private int totalPages(long total) {
+        return (int) Math.max(1, (total + pageSize - 1) / pageSize);
     }
 
     static String itemsPath(Long feedId, boolean unread, int page) {
