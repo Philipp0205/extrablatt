@@ -11,6 +11,7 @@ import org.mockito.stubbing.Answer;
 import java.net.URI;
 import java.time.Instant;
 import java.util.Optional;
+import java.util.concurrent.Executor;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -47,10 +48,15 @@ class FeedServiceTest {
     private static final long UID = 7L;
 
     private FeedService service(int maxEntries) {
+        return service(maxEntries, Runnable::run);
+    }
+
+    private FeedService service(int maxEntries, Executor refreshExecutor) {
         AppProperties properties = new AppProperties(
                 "from@example.com", null, "remember-me",
                 null, new AppProperties.Feeds(maxEntries), null, null, null, null);
-        return new FeedService(feedRepository, articleRepository, httpClient, new HtmlSanitizer(), properties);
+        return new FeedService(feedRepository, articleRepository, httpClient, new HtmlSanitizer(),
+                properties, refreshExecutor);
     }
 
     private static Feed feed(String url) {
@@ -239,6 +245,20 @@ class FeedServiceTest {
         service(100).refreshAll();
 
         verify(httpClient, never()).get(anyString());
+    }
+
+    @Test
+    void openingTheReaderPollsThatAccountOnceUntilTheCooldownPasses() {
+        when(feedRepository.findAll(UID)).thenReturn(java.util.List.of(feed("https://example.com/feed")));
+        when(httpClient.get(anyString())).thenAnswer(respondWithFeed());
+        when(articleRepository.existsByFeedIdAndGuid(anyLong(), anyString())).thenReturn(true);
+
+        FeedService service = service(100);
+        service.refreshForUserSoon(UID);
+        service.refreshForUserSoon(UID);
+
+        verify(feedRepository, times(1)).findAll(UID);
+        verify(httpClient, times(1)).get(anyString());
     }
 
     @Test
