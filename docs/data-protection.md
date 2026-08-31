@@ -16,8 +16,10 @@ controller and needs its own version of this.
 | Controller | Kubri by Philipp Kurrle und Ali Abriani KLG, Wehntalerstrasse 17, 8057 Zürich, Switzerland |
 | Register | Handelsregisteramt des Kantons Zürich, CH-020.2.010.172-0, UID CHE-349.063.262 |
 | Contact | The address on `/imprint` |
+| Data protection contact | Philipp Kurrle, Stuttgart, Germany, via the address on `/imprint`. He is a partner with sole signing authority and the person who builds and runs the service. |
 | Data protection officer | None. Art. 37 GDPR does not require one here: no large-scale processing of special categories, no systematic monitoring. |
-| Representative in the EU | See `/imprint`. Whether one is required at all turns on the establishment question set out in `docs/subscriptions-and-payments.md`; where the GDPR applies through Art. 3(1) rather than Art. 3(2), Art. 27 does not apply. |
+| Representative in the EU | Probably not required, pending confirmation. Art. 27 applies only where the GDPR reaches the controller through Art. 3(2). With a managing partner running the service from Stuttgart, Art. 3(1) is the likely route instead, and the EDPB's Guidelines 3/2018 are explicit that a controller caught by Art. 3(1) need not designate a representative. See `docs/going-live.md`, question 3, for how this is being settled and what changes if the answer goes the other way. |
+| Likely lead supervisory authority | LfDI Baden-Württemberg, if Art. 3(1) applies — Stuttgart is in Baden-Württemberg. Worth knowing before a breach, not after. |
 | Transfers out of the EU | To Switzerland, where the service runs. The European Commission renewed Switzerland's adequacy decision on 15 January 2024, so no further safeguard is needed for the transfer itself. |
 
 ## Processing activities
@@ -169,8 +171,8 @@ files are where personal data quietly accumulates with no retention period at al
 Not something code can do. A personal data breach has to be reported to the lead
 supervisory authority within 72 hours of becoming aware of it, and to affected readers
 where the risk to them is high. The practical prerequisite is knowing who to contact
-before it happens: settle the establishment question, because it decides which
-authority is the right one.
+before it happens rather than looking it up at hour 70 — most likely the LfDI
+Baden-Württemberg, which the establishment question confirms.
 
 ## Known gaps
 
