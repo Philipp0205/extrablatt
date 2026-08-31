@@ -118,7 +118,9 @@
          already is when the last line runs out. -->
     <div class="unread-meter" th:if="${total > 0}" data-unread-meter
          th:attr="data-unread-total=${total}, data-unread-left=${unreadLeft}">
-      <span class="unread-meter-track">
+      <!-- The bar draws the count beside it; a reader who cannot see it is told the
+           same thing in words, so the bar itself is not announced twice. -->
+      <span class="unread-meter-track" aria-hidden="true">
         <span class="unread-meter-fill" data-unread-fill
               th:style="'width:' + ${readThroughPercent} + '%'"></span>
       </span>
