@@ -457,23 +457,25 @@ public class AppController {
         }
 
         boolean unreadOnly = Boolean.TRUE.equals(unread);
+        boolean readThrough = unreadOnly && markReadOnNextPage;
         int current = Math.max(page, 1);
-        // A snapshotless unread list is the one case that does shrink by what was
-        // just marked read, so what comes next moves into the page posted from.
-        boolean listShrinks = unreadOnly && snapshot == null && markReadOnNextPage;
-        int next = listShrinks ? current : current + 1;
-        if (unreadOnly && !listShrinks && markReadOnNextPage
-                && next > unreadPages(userId, feedId, category, snapshot)) {
+        // An unread list with no snapshot to hold the articles just marked read is
+        // the one list that does shrink, and what comes next moves into the page
+        // that was posted from.
+        if (readThrough && snapshot == null) {
+            return "redirect:" + itemsPath(feedId, category, true, current, null) + "#start";
+        }
+        int next = current + 1;
+        if (readThrough && next > unreadPages(userId, feedId, category, snapshot)) {
             return "redirect:" + itemsPath(feedId, category, true, 1, null) + "#start";
         }
         return "redirect:" + itemsPath(feedId, category, unreadOnly, next, snapshot) + "#start";
     }
 
     /** Pages the unread list of this snapshot holds, so paging can tell where it ends. */
-    private int unreadPages(long userId, Long feedId, String category, Long snapshot) {
-        Instant unreadSnapshot = snapshot == null ? null
-                : Instant.ofEpochMilli(Math.min(snapshot, System.currentTimeMillis()));
-        return totalPages(articleService.count(userId, feedId, category, Boolean.TRUE, unreadSnapshot));
+    private int unreadPages(long userId, Long feedId, String category, long snapshot) {
+        Instant taken = Instant.ofEpochMilli(Math.min(snapshot, System.currentTimeMillis()));
+        return totalPages(articleService.count(userId, feedId, category, Boolean.TRUE, taken));
     }
 
     private int totalPages(long total) {
