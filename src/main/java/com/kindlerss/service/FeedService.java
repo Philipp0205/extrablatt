@@ -16,6 +16,7 @@ import org.jsoup.nodes.Element;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import jakarta.annotation.PreDestroy;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -77,6 +78,7 @@ public class FeedService {
     /** How long to wait before polling the same account again on a page visit. */
     static final Duration BACKGROUND_REFRESH_COOLDOWN = Duration.ofMinutes(10);
 
+    @Autowired
     public FeedService(FeedRepository feedRepository,
                        ArticleRepository articleRepository,
                        SafeHttpClient httpClient,
