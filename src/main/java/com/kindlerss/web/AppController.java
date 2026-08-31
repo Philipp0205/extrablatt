@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.util.ArrayList;
@@ -321,9 +322,9 @@ public class AppController {
         long total = category == null && unreadSnapshot == null
                 ? articleService.count(userId, feedId, unreadOnly)
                 : articleService.count(userId, feedId, category, unreadOnly, unreadSnapshot);
-        int totalPages = (int) Math.max(1, (total + pageSize - 1) / pageSize);
-        // Marking a page read shrinks an unread list, so a page number can end up
-        // past the end; show the last page rather than an empty one.
+        int totalPages = totalPages(total);
+        // A page number can point past the end — a link kept from a list that has
+        // since lost articles; show the last page rather than an empty one.
         int safePage = Math.min(Math.max(page, 1), totalPages);
         List<Article> articles = category == null && unreadSnapshot == null
                 ? articleService.findPage(userId, feedId, unreadOnly, safePage, pageSize)
@@ -344,7 +345,22 @@ public class AppController {
         model.addAttribute("firstIndex", articles.isEmpty() ? 0 : (long) (safePage - 1) * pageSize + 1);
         model.addAttribute("lastIndex", (long) (safePage - 1) * pageSize + articles.size());
         model.addAttribute("markReadOnNextPage", markReadOnNextPage);
+        // Counted without the snapshot: the snapshot deliberately holds on to the
+        // articles this sitting has already read, and what is left to read is the
+        // one number the reader cannot work out from the list in front of them.
+        long unreadLeft = articleService.count(userId, feedId, category, Boolean.TRUE, null);
+        model.addAttribute("unreadLeft", unreadLeft);
+        model.addAttribute("readThroughPercent", readThroughPercent(total, unreadLeft));
         return "items";
+    }
+
+    /** How much of the list on screen is behind the reader, as a whole percentage. */
+    static int readThroughPercent(long total, long unreadLeft) {
+        if (total <= 0) {
+            return 0;
+        }
+        long done = Math.max(0, Math.min(total, total - unreadLeft));
+        return (int) (done * 100 / total);
     }
 
     /**
@@ -427,9 +443,15 @@ public class AppController {
 
     /**
      * Posts the current list page and moves on. When the account marks articles
-     * read on the next page, the posted ids are marked first; an unread list then
-     * shrinks into the same page. Otherwise the next page of the archive is shown
-     * and nothing is marked.
+     * read on the next page, the posted ids are marked first; either way the list
+     * then moves forward by one page.
+     *
+     * <p>An unread list is taken from a snapshot, and keeps the articles that were
+     * read after that snapshot was taken — including the ones just marked. It
+     * therefore does not shrink under the reader, and moving on means the next
+     * page. Reading past its last page means the whole list has been read through:
+     * a fresh unread list is opened, which leaves those articles behind and shows
+     * only what is still unread.
      */
     @PostMapping("/items/advance")
     public String advance(@RequestParam(value = "feed", required = false) Long feedId,
@@ -439,20 +461,62 @@ public class AppController {
                           @RequestParam(value = "page", defaultValue = "1") int page,
                           @RequestParam(value = "id", required = false) List<Long> ids,
                           RedirectAttributes redirectAttributes) {
-        boolean markReadOnNextPage = userService.markReadOnNextPage(currentUser.requireId());
+        long userId = currentUser.requireId();
+        boolean markReadOnNextPage = userService.markReadOnNextPage(userId);
         int marked = 0;
         if (markReadOnNextPage) {
             marked = ids == null || ids.isEmpty() ? 0
-                    : articleService.markRead(currentUser.requireId(), ids, true);
+                    : articleService.markRead(userId, ids, true);
             redirectAttributes.addFlashAttribute("message", marked == 0
                     ? "Nothing left to mark as read"
                     : marked == 1 ? "1 article marked as read" : marked + " articles marked as read");
         }
 
         boolean unreadOnly = Boolean.TRUE.equals(unread);
+        boolean readThrough = unreadOnly && markReadOnNextPage;
         int current = Math.max(page, 1);
-        return "redirect:" + itemsPath(
-                feedId, category, unreadOnly, unreadOnly && markReadOnNextPage ? current : current + 1, snapshot) + "#start";
+        // An unread list with no snapshot to hold the articles just marked read is
+        // the one list that does shrink, and what comes next moves into the page
+        // that was posted from.
+        if (readThrough && snapshot == null) {
+            return "redirect:" + itemsPath(feedId, category, true, current, null) + "#start";
+        }
+        int next = current + 1;
+        if (readThrough && next > unreadPages(userId, feedId, category, snapshot)) {
+            return "redirect:" + itemsPath(feedId, category, true, 1, null) + "#start";
+        }
+        return "redirect:" + itemsPath(feedId, category, unreadOnly, next, snapshot) + "#start";
+    }
+
+    /**
+     * Marks the articles of one screen read without leaving the list.
+     *
+     * <p>The reader turns several screens inside a single loaded page, and a screen
+     * that has been turned past has been read through just as much as a whole page
+     * has. Posting it here keeps that promise while the reader stays put, and
+     * answers with what is still unread so the meter under the page can follow.
+     */
+    @PostMapping("/items/read")
+    @ResponseBody
+    public Map<String, Object> markScreenRead(@RequestParam(value = "feed", required = false) Long feedId,
+                                              @RequestParam(value = "category", required = false) String category,
+                                              @RequestParam(value = "id", required = false) List<Long> ids) {
+        long userId = currentUser.requireId();
+        int marked = userService.markReadOnNextPage(userId) && ids != null && !ids.isEmpty()
+                ? articleService.markRead(userId, ids, true)
+                : 0;
+        return Map.of("marked", marked,
+                "unreadLeft", articleService.count(userId, feedId, category, Boolean.TRUE, null));
+    }
+
+    /** Pages the unread list of this snapshot holds, so paging can tell where it ends. */
+    private int unreadPages(long userId, Long feedId, String category, long snapshot) {
+        Instant taken = Instant.ofEpochMilli(Math.min(snapshot, System.currentTimeMillis()));
+        return totalPages(articleService.count(userId, feedId, category, Boolean.TRUE, taken));
+    }
+
+    private int totalPages(long total) {
+        return (int) Math.max(1, (total + pageSize - 1) / pageSize);
     }
 
     static String itemsPath(Long feedId, boolean unread, int page) {

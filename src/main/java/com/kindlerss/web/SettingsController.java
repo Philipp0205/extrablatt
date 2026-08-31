@@ -61,11 +61,6 @@ public class SettingsController {
         return "settings";
     }
 
-    @GetMapping("/changelog")
-    public String changelog() {
-        return "changelog";
-    }
-
     @PostMapping("/settings/kindle-email")
     public String updateKindleEmail(@RequestParam(value = "kindleEmail", required = false) String kindleEmail,
                                     RedirectAttributes redirectAttributes) {
@@ -84,6 +79,13 @@ public class SettingsController {
         userService.updateMarkReadOnNextPage(currentUser.requireId(), markReadOnNextPage != null);
         redirectAttributes.addFlashAttribute("message", "Reading preference saved");
         return "redirect:/settings#reading";
+    }
+
+    @PostMapping("/settings/changelog/ack")
+    public String acknowledgeChangelog(@RequestParam(value = "redirect", defaultValue = "/") String redirect) {
+        ChangelogCatalog.instance().latestId()
+                .ifPresent(id -> userService.acknowledgeChangelog(currentUser.requireId(), id));
+        return "redirect:" + AppController.safeRedirect(redirect);
     }
 
     @PostMapping("/settings/newsletter-address/regenerate")

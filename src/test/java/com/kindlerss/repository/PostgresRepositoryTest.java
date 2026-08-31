@@ -15,6 +15,7 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class PostgresRepositoryTest {
@@ -225,6 +226,14 @@ class PostgresRepositoryTest {
         assertFalse(users.findById(userId).orElseThrow().markReadOnNextPage());
         assertEquals(Optional.of(false), users.findMarkReadOnNextPageByFeedId(feed.id()));
         assertTrue(users.findById(otherUserId).orElseThrow().markReadOnNextPage());
+    }
+
+    @Test
+    void lastSeenChangelogIdIsStoredOnTheAccount() {
+        assertNull(users.findById(userId).orElseThrow().lastSeenChangelogId());
+        users.updateLastSeenChangelogId(userId, "2026-08-31");
+        assertEquals("2026-08-31", users.findById(userId).orElseThrow().lastSeenChangelogId());
+        assertNull(users.findById(otherUserId).orElseThrow().lastSeenChangelogId());
     }
 
     @Test
