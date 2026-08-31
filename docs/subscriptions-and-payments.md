@@ -38,21 +38,30 @@ only cost with a real unit price is e-mail: one article sent is one e-mail. Abou
 22 subscribers cover the infrastructure. The full model, with the fee and cost
 figures it is built from, is in the appendix at the end.
 
-Because e-mail is the cost, **the gate sits on Kindle delivery and nothing else**:
+Because e-mail is the cost, **the gate sits on Kindle delivery and nothing else**, and
+it is metered by the month rather than by the day, because "ten articles a month" is a
+sentence a reader can hold in their head:
 
 | | Free | Supporter |
 |---|---|---|
-| Send to Kindle | 3 / day | 50 / day |
-| Feeds | 15 | 200 (configured: 50) |
+| Send to Kindle | 10 per calendar month | no monthly limit, up to 50 a day |
+| Feeds | 15 | 50 |
 | Newsletter inbox | — | yes |
 | Reading, categories, saved articles, paged reader | yes | yes |
 | Accessibility edition | yes | yes |
 
-Three sends a day costs about €0.08 a month to serve, so the free plan is
-affordable even if it never converts, and it is not a trial — it does not run out.
-The accessibility edition stays free in full: it exists because the readers who
-need it are the ones least served by everything else, and the audience is small
-enough that it changes no number above.
+Ten sends a month is about **€0.008 of e-mail a month** to serve — a Resend Pro plan's
+50,000 messages would cover five thousand free readers. So the free plan costs
+essentially nothing even if it never converts, and it is not a trial: it refills on the
+first of every month and does not run out.
+
+The daily cap stays in force for everyone, subscribers included. It is an abuse
+guardrail rather than a plan limit — the thing that stops one account emptying the
+e-mail budget in an afternoon — which is why the paid plan has one at all.
+
+The accessibility edition stays free in full: it exists because the readers who need it
+are the ones least served by everything else, and the audience is small enough that it
+changes no number above.
 
 Every account that existed before charging began is **grandfathered permanently**.
 The marketing page promised "no ads, no subscriptions, nothing to sell"; that

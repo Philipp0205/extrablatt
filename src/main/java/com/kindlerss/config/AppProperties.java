@@ -185,13 +185,13 @@ public record AppProperties(
             String referenceParam,
             Integer monthlyPriceCents,
             Integer yearlyPriceCents,
-            Integer freeMaxSendsPerDay,
+            Integer freeMaxSendsPerMonth,
             Integer freeMaxFeeds,
             Integer graceDays
     ) {
         public static final int DEFAULT_MONTHLY_PRICE_CENTS = 250;
         public static final int DEFAULT_YEARLY_PRICE_CENTS = 1_800;
-        public static final int DEFAULT_FREE_MAX_SENDS_PER_DAY = 3;
+        public static final int DEFAULT_FREE_MAX_SENDS_PER_MONTH = 10;
         public static final int DEFAULT_FREE_MAX_FEEDS = 15;
         public static final int DEFAULT_GRACE_DAYS = 7;
 
@@ -223,10 +223,10 @@ public record AppProperties(
             if (yearlyPriceCents == null || yearlyPriceCents <= 0) {
                 yearlyPriceCents = DEFAULT_YEARLY_PRICE_CENTS;
             }
-            if (freeMaxSendsPerDay == null) {
-                freeMaxSendsPerDay = DEFAULT_FREE_MAX_SENDS_PER_DAY;
+            if (freeMaxSendsPerMonth == null) {
+                freeMaxSendsPerMonth = DEFAULT_FREE_MAX_SENDS_PER_MONTH;
             }
-            freeMaxSendsPerDay = Math.min(Math.max(freeMaxSendsPerDay, 0), 1_000);
+            freeMaxSendsPerMonth = Math.min(Math.max(freeMaxSendsPerMonth, 1), 10_000);
             if (freeMaxFeeds == null) {
                 freeMaxFeeds = DEFAULT_FREE_MAX_FEEDS;
             }

@@ -93,7 +93,7 @@ class SettingsControllerNewslettersEnabledTest {
         // Billing is off in this context, so every account is on the paid plan and the
         // newsletter inbox is available — which is what these tests are about.
         when(entitlementService.forUser(UID))
-                .thenReturn(new Entitlement(Plan.SUPPORTER, 50, 50, true));
+                .thenReturn(new Entitlement(Plan.SUPPORTER, 50, 0, 50, true));
     }
 
     @Test

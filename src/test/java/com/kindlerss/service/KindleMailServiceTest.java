@@ -24,6 +24,7 @@ import java.util.Optional;
 import java.util.Properties;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -135,41 +136,105 @@ class KindleMailServiceTest {
     }
 
     /**
-     * The daily cap is where most readers will meet the price, so the refusal has to
-     * say what the paid plan would give them rather than only saying no.
+     * The monthly allowance running out is where most readers will meet the price, so
+     * the refusal says what happens next — both the way out and when it refills —
+     * rather than only saying no.
      */
     @Test
-    void aFreeAccountHittingItsCapIsToldWhatTheSupporterPlanAllows() {
-        service = new KindleMailService(mailSender, new EpubService(), articleService,
-                articleRepository, userRepository, sendLimitRepository,
-                new EntitlementService(subscriptionRepository, sendLimitRepository, billingOn()),
-                billingOn());
+    void aFreeAccountOutOfMonthlyArticlesIsToldBothWaysOut() {
+        service = freeTierService();
         when(subscriptionRepository.findByUserId(UID)).thenReturn(Optional.empty());
-        when(articleRepository.countSentSince(eq(UID), any())).thenReturn(3L);
+        when(articleRepository.countSentSince(eq(UID), any())).thenReturn(10L);
 
         IllegalStateException error = assertThrows(IllegalStateException.class,
                 () -> service.sendToKindle(UID, 7L, false));
 
-        assertTrue(error.getMessage().contains("Daily send limit reached (3)"));
-        assertTrue(error.getMessage().contains("Supporter plan"));
+        assertTrue(error.getMessage().contains("all 10 of this month's free articles"),
+                error.getMessage());
+        assertTrue(error.getMessage().contains("Supporter plan"), error.getMessage());
+        assertTrue(error.getMessage().contains("come back on"), error.getMessage());
         verify(mailSender, never()).send(any(MimeMessage.class));
     }
 
+    /** Nine used is still one to go: the cap is a ceiling, not a countdown to zero. */
     @Test
-    void aSupporterGetsTheFullDailyAllowance() {
-        service = new KindleMailService(mailSender, new EpubService(), articleService,
-                articleRepository, userRepository, sendLimitRepository,
-                new EntitlementService(subscriptionRepository, sendLimitRepository, billingOn()),
-                billingOn());
-        when(subscriptionRepository.findByUserId(UID)).thenReturn(Optional.of(
-                new Subscription(UID, Plan.SUPPORTER, SubscriptionStatus.ACTIVE,
-                        BillingInterval.YEARLY, "stripe", "cus_1", "sub_1",
-                        Instant.now().plusSeconds(86_400), false, Instant.now())));
-        when(articleRepository.countSentSince(eq(UID), any())).thenReturn(3L);
+    void aFreeAccountWithOneArticleLeftCanStillSendIt() {
+        service = freeTierService();
+        when(subscriptionRepository.findByUserId(UID)).thenReturn(Optional.empty());
+        when(articleRepository.countSentSince(eq(UID), any())).thenReturn(9L);
 
         service.sendToKindle(UID, 7L, false);
 
         verify(mailSender).send(any(MimeMessage.class));
+    }
+
+    /** All ten in one morning is allowed — the offer is ten a month, not ten a day. */
+    @Test
+    void aSupporterIsNotMeteredByTheMonth() {
+        service = freeTierService();
+        when(subscriptionRepository.findByUserId(UID)).thenReturn(Optional.of(
+                new Subscription(UID, Plan.SUPPORTER, SubscriptionStatus.ACTIVE,
+                        BillingInterval.YEARLY, "stripe", "cus_1", "sub_1",
+                        Instant.now().plusSeconds(86_400), false, Instant.now())));
+        when(articleRepository.countSentSince(eq(UID), any())).thenReturn(40L);
+
+        service.sendToKindle(UID, 7L, false);
+
+        verify(mailSender).send(any(MimeMessage.class));
+    }
+
+    /** The daily guardrail still applies to a subscriber who is not metered monthly. */
+    @Test
+    void aSupporterStillCannotExceedTheDailyGuardrail() {
+        service = freeTierService();
+        when(subscriptionRepository.findByUserId(UID)).thenReturn(Optional.of(
+                new Subscription(UID, Plan.SUPPORTER, SubscriptionStatus.ACTIVE,
+                        BillingInterval.YEARLY, "stripe", "cus_1", "sub_1",
+                        Instant.now().plusSeconds(86_400), false, Instant.now())));
+        when(articleRepository.countSentSince(eq(UID), any())).thenReturn(50L);
+
+        IllegalStateException error = assertThrows(IllegalStateException.class,
+                () -> service.sendToKindle(UID, 7L, false));
+
+        assertTrue(error.getMessage().contains("Daily send limit reached (50)"), error.getMessage());
+        verify(mailSender, never()).send(any(MimeMessage.class));
+    }
+
+    /**
+     * The tenth article is both the donation nudge's turn and the moment a free reader
+     * runs out. Two different asks in the same breath is one too many, so with billing
+     * on the free plan the subscription is left to make the case.
+     */
+    @Test
+    void theDonationNudgeStandsAsideForTheSubscriptionOnAFreePlan() {
+        service = freeTierService();
+        when(subscriptionRepository.findByUserId(UID)).thenReturn(Optional.empty());
+        when(articleRepository.countSentSince(eq(UID), any())).thenReturn(5L);
+        when(articleRepository.countSentTotal(UID)).thenReturn(10L);
+
+        assertFalse(service.sendToKindle(UID, 7L, false));
+    }
+
+    /** A subscriber is not being upsold, so the nudge behaves as it always did. */
+    @Test
+    void aSupporterStillSeesTheDonationNudge() {
+        service = freeTierService();
+        when(subscriptionRepository.findByUserId(UID)).thenReturn(Optional.of(
+                new Subscription(UID, Plan.SUPPORTER, SubscriptionStatus.ACTIVE,
+                        BillingInterval.YEARLY, "stripe", "cus_1", "sub_1",
+                        Instant.now().plusSeconds(86_400), false, Instant.now())));
+        when(articleRepository.countSentSince(eq(UID), any())).thenReturn(5L);
+        when(articleRepository.countSentTotal(UID)).thenReturn(10L);
+
+        assertTrue(service.sendToKindle(UID, 7L, false));
+    }
+
+    private KindleMailService freeTierService() {
+        AppProperties properties = billingOn();
+        return new KindleMailService(mailSender, new EpubService(), articleService,
+                articleRepository, userRepository, sendLimitRepository,
+                new EntitlementService(subscriptionRepository, sendLimitRepository, properties),
+                properties);
     }
 
     /** Billing switched on, with the free tier at three sends a day. */

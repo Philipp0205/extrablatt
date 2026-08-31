@@ -69,6 +69,11 @@ public class ArticleService {
         return articleRepository.countSentTotal(userId);
     }
 
+    /** Deliveries since a moment, for showing how much of an allowance is left. */
+    public long countSentSince(long userId, Instant since) {
+        return articleRepository.countSentSince(userId, since);
+    }
+
     @Transactional
     public Article markRead(long userId, long id, boolean read) {
         Article article = articleRepository.findById(userId, id)

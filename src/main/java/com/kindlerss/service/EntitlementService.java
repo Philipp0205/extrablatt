@@ -9,6 +9,8 @@ import com.kindlerss.repository.UserSendLimitRepository;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 
 /**
  * The single answer to "what is this account allowed to do". Limits used to be
@@ -23,6 +25,9 @@ import java.time.Instant;
  */
 @Service
 public class EntitlementService {
+
+    /** The month boundary readers are billed and reset against. */
+    private static final ZoneId MONTH_ZONE = ZoneId.of("Europe/Berlin");
 
     private final SubscriptionRepository subscriptions;
     private final UserSendLimitRepository sendLimits;
@@ -39,19 +44,43 @@ public class EntitlementService {
     public Entitlement forUser(long userId) {
         Plan plan = planFor(userId);
         AppProperties.Billing billing = properties.billing();
-        int planSends = plan == Plan.SUPPORTER
+        boolean paid = plan == Plan.SUPPORTER;
+        // The free plan's real limit is the monthly one. Its daily cap is set to the
+        // same number so that a reader who wants all ten in one morning can have them:
+        // the offer is ten articles a month, not ten spread thinly.
+        int planMonthlySends = paid ? 0 : billing.freeMaxSendsPerMonth();
+        int planDailySends = paid
                 ? properties.limits().maxSendsPerDay()
-                : billing.freeMaxSendsPerDay();
-        int planFeeds = plan == Plan.SUPPORTER
+                : billing.freeMaxSendsPerMonth();
+        int planFeeds = paid
                 ? properties.limits().maxFeedsPerUser()
                 : billing.freeMaxFeeds();
+        // An administrator's override is about one account's daily behaviour — usually
+        // reining in an abusive one. It deliberately does not lift the monthly cap;
+        // "Grant Supporter" on the same page is how somebody gets the paid plan.
         Integer override = sendLimits.findByUserId(userId)
                 .map(com.kindlerss.domain.UserSendLimit::maxSendsPerDay)
                 .orElse(null);
         return new Entitlement(plan,
-                override == null ? planSends : override,
+                override == null ? planDailySends : override,
+                planMonthlySends,
                 planFeeds,
-                plan == Plan.SUPPORTER);
+                paid);
+    }
+
+    /**
+     * When the free plan's allowance last reset. A calendar month, in Central European
+     * Time, because "ten a month" should mean what a reader assumes it means — it
+     * refills on the first — rather than a rolling window that refuses a send for
+     * reasons only the database can explain.
+     */
+    public Instant startOfCurrentMonth() {
+        return LocalDate.now(MONTH_ZONE).withDayOfMonth(1).atStartOfDay(MONTH_ZONE).toInstant();
+    }
+
+    /** When it next resets, so a page can say so instead of leaving the reader guessing. */
+    public LocalDate nextResetDate() {
+        return LocalDate.now(MONTH_ZONE).withDayOfMonth(1).plusMonths(1);
     }
 
     /**
