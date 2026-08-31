@@ -106,21 +106,6 @@ nav.top > form.inline > button {
   width: 100%;
 }
 
-/* Refresh is a utility action rather than a destination. Keep it visibly
-   secondary to the three full-size view buttons. */
-nav.top > form.inline.refresh-control {
-  flex: 0 0 auto;
-  align-self: center;
-}
-
-nav.top > form.inline.refresh-control > button {
-  min-width: 0;
-  min-height: 2.1rem;
-  width: auto;
-  padding: 0.3rem 0.55rem;
-  font-size: 0.82rem;
-}
-
 /* Article actions used on nearly every visit stay in the toolbar. Less common
    actions expand onto a second row only when requested, saving a row of e-ink
    screen height during reading. */
