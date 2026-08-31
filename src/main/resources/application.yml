@@ -7,6 +7,11 @@ spring:
     password: ${DATABASE_PASSWORD:kindle}
   flyway:
     enabled: true
+    # Staging applied V11 (accessibility leftovers) from a branch that did not
+    # yet contain V10 (changelog column). Flyway then refuses to boot when V10
+    # reappears, because a higher version is already applied. out-of-order lets
+    # the missing V10 run, then V12+. Production already has V10; it is a no-op.
+    out-of-order: true
   mail:
     # Defaults target Resend's SMTP endpoint. Username is the literal word "resend"
     # and the password is a Resend API key (starts with re_). A verified sending
