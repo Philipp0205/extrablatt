@@ -489,6 +489,13 @@ input[type="number"], input[type="search"], input[type="tel"], select, textarea 
   line-height: 1.25;
 }
 
+/* Read articles keep the mark's width so their titles stay in the same column as
+   the unread ones, and so that marking an article read while the reader is
+   standing on the page does not reflow the columns under them. */
+.unread-mark.read {
+  visibility: hidden;
+}
+
 .item-row {
   display: flex;
   align-items: center;
@@ -875,6 +882,37 @@ details.nested-tools {
 
 .reader-end {
   height: 1px;
+}
+
+/* How much of the list is behind the reader, and how many articles are still
+   unread. An e-ink panel renders a solid black block far more crisply than a
+   tint or a gradient, so progress is one filled bar against white. */
+.unread-meter {
+  display: flex;
+  align-items: center;
+  margin-top: 0.6rem;
+}
+
+.unread-meter-track {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 0.7rem;
+  border: 2px solid #000;
+  background: #fff;
+}
+
+.unread-meter-fill {
+  display: block;
+  height: 100%;
+  background: #000;
+}
+
+.unread-meter-count {
+  flex: 0 0 auto;
+  margin-left: 0.6rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  white-space: nowrap;
 }
 
 .pager {

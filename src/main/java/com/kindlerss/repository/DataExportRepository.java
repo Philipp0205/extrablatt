@@ -70,7 +70,7 @@ public class DataExportRepository {
     public List<Map<String, Object>> articles(long userId) {
         return list("""
                 SELECT f.title AS feed, a.title, a.url, a.author, a.published_at,
-                       a.read, a.read_at, a.saved_at, a.sent_at, a.created_at
+                       a.read, a.read_at, a.sent_at, a.created_at
                 FROM articles a
                 JOIN feeds f ON f.id = a.feed_id
                 WHERE f.user_id = ?
