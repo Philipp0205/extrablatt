@@ -238,6 +238,31 @@ Flyway runs the schema migrations automatically on first boot. Rely on Railway's
 managed Postgres backups. Any SMTP provider (Postmark, SES, …) works by changing
 the `SMTP_*` / `MAIL_FROM` variables — no code change.
 
+### Production vs staging
+
+This repo's Railway project has two environments:
+
+| | Production | Staging |
+|---|---|---|
+| GitHub branch | `main` | `staging` |
+| App URL | https://reader.extrablatt.app | https://staging.extrablatt.app |
+| Database | live Postgres | **copy** of production (own instance) |
+| How it deploys | Railway GitHub trigger on `main` | Railway GitHub trigger on `staging`, plus `.github/workflows/deploy-railway.yml` |
+
+Merge (or push) to `staging` to ship a build you can try before it reaches
+readers. Merge to `main` when that build should go live. Staging has its own
+Postgres so Flyway and feed refresh cannot touch production; `deploy/sync-staging-db.sh`
+(and the **Sync staging database** GitHub Action, daily plus manual) dumps
+production and restores it onto staging.
+
+Staging still uses the production SMTP sender, so Kindle sends and account
+e-mail from that host are real. `APP_PUBLIC_URL` is `https://staging.extrablatt.app`,
+so verification and reset links stay on staging.
+
+To let GitHub Actions talk to Railway, add a repository secret named
+`RAILWAY_TOKEN` (a Railway account or project token). The dashboard trigger
+keeps deploying even without that secret.
+
 The steps above cover the application service. `marketing/` also has its own
 `Dockerfile` (a tiny Caddy container serving the folder on `$PORT`), so it can
 run as a second Railway service in the same project:

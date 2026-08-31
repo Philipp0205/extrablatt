@@ -1,6 +1,12 @@
 # Railway service configuration. The app image is built from the repo Dockerfile;
 # add a PostgreSQL plugin in the same project and wire the env vars below.
 #
+# Environments:
+#   production  — GitHub branch `main`, https://reader.extrablatt.app
+#   staging     — GitHub branch `staging`, https://staging.extrablatt.app
+#                 (own Postgres; refreshed from production by
+#                 deploy/sync-staging-db.sh / the Sync staging database workflow)
+#
 # Required service variables (Railway dashboard -> Variables):
 #   SPRING_PROFILES_ACTIVE = production
 #   DATABASE_URL   = jdbc:postgresql://${{Postgres.PGHOST}}:${{Postgres.PGPORT}}/${{Postgres.PGDATABASE}}
