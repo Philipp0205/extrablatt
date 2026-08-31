@@ -10,6 +10,7 @@ import com.kindlerss.domain.Feed;
 import com.kindlerss.domain.FeedSource;
 import com.kindlerss.repository.ArticleRepository;
 import com.kindlerss.repository.FeedRepository;
+import com.kindlerss.repository.UserRepository;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -59,6 +60,7 @@ public class FeedService {
 
     private final FeedRepository feedRepository;
     private final ArticleRepository articleRepository;
+    private final UserRepository userRepository;
     private final SafeHttpClient httpClient;
     private final HtmlSanitizer sanitizer;
     private final int maxEntries;
@@ -66,11 +68,13 @@ public class FeedService {
 
     public FeedService(FeedRepository feedRepository,
                        ArticleRepository articleRepository,
+                       UserRepository userRepository,
                        SafeHttpClient httpClient,
                        HtmlSanitizer sanitizer,
                        AppProperties properties) {
         this.feedRepository = feedRepository;
         this.articleRepository = articleRepository;
+        this.userRepository = userRepository;
         this.httpClient = httpClient;
         this.sanitizer = sanitizer;
         this.maxEntries = properties.feeds().maxEntries();
@@ -260,6 +264,10 @@ public class FeedService {
     }
 
     private int storeEntries(Feed feed, ParsedFeed parsed) {
+        // When the owner does not mark-on-page, every newly stored RSS entry is
+        // already read so a refresh of a large feed does not flood Unread.
+        boolean markReadOnNextPage = userRepository.findMarkReadOnNextPageByFeedId(feed.id()).orElse(true);
+        Long ownerId = markReadOnNextPage ? null : userRepository.findIdByFeedId(feed.id()).orElse(null);
         int inserted = 0;
         for (ParsedEntry entry : parsed.entries()) {
             if (entry.guid() == null || entry.guid().isBlank()) {
@@ -280,6 +288,9 @@ public class FeedService {
             );
             if (id > 0) {
                 inserted++;
+                if (ownerId != null) {
+                    articleRepository.markRead(ownerId, id, true);
+                }
             }
         }
         return inserted;

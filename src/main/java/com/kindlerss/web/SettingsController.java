@@ -55,7 +55,7 @@ public class SettingsController {
         }
         boolean admin = currentUser.details().map(AppUserDetails::admin).orElse(false);
         String activeView = switch (view) {
-            case "kindle", "accessibility", "version", "support", "delete" -> view;
+            case "kindle", "reading", "accessibility", "version", "support", "delete" -> view;
             case "telemetry" -> admin ? view : "accounts";
             default -> "accounts";
         };
@@ -79,6 +79,14 @@ public class SettingsController {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
         }
         return "redirect:/settings?view=kindle";
+    }
+
+    @PostMapping("/settings/reading")
+    public String updateReading(@RequestParam(value = "markReadOnNextPage", required = false) String markReadOnNextPage,
+                                RedirectAttributes redirectAttributes) {
+        userService.updateMarkReadOnNextPage(currentUser.requireId(), markReadOnNextPage != null);
+        redirectAttributes.addFlashAttribute("message", "Reading preference saved");
+        return "redirect:/settings?view=reading";
     }
 
     @PostMapping("/settings/newsletter-address/regenerate")

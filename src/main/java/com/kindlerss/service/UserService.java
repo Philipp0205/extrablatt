@@ -148,6 +148,16 @@ public class UserService {
     }
 
     @Transactional
+    public void updateMarkReadOnNextPage(long userId, boolean markReadOnNextPage) {
+        userRepository.updateMarkReadOnNextPage(userId, markReadOnNextPage);
+    }
+
+    /** Whether paging past a list of articles should mark them read. Missing accounts keep the Kindle default. */
+    public boolean markReadOnNextPage(long userId) {
+        return userRepository.findById(userId).map(AppUser::markReadOnNextPage).orElse(true);
+    }
+
+    @Transactional
     public void updateKindleEmail(long userId, String kindleEmail) {
         String value = kindleEmail == null ? "" : kindleEmail.trim();
         if (value.isEmpty()) {
