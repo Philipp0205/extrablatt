@@ -39,19 +39,19 @@ only cost with a real unit price is e-mail: one article sent is one e-mail. Abou
 figures it is built from, is in the appendix at the end.
 
 Because e-mail is the cost, **the gate sits on Kindle delivery and nothing else**, and
-it is metered by the month rather than by the day, because "ten articles a month" is a
+it is metered by the month rather than by the day, because "four articles a month" is a
 sentence a reader can hold in their head:
 
 | | Free | Supporter |
 |---|---|---|
-| Send to Kindle | 10 per calendar month | no monthly limit, up to 50 a day |
+| Send to Kindle | 4 per calendar month | no monthly limit, up to 50 a day |
 | Feeds | 15 | 50 |
 | Newsletter inbox | — | yes |
 | Reading, categories, saved articles, paged reader | yes | yes |
 | Accessibility edition | yes | yes |
 
-Ten sends a month is about **€0.008 of e-mail a month** to serve — a Resend Pro plan's
-50,000 messages would cover five thousand free readers. So the free plan costs
+Four sends a month is about **€0.003 of e-mail a month** to serve — a Resend Pro plan's
+50,000 messages would cover twelve thousand free readers. So the free plan costs
 essentially nothing even if it never converts, and it is not a trial: it refills on the
 first of every month and does not run out.
 

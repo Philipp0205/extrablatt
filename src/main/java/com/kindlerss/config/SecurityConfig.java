@@ -90,7 +90,12 @@ public class SecurityConfig {
                 )
                 .formLogin(form -> form
                         .loginPage("/login")
-                        .defaultSuccessUrl("/", true)
+                        // Not alwaysUse: a reader sent here from a page they asked for —
+                        // the landing page's "Choose yearly" button lands on
+                        // /billing/order — comes back to it after signing in instead of
+                        // being dumped on the home page and having to find it again.
+                        // With no such destination remembered, "/" is still the default.
+                        .defaultSuccessUrl("/")
                         .failureHandler(loginFailureHandler())
                         .permitAll()
                 )

@@ -10,6 +10,7 @@ import com.kindlerss.security.RateLimiter;
 import com.kindlerss.security.RateLimitingFilter;
 import com.kindlerss.service.EntitlementService;
 import com.kindlerss.service.SubscriptionService;
+import java.net.URI;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,14 +18,21 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.security.web.savedrequest.HttpSessionRequestCache;
+import org.springframework.security.web.savedrequest.SavedRequest;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.Instant;
 import java.util.Optional;
+import org.springframework.test.web.servlet.MvcResult;
 
 import static org.hamcrest.Matchers.containsString;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
@@ -35,6 +43,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrlPattern;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
@@ -174,5 +183,27 @@ class BillingControllerTest {
     void theOrderPageNeedsAnAccount() throws Exception {
         mockMvc.perform(get("/billing/order").param("interval", "yearly"))
                 .andExpect(status().is3xxRedirection());
+    }
+
+    /**
+     * The landing page's "Choose yearly" button links straight here, so being bounced
+     * to the login form has to be a detour rather than a dead end: the destination is
+     * remembered and returned to. Without this the reader lands on the home page and
+     * has to find the plan again, which is where people give up.
+     */
+    @Test
+    void anUnauthenticatedVisitorIsSentToLoginAndTheChosenPlanIsRemembered() throws Exception {
+        MvcResult bounced = mockMvc.perform(get("/billing/order").param("interval", "monthly"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrlPattern("**/login"))
+                .andReturn();
+
+        SavedRequest saved = new HttpSessionRequestCache()
+                .getRequest(bounced.getRequest(), bounced.getResponse());
+        assertNotNull(saved, "the login redirect has to remember where the reader was going");
+        assertEquals("/billing/order", URI.create(saved.getRedirectUrl()).getPath());
+        // The interval matters as much as the path: someone who clicked "Choose
+        // monthly" must not come back to the yearly order page.
+        assertArrayEquals(new String[]{"monthly"}, saved.getParameterMap().get("interval"));
     }
 }
