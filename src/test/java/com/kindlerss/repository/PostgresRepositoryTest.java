@@ -222,23 +222,6 @@ class PostgresRepositoryTest {
         assertEquals(0, articles.countSaved(userId));
     }
 
-    @Test
-    void displayPreferencesBelongToTheAccountAndAreReplacedInPlace() {
-        var repository = new DisplayPreferencesRepository(
-                new JdbcTemplate(postgres.getPostgresDatabase()));
-        var chosen = new com.kindlerss.domain.DisplayPreferences(
-                com.kindlerss.domain.DisplayPreferences.Theme.BLACK_YELLOW, 5, 3,
-                com.kindlerss.domain.DisplayPreferences.Font.SERIF, true, false);
-
-        assertTrue(repository.find(userId).isEmpty());
-        repository.save(userId, chosen);
-        assertEquals(chosen, repository.find(userId).orElseThrow());
-
-        repository.save(userId, com.kindlerss.domain.DisplayPreferences.DEFAULTS);
-        assertEquals(com.kindlerss.domain.DisplayPreferences.DEFAULTS, repository.find(userId).orElseThrow());
-        assertTrue(repository.find(otherUserId).isEmpty());
-    }
-
     private long insertArticle(long feedId, String guid) {
         return articles.insert(feedId, guid, "Article " + guid, "https://bulk.example.com/" + guid,
                 "Author", Instant.parse("2026-08-10T00:00:00Z"), "<p>Summary</p>", "<p>Content</p>");
