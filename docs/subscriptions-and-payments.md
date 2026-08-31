@@ -32,26 +32,64 @@ the shape of the offer: **the yearly plan is the one to steer people to**, at
 monthly plan exists for people who will not prepay a year, priced at €2.50 so
 that choosing it is not a loss.
 
-Running costs are about €29 a month, almost all of it fixed (VPS, Resend Pro,
-domain, backups), plus roughly €0.03–0.13 a month per active reader, because the
-only cost with a real unit price is e-mail: one article sent is one e-mail. About
-22 subscribers cover the infrastructure. The full model, with the fee and cost
-figures it is built from, is in the appendix at the end.
+Running costs are almost entirely fixed, plus roughly €0.05 a month per active
+reader, because the only cost with a real unit price is e-mail: one article sent is
+one e-mail. The full model, with the fee and cost figures it is built from, is in the
+appendix at the end.
+
+### Hosting on Railway
+
+Railway meters per second — $10 per GB of RAM per month, $20 per vCPU, $0.15 per GB of
+volume, $0.05 per GB of egress — and the plan fee is a **floor, not a cap**: Hobby is
+$5 with $5 of usage credit, and anything above that is billed on top. For this app,
+one always-on service plus Postgres:
+
+| | Per month |
+|---|---|
+| Memory (0.6 GB app + 0.35 GB Postgres) | $9.50 |
+| CPU (0.05 + 0.02 vCPU) | $1.40 |
+| Volume (2 GB) | $0.30 |
+| Egress | $0.20 |
+| **Metered usage** | **$11.40** — so the Hobby bill is $11.40, not $5 |
+
+Two things follow.
+
+**Memory is 83% of the bill.** Everything else is noise. `Dockerfile` sets
+`JAVA_OPTS=-XX:MaxRAMPercentage=75` with no absolute cap, which is right for a VPS
+with a known RAM size and wrong for Railway, where the per-service ceiling on Hobby is
+48 GB: the JVM sizes its heap against what it thinks it may use, and G1 will grow the
+heap rather than collect harder when it believes memory is plentiful. Railway then
+bills the result. The app measures around 300 MB at rest, so **set an explicit
+`-Xmx` on Railway** — `JAVA_OPTS` is already an environment variable, so this is
+configuration and not a code change. Measure before and after rather than trusting
+the figure above.
+
+**The fixed cost has a step in it, and the step is Resend.** Resend's free tier is
+3,000 e-mails a month with a 100/day ceiling; Pro is $20 for 50,000. So:
+
+| | Per month |
+|---|---|
+| Railway + domain, Resend Free | ≈ €12 |
+| Railway + domain, Resend Pro | ≈ €30 |
+
+The 100/day ceiling usually bites before the monthly one — roughly 50 paying readers
+sending 60 articles each, or fewer if a few of them send in bursts. Budget for the
+step rather than being surprised by it.
 
 Because e-mail is the cost, **the gate sits on Kindle delivery and nothing else**, and
-it is metered by the month rather than by the day, because "four articles a month" is a
+it is metered by the month rather than by the day, because "five articles a month" is a
 sentence a reader can hold in their head:
 
 | | Free | Supporter |
 |---|---|---|
-| Send to Kindle | 4 per calendar month | no monthly limit, up to 50 a day |
+| Send to Kindle | 5 per calendar month | no monthly limit, up to 50 a day |
 | Feeds | 15 | 50 |
 | Newsletter inbox | — | yes |
 | Reading, categories, saved articles, paged reader | yes | yes |
 | Accessibility edition | yes | yes |
 
-Four sends a month is about **€0.003 of e-mail a month** to serve — a Resend Pro plan's
-50,000 messages would cover twelve thousand free readers. So the free plan costs
+Five sends a month is about **€0.004 of e-mail a month** to serve — a Resend Pro plan's
+50,000 messages would cover ten thousand free readers. So the free plan costs
 essentially nothing even if it never converts, and it is not a trial: it refills on the
 first of every month and does not run out.
 
@@ -67,6 +105,44 @@ Every account that existed before charging began is **grandfathered permanently*
 The marketing page promised "no ads, no subscriptions, nothing to sell"; that
 promise was made to those people. `V9__subscriptions.sql` writes them all in as
 `GRANDFATHERED` with no end date.
+
+### How many subscribers cover hosting
+
+Assuming a paying reader sends 60 articles a month, which is €0.05 of e-mail:
+
+| Plan | Net per subscriber | On Resend Free (€12/mo) | On Resend Pro (€30/mo) |
+|---|---|---|---|
+| €18.00 / year | €1.39 / month | 8.6 | 21.9 |
+| €24.00 / year | €1.88 / month | 6.4 | 16.2 |
+| €2.50 / month | €2.13 / month | 5.6 | 14.2 |
+| €3.00 / month | €2.62 / month | 4.6 | 11.6 |
+| €4.00 / month | €3.59 / month | 3.3 | 8.5 |
+
+Break-even is measured in dozens of people rather than thousands, which is the shape of
+the whole thing: a small fixed cost, a near-zero marginal cost, and a price that only
+has to clear a low bar. The upside is correspondingly modest — 100 subscribers on a €24
+yearly plan is about €2,300 a year. Enough to stop the hosting bill hurting; not enough
+to justify spending much on tax advice, which is why the processor choice below turns on
+compliance effort rather than on the fee.
+
+### On the annual discount
+
+The gap between the two prices is a decision in its own right, and it is easy to set by
+accident. A conventional annual discount is 15–25% — "two months free" — which steers
+people to yearly without making the monthly plan look like a punishment:
+
+| Yearly | Monthly | Monthly per year | Implied discount | |
+|---|---|---|---|---|
+| €18.00 | €2.50 | €30.00 | 40% | steep |
+| €24.00 | €2.50 | €30.00 | **20%** | conventional |
+| €24.00 | €3.00 | €36.00 | 33% | steep |
+| €24.00 | €4.00 | €48.00 | 50% | steep |
+
+A very steep discount is not economically wrong — someone who pays monthly is worth
+more per year, and monthly billing genuinely costs more to process. But at 50% the
+monthly plan reads as a penalty for indecision, which sits awkwardly on a product whose
+pitch is no ads, no tracking and cancel-from-anywhere. Worth choosing deliberately
+rather than arriving at.
 
 ## Do you need a company, and does the Swiss KlG work?
 
@@ -452,12 +528,16 @@ again, and the owner is e-mailed either way.
 Rates current in August 2026: Stripe Germany 1.5% + €0.25 for standard EEA cards and
 3.25% + €0.25 for non-EEA, Stripe Billing 0.7%, Stripe Tax 0.5%, SEPA Direct Debit
 0.8% + €0.30, Paddle 5% + $0.50, Resend Pro $20 for 50,000 e-mails with $0.90 per
-1,000 over, Hetzner CX23 €5.49. Check them before acting on any of it.
+1,000 over, Railway $10/GB RAM and $20/vCPU per month with the plan fee as a floor.
+Check them before acting on any of it.
 
 ```python
 USD = 0.92
-FIXED = 5.49 + 20 * USD + 18 / 12 + 3.81          # EUR 29.20 / month
-EMAIL = 0.90 * USD / 1000                          # per e-mail beyond 50,000
+# Railway: 0.95 GB RAM and 0.07 vCPU across app + Postgres, 2 GB volume, some egress.
+RAILWAY = 0.95 * 10 + 0.07 * 20 + 2 * 0.15 + 0.20   # $11.40 — above the $5 Hobby credit
+FIXED_FREE_TIER = RAILWAY * USD + 18 / 12           # EUR 11.99 / month, Resend Free
+FIXED_RESEND_PRO = FIXED_FREE_TIER + 20 * USD       # EUR 30.39 / month
+EMAIL = 0.90 * USD / 1000                           # per e-mail beyond 50,000
 
 def stripe(gross, pct=0.015, fixed=0.25, tax=True):
     return gross * pct + fixed + gross * 0.007 + (gross * 0.005 if tax else 0)
@@ -466,9 +546,9 @@ def paddle(gross):
     return gross * 0.05 + 0.50 * USD
 
 # The whole argument for billing yearly, in two lines:
-#   stripe(2.50) * 12 = EUR 3.81/yr  (12.7%)
-#   stripe(18.00)     = EUR 0.74/yr  ( 4.1%)
+#   stripe(4.00) * 12 = EUR 4.30/yr  ( 9.0%)
+#   stripe(24.00)     = EUR 0.90/yr  ( 3.7%)
 #
 # And the whole argument for a merchant of record, given VAT from sale one:
-#   paddle(18.00) - stripe(18.00) = EUR 0.62/subscriber/year
+#   paddle(24.00) - stripe(24.00) = EUR 0.76/subscriber/year
 ```

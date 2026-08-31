@@ -144,12 +144,12 @@ class KindleMailServiceTest {
     void aFreeAccountOutOfMonthlyArticlesIsToldBothWaysOut() {
         service = freeTierService();
         when(subscriptionRepository.findByUserId(UID)).thenReturn(Optional.empty());
-        when(articleRepository.countSentSince(eq(UID), any())).thenReturn(4L);
+        when(articleRepository.countSentSince(eq(UID), any())).thenReturn(5L);
 
         IllegalStateException error = assertThrows(IllegalStateException.class,
                 () -> service.sendToKindle(UID, 7L, false));
 
-        assertTrue(error.getMessage().contains("all 4 of this month's free articles"),
+        assertTrue(error.getMessage().contains("all 5 of this month's free articles"),
                 error.getMessage());
         assertTrue(error.getMessage().contains("Supporter plan"), error.getMessage());
         assertTrue(error.getMessage().contains("come back on"), error.getMessage());
