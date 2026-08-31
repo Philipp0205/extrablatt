@@ -5,6 +5,7 @@ import com.kindlerss.domain.Feed;
 import com.kindlerss.domain.FeedSource;
 import com.kindlerss.repository.ArticleRepository;
 import com.kindlerss.repository.FeedRepository;
+import com.kindlerss.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.mockito.stubbing.Answer;
 
@@ -43,6 +44,7 @@ class FeedServiceTest {
 
     private final FeedRepository feedRepository = mock(FeedRepository.class);
     private final ArticleRepository articleRepository = mock(ArticleRepository.class);
+    private final UserRepository userRepository = mock(UserRepository.class);
     private final SafeHttpClient httpClient = mock(SafeHttpClient.class);
 
     private static final long UID = 7L;
@@ -55,8 +57,9 @@ class FeedServiceTest {
         AppProperties properties = new AppProperties(
                 "from@example.com", null, "remember-me",
                 null, new AppProperties.Feeds(maxEntries), null, null, null, null);
-        return new FeedService(feedRepository, articleRepository, httpClient, new HtmlSanitizer(),
-                properties, refreshExecutor);
+        when(userRepository.findMarkReadOnNextPageByFeedId(anyLong())).thenReturn(Optional.of(true));
+        return new FeedService(feedRepository, articleRepository, userRepository, httpClient,
+                new HtmlSanitizer(), properties, refreshExecutor);
     }
 
     private static Feed feed(String url) {
@@ -92,6 +95,20 @@ class FeedServiceTest {
                 FeedService.withEntryCount("https://example.com/feed", 0));
         assertEquals("https://www.reddit.com/r/stuttgart/.rss",
                 FeedService.withEntryCount("https://www.reddit.com/r/stuttgart/.rss", 100));
+    }
+
+    @Test
+    void refreshMarksNewArticlesReadWhenTheOwnerDoesNotMarkOnTheNextPage() {
+        when(httpClient.get(anyString())).thenAnswer(respondWithFeed());
+        when(articleRepository.insert(anyLong(), anyString(), anyString(),
+                anyString(), any(), any(), anyString(), anyString())).thenReturn(9L);
+        FeedService svc = service(100);
+        when(userRepository.findMarkReadOnNextPageByFeedId(1L)).thenReturn(Optional.of(false));
+        when(userRepository.findIdByFeedId(1L)).thenReturn(Optional.of(UID));
+
+        svc.refreshFeed(feed("https://example.com/feed"));
+
+        verify(articleRepository).markRead(UID, 9L, true);
     }
 
     @Test

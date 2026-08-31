@@ -27,7 +27,7 @@
        th:attr="data-reader-key='items-' + ${feedId} + '-' + ${category} + '-' + ${unread} + '-' + ${snapshot} + '-' + ${page},
                 data-reader-prev-url=${page > 1} ? @{/items(feed=${feedId}, category=${category}, unread=${unread} ? true : null, snapshot=${snapshot}, page=${page - 1})} : null,
                 data-reader-next-form=${!#lists.isEmpty(articles)} ? 'advance' : null,
-                data-reader-next-end-label=${!#lists.isEmpty(articles)} ? 'Mark read' : null">
+                data-reader-next-end-label=${markReadOnNextPage and !#lists.isEmpty(articles)} ? 'Mark read' : null">
     <div class="reader-frame" data-reader-frame>
       <div class="reader-content" data-reader-content>
         <h1>Articles</h1>
@@ -86,8 +86,9 @@
         </ul>
 
         <div class="pagination" th:if="${!#lists.isEmpty(articles)}">
-          <!-- Paging forward posts this form, so the articles just passed are marked
-               read; the plain link is there for moving on without marking them. -->
+          <!-- Paging forward posts this form. Whether that also marks the articles
+               read is a Settings choice; there is no separate skip-without-marking
+               link, because Next page is the only way the list moves on. -->
           <form th:action="@{/items/advance}" method="post" id="advance" class="inline">
             <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
             <input type="hidden" name="feed" th:if="${feedId != null}" th:value="${feedId}"/>
@@ -97,8 +98,6 @@
             <input type="hidden" name="page" th:value="${page}"/>
             <input type="hidden" name="id" th:each="a : ${articles}" th:value="${a.id}"/>
           </form>
-          <a class="btn" th:if="${page < totalPages}"
-             th:href="@{/items(feed=${feedId}, category=${category}, unread=${unread} ? true : null, snapshot=${snapshot}, page=${page + 1})}">Older articles</a>
           <a class="btn" th:if="${page > 1}"
              th:href="@{/items(feed=${feedId}, category=${category}, unread=${unread} ? true : null, snapshot=${snapshot}, page=${page - 1})}">Newer articles</a>
         </div>

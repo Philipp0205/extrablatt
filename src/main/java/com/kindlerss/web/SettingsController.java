@@ -74,6 +74,14 @@ public class SettingsController {
         return "redirect:/settings#kindle";
     }
 
+    @PostMapping("/settings/reading")
+    public String updateReading(@RequestParam(value = "markReadOnNextPage", required = false) String markReadOnNextPage,
+                                RedirectAttributes redirectAttributes) {
+        userService.updateMarkReadOnNextPage(currentUser.requireId(), markReadOnNextPage != null);
+        redirectAttributes.addFlashAttribute("message", "Reading preference saved");
+        return "redirect:/settings#reading";
+    }
+
     @PostMapping("/settings/newsletter-address/regenerate")
     public String regenerateNewsletterAddress(RedirectAttributes redirectAttributes) {
         if (!properties.newsletters().enabled()) {

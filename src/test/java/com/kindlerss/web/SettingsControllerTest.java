@@ -154,4 +154,30 @@ class SettingsControllerTest {
                 .andExpect(content().string(containsString("Delete my account")))
                 .andExpect(content().string(not(containsString("aria-label=\"Settings views\""))));
     }
+
+    @Test
+    @WithMockUser
+    void readingSettingsCanTurnMarkOnNextPageOff() throws Exception {
+        mockMvc.perform(get("/settings"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("Mark articles as read when I go to the next page")))
+                .andExpect(content().string(containsString("action=\"/settings/reading\"")))
+                .andExpect(content().string(containsString("id=\"reading\"")));
+
+        mockMvc.perform(post("/settings/reading").with(csrf()))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/settings#reading"))
+                .andExpect(flash().attribute("message", "Reading preference saved"));
+        verify(userService).updateMarkReadOnNextPage(UID, false);
+    }
+
+    @Test
+    @WithMockUser
+    void readingSettingsCanTurnMarkOnNextPageOn() throws Exception {
+        mockMvc.perform(post("/settings/reading").with(csrf())
+                        .param("markReadOnNextPage", "true"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/settings#reading"));
+        verify(userService).updateMarkReadOnNextPage(UID, true);
+    }
 }
