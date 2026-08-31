@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<!--
+  The legal footer. It exists mainly for one link: § 312k Abs. 2 BGB requires the
+  cancellation route to be "ständig verfügbar" and "unmittelbar und leicht
+  zugänglich" — permanently available and directly reachable — which means on the
+  pages a reader is actually on, not only on the page they would have to find
+  first. Keeping it in a fragment is what stops it going missing from a page later.
+
+  It is deliberately absent from the paged reading view: the reader measures the
+  space left below the text to decide where a page break falls, and a footer under
+  it would eat a line of every article.
+-->
+<body>
+<footer th:fragment="siteFooter" class="site-legal">
+  <nav aria-label="Legal">
+    <a th:href="@{/imprint}">Imprint</a>
+    <a th:href="@{/terms}">Terms</a>
+    <a th:href="@{/privacy}">Privacy</a>
+    <th:block th:if="${billingEnabled}">
+      <a th:href="@{/withdrawal}">Right of withdrawal</a>
+      <!-- Says what it does, not what it opens. A button labelled "Manage" or
+           "Subscription" is exactly what the statute is written against. -->
+      <a th:href="@{/cancel}">Cancel your contract here</a>
+    </th:block>
+  </nav>
+</footer>
+</body>
+</html>

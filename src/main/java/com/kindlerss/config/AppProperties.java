@@ -19,7 +19,8 @@ public record AppProperties(
         Limits limits,
         Newsletters newsletters,
         Accessibility accessibility,
-        String donateUrl
+        String donateUrl,
+        Billing billing
 ) {
     public AppProperties {
         if (http == null) {
@@ -40,6 +41,10 @@ public record AppProperties(
         }
         if (accessibility == null) {
             accessibility = new Accessibility(null);
+        }
+        if (billing == null) {
+            billing = new Billing(false, null, null, null, null, null, null, null,
+                    null, null, null, null, null);
         }
         if (publicUrl == null || publicUrl.isBlank()) {
             // Base URL used to build links in verification / password-reset e-mails.
@@ -150,6 +155,111 @@ public record AppProperties(
         /** Absolute base URL of the accessible edition, or null when it has no host of its own. */
         public String baseUrl() {
             return domain == null ? null : "https://" + domain;
+        }
+    }
+
+    /**
+     * Paid subscriptions. Unconfigured — the default — the app has no billing at
+     * all: nothing is charged, no prices are shown, no cancellation page exists,
+     * and every account keeps the full {@code app.limits.*} allowances. That is
+     * what a self-hosted deployment needs, since it is not the one collecting the
+     * money, and it keeps the whole feature out of the way until an operator
+     * deliberately turns it on.
+     *
+     * <p>Prices are gross, in euro cents, because a consumer price in the EU has to
+     * be the total the customer pays. The free tier's allowances are separate from
+     * {@code app.limits.*}, which become the paid tier's allowances.
+     */
+    public record Billing(
+            boolean enabled,
+            String provider,
+            String webhookSecret,
+            String monthlyCheckoutUrl,
+            String yearlyCheckoutUrl,
+            String portalUrl,
+            String operatorEmail,
+            String referenceParam,
+            Integer monthlyPriceCents,
+            Integer yearlyPriceCents,
+            Integer freeMaxSendsPerDay,
+            Integer freeMaxFeeds,
+            Integer graceDays
+    ) {
+        public static final int DEFAULT_MONTHLY_PRICE_CENTS = 250;
+        public static final int DEFAULT_YEARLY_PRICE_CENTS = 1_800;
+        public static final int DEFAULT_FREE_MAX_SENDS_PER_DAY = 3;
+        public static final int DEFAULT_FREE_MAX_FEEDS = 15;
+        public static final int DEFAULT_GRACE_DAYS = 7;
+
+        /**
+         * Query parameter carrying the account id into a hosted checkout, so the
+         * provider hands it back and the payment can find its account. Stripe payment
+         * links use {@code client_reference_id}; a Paddle checkout wants
+         * {@code custom_data[user_id]}.
+         */
+        public static final String DEFAULT_REFERENCE_PARAM = "client_reference_id";
+
+        public Billing {
+            provider = blankToNull(provider);
+            if (provider != null) {
+                provider = provider.trim().toLowerCase();
+            }
+            webhookSecret = blankToNull(webhookSecret);
+            monthlyCheckoutUrl = blankToNull(monthlyCheckoutUrl);
+            yearlyCheckoutUrl = blankToNull(yearlyCheckoutUrl);
+            portalUrl = blankToNull(portalUrl);
+            operatorEmail = blankToNull(operatorEmail);
+            referenceParam = blankToNull(referenceParam);
+            if (referenceParam == null) {
+                referenceParam = DEFAULT_REFERENCE_PARAM;
+            }
+            if (monthlyPriceCents == null || monthlyPriceCents <= 0) {
+                monthlyPriceCents = DEFAULT_MONTHLY_PRICE_CENTS;
+            }
+            if (yearlyPriceCents == null || yearlyPriceCents <= 0) {
+                yearlyPriceCents = DEFAULT_YEARLY_PRICE_CENTS;
+            }
+            if (freeMaxSendsPerDay == null) {
+                freeMaxSendsPerDay = DEFAULT_FREE_MAX_SENDS_PER_DAY;
+            }
+            freeMaxSendsPerDay = Math.min(Math.max(freeMaxSendsPerDay, 0), 1_000);
+            if (freeMaxFeeds == null) {
+                freeMaxFeeds = DEFAULT_FREE_MAX_FEEDS;
+            }
+            freeMaxFeeds = Math.min(Math.max(freeMaxFeeds, 1), 1_000);
+            if (graceDays == null || graceDays < 0) {
+                graceDays = DEFAULT_GRACE_DAYS;
+            }
+        }
+
+        /**
+         * Whether a payment can actually be taken right now. Billing can be enabled
+         * before a provider is connected — the plans and prices are then visible and
+         * the free tier applies, but ordering says so instead of failing obscurely.
+         */
+        public boolean checkoutConfigured() {
+            return enabled && monthlyCheckoutUrl != null && yearlyCheckoutUrl != null;
+        }
+
+        public boolean webhookConfigured() {
+            return provider != null && webhookSecret != null;
+        }
+
+        public Duration grace() {
+            return Duration.ofDays(graceDays);
+        }
+
+        /** The yearly price expressed per month, which is how it is advertised. */
+        public int yearlyPricePerMonthCents() {
+            return Math.round(yearlyPriceCents / 12f);
+        }
+
+        private static String blankToNull(String value) {
+            if (value == null) {
+                return null;
+            }
+            String trimmed = value.trim();
+            return trimmed.isEmpty() ? null : trimmed;
         }
     }
 

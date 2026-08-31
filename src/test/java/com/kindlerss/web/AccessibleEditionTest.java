@@ -14,6 +14,7 @@ import com.kindlerss.security.RateLimitingFilter;
 import com.kindlerss.service.ArticleHighlights;
 import com.kindlerss.service.ArticleService;
 import com.kindlerss.service.DisplayPreferencesService;
+import com.kindlerss.service.EntitlementService;
 import com.kindlerss.service.FeedService;
 import com.kindlerss.service.KindleMailService;
 import com.kindlerss.service.ReadableTime;
@@ -80,6 +81,9 @@ class AccessibleEditionTest {
 
     @Autowired
     MockMvc mockMvc;
+
+    @MockitoBean
+    EntitlementService entitlementService;
 
     @MockitoBean
     FeedService feedService;

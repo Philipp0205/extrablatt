@@ -83,6 +83,41 @@ app:
     # only the view layer differs. Blank still leaves the edition reachable
     # through ?display=accessible, which is all a local run needs.
     domain: ${ACCESSIBILITY_DOMAIN:}
+  billing:
+    # Off unless an operator deliberately turns it on. Off, nothing is charged, no
+    # prices or cancellation page exist, and every account keeps the full
+    # app.limits.* allowances — which is what a self-hosted copy needs, since it is
+    # not the one collecting the money.
+    enabled: ${BILLING_ENABLED:false}
+    # stripe or paddle. Decides which signature scheme the webhook expects.
+    provider: ${BILLING_PROVIDER:}
+    # Webhook signing secret (Stripe whsec_…, Paddle pdl_ntfset_…). The callback is
+    # the only thing that grants a subscription, so this is what stands between an
+    # account and a free upgrade.
+    webhook-secret: ${BILLING_WEBHOOK_SECRET:}
+    # Hosted checkout links, one per interval (Stripe payment link or Paddle checkout).
+    monthly-checkout-url: ${BILLING_MONTHLY_CHECKOUT_URL:}
+    yearly-checkout-url: ${BILLING_YEARLY_CHECKOUT_URL:}
+    # Provider-hosted page for changing a payment method.
+    portal-url: ${BILLING_PORTAL_URL:}
+    # Where cancellation notices go, so the money is stopped at the provider.
+    operator-email: ${BILLING_OPERATOR_EMAIL:}
+    # Query parameter that carries the account id into the checkout and comes back
+    # on the callback. Stripe payment links use client_reference_id; Paddle wants
+    # custom_data[user_id].
+    reference-param: ${BILLING_REFERENCE_PARAM:client_reference_id}
+    # Gross prices in euro cents: a consumer price in the EU is the total paid.
+    # 250 = €2.50 a month; 1800 = €18.00 a year, which is €1.50 a month.
+    monthly-price-cents: ${BILLING_MONTHLY_PRICE_CENTS:250}
+    yearly-price-cents: ${BILLING_YEARLY_PRICE_CENTS:1800}
+    # What an account gets without paying. Small enough to give away for good,
+    # large enough to read with every day.
+    free-max-sends-per-day: ${BILLING_FREE_SENDS_PER_DAY:3}
+    free-max-feeds: ${BILLING_FREE_MAX_FEEDS:15}
+    # Days of continued access after a renewal fails, or after a renewal
+    # confirmation goes missing. A declined card should not cut off a reader
+    # mid-morning.
+    grace-days: ${BILLING_GRACE_DAYS:7}
   newsletters:
     # Domain newsletter inboxes live under, e.g. news.yourdomain.com (needs MX
     # records pointed at an inbound e-mail provider). Blank disables the feature.

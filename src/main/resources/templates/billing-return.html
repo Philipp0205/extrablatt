@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Thank you — Extrablatt</title>
+  <link rel="stylesheet" th:href="@{/css/app.css}"/>
+</head>
+<body>
+<div class="wrap">
+  <header class="app">
+    <a class="brand" th:href="@{/}">Extrablatt</a>
+    <nav class="top">
+      <a th:href="@{/}">Feeds</a>
+      <a th:href="@{/items}">Articles</a>
+      <a th:href="@{/settings(view='subscription')}">Settings</a>
+    </nav>
+  </header>
+
+  <h1>Thank you</h1>
+
+  <!-- Careful wording on purpose: this page is not what activates a subscription.
+       The provider's signed callback is, and it may not have arrived yet. Telling
+       the reader it is already active would be a promise this page cannot keep. -->
+  <p th:if="${subscription.status.name() == 'ACTIVE'}">
+    Your Supporter plan is active. Your full allowances are already in effect.
+  </p>
+  <p th:unless="${subscription.status.name() == 'ACTIVE'}">
+    Your payment is being confirmed. This usually takes a few seconds; refresh
+    <a th:href="@{/settings(view='subscription')}">your subscription page</a> in a
+    moment and it will be there. You do not need to pay again, and nothing is lost
+    if you close this page.
+  </p>
+
+  <p class="meta">
+    A confirmation, together with your withdrawal instructions, is on its way by
+    e-mail. You can cancel at any time on the
+    <a th:href="@{/cancel}">cancellation page</a>.
+  </p>
+
+  <div class="actions">
+    <a class="btn" th:href="@{/}">Back to your feeds</a>
+    <a class="btn" th:href="@{/settings(view='subscription')}">Your subscription</a>
+  </div>
+</div>
+</body>
+</html>

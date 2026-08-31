@@ -27,6 +27,9 @@
          th:attr="aria-current=${activeView == 'kindle'} ? 'page' : null">Send to Kindle</a>
       <a th:href="@{/settings(view='accessibility')}" th:classappend="${activeView == 'accessibility'} ? ' active'"
          th:attr="aria-current=${activeView == 'accessibility'} ? 'page' : null">Accessibility</a>
+      <a th:if="${billingEnabled}" th:href="@{/settings(view='subscription')}"
+         th:classappend="${activeView == 'subscription'} ? ' active'"
+         th:attr="aria-current=${activeView == 'subscription'} ? 'page' : null">Subscription</a>
       <a th:href="@{/settings(view='version')}" th:classappend="${activeView == 'version'} ? ' active'"
          th:attr="aria-current=${activeView == 'version'} ? 'page' : null">Version</a>
       <a th:href="@{/settings(view='support')}" th:classappend="${activeView == 'support'} ? ' active'"
@@ -123,6 +126,89 @@
   </p>
   </section>
 
+  <section class="subview" th:if="${billingEnabled and activeView == 'subscription'}">
+  <h2>Your subscription</h2>
+
+  <!-- What the account has now, before what it could have: someone opening this
+       page usually wants to check or cancel, not to be sold to. -->
+  <p class="meta" th:if="${subscription.grandfathered()}">
+    You are on the <strong>Supporter</strong> plan, permanently and at no cost —
+    you had an account before Extrablatt started charging, and it was never
+    advertised to you as something with a subscription. That does not expire.
+  </p>
+  <p class="meta" th:if="${supporterPlan and !subscription.grandfathered()}">
+    You are on the <strong>Supporter</strong> plan. Thank you — it is what keeps the
+    servers on.
+    <span th:if="${renewsOn != null and !subscription.cancelAtPeriodEnd()}">
+      It renews on <strong th:text="${renewsOn}">1 September 2027</strong>.</span>
+    <span th:if="${renewsOn != null and subscription.cancelAtPeriodEnd()}">
+      It has been cancelled and runs until <strong th:text="${renewsOn}">1 September 2027</strong>,
+      after which your account continues on the free plan.</span>
+  </p>
+  <p class="meta" th:if="${!supporterPlan and subscription.status.name() == 'PENDING'}">
+    An order is waiting for the payment to be confirmed. This normally takes
+    seconds; reload this page to check. You have not been charged twice if you
+    started the payment more than once.
+  </p>
+  <p class="meta" th:if="${!supporterPlan and subscription.status.name() != 'PENDING'}">
+    You are on the <strong>free</strong> plan:
+    <span th:text="${freeSends}">3</span> articles to your Kindle a day and up to
+    <span th:text="${freeFeeds}">15</span> feeds. Reading in the browser, saved
+    articles and the accessible version are not limited and never will be.
+  </p>
+
+  <div class="plan-grid" th:unless="${supporterPlan}">
+    <div class="plan">
+      <h3>Yearly</h3>
+      <span class="price" th:text="${yearlyPerMonth}">€1.50</span>
+      <span class="price-note">
+        per month, billed <span th:text="${yearlyPrice}">€18.00</span> once a year ·
+        incl. VAT
+      </span>
+      <ul>
+        <li><span th:text="${supporterSends}">50</span> articles to Kindle a day</li>
+        <li>Up to <span th:text="${supporterFeeds}">50</span> feeds</li>
+        <li>Newsletter inbox address</li>
+        <li>Cancel any time, no notice period</li>
+      </ul>
+      <a class="btn" th:href="@{/billing/order(interval='yearly')}">Choose yearly</a>
+    </div>
+    <div class="plan">
+      <h3>Monthly</h3>
+      <span class="price" th:text="${monthlyPrice}">€2.50</span>
+      <span class="price-note">per month · incl. VAT</span>
+      <ul>
+        <li>Everything in the yearly plan</li>
+        <li>Nothing paid up front</li>
+        <li>Cancel any time, no notice period</li>
+      </ul>
+      <a class="btn" th:href="@{/billing/order(interval='monthly')}">Choose monthly</a>
+    </div>
+  </div>
+
+  <p class="meta" th:if="${!supporterPlan and !checkoutConfigured}">
+    Payments are not switched on for this server yet, so ordering will not work.
+  </p>
+
+  <div class="actions">
+    <form class="inline" th:if="${portalConfigured and supporterPlan and !subscription.grandfathered()}"
+          th:action="@{/billing/portal}" method="post">
+      <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+      <button class="btn" type="submit">Change payment method</button>
+    </form>
+    <!-- Links out to the public page rather than cancelling here. § 312k BGB wants
+         one permanently reachable cancellation path that does not require signing
+         in, and two implementations of it would be one too many. -->
+    <a class="btn danger" th:href="@{/cancel}">Cancel your contract here</a>
+  </div>
+
+  <p class="meta">
+    <a th:href="@{/withdrawal}">Right of withdrawal</a> ·
+    <a th:href="@{/terms}">Terms</a> ·
+    <a th:href="@{/imprint}">Imprint</a>
+  </p>
+  </section>
+
   <section class="subview" th:if="${activeView == 'version'}">
   <h2>Version</h2>
   <p class="meta">
@@ -134,7 +220,17 @@
 
   <section class="subview" th:if="${activeView == 'support'}">
   <h2>Support this project</h2>
-  <p class="meta">
+  <p class="meta" th:if="${billingEnabled}">
+    Extrablatt has no ads and no accounts to sell, and a free plan that stays free.
+    <span th:if="${totalSent != null and totalSent > 0}"
+          th:text="'You have sent ' + ${totalSent} + (${totalSent == 1} ? ' article' : ' articles') + ' to your Kindle so far.'">
+      You have sent 0 articles to your Kindle so far.
+    </span>
+    A <a th:href="@{/settings(view='subscription')}">subscription</a> is the way to
+    keep it running, but a one-off donation is just as welcome — particularly if you
+    are on the permanent free plan and would rather not have a recurring payment.
+  </p>
+  <p class="meta" th:unless="${billingEnabled}">
     Extrablatt is free to use, with no ads and no accounts to sell.
     <span th:if="${totalSent != null and totalSent > 0}"
           th:text="'You have sent ' + ${totalSent} + (${totalSent == 1} ? ' article' : ' articles') + ' to your Kindle so far.'">
@@ -215,9 +311,30 @@
             <button class="btn" type="submit">Apply</button>
           </div>
         </form>
+        <!-- The manual counterpart to the provider callback. Callbacks go missing,
+             and a reader who paid and was not credited needs a fix that does not
+             involve a database client. It is also how a free subscription is given
+             to someone who should not have to pay. -->
+        <form th:if="${billingEnabled}" th:action="@{/admin/users/plan}" method="post">
+          <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+          <input type="hidden" name="userId" th:value="${u.userId}"/>
+          <div class="row">
+            <label>
+              Grant Supporter
+              <select name="months">
+                <option value="1">1 month</option>
+                <option value="12" selected>12 months</option>
+                <option value="0">Back to free</option>
+              </select>
+            </label>
+            <button class="btn" type="submit">Set plan</button>
+          </div>
+        </form>
       </section>
     </div>
   </section>
+
+  <div th:replace="~{fragments/site-footer :: siteFooter}"></div>
 </div>
 </body>
 </html>

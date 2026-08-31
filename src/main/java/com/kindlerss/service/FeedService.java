@@ -61,20 +61,21 @@ public class FeedService {
     private final ArticleRepository articleRepository;
     private final SafeHttpClient httpClient;
     private final HtmlSanitizer sanitizer;
+    private final EntitlementService entitlements;
     private final int maxEntries;
-    private final int maxFeedsPerUser;
 
     public FeedService(FeedRepository feedRepository,
                        ArticleRepository articleRepository,
                        SafeHttpClient httpClient,
                        HtmlSanitizer sanitizer,
+                       EntitlementService entitlements,
                        AppProperties properties) {
         this.feedRepository = feedRepository;
         this.articleRepository = articleRepository;
         this.httpClient = httpClient;
         this.sanitizer = sanitizer;
+        this.entitlements = entitlements;
         this.maxEntries = properties.feeds().maxEntries();
-        this.maxFeedsPerUser = properties.limits().maxFeedsPerUser();
     }
 
     public List<Feed> listFeeds(long userId) {
@@ -102,9 +103,10 @@ public class FeedService {
         if (trimmed.isEmpty()) {
             throw new IllegalArgumentException("Feed URL is required");
         }
-        if (feedRepository.countByUser(userId) >= maxFeedsPerUser) {
+        int maxFeeds = entitlements.forUser(userId).maxFeeds();
+        if (feedRepository.countByUser(userId) >= maxFeeds) {
             throw new IllegalArgumentException(
-                    "Feed limit reached (" + maxFeedsPerUser + "). Delete a feed before adding another.");
+                    "Feed limit reached (" + maxFeeds + "). Delete a feed before adding another.");
         }
         SafeHttpClient.FetchedContent fetched = httpClient.get(trimmed);
         String feedUrl = fetched.finalUri().toString();
@@ -165,7 +167,7 @@ public class FeedService {
         String senderUrl = "newsletter:" + sender;
         Feed feed = feedRepository.findByUrl(userId, senderUrl).orElse(null);
         if (feed == null) {
-            if (feedRepository.countByUser(userId) >= maxFeedsPerUser) {
+            if (feedRepository.countByUser(userId) >= entitlements.forUser(userId).maxFeeds()) {
                 log.info("Dropping newsletter issue from {} for user {}: feed limit reached", sender, userId);
                 return NEWSLETTER_FEED_LIMIT_REACHED;
             }

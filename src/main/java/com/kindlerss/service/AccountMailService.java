@@ -84,7 +84,8 @@ public class AccountMailService {
         return baseUrl + path + "?token=" + token;
     }
 
-    private void send(String toEmail, String subject, String body) {
+    /** Package-private so billing e-mail reuses the one sender and its error handling. */
+    void send(String toEmail, String subject, String body) {
         if (!StringUtils.hasText(properties.mailFrom())) {
             throw new IllegalStateException("MAIL_FROM must be configured to send account e-mail");
         }
