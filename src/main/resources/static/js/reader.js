@@ -16,6 +16,10 @@
   var COLUMN_GAP = 32;
   var BOTTOM_GAP = 6;
   var MIN_PAGE_HEIGHT = 160;
+  /* Pixels left free at the bottom of a page whose rows were spaced out to fill
+     it, so that a fraction the measurements rounded away cannot push the last
+     row into a column of its own. */
+  var FILL_SLACK = 3;
   /* Sideways travel that counts as turning the page rather than as a tap that
      wandered, and the share of it that has to be sideways rather than down. */
   var SWIPE_MIN = 40;
@@ -48,6 +52,9 @@
   var nextEndLabel = root.getAttribute('data-reader-next-end-label');
   var nextLabel = nextButton ? nextButton.innerHTML : '';
   var storageKey = root.getAttribute('data-reader-key');
+  // A list whose rows are dealt out over the pages rather than left to the
+  // browser's own column fill; see fillPages().
+  var fillList = content.querySelector('[data-reader-fill]');
   // A list (as opposed to a single article) is asked to always open at the top,
   // so a stored scroll position is neither saved nor restored for it.
   var restorePosition = root.getAttribute('data-reader-restore') !== 'false';
@@ -149,6 +156,197 @@
     pageCount = Math.max(1, Math.round((span + COLUMN_GAP) / (pageWidth + COLUMN_GAP)));
   }
 
+  function setBreakBefore(node, forced) {
+    node.style.breakBefore = forced ? 'column' : '';
+    node.style.webkitColumnBreakBefore = forced ? 'always' : '';
+    node.style.mozColumnBreakBefore = forced ? 'always' : '';
+  }
+
+  /** Puts the list back the way the stylesheet left it. */
+  function clearFill() {
+    if (!fillList) {
+      return;
+    }
+    var items = fillList.children;
+    for (var i = 0; i < items.length; i++) {
+      items[i].style.paddingTop = '';
+      items[i].style.paddingBottom = '';
+      setBreakBefore(items[i], false);
+    }
+  }
+
+  /** Height of an element including the margins it carries, or 0 if it is hidden. */
+  function outerHeight(node) {
+    var style = window.getComputedStyle ? window.getComputedStyle(node) : null;
+    // A hidden element still reports the margins it would have had.
+    if (style && style.display === 'none') {
+      return 0;
+    }
+    var height = node.getBoundingClientRect().height;
+    if (style) {
+      height += (parseFloat(style.marginTop) || 0) + (parseFloat(style.marginBottom) || 0);
+    }
+    return height;
+  }
+
+  function leftoverOf(pages, index, below) {
+    var page = pages[index];
+    var taken = page.used + (index === pages.length - 1 ? below : 0);
+    return pageHeight - FILL_SLACK - taken;
+  }
+
+  /*
+   * Which rows of the article list go on which page.
+   *
+   * Filling each page to the brim and moving on — what the browser's own columns
+   * do — leaves the final page holding whatever is left over: fifty articles at
+   * ten a page end on a page of two, under most of a screen of blank paper. So
+   * the rows are counted out to the pages first, and then pushed back a page at
+   * a time, last page first, for as long as that leaves two neighbouring pages
+   * closer to equally full than they were. The number of pages never changes;
+   * the emptiness is shared out between them until there is little left to see.
+   */
+  function planPages(heights, above, below) {
+    var capacity = pageHeight - FILL_SLACK;
+    var pages = [];
+    var start = 0;
+    // Everything above the list — heading, counts, filter rows — is part of what
+    // the first page has already spent.
+    var used = above;
+    var i;
+    for (i = 0; i < heights.length; i++) {
+      if (i > start && used + heights[i] > capacity) {
+        pages.push({ start: start, count: i - start, used: used });
+        start = i;
+        used = 0;
+      }
+      used += heights[i];
+    }
+    pages.push({ start: start, count: heights.length - start, used: used });
+
+    // What follows the list rides on the last page. Where it no longer fits, the
+    // browser gives it a page of its own — a blank screen with nothing but the
+    // pager on it. Hand it the last row instead.
+    var last = pages[pages.length - 1];
+    while (last.used + below > capacity && last.count > 1) {
+      var moved = heights[last.start + last.count - 1];
+      last.count -= 1;
+      last.used -= moved;
+      pages.push({ start: last.start + last.count, count: 1, used: moved });
+      last = pages[pages.length - 1];
+    }
+
+    for (var pass = 0; pass < 2; pass++) {
+      for (var p = pages.length - 1; p > 0; p--) {
+        var here = pages[p];
+        var before = pages[p - 1];
+        while (before.count > 1) {
+          var height = heights[before.start + before.count - 1];
+          var room = leftoverOf(pages, p, below);
+          var roomBefore = leftoverOf(pages, p - 1, below);
+          // Not at the price of overflowing this page, and not past the point
+          // where the page it came from is the emptier of the two.
+          if (height > room ||
+              Math.abs((room - height) - (roomBefore + height)) >= Math.abs(room - roomBefore)) {
+            break;
+          }
+          before.count -= 1;
+          before.used -= height;
+          here.start -= 1;
+          here.count += 1;
+          here.used += height;
+        }
+      }
+    }
+    return pages;
+  }
+
+  /*
+   * Spaces an article list out to the bottom of every page it fills.
+   *
+   * A page of a list is a run of short rows, and where the rows run out early
+   * the gap left behind sits between the last entry and the rule above the pager
+   * — half a screen of nothing on a Kindle. Each page's rows are given an equal
+   * share of the room its page has left, up to the point where a row would be
+   * twice its own height: a page holding three entries out of a possible twelve
+   * is a short list, not a page to stretch across the screen.
+   *
+   * Leaves pageCount up to date, and the list untouched where the pages cannot
+   * be planned — the columns then fall where the browser puts them, as before.
+   */
+  function fillPages() {
+    clearFill();
+    if (!fillList || !fillList.children.length || pageHeight <= 0) {
+      countPages();
+      return;
+    }
+
+    var items = fillList.children;
+    var heights = [];
+    var i;
+    for (i = 0; i < items.length; i++) {
+      heights.push(items[i].getBoundingClientRect().height);
+    }
+    // What the heading, the counts and the filter rows have already taken out of
+    // the first page. Measured from the first row rather than from the list,
+    // whose box spans every column it reaches and so starts at the top of one.
+    var above = items[0].getBoundingClientRect().top - content.getBoundingClientRect().top;
+    var below = 0;
+    for (var node = fillList.nextElementSibling; node; node = node.nextElementSibling) {
+      below += outerHeight(node);
+    }
+    if (above < 0 || above + heights[0] > pageHeight - FILL_SLACK) {
+      countPages();
+      return;
+    }
+
+    var pages = planPages(heights, above, below);
+    for (var p = 0; p < pages.length; p++) {
+      var page = pages[p];
+      if (p > 0) {
+        setBreakBefore(items[page.start], true);
+      }
+      var shortest = Infinity;
+      for (i = 0; i < page.count; i++) {
+        shortest = Math.min(shortest, heights[page.start + i]);
+      }
+      var room = leftoverOf(pages, p, below);
+      var extra = Math.min(Math.floor(room / page.count), Math.floor(shortest));
+      if (extra < 1) {
+        continue;
+      }
+      // Split over both edges so the row's text stays between its own rules.
+      var top = Math.floor(extra / 2);
+      for (i = 0; i < page.count; i++) {
+        var item = items[page.start + i];
+        var style = window.getComputedStyle ? window.getComputedStyle(item) : null;
+        var basis = style ? (parseFloat(style.paddingTop) || 0) : 0;
+        var baseBottom = style ? (parseFloat(style.paddingBottom) || 0) : 0;
+        item.style.paddingTop = (basis + top) + 'px';
+        item.style.paddingBottom = (baseBottom + extra - top) + 'px';
+      }
+    }
+
+    countPages();
+    if (pageCount !== pages.length || !planLanded(items, pages)) {
+      // The breaks did not land where they were asked to, so the padding was
+      // measured against the wrong pages; a plain fill is better than a wrong one.
+      clearFill();
+      countPages();
+    }
+  }
+
+  /** Whether every page really does hold the rows it was planned to. */
+  function planLanded(items, pages) {
+    for (var p = 0; p < pages.length; p++) {
+      if (columnOf(items[pages[p].start]) !== p ||
+          columnOf(items[pages[p].start + pages[p].count - 1]) !== p) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   /** Pixels by which the document still runs past the bottom of the screen. */
   function excessHeight() {
     return document.documentElement.scrollHeight - viewportHeight();
@@ -178,7 +376,7 @@
       return false;
     }
 
-    countPages();
+    fillPages();
     // One page for content that clearly needs several means the columns did not
     // take effect; scrolling is then the only usable option.
     return pageCount > 1 || content.scrollHeight <= pageHeight + 1;
@@ -208,7 +406,7 @@
         return false;
       }
       applyLayout();
-      countPages();
+      fillPages();
       show(Math.min(page, pageCount - 1));
     }
     return excessHeight() <= 0;
@@ -599,6 +797,7 @@
 
   function disable() {
     paged = false;
+    clearFill();
     root.className = root.className.replace(/\s*\bpaged\b/g, '');
     document.body.style.overflow = '';
     frame.style.height = '';
