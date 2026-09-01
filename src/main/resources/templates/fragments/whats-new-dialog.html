@@ -20,7 +20,7 @@
       <form th:action="@{/settings/changelog/ack}" method="post">
         <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
         <input type="hidden" name="redirect" th:value="${changelogRedirect}"/>
-        <button class="btn" type="submit">Got it</button>
+        <button class="btn primary" type="submit">Got it</button>
       </form>
     </div>
   </dialog>
