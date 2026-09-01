@@ -1,6 +1,17 @@
 {
   "releases": [
     {
+      "id": "2026-09-01",
+      "date": "1 September 2026",
+      "title": "New send-from address",
+      "highlights": [
+        "Articles and account mail now come from mail@extrablatt.app, labelled Extrablatt."
+      ],
+      "changes": [
+        "The shared sender is mail@extrablatt.app instead of a Kindle-branded address. Add that address to Amazon's Approved Personal Document E-mail List or new deliveries will not arrive."
+      ]
+    },
+    {
       "id": "2026-08-31",
       "date": "31 August 2026",
       "title": "Changelog, reading preference, and what's new",
