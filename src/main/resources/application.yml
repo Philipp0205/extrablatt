@@ -105,21 +105,18 @@ app:
     # custom_data[user_id].
     reference-param: ${BILLING_REFERENCE_PARAM:client_reference_id}
     # Gross prices in euro cents: a consumer price in the EU is the total paid.
-    # 250 = €2.50 a month; 2400 = €24.00 a year, which is €2.00 a month — a 20%
-    # annual discount, which steers to yearly without the monthly plan reading as a
-    # penalty. The fee matters more than the amount: €24 once costs 3.7%, the same
-    # money as twelve monthly charges costs 12.7%.
-    monthly-price-cents: ${BILLING_MONTHLY_PRICE_CENTS:250}
-    yearly-price-cents: ${BILLING_YEARLY_PRICE_CENTS:2400}
-    # What an account gets without paying: five articles to a Kindle a month, on a
-    # calendar month that refills on the 1st. Reading in the browser is never metered.
-    # Five sends is about EUR 0.004 of e-mail a month, so the free plan costs almost
-    # nothing to serve even if it never converts.
-    free-max-sends-per-month: ${BILLING_FREE_SENDS_PER_MONTH:5}
-    free-max-feeds: ${BILLING_FREE_MAX_FEEDS:15}
+    # 499 = €4.99 a month; 4000 = €40.00 a year.
+    monthly-price-cents: ${BILLING_MONTHLY_PRICE_CENTS:499}
+    yearly-price-cents: ${BILLING_YEARLY_PRICE_CENTS:4000}
+    # After the trial, unpaid accounts get this many Kindle sends a calendar month
+    # and this many feeds. Zero (the default) means reading stays, sending does not.
+    free-max-sends-per-month: ${BILLING_FREE_SENDS_PER_MONTH:0}
+    free-max-feeds: ${BILLING_FREE_MAX_FEEDS:0}
+    # Complimentary week of the full paid plan for a new account. No card required.
+    trial-days: ${BILLING_TRIAL_DAYS:7}
     # Days of continued access after a renewal fails, or after a renewal
     # confirmation goes missing. A declined card should not cut off a reader
-    # mid-morning.
+    # mid-morning. Trials do not get this extra week.
     grace-days: ${BILLING_GRACE_DAYS:7}
   retention:
     # Art. 5(1)(e) GDPR: personal data may be kept only as long as it is needed.

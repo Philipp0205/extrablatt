@@ -62,23 +62,23 @@ class AppPropertiesTest {
     @Test
     void pricesDefaultToTheAdvertisedOnes() {
         AppProperties.Billing billing = new AppProperties.Billing(true, null, null, null, null,
-                null, null, null, null, null, null, null, null);
+                null, null, null, null, null, null, null, null, null);
 
-        assertEquals(250, billing.monthlyPriceCents());
-        assertEquals(2_400, billing.yearlyPriceCents());
-        // €24.00 a year is what gets advertised as €2.00 a month.
-        assertEquals(200, billing.yearlyPricePerMonthCents());
-        assertEquals(5, billing.freeMaxSendsPerMonth());
-        assertEquals(15, billing.freeMaxFeeds());
+        assertEquals(499, billing.monthlyPriceCents());
+        assertEquals(4_000, billing.yearlyPriceCents());
+        assertEquals(333, billing.yearlyPricePerMonthCents());
+        assertEquals(0, billing.freeMaxSendsPerMonth());
+        assertEquals(0, billing.freeMaxFeeds());
+        assertEquals(7, billing.trialDays());
     }
 
     @Test
     void checkoutNeedsBothLinksBeforeItIsUsable() {
         AppProperties.Billing onlyMonthly = new AppProperties.Billing(true, "stripe", "whsec",
-                "https://pay.example.com/monthly", null, null, null, null, null, null, null, null, null);
+                "https://pay.example.com/monthly", null, null, null, null, null, null, null, null, null, null);
         AppProperties.Billing both = new AppProperties.Billing(true, "stripe", "whsec",
                 "https://pay.example.com/monthly", "https://pay.example.com/yearly",
-                null, null, null, null, null, null, null, null);
+                null, null, null, null, null, null, null, null, null);
 
         assertFalse(onlyMonthly.checkoutConfigured());
         assertTrue(both.checkoutConfigured());

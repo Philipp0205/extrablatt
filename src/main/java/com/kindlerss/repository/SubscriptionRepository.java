@@ -78,6 +78,19 @@ public class SubscriptionRepository {
                 """, MAPPER, Timestamp.from(asOf));
     }
 
+    /**
+     * Trials end on the day they end: they do not get the paid-plan grace period,
+     * because nothing was paid for.
+     */
+    public List<Subscription> findEndedTrials(Instant asOf) {
+        return jdbc.query("SELECT " + COLUMNS + """
+                 FROM subscriptions
+                 WHERE status = 'TRIALING'
+                   AND current_period_end IS NOT NULL
+                   AND current_period_end < ?
+                """, MAPPER, Timestamp.from(asOf));
+    }
+
     public void save(Subscription subscription) {
         jdbc.update("""
                 INSERT INTO subscriptions (user_id, plan, status, billing_interval, provider,

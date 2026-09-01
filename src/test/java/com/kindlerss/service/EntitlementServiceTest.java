@@ -33,7 +33,7 @@ class EntitlementServiceTest {
     private EntitlementService service(boolean billingEnabled) {
         AppProperties.Billing billing = new AppProperties.Billing(billingEnabled, "stripe", "whsec",
                 "https://pay/monthly", "https://pay/yearly", null, null, null,
-                null, null, null, null, null);
+                null, null, null, null, null, null);
         AppProperties properties = new AppProperties("from@example.com", null, null, null, null,
                 null, new AppProperties.Limits(50, 50), null, billing, null);
         return new EntitlementService(subscriptions, sendLimits, properties);
@@ -56,18 +56,58 @@ class EntitlementServiceTest {
     }
 
     @Test
-    void anAccountThatNeverOrderedGetsTheFreeMonthlyAllowance() {
+    void anAccountThatNeverOrderedHasNoKindleSendsAfterTheTrialModel() {
         when(subscriptions.findByUserId(UID)).thenReturn(Optional.empty());
 
         Entitlement entitlement = service(true).forUser(UID);
 
         assertEquals(Plan.FREE, entitlement.plan());
-        assertTrue(entitlement.hasMonthlyCap());
-        assertEquals(5, entitlement.maxSendsPerMonth());
-        // The daily cap matches the monthly one, so all five can go in one morning.
-        assertEquals(5, entitlement.maxSendsPerDay());
-        assertEquals(15, entitlement.maxFeeds());
+        assertFalse(entitlement.hasMonthlyCap());
+        assertEquals(0, entitlement.maxSendsPerMonth());
+        assertEquals(0, entitlement.maxSendsPerDay());
+        assertEquals(0, entitlement.maxFeeds());
         assertFalse(entitlement.newsletters());
+        assertFalse(entitlement.onTrial());
+    }
+
+    @Test
+    void aLiveTrialGetsTheFullAllowancesUntilItEnds() {
+        Instant ends = Instant.now().plus(3, ChronoUnit.DAYS);
+        when(subscriptions.findByUserId(UID)).thenReturn(Optional.of(
+                new Subscription(UID, Plan.SUPPORTER, SubscriptionStatus.TRIALING, null, null,
+                        null, null, ends, true, null)));
+
+        Entitlement entitlement = service(true).forUser(UID);
+
+        assertEquals(Plan.SUPPORTER, entitlement.plan());
+        assertTrue(entitlement.onTrial());
+        assertEquals(ends, entitlement.trialEndsAt());
+        assertFalse(entitlement.hasMonthlyCap());
+        assertEquals(50, entitlement.maxSendsPerDay());
+        assertEquals(50, entitlement.maxFeeds());
+        assertTrue(entitlement.newsletters());
+    }
+
+    @Test
+    void anEndedTrialGrantsNothing() {
+        when(subscriptions.findByUserId(UID)).thenReturn(Optional.of(
+                new Subscription(UID, Plan.SUPPORTER, SubscriptionStatus.TRIALING, null, null,
+                        null, null, Instant.now().minus(1, ChronoUnit.HOURS), true, null)));
+
+        Entitlement entitlement = service(true).forUser(UID);
+
+        assertEquals(Plan.FREE, entitlement.plan());
+        assertFalse(entitlement.onTrial());
+    }
+
+    @Test
+    void startingCheckoutDoesNotCutARunningTrialShort() {
+        Instant ends = Instant.now().plus(2, ChronoUnit.DAYS);
+        Subscription pendingDuringTrial = new Subscription(UID, Plan.SUPPORTER,
+                SubscriptionStatus.PENDING, BillingInterval.YEARLY, "stripe", null, null,
+                ends, false, Instant.now());
+
+        assertTrue(service(true).hasPaidAccess(pendingDuringTrial, Instant.now()));
     }
 
     /** Paying removes the monthly meter; the daily guardrail stays for everyone. */
@@ -170,10 +210,8 @@ class EntitlementServiceTest {
 
         assertEquals(Plan.FREE, entitlement.plan());
         assertEquals(25, entitlement.maxSendsPerDay());
-        // The override is about daily behaviour and deliberately leaves the month alone.
-        assertEquals(5, entitlement.maxSendsPerMonth());
-        // The feed cap is not something the override covers, so the plan still sets it.
-        assertEquals(15, entitlement.maxFeeds());
+        assertEquals(0, entitlement.maxSendsPerMonth());
+        assertEquals(0, entitlement.maxFeeds());
     }
 
     private static Subscription subscription(SubscriptionStatus status, Instant periodEnd,

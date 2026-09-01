@@ -34,8 +34,10 @@
   <th:block th:if="${billingEnabled}">
   <h2>Plans and payment</h2>
   <ul>
-    <li>There is a free plan and a paid <strong>Supporter</strong> plan. The free plan
-      is not a trial: it does not run out.</li>
+    <li>New accounts get a <strong>free week</strong> of the paid
+      <strong>Supporter</strong> plan, with no card required. After that week,
+      reading in the browser stays free; sending articles to Kindle and adding
+      more feeds needs a subscription.</li>
     <li>Prices are shown before you order and include VAT. The Supporter plan is
       charged either monthly or yearly, whichever you chose, and renews automatically
       until you cancel.</li>
@@ -48,10 +50,10 @@
       you pay if you withdraw after the service has started, is set out in the
       <a th:href="@{/withdrawal}">withdrawal instructions</a>.</li>
     <li>If a renewal payment fails, your Supporter allowances continue for a short
-      grace period before the account returns to the free plan.</li>
+      grace period before sending to Kindle stops. Reading in the browser is not
+      cut off.</li>
     <li>Losing a subscription never deletes anything. Your feeds, articles, categories
-      and reading position stay as they are, and the free plan's allowances apply from
-      then on.</li>
+      and reading position stay as they are.</li>
     <li>If we change a price, it applies from your next renewal, and we tell you before
       it does. Accounts created before Extrablatt began charging keep their original
       allowances at no cost.</li>

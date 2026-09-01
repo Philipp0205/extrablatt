@@ -34,16 +34,19 @@ public class UserService {
     private final EmailTokenRepository tokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final AccountMailService mailService;
+    private final SubscriptionService subscriptionService;
     private final SecureRandom random = new SecureRandom();
 
     public UserService(UserRepository userRepository,
                        EmailTokenRepository tokenRepository,
                        PasswordEncoder passwordEncoder,
-                       AccountMailService mailService) {
+                       AccountMailService mailService,
+                       SubscriptionService subscriptionService) {
         this.userRepository = userRepository;
         this.tokenRepository = tokenRepository;
         this.passwordEncoder = passwordEncoder;
         this.mailService = mailService;
+        this.subscriptionService = subscriptionService;
     }
 
     public Optional<AppUser> findById(long id) {
@@ -68,6 +71,7 @@ public class UserService {
             return;
         }
         startAtCurrentRelease(user);
+        subscriptionService.startTrial(user.id());
         issueVerification(user);
     }
 
