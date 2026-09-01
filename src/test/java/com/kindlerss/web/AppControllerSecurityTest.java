@@ -229,6 +229,32 @@ class AppControllerSecurityTest {
 
     @Test
     @WithMockUser
+    void homeWelcomePromptExplainsWhereToFindTheKindleEmail() throws Exception {
+        when(feedService.listFeeds(UID)).thenReturn(List.of());
+        when(userService.findById(UID)).thenReturn(Optional.of(new AppUser(UID, "user@example.com",
+                "hash", null, Instant.now(), null, Instant.now(), Instant.now())));
+
+        mockMvc.perform(get("/"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("Welcome! Two quick steps")))
+                .andExpect(content().string(containsString(
+                        "Manage Your Content and Devices → Preferences → Personal Document Settings")));
+    }
+
+    @Test
+    @WithMockUser
+    void homeHidesTheWelcomePromptOnceAKindleEmailIsSaved() throws Exception {
+        when(feedService.listFeeds(UID)).thenReturn(List.of());
+        when(userService.findById(UID)).thenReturn(Optional.of(new AppUser(UID, "user@example.com",
+                "hash", "reader@kindle.com", Instant.now(), null, Instant.now(), Instant.now())));
+
+        mockMvc.perform(get("/"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(not(containsString("Welcome! Two quick steps"))));
+    }
+
+    @Test
+    @WithMockUser
     void homeShowsWhatsNewUntilTheLatestReleaseIsAcknowledged() throws Exception {
         when(feedService.listFeeds(UID)).thenReturn(List.of());
         when(userService.findById(UID)).thenReturn(Optional.of(new AppUser(UID, "user@example.com",
