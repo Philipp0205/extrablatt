@@ -274,6 +274,21 @@ public class AppController {
         return "Renamed category for " + updatedFeeds + (updatedFeeds == 1 ? " feed" : " feeds");
     }
 
+    @PostMapping("/feeds/{id}/read")
+    public String markFeedRead(@PathVariable("id") long id,
+                               @RequestParam(value = "redirect", defaultValue = "/") String redirect,
+                               RedirectAttributes redirectAttributes) {
+        try {
+            int marked = articleService.markFeedRead(currentUser.requireId(), id);
+            redirectAttributes.addFlashAttribute("message", marked == 0
+                    ? "Nothing left to mark as read"
+                    : marked == 1 ? "1 article marked as read" : marked + " articles marked as read");
+        } catch (ArticleService.NotFoundException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+        }
+        return "redirect:" + safeRedirect(redirect);
+    }
+
     @PostMapping("/feeds/{id}/delete")
     public String deleteFeed(@PathVariable("id") long id,
                              @RequestParam(value = "redirect", defaultValue = "/") String redirect,

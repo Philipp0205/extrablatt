@@ -128,6 +128,23 @@ class ArticleServiceTest {
     }
 
     @Test
+    void markFeedReadMarksEveryUnreadArticleInTheFeed() {
+        when(feedRepository.findById(UID, 5L)).thenReturn(Optional.of(clippingFeed()));
+        when(articleRepository.markFeedRead(UID, 5L)).thenReturn(3);
+
+        assertEquals(3, service.markFeedRead(UID, 5L));
+        verify(articleRepository).markFeedRead(UID, 5L);
+    }
+
+    @Test
+    void markFeedReadRequiresTheFeedToBelongToTheAccount() {
+        when(feedRepository.findById(UID, 5L)).thenReturn(Optional.empty());
+
+        assertThrows(ArticleService.NotFoundException.class, () -> service.markFeedRead(UID, 5L));
+        verify(articleRepository, never()).markFeedRead(anyLong(), anyLong());
+    }
+
+    @Test
     void anEmptyPasteIsRejected() {
         assertThrows(IllegalArgumentException.class, () -> service.importFromUrl(UID, "  "));
         verify(httpClient, never()).get(anyString());
