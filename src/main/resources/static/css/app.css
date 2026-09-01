@@ -751,7 +751,7 @@ details.nested-tools {
 }
 
 /* Inside the reader the content is laid out in columns exactly one frame wide,
-   so these rows keep their spacing within their own width.
+   so this row keeps its spacing within its own width.
 
    The filter bar is navigation on a page meant for reading: its buttons are
    smaller than the toolbar's, and a row longer than the screen is clipped to one
@@ -817,14 +817,21 @@ details.nested-tools {
   font-size: 1rem;
 }
 
-/* The feeds of the open category read as a second level, not a second bar. */
-.filters.feeds .btn {
-  border-width: 1px;
+/* Only the level itself is clipped and turned. The chips that leave it keep their
+   place at the head of the row, where they can always be reached. */
+.filters .filter-nav {
+  flex: 0 0 auto;
 }
 
 .filters a.active {
   background: #000;
   color: #fff;
+}
+
+/* The count follows the last article instead of preceding the first, so it ends
+   up on the page where the list runs out rather than on the one being read. */
+.list-range {
+  margin: 0.75rem 0 0;
 }
 
 .pagination {
@@ -976,6 +983,22 @@ body.reading .wrap {
 
 .muted {
   color: #444;
+}
+
+/* Kept in the document for anything reading it out, and out of the layout for
+   everything else — including the reader, which would otherwise give it a line
+   of the page it is measuring. */
+.offscreen {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 /* Donation reminder: a plain block by default (works with no CSS support for

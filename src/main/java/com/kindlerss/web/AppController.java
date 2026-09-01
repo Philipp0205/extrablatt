@@ -35,6 +35,13 @@ public class AppController {
     /** How much of a feed title a filter button carries. */
     private static final int FILTER_LABEL_MAX = 18;
 
+    /**
+     * Leaves an open category and puts the filter row back on the categories. An arrow
+     * rather than the row's own ‹ › so that going back is not read as turning the row,
+     * and the same one the feed list already goes back with.
+     */
+    private static final String BACK_LABEL = "\u2190 All";
+
     /** Feeds that were never put in a category are browsed last. */
     private static final Comparator<String> CATEGORY_ORDER =
             Comparator.comparing((String name) -> Feed.UNCATEGORIZED.equals(name))
@@ -364,12 +371,16 @@ public class AppController {
     }
 
     /**
-     * The filter bar browses categories first and only opens up the feeds of the
-     * category that is being read, because a list of every feed is both longer than
-     * the screen is wide and rarely what is wanted.
+     * The filter bar is one row on either level: the categories, or — once one of them
+     * is open — the feeds inside it. A second row costs a list that is read a screen
+     * at a time two lines of every page, and a row holding every feed of every
+     * category is longer than the screen is wide anyway.
      *
-     * <p>Both rows are rendered whole; a row too long for the screen is turned a page
-     * at a time in the browser, where the buttons can actually be measured.
+     * <p>The row comes in two parts. {@code filterChips} is the level itself, rendered
+     * whole and clipped to one line in the browser, where the buttons can actually be
+     * measured. The chips that leave the level — {@code navChips}: back, and the
+     * unread toggle — stay outside that clipping, so turning the row cannot carry
+     * them off the screen.
      */
     private void addFilterBar(Model model, List<Feed> feeds, Long feedId, String category,
                               boolean unread) {
@@ -381,31 +392,32 @@ public class AppController {
                     .findFirst().orElse(null);
         }
 
-        List<FilterChip> categoryChips = new ArrayList<>();
-        categoryChips.add(new FilterChip("All", filterLink(null, null, unread),
-                feedId == null && activeCategory == null));
-        categoryChips.add(new FilterChip("Unread", filterLink(feedId, category, !unread), unread));
-        for (String name : feeds.stream().map(Feed::categoryName).distinct().sorted(CATEGORY_ORDER).toList()) {
-            categoryChips.add(new FilterChip(name, filterLink(null, name, unread), name.equals(activeCategory)));
-        }
-
-        List<FilterChip> feedChips = new ArrayList<>();
-        String openCategory = activeCategory;
-        if (openCategory != null) {
+        List<FilterChip> navChips = new ArrayList<>();
+        List<FilterChip> filterChips = new ArrayList<>();
+        if (activeCategory == null) {
+            navChips.add(new FilterChip("Unread", filterLink(null, null, !unread), unread));
+            filterChips.add(new FilterChip("All", filterLink(null, null, unread), true));
+            for (String name : feeds.stream().map(Feed::categoryName).distinct().sorted(CATEGORY_ORDER).toList()) {
+                filterChips.add(new FilterChip(name, filterLink(null, name, unread), false));
+            }
+        } else {
+            navChips.add(new FilterChip(BACK_LABEL, filterLink(null, null, unread), false));
+            navChips.add(new FilterChip("Unread", filterLink(feedId, category, !unread), unread));
+            // The open category leads its own feeds: it is the whole of this level, and
+            // what the row falls back to when no single feed is chosen.
+            filterChips.add(new FilterChip(activeCategory, filterLink(null, activeCategory, unread),
+                    feedId == null));
             for (Feed feed : feeds) {
-                if (openCategory.equals(feed.categoryName())) {
-                    feedChips.add(new FilterChip(chipLabel(feed.title()),
+                if (activeCategory.equals(feed.categoryName())) {
+                    filterChips.add(new FilterChip(chipLabel(feed.title()),
                             filterLink(feed.id(), null, unread),
                             feed.id() != null && feed.id().equals(feedId)));
                 }
             }
         }
 
-        model.addAttribute("categoryChips", categoryChips);
-        model.addAttribute("feedChips", feedChips);
-        model.addAttribute("filterLabel", feedId != null
-                ? feeds.stream().filter(feed -> feedId.equals(feed.id())).map(Feed::title).findFirst().orElse(null)
-                : activeCategory);
+        model.addAttribute("navChips", navChips);
+        model.addAttribute("filterChips", filterChips);
     }
 
     /**

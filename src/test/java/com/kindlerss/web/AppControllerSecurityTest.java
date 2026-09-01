@@ -362,6 +362,97 @@ class AppControllerSecurityTest {
 
     @Test
     @WithMockUser
+    void openingACategoryReplacesTheFilterRowRatherThanAddingASecondOne() throws Exception {
+        when(articleService.findPage(eq(UID), isNull(), isNull(), eq(1), eq(20))).thenReturn(List.of());
+        when(articleService.count(eq(UID), isNull(), isNull())).thenReturn(0L);
+        when(articleService.findPage(eq(UID), isNull(), eq("Technology"), isNull(), isNull(), eq(1), eq(20)))
+                .thenReturn(List.of());
+        when(articleService.count(eq(UID), isNull(), eq("Technology"), isNull(), isNull())).thenReturn(0L);
+        when(feedService.listFeeds(UID)).thenReturn(List.of(
+                new Feed(5L, "Android Police", "https://example.com/a", null, "Technology", null, null, null),
+                new Feed(7L, "Nature", "https://example.com/c", null, "Science", null, null, null)));
+
+        // One strip on either level, so the list never gives up two lines to filters.
+        mockMvc.perform(get("/items").param("unread", "false"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(stringContainsCount("data-strip-track", 1)))
+                .andExpect(content().string(containsString("Science")))
+                .andExpect(content().string(not(containsString("← All"))));
+
+        // Inside a category the row is that category and its feeds; the other
+        // categories are behind the back button rather than beside them.
+        mockMvc.perform(get("/items").param("category", "Technology").param("unread", "false"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(stringContainsCount("data-strip-track", 1)))
+                .andExpect(content().string(containsString("← All")))
+                .andExpect(content().string(not(containsString("Science"))));
+    }
+
+    @Test
+    @WithMockUser
+    void theChipsThatLeaveALevelStayOutsideTheTurningStrip() throws Exception {
+        when(articleService.findPage(eq(UID), eq(5L), isNull(), eq(1), eq(20))).thenReturn(List.of());
+        when(articleService.count(eq(UID), eq(5L), isNull())).thenReturn(0L);
+        when(feedService.findById(UID, 5L)).thenReturn(Optional.of(
+                new Feed(5L, "Android Police", "https://example.com/a", null, "Technology", null, null, null)));
+        when(feedService.listFeeds(UID)).thenReturn(List.of(
+                new Feed(5L, "Android Police", "https://example.com/a", null, "Technology", null, null, null)));
+
+        // Arriving by feed alone still opens that feed's category, and back and the
+        // unread toggle sit ahead of the strip, where turning it cannot hide them.
+        String body = mockMvc.perform(get("/items").param("feed", "5").param("unread", "false"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        int back = body.indexOf("← All");
+        int unreadToggle = body.indexOf("/items?feed=5&amp;unread=true");
+        int strip = body.indexOf("data-strip-track");
+        org.junit.jupiter.api.Assertions.assertTrue(back > 0 && back < strip,
+                "back chip belongs before the strip");
+        org.junit.jupiter.api.Assertions.assertTrue(unreadToggle > 0 && unreadToggle < strip,
+                "unread toggle belongs before the strip");
+        org.junit.jupiter.api.Assertions.assertTrue(body.contains("href=\"/items?category=Technology&amp;unread=false\""),
+                "the open category leads its own feeds");
+    }
+
+    @Test
+    @WithMockUser
+    void theArticleListStartsAtTheFirstArticle() throws Exception {
+        when(articleService.findPage(eq(UID), isNull(), isNull(), eq(1), eq(20))).thenReturn(
+                List.of(new Article(1L, 1L, "guid-1", "Article 1", null, null,
+                        null, null, null, null, false, null, null, null, "Example Feed")));
+        when(articleService.count(eq(UID), isNull(), isNull())).thenReturn(1L);
+        when(feedService.listFeeds(UID)).thenReturn(List.of());
+
+        String body = mockMvc.perform(get("/items").param("unread", "false"))
+                .andExpect(status().isOk())
+                // The heading is left for screen readers, and the count follows the
+                // list instead of pushing it down the screen.
+                .andExpect(content().string(containsString("<h1 class=\"offscreen\">Articles</h1>")))
+                .andExpect(content().string(containsString("1–1 of 1 articles")))
+                .andReturn().getResponse().getContentAsString();
+
+        org.junit.jupiter.api.Assertions.assertTrue(
+                body.indexOf("1–1 of 1 articles") > body.indexOf("class=\"item-title\""),
+                "the count reads under the list, not above it");
+    }
+
+    /** Matches a body holding exactly {@code times} copies of {@code needle}. */
+    private static org.hamcrest.Matcher<String> stringContainsCount(String needle, int times) {
+        return new org.hamcrest.CustomTypeSafeMatcher<>(needle + " exactly " + times + " time(s)") {
+            @Override
+            protected boolean matchesSafely(String body) {
+                int found = 0;
+                for (int at = body.indexOf(needle); at >= 0; at = body.indexOf(needle, at + needle.length())) {
+                    found++;
+                }
+                return found == times;
+            }
+        };
+    }
+
+    @Test
+    @WithMockUser
     void everyFeedIsInTheRowAndTheRowCanBeTurned() throws Exception {
         List<Feed> feeds = new ArrayList<>();
         for (int i = 1; i <= 12; i++) {
