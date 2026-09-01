@@ -32,34 +32,28 @@
                 data-reader-mark-form=${markReadOnNextPage and !#lists.isEmpty(articles)} ? 'mark-screen' : null">
     <div class="reader-frame" data-reader-frame>
       <div class="reader-content" data-reader-content>
-        <h1>Articles</h1>
-        <p class="meta" th:if="${total > 0}">
-          <span th:text="${firstIndex} + '–' + ${lastIndex} + ' of ' + ${total} + ' articles'">1–20 of 20 articles</span>
-          <span th:if="${filterLabel != null}" th:text="' in ' + ${filterLabel}"> in Category</span>
-        </p>
+        <!-- The toolbar above already says which page this is, so the page does not
+             say it a second time; the heading is left for screen readers only. -->
+        <h1 class="offscreen">Articles</h1>
 
-        <!-- Categories first; the feeds of the one being read follow on the line below.
-             A row wider than the screen is turned a page at a time by filters.js, which
-             is what the two arrows are for; without the script the row simply wraps. -->
+        <!-- One row of filters, whichever level it is on: the categories, or the feeds
+             of the category that is open. A row wider than the screen is turned a page
+             at a time by filters.js, which is what the two arrows are for; without the
+             script the row simply wraps. The chips before the arrows leave the level
+             and are never turned out of reach. -->
         <div class="filters" data-strip>
+          <a class="btn filter-nav" th:each="chip : ${navChips}"
+             th:classappend="${chip.active} ? ' active'"
+             th:href="@{${chip.href}}"
+             th:text="${chip.label}">Unread</a>
           <button class="btn strip-step" type="button" data-strip-prev aria-label="Earlier filters">‹</button>
           <div class="strip" data-strip-track>
-            <a class="btn" th:each="chip : ${categoryChips}"
+            <a class="btn" th:each="chip : ${filterChips}"
                th:classappend="${chip.active} ? ' active'"
                th:href="@{${chip.href}}"
                th:text="${chip.label}">Category</a>
           </div>
           <button class="btn strip-step" type="button" data-strip-next aria-label="More filters">›</button>
-        </div>
-        <div class="filters feeds" data-strip th:if="${!#lists.isEmpty(feedChips)}">
-          <button class="btn strip-step" type="button" data-strip-prev aria-label="Earlier feeds">‹</button>
-          <div class="strip" data-strip-track>
-            <a class="btn" th:each="chip : ${feedChips}"
-               th:classappend="${chip.active} ? ' active'"
-               th:href="@{${chip.href}}"
-               th:text="${chip.label}">Feed</a>
-          </div>
-          <button class="btn strip-step" type="button" data-strip-next aria-label="More feeds">›</button>
         </div>
 
         <p th:if="${#lists.isEmpty(articles)}" class="muted">No articles.</p>
@@ -90,6 +84,11 @@
             </div>
           </li>
         </ul>
+
+        <!-- Where this page sits in the whole list. It reads under the list rather than
+             above it: the first line of the screen is worth more than the count is. -->
+        <p class="meta list-range" th:if="${!#lists.isEmpty(articles)}"
+           th:text="${firstIndex} + '–' + ${lastIndex} + ' of ' + ${total} + ' articles'">1–20 of 20 articles</p>
 
         <div class="pagination" th:if="${!#lists.isEmpty(articles)}">
           <!-- Paging forward posts this form. Whether that also marks the articles
@@ -144,7 +143,7 @@
     <input type="hidden" name="category" th:if="${category != null}" th:value="${category}"/>
   </form>
 </div>
-<!-- Before the reader: clipping the filter rows to one line changes how much room
+<!-- Before the reader: clipping the filter row to one line changes how much room
      is left for the article list, and the reader measures that on load. -->
 <script th:src="@{/js/filters.js}"></script>
 <script th:src="@{/js/reader.js}"></script>
