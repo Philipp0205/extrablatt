@@ -40,7 +40,7 @@ class LoginTelemetryListenerTest {
         var authentication = new UsernamePasswordAuthenticationToken(
                 new AppUserDetails(account), "pw", List.of());
 
-        listener.onLogin(new InteractiveAuthenticationSuccessEvent(authentication, getClass()));
+        listener.onRememberMeLogin(new InteractiveAuthenticationSuccessEvent(authentication, getClass()));
 
         verify(userService).recordLastLogin(9L);
     }

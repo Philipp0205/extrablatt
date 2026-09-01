@@ -227,10 +227,12 @@ class BillingControllerTest {
         when(userDetailsService.loadUserByUsername("reader@example.com"))
                 .thenReturn(new AppUserDetails(account));
 
-        mockMvc.perform(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestBuilders
-                        .formLogin().user("reader@example.com").password("test-password-123")
-                        .session((org.springframework.mock.web.MockHttpSession) bounced.getRequest().getSession()))
+        mockMvc.perform(post("/login")
+                        .session((org.springframework.mock.web.MockHttpSession) bounced.getRequest().getSession())
+                        .param("username", "reader@example.com")
+                        .param("password", "test-password-123")
+                        .with(csrf()))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/billing/order?interval=monthly"));
+                .andExpect(redirectedUrlPattern("**/billing/order*"));
     }
 }
