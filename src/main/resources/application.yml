@@ -7,6 +7,11 @@ spring:
     password: ${DATABASE_PASSWORD:kindle}
   flyway:
     enabled: true
+    # Staging applied V11 (accessibility leftovers) from a branch that did not
+    # yet contain V10 (changelog column). Flyway then refuses to boot when V10
+    # reappears, because a higher version is already applied. out-of-order lets
+    # the missing V10 run, then V12+. Production already has V10; it is a no-op.
+    out-of-order: true
   mail:
     # Defaults target Resend's SMTP endpoint. Username is the literal word "resend"
     # and the password is a Resend API key (starts with re_). A verified sending
@@ -55,6 +60,7 @@ management:
 
 app:
   # Shared, provider-verified sender used for account e-mail and Kindle delivery.
+  # Hosted Extrablatt uses mail@extrablatt.app (not a Kindle-branded local part).
   mail-from: ${MAIL_FROM:}
   # Public base URL used to build links in verification / password-reset e-mails.
   public-url: ${APP_PUBLIC_URL:http://localhost:8080}
@@ -62,8 +68,6 @@ app:
   # per-user send controls. Keep this in deployment secrets.
   admin-emails: ${ADMIN_EMAILS:}
   remember-me-key: ${REMEMBER_ME_KEY:kindle-rss-remember-me-change-me}
-  # Shown in Settings and in the occasional donation reminder after several sends.
-  donate-url: ${DONATE_URL:https://paypal.me/philippkurrle}
   http:
     connect-timeout: 10s
     read-timeout: 20s
@@ -77,6 +81,62 @@ app:
     # Per-account guardrails for open registration.
     max-feeds-per-user: ${MAX_FEEDS_PER_USER:50}
     max-sends-per-day: ${MAX_SENDS_PER_DAY:50}
+  billing:
+    # Off unless an operator deliberately turns it on. Off, nothing is charged, no
+    # prices or cancellation page exist, and every account keeps the full
+    # app.limits.* allowances — which is what a self-hosted copy needs, since it is
+    # not the one collecting the money.
+    enabled: ${BILLING_ENABLED:false}
+    # stripe or paddle. Decides which signature scheme the webhook expects.
+    provider: ${BILLING_PROVIDER:}
+    # Webhook signing secret (Stripe whsec_…, Paddle pdl_ntfset_…). The callback is
+    # the only thing that grants a subscription, so this is what stands between an
+    # account and a free upgrade.
+    webhook-secret: ${BILLING_WEBHOOK_SECRET:}
+    # Hosted checkout links, one per interval (Stripe payment link or Paddle checkout).
+    monthly-checkout-url: ${BILLING_MONTHLY_CHECKOUT_URL:}
+    yearly-checkout-url: ${BILLING_YEARLY_CHECKOUT_URL:}
+    # Provider-hosted page for changing a payment method.
+    portal-url: ${BILLING_PORTAL_URL:}
+    # Where cancellation notices go, so the money is stopped at the provider.
+    operator-email: ${BILLING_OPERATOR_EMAIL:}
+    # Query parameter that carries the account id into the checkout and comes back
+    # on the callback. Stripe payment links use client_reference_id; Paddle wants
+    # custom_data[user_id].
+    reference-param: ${BILLING_REFERENCE_PARAM:client_reference_id}
+    # Gross prices in euro cents: a consumer price in the EU is the total paid.
+    # 399 = €3.99 a month; 3500 = €35.00 paid once for 12 months.
+    monthly-price-cents: ${BILLING_MONTHLY_PRICE_CENTS:399}
+    yearly-price-cents: ${BILLING_YEARLY_PRICE_CENTS:3500}
+    # After the trial, unpaid accounts get this many Kindle sends a calendar month
+    # and this many feeds. Zero (the default) means reading stays, sending does not.
+    free-max-sends-per-month: ${BILLING_FREE_SENDS_PER_MONTH:0}
+    free-max-feeds: ${BILLING_FREE_MAX_FEEDS:0}
+    # Complimentary week of the full paid plan for a new account. No card required.
+    trial-days: ${BILLING_TRIAL_DAYS:7}
+    # Days of continued access after a renewal fails, or after a renewal
+    # confirmation goes missing. A declined card should not cut off a reader
+    # mid-morning. Trials do not get this extra week.
+    grace-days: ${BILLING_GRACE_DAYS:7}
+  retention:
+    # Art. 5(1)(e) GDPR: personal data may be kept only as long as it is needed.
+    # These are the periods after which the nightly sweep clears things out. Set any
+    # of them to 0 to switch that sweep off. Nothing here removes something a reader
+    # would miss — see docs/data-protection.md for the reasoning behind each figure.
+    cron: ${RETENTION_CRON:0 40 3 * * *}
+    # Kindle delivery history. The rolling quota reads one day of it and the
+    # telemetry page seven; beyond that it only fed a lifetime counter.
+    send-event-days: ${RETENTION_SEND_EVENT_DAYS:730}
+    # Raw payment-provider webhook bodies, which can carry a customer's name and
+    # e-mail. The event id is kept for ever regardless, because it is what makes a
+    # replayed webhook a no-op.
+    billing-payload-days: ${RETENTION_BILLING_PAYLOAD_DAYS:90}
+    # Spent or expired e-mail confirmation and password-reset links.
+    used-token-days: ${RETENTION_USED_TOKEN_DAYS:30}
+    # Cached extracted article text, for articles already read and not saved. It is
+    # re-extracted from the article's own address when next needed, so clearing it
+    # costs a refetch and nothing else.
+    article-cache-days: ${RETENTION_ARTICLE_CACHE_DAYS:365}
   newsletters:
     # Domain newsletter inboxes live under, e.g. news.yourdomain.com (needs MX
     # records pointed at an inbound e-mail provider). Blank disables the feature.

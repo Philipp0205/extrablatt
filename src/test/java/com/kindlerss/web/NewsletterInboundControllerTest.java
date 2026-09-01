@@ -3,6 +3,7 @@ package com.kindlerss.web;
 import com.kindlerss.security.CurrentUser;
 import com.kindlerss.security.RateLimiter;
 import com.kindlerss.security.RateLimitingFilter;
+import com.kindlerss.service.EntitlementService;
 import com.kindlerss.service.FeedService;
 import com.kindlerss.service.UserService;
 import org.junit.jupiter.api.Test;
@@ -47,6 +48,9 @@ class NewsletterInboundControllerTest {
 
     @Autowired
     MockMvc mockMvc;
+
+    @MockitoBean
+    EntitlementService entitlementService;
 
     @MockitoBean
     UserService userService;

@@ -72,7 +72,11 @@ public class NewsletterInboundController {
                 .map(Optional::get)
                 .findFirst();
         if (userId.isEmpty()) {
-            log.info("Inbound newsletter message matched no account (recipient(s): {})", payload.to());
+            // The recipient address is not logged. It is an inbox token belonging to an
+            // account, or somebody else's address entirely, and either way a log file is
+            // the wrong place for it. The response says what went wrong; that is enough
+            // for the provider's own delivery log.
+            log.info("Inbound newsletter message matched no account");
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(Map.of("error", "No account's newsletter inbox matches the recipient address"));
         }

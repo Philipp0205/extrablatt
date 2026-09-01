@@ -28,16 +28,21 @@
     <p><strong>Welcome! Two quick steps to start sending articles to your Kindle:</strong></p>
     <ol>
       <li>Open <a th:href="@{/settings}">Settings</a> and enter your
-        <strong>Send-to-Kindle e-mail</strong> (it ends in <em>@kindle.com</em>).</li>
+        <strong>Send-to-Kindle e-mail</strong> (it ends in <em>@kindle.com</em>).
+        Amazon lists it under
+        <em>Manage Your Content and Devices → Preferences → Personal Document Settings</em>.</li>
       <li>Add our sender address
-        <strong th:text="${mailFrom} ?: 'shown on the Settings page'">sender@example.com</strong>
+        <strong th:text="${mailFrom} ?: 'shown on the Settings page'">mail@extrablatt.app</strong>
         to Amazon's <em>Approved Personal Document E-mail List</em>. Open your
         <a href="https://www.amazon.de/hz/mycd/preferences/myx#/home/settings/payment"
            target="_blank" rel="noopener noreferrer">Amazon content &amp; devices settings</a>
         — this is easiest to do on your phone.</li>
     </ol>
   </div>
-  <div th:if="${message}" class="flash" th:text="${message}"></div>
+  <div th:if="${onTrial and trialEndsOn}" class="flash">
+    You have a free week of the full plan, until <strong th:text="${trialEndsOn}">8 September 2026</strong>.
+    <a th:href="@{/settings/subscription}">Subscribe</a> so Send-to-Kindle keeps working after that.
+  </div>
   <div th:if="${error}" class="flash error" th:text="${error}"></div>
   <div th:replace="~{fragments/whats-new-dialog :: whatsNewDialog}"></div>
 
@@ -78,9 +83,10 @@
           <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
           <label for="url">Feed or homepage URL</label>
           <p class="meta">Paste a feed address or a normal website, we try to find its
-            RSS/Atom feed for you.</p>
+            RSS/Atom feed for you. The https:// part is optional.</p>
           <div class="row">
-            <input id="url" name="url" type="url" required placeholder="https://example.com"/>
+            <input id="url" name="url" type="text" inputmode="url" required placeholder="example.com"
+                   autocomplete="url" autocapitalize="none" spellcheck="false"/>
             <select id="category" name="category" class="category-select" data-category-select>
               <option value="" th:selected="${selectedCategory == 'Uncategorized'}">Uncategorized</option>
               <option th:each="c : ${categories}" th:value="${c}" th:text="${c}"
@@ -176,7 +182,9 @@
       </div>
       <!-- Managing a feed is rare next to reading it, so the source address and the
            category/delete controls fold away and the list stays a plain run of
-           titles and unread counts. -->
+           titles and unread counts. Mark-as-read sits beside Edit because it is
+           used on the same row without opening those controls. -->
+      <div class="feed-row-actions">
       <details class="tools">
         <summary>Edit</summary>
         <div class="tools-body">
@@ -207,10 +215,17 @@
           </div>
         </div>
       </details>
+      <form class="inline" th:action="@{/feeds/{id}/read(id=${feed.id})}" method="post">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <input type="hidden" name="redirect" th:value="@{/(category=${selectedCategory})}"/>
+        <button type="submit" aria-label="Mark this feed as read">Mark read</button>
+      </form>
+      </div>
     </li>
     </ul>
   </div>
   </section>
+  <div th:replace="~{fragments/site-footer :: siteFooter}"></div>
 </div>
 <script th:src="@{/js/categories.js}"></script>
 </body>

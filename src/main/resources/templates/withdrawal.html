@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Right of withdrawal — Extrablatt</title>
+  <link rel="stylesheet" th:href="@{/css/app.css}"/>
+</head>
+<body>
+<div class="wrap">
+  <header class="app">
+    <a class="brand" th:href="@{/}">Extrablatt</a>
+  </header>
+
+  <div th:fragment="content">
+  <h1>Right of withdrawal</h1>
+  <p class="meta">For consumers. Art. 246a EGBGB, §§ 355 ff. BGB.</p>
+
+  <h2>Your right</h2>
+  <p>
+    You have 14 days to withdraw from a subscription contract, without giving any
+    reason. The period begins on the day the contract is concluded.
+  </p>
+  <p>
+    To withdraw, tell us clearly that you do. An e-mail to
+    <a href="mailto:hello@extrablatt.app">hello@extrablatt.app</a> is enough; so is
+    the <a th:href="@{/cancel}">cancellation page</a>, where you can say that you are
+    withdrawing in the reason field. Sending the notice before the 14 days are up is
+    all that is needed to be in time.
+  </p>
+
+  <h2>What happens then</h2>
+  <p>
+    We refund every payment we have received from you, without undue delay and at
+    the latest within 14 days of being told, using the same means of payment you
+    used.
+  </p>
+
+  <h2>When it ends early, and what you pay</h2>
+  <!-- § 356 Abs. 4 BGB. The withdrawal right for a digital service lapses only on
+       full performance, and only where the consumer both consented to an immediate
+       start and acknowledged the consequence — which is what the two check boxes on
+       the order page are for, and why neither of them arrives pre-ticked. For a
+       running subscription "full performance" is the end of the paid term, so in
+       practice the right survives the 14 days against a pro-rata payment. -->
+  <p>
+    Because you asked us to start straight away, and confirmed that you understood
+    what that means, your right of withdrawal ends once the service has been provided
+    in full — for a subscription, that is the end of the period you paid for.
+  </p>
+  <p>
+    If you withdraw after the service has started but before then, you pay a
+    proportionate amount for the part you have used, and we refund the rest. For
+    example, withdrawing one month into a yearly plan leaves you paying for that one
+    month.
+  </p>
+
+  <h2>Model withdrawal form</h2>
+  <p class="meta">
+    You may use this wording, but you do not have to.
+  </p>
+  <div class="receipt">
+    <p style="margin:0">
+      To Kubri by Philipp Kurrle und Ali Abriani KLG, Wehntalerstrasse 17,
+      8057 Zürich, Switzerland, <a href="mailto:hello@extrablatt.app">hello@extrablatt.app</a>:<br/><br/>
+      I hereby withdraw from the contract concluded by me for the provision of the
+      following service: Extrablatt Supporter.<br/><br/>
+      Ordered on: ____________<br/>
+      Name: ____________<br/>
+      Address: ____________<br/>
+      Date: ____________
+    </p>
+  </div>
+
+  <h2>Cancelling instead</h2>
+  <p>
+    Withdrawal is not the same thing as cancelling. You can cancel at any time,
+    with or without a reason, on the <a th:href="@{/cancel}">cancellation page</a>;
+    cancelling ends the subscription at the end of the period you have paid for,
+    rather than unwinding it.
+  </p>
+  </div>
+
+  <p class="meta" style="margin-top:1rem"><a th:href="@{/login}">Back</a></p>
+</div>
+</body>
+</html>

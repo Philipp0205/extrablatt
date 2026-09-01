@@ -6,6 +6,7 @@ import com.rometools.rome.feed.synd.SyndFeed;
 import com.rometools.rome.io.SyndFeedInput;
 import com.rometools.rome.io.XmlReader;
 import com.kindlerss.config.AppProperties;
+import com.kindlerss.domain.Entitlement;
 import com.kindlerss.domain.Feed;
 import com.kindlerss.domain.FeedSource;
 import com.kindlerss.repository.ArticleRepository;
@@ -66,13 +67,16 @@ public class FeedService {
 
     private static final Pattern EMAIL_ADDRESS = Pattern.compile("([a-zA-Z0-9._%+-]+)@([a-zA-Z0-9.-]+)");
 
+    /** An address that already names its protocol, e.g. {@code https://example.com}. */
+    private static final Pattern URL_SCHEME = Pattern.compile("^[a-zA-Z][a-zA-Z0-9+.-]*://");
+
     private final FeedRepository feedRepository;
     private final ArticleRepository articleRepository;
     private final UserRepository userRepository;
     private final SafeHttpClient httpClient;
     private final HtmlSanitizer sanitizer;
+    private final EntitlementService entitlements;
     private final int maxEntries;
-    private final int maxFeedsPerUser;
     private final Executor refreshExecutor;
     private final ConcurrentHashMap<Long, Instant> lastBackgroundRefresh = new ConcurrentHashMap<>();
     private final Set<Long> backgroundRefreshInFlight = ConcurrentHashMap.newKeySet();
@@ -86,9 +90,10 @@ public class FeedService {
                        UserRepository userRepository,
                        SafeHttpClient httpClient,
                        HtmlSanitizer sanitizer,
+                       EntitlementService entitlements,
                        AppProperties properties) {
-        this(feedRepository, articleRepository, userRepository, httpClient, sanitizer, properties,
-                defaultRefreshExecutor());
+        this(feedRepository, articleRepository, userRepository, httpClient, sanitizer,
+                entitlements, properties, defaultRefreshExecutor());
     }
 
     FeedService(FeedRepository feedRepository,
@@ -96,6 +101,7 @@ public class FeedService {
                 UserRepository userRepository,
                 SafeHttpClient httpClient,
                 HtmlSanitizer sanitizer,
+                EntitlementService entitlements,
                 AppProperties properties,
                 Executor refreshExecutor) {
         this.feedRepository = feedRepository;
@@ -103,8 +109,8 @@ public class FeedService {
         this.userRepository = userRepository;
         this.httpClient = httpClient;
         this.sanitizer = sanitizer;
+        this.entitlements = entitlements;
         this.maxEntries = properties.feeds().maxEntries();
-        this.maxFeedsPerUser = properties.limits().maxFeedsPerUser();
         this.refreshExecutor = refreshExecutor;
     }
 
@@ -149,11 +155,12 @@ public class FeedService {
         if (trimmed.isEmpty()) {
             throw new IllegalArgumentException("Feed URL is required");
         }
-        if (feedRepository.countByUser(userId) >= maxFeedsPerUser) {
-            throw new IllegalArgumentException(
-                    "Feed limit reached (" + maxFeedsPerUser + "). Delete a feed before adding another.");
+        Entitlement entitlement = entitlements.forUser(userId);
+        int maxFeeds = entitlement.maxFeeds();
+        if (feedRepository.countByUser(userId) >= maxFeeds) {
+            throw new IllegalArgumentException(feedLimitMessage(entitlement, maxFeeds));
         }
-        SafeHttpClient.FetchedContent fetched = httpClient.get(trimmed);
+        SafeHttpClient.FetchedContent fetched = fetchAddress(trimmed);
         String feedUrl = fetched.finalUri().toString();
         String body = fetched.body();
 
@@ -177,6 +184,35 @@ public class FeedService {
         Feed feed = feedRepository.insert(userId, title, feedUrl, parsed.siteUrl(), category);
         storeEntries(feed, parsed);
         return feedRepository.findById(userId, feed.id()).orElse(feed);
+    }
+
+    private static String feedLimitMessage(Entitlement entitlement, int maxFeeds) {
+        if (!entitlement.paid() && maxFeeds <= 0) {
+            return "Your free week has ended. Subscribe under Settings → Subscription to add feeds.";
+        }
+        return "Feed limit reached (" + maxFeeds + "). Delete a feed before adding another.";
+    }
+
+    /**
+     * Fetches an address as typed. Filling in the protocol is a browser's job, so
+     * "test.de" is tried over HTTPS and then, for the sites that still serve none,
+     * over HTTP. When neither answers, the HTTPS failure is the one reported, since
+     * that is the address the reader actually wanted.
+     */
+    private SafeHttpClient.FetchedContent fetchAddress(String address) {
+        if (URL_SCHEME.matcher(address).find()) {
+            return httpClient.get(address);
+        }
+        String host = address.replaceFirst("^/+", "");
+        try {
+            return httpClient.get("https://" + host);
+        } catch (RuntimeException httpsFailed) {
+            try {
+                return httpClient.get("http://" + host);
+            } catch (RuntimeException httpFailed) {
+                throw httpsFailed;
+            }
+        }
     }
 
     @Transactional
@@ -212,8 +248,11 @@ public class FeedService {
         String senderUrl = "newsletter:" + sender;
         Feed feed = feedRepository.findByUrl(userId, senderUrl).orElse(null);
         if (feed == null) {
-            if (feedRepository.countByUser(userId) >= maxFeedsPerUser) {
-                log.info("Dropping newsletter issue from {} for user {}: feed limit reached", sender, userId);
+            Entitlement entitlement = entitlements.forUser(userId);
+            if (feedRepository.countByUser(userId) >= entitlement.maxFeeds()) {
+                // The sender's address is deliberately not logged: it is a third party's
+                // e-mail address, and the account id is enough to work out what happened.
+                log.info("Dropping newsletter issue for user {}: feed limit reached", userId);
                 return NEWSLETTER_FEED_LIMIT_REACHED;
             }
             String title = senderName == null || senderName.isBlank() ? sender : senderName.trim();

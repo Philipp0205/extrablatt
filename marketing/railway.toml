@@ -1,5 +1,17 @@
 # Static marketing site. Keep this separate from the app's root railway.toml
 # so GitHub deploys do not inherit /actuator/health.
+#
+# Environments:
+#   production  — GitHub branch `main`, https://extrablatt.app
+#   staging     — GitHub branch `staging`, on its generated *.up.railway.app
+#                 domain unless a custom one is added
+#
+# The staging service needs one variable the production one does not:
+#   SITE_ENV = staging
+# Railway passes it to the Docker build, where it retargets every link on the
+# page at the staging app and marks the copy noindex. Without it the staging
+# site would send testers to the live checkout and compete with the real
+# landing page in search results.
 [build]
 builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile"

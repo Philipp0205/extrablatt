@@ -3,11 +3,17 @@ package com.kindlerss.service;
 import com.kindlerss.config.AppProperties;
 import com.kindlerss.domain.AppUser;
 import com.kindlerss.domain.Article;
+import com.kindlerss.domain.BillingInterval;
+import com.kindlerss.domain.Plan;
+import com.kindlerss.domain.Subscription;
+import com.kindlerss.domain.SubscriptionStatus;
 import com.kindlerss.domain.UserSendLimit;
 import com.kindlerss.repository.ArticleRepository;
+import com.kindlerss.repository.SubscriptionRepository;
 import com.kindlerss.repository.UserRepository;
 import com.kindlerss.repository.UserSendLimitRepository;
 import jakarta.mail.Session;
+import jakarta.mail.internet.InternetAddress;
 import jakarta.mail.internet.MimeMessage;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -38,6 +44,7 @@ class KindleMailServiceTest {
     private ArticleRepository articleRepository;
     private UserRepository userRepository;
     private UserSendLimitRepository sendLimitRepository;
+    private SubscriptionRepository subscriptionRepository;
     private KindleMailService service;
     private Article article;
 
@@ -48,6 +55,7 @@ class KindleMailServiceTest {
         articleRepository = mock(ArticleRepository.class);
         userRepository = mock(UserRepository.class);
         sendLimitRepository = mock(UserSendLimitRepository.class);
+        subscriptionRepository = mock(SubscriptionRepository.class);
         AppProperties properties = new AppProperties(
                 "approved@example.com",
                 null,
@@ -57,8 +65,12 @@ class KindleMailServiceTest {
                 null,
                 null,
                 null,
+                null,
                 null
         );
+        // A real entitlement service over mocked repositories: the administrator
+        // override these tests exercise lives inside it now, so mocking it away would
+        // stop testing the thing they are about.
         service = new KindleMailService(
                 mailSender,
                 new EpubService(),
@@ -66,6 +78,7 @@ class KindleMailServiceTest {
                 articleRepository,
                 userRepository,
                 sendLimitRepository,
+                new EntitlementService(subscriptionRepository, sendLimitRepository, properties),
                 properties
         );
         AppUser account = new AppUser(UID, "user@example.com", "hash", "reader@kindle.com",
@@ -103,6 +116,9 @@ class KindleMailServiceTest {
         verify(mailSender).send(message.capture());
         message.getValue().saveChanges();
         assertEquals("Useful Article", message.getValue().getSubject());
+        InternetAddress from = (InternetAddress) message.getValue().getFrom()[0];
+        assertEquals("approved@example.com", from.getAddress());
+        assertEquals("Extrablatt", from.getPersonal());
         assertEquals("reader@kindle.com", message.getValue().getAllRecipients()[0].toString());
         assertTrue(message.getValue().getContentType().startsWith("multipart/"));
         verify(articleRepository).recordSend(eq(UID), eq(7L), any(Instant.class));
@@ -118,6 +134,87 @@ class KindleMailServiceTest {
 
         verify(articleRepository, never()).recordSend(any(Long.class), any(Long.class), any(Instant.class));
         verify(articleRepository, never()).markRead(UID, 7L, true);
+    }
+
+    /**
+     * After the trial there is no monthly ration to wait for, so the refusal
+     * points at the subscription page rather than a refill date.
+     */
+    @Test
+    void anExpiredTrialIsToldToSubscribe() {
+        service = freeTierService();
+        when(subscriptionRepository.findByUserId(UID)).thenReturn(Optional.empty());
+
+        IllegalStateException error = assertThrows(IllegalStateException.class,
+                () -> service.sendToKindle(UID, 7L, false));
+
+        assertTrue(error.getMessage().contains("free week has ended"), error.getMessage());
+        assertTrue(error.getMessage().contains("Settings → Subscription"), error.getMessage());
+        verify(mailSender, never()).send(any(MimeMessage.class));
+    }
+
+    /** A still-running trial is the paid plan: it is not metered by the month. */
+    @Test
+    void aLiveTrialCanSendLikeASubscriber() {
+        service = freeTierService();
+        when(subscriptionRepository.findByUserId(UID)).thenReturn(Optional.of(
+                new Subscription(UID, Plan.SUPPORTER, SubscriptionStatus.TRIALING,
+                        null, null, null, null,
+                        Instant.now().plusSeconds(86_400), true, null)));
+        when(articleRepository.countSentSince(eq(UID), any())).thenReturn(40L);
+
+        service.sendToKindle(UID, 7L, false);
+
+        verify(mailSender).send(any(MimeMessage.class));
+    }
+
+    /** The whole allowance in one morning is allowed: it is a month's worth, not a day's. */
+    @Test
+    void aSupporterIsNotMeteredByTheMonth() {
+        service = freeTierService();
+        when(subscriptionRepository.findByUserId(UID)).thenReturn(Optional.of(
+                new Subscription(UID, Plan.SUPPORTER, SubscriptionStatus.ACTIVE,
+                        BillingInterval.YEARLY, "stripe", "cus_1", "sub_1",
+                        Instant.now().plusSeconds(86_400), false, Instant.now())));
+        when(articleRepository.countSentSince(eq(UID), any())).thenReturn(40L);
+
+        service.sendToKindle(UID, 7L, false);
+
+        verify(mailSender).send(any(MimeMessage.class));
+    }
+
+    /** The daily guardrail still applies to a subscriber who is not metered monthly. */
+    @Test
+    void aSupporterStillCannotExceedTheDailyGuardrail() {
+        service = freeTierService();
+        when(subscriptionRepository.findByUserId(UID)).thenReturn(Optional.of(
+                new Subscription(UID, Plan.SUPPORTER, SubscriptionStatus.ACTIVE,
+                        BillingInterval.YEARLY, "stripe", "cus_1", "sub_1",
+                        Instant.now().plusSeconds(86_400), false, Instant.now())));
+        when(articleRepository.countSentSince(eq(UID), any())).thenReturn(50L);
+
+        IllegalStateException error = assertThrows(IllegalStateException.class,
+                () -> service.sendToKindle(UID, 7L, false));
+
+        assertTrue(error.getMessage().contains("Daily send limit reached (50)"), error.getMessage());
+        verify(mailSender, never()).send(any(MimeMessage.class));
+    }
+
+    private KindleMailService freeTierService() {
+        AppProperties properties = billingOn();
+        return new KindleMailService(mailSender, new EpubService(), articleService,
+                articleRepository, userRepository, sendLimitRepository,
+                new EntitlementService(subscriptionRepository, sendLimitRepository, properties),
+                properties);
+    }
+
+    /** Billing switched on, with the free tier at three sends a day. */
+    private static AppProperties billingOn() {
+        AppProperties.Billing billing = new AppProperties.Billing(true, "stripe", "whsec",
+                "https://pay/monthly", "https://pay/yearly", null, null, null,
+                null, null, null, null, null, null);
+        return new AppProperties("approved@example.com", null, "remember-key", null, null, null,
+                null, null, billing, null);
     }
 
     @Test

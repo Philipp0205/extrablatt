@@ -33,7 +33,6 @@ public class AdminController {
     public String updateLimit(@RequestParam("userId") long userId,
                               @RequestParam(value = "dailyLimit", required = false) Integer dailyLimit,
                               @RequestParam(value = "blockHours", required = false) Integer blockHours,
-                              @RequestParam(value = "redirect", defaultValue = "/settings") String redirect,
                               RedirectAttributes redirectAttributes) {
         try {
             telemetryService.updateLimit(userId, dailyLimit, blockHours);
@@ -41,8 +40,25 @@ public class AdminController {
         } catch (IllegalArgumentException e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
         }
-        // Telemetry now lives on the Settings page; this form is only kept
-        // reachable at its own address for anything still linking directly to it.
-        return "redirect:" + ("/admin".equals(redirect) ? "/admin" : "/settings?view=telemetry");
+        return "redirect:/admin";
+    }
+
+    /**
+     * Grants the paid plan by hand, for the reader whose payment went through and
+     * whose callback did not.
+     */
+    @PostMapping("/admin/users/plan")
+    public String updatePlan(@RequestParam("userId") long userId,
+                            @RequestParam("months") int months,
+                            RedirectAttributes redirectAttributes) {
+        try {
+            telemetryService.grantSupporter(userId, months);
+            redirectAttributes.addFlashAttribute("message", months <= 0
+                    ? "Account returned to unpaid access"
+                    : "Supporter plan granted for " + months + " month(s)");
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+        }
+        return "redirect:/admin";
     }
 }

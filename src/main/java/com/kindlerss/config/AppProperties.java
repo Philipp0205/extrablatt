@@ -18,7 +18,8 @@ public record AppProperties(
         Articles articles,
         Limits limits,
         Newsletters newsletters,
-        String donateUrl
+        Billing billing,
+        Retention retention
 ) {
     public AppProperties {
         if (http == null) {
@@ -37,6 +38,13 @@ public record AppProperties(
         if (newsletters == null) {
             newsletters = new Newsletters(null, null);
         }
+        if (billing == null) {
+            billing = new Billing(false, null, null, null, null, null, null, null,
+                    null, null, null, null, null, null);
+        }
+        if (retention == null) {
+            retention = new Retention(null, null, null, null);
+        }
         if (publicUrl == null || publicUrl.isBlank()) {
             // Base URL used to build links in verification / password-reset e-mails.
             publicUrl = "http://localhost:8080";
@@ -46,11 +54,6 @@ public record AppProperties(
             // Signs the remember-me cookie (TokenBasedRememberMeServices). Override
             // in production so tokens cannot be forged with the well-known default.
             rememberMeKey = "kindle-rss-remember-me-change-me";
-        }
-        if (donateUrl == null || donateUrl.isBlank()) {
-            // Shown in Settings and in the occasional "help keep the servers running"
-            // reminder after sending several articles.
-            donateUrl = "https://paypal.me/philippkurrle";
         }
     }
 
@@ -119,6 +122,154 @@ public record AppProperties(
 
         public boolean enabled() {
             return inboundDomain != null;
+        }
+    }
+
+    /**
+     * Paid subscriptions. Unconfigured — the default — the app has no billing at
+     * all: nothing is charged, no prices are shown, no cancellation page exists,
+     * and every account keeps the full {@code app.limits.*} allowances. That is
+     * what a self-hosted deployment needs, since it is not the one collecting the
+     * money, and it keeps the whole feature out of the way until an operator
+     * deliberately turns it on.
+     *
+     * <p>Prices are gross, in euro cents, because a consumer price in the EU has to
+     * be the total the customer pays. New accounts get a week of the paid
+     * allowances; after that, reading stays free and Kindle delivery needs a
+     * subscription. {@code app.limits.*} are the paid plan's allowances.
+     */
+    public record Billing(
+            boolean enabled,
+            String provider,
+            String webhookSecret,
+            String monthlyCheckoutUrl,
+            String yearlyCheckoutUrl,
+            String portalUrl,
+            String operatorEmail,
+            String referenceParam,
+            Integer monthlyPriceCents,
+            Integer yearlyPriceCents,
+            Integer freeMaxSendsPerMonth,
+            Integer freeMaxFeeds,
+            Integer graceDays,
+            Integer trialDays
+    ) {
+        public static final int DEFAULT_MONTHLY_PRICE_CENTS = 399;
+        public static final int DEFAULT_YEARLY_PRICE_CENTS = 3_500;
+        public static final int DEFAULT_FREE_MAX_SENDS_PER_MONTH = 0;
+        public static final int DEFAULT_FREE_MAX_FEEDS = 0;
+        public static final int DEFAULT_GRACE_DAYS = 7;
+        public static final int DEFAULT_TRIAL_DAYS = 7;
+
+        /**
+         * Query parameter carrying the account id into a hosted checkout, so the
+         * provider hands it back and the payment can find its account. Stripe payment
+         * links use {@code client_reference_id}; a Paddle checkout wants
+         * {@code custom_data[user_id]}.
+         */
+        public static final String DEFAULT_REFERENCE_PARAM = "client_reference_id";
+
+        public Billing {
+            provider = blankToNull(provider);
+            if (provider != null) {
+                provider = provider.trim().toLowerCase();
+            }
+            webhookSecret = blankToNull(webhookSecret);
+            monthlyCheckoutUrl = blankToNull(monthlyCheckoutUrl);
+            yearlyCheckoutUrl = blankToNull(yearlyCheckoutUrl);
+            portalUrl = blankToNull(portalUrl);
+            operatorEmail = blankToNull(operatorEmail);
+            referenceParam = blankToNull(referenceParam);
+            if (referenceParam == null) {
+                referenceParam = DEFAULT_REFERENCE_PARAM;
+            }
+            if (monthlyPriceCents == null || monthlyPriceCents <= 0) {
+                monthlyPriceCents = DEFAULT_MONTHLY_PRICE_CENTS;
+            }
+            if (yearlyPriceCents == null || yearlyPriceCents <= 0) {
+                yearlyPriceCents = DEFAULT_YEARLY_PRICE_CENTS;
+            }
+            if (freeMaxSendsPerMonth == null) {
+                freeMaxSendsPerMonth = DEFAULT_FREE_MAX_SENDS_PER_MONTH;
+            }
+            freeMaxSendsPerMonth = Math.min(Math.max(freeMaxSendsPerMonth, 0), 10_000);
+            if (freeMaxFeeds == null) {
+                freeMaxFeeds = DEFAULT_FREE_MAX_FEEDS;
+            }
+            freeMaxFeeds = Math.min(Math.max(freeMaxFeeds, 0), 1_000);
+            if (graceDays == null || graceDays < 0) {
+                graceDays = DEFAULT_GRACE_DAYS;
+            }
+            if (trialDays == null || trialDays < 0) {
+                trialDays = DEFAULT_TRIAL_DAYS;
+            }
+            trialDays = Math.min(trialDays, 90);
+        }
+
+        /**
+         * Whether a payment can actually be taken right now. Billing can be enabled
+         * before a provider is connected — the plans and prices are then visible and
+         * the trial still runs, but ordering says so instead of failing obscurely.
+         */
+        public boolean checkoutConfigured() {
+            return enabled && monthlyCheckoutUrl != null && yearlyCheckoutUrl != null;
+        }
+
+        public boolean webhookConfigured() {
+            return provider != null && webhookSecret != null;
+        }
+
+        public Duration grace() {
+            return Duration.ofDays(graceDays);
+        }
+
+        /** The yearly price expressed per month, which is how it is advertised. */
+        public int yearlyPricePerMonthCents() {
+            return Math.round(yearlyPriceCents / 12f);
+        }
+
+        private static String blankToNull(String value) {
+            if (value == null) {
+                return null;
+            }
+            String trimmed = value.trim();
+            return trimmed.isEmpty() ? null : trimmed;
+        }
+    }
+
+    /**
+     * How long data is kept. Art. 5(1)(e) GDPR asks for personal data to be held no
+     * longer than necessary, and "necessary" is a decision an operator has to make
+     * rather than something a default can make for them — so each figure is separate,
+     * and zero switches that particular sweep off.
+     *
+     * <p>The values are deliberately generous. Nothing here deletes anything a reader
+     * would miss: an article's cached text is re-extracted from its URL on demand, and
+     * send history beyond the window only ever fed a lifetime counter.
+     */
+    public record Retention(
+            Integer sendEventDays,
+            Integer billingPayloadDays,
+            Integer usedTokenDays,
+            Integer articleCacheDays
+    ) {
+        public static final int DEFAULT_SEND_EVENT_DAYS = 730;
+        public static final int DEFAULT_BILLING_PAYLOAD_DAYS = 90;
+        public static final int DEFAULT_USED_TOKEN_DAYS = 30;
+        public static final int DEFAULT_ARTICLE_CACHE_DAYS = 365;
+
+        public Retention {
+            sendEventDays = atLeastZero(sendEventDays, DEFAULT_SEND_EVENT_DAYS);
+            billingPayloadDays = atLeastZero(billingPayloadDays, DEFAULT_BILLING_PAYLOAD_DAYS);
+            usedTokenDays = atLeastZero(usedTokenDays, DEFAULT_USED_TOKEN_DAYS);
+            articleCacheDays = atLeastZero(articleCacheDays, DEFAULT_ARTICLE_CACHE_DAYS);
+        }
+
+        private static int atLeastZero(Integer value, int fallback) {
+            if (value == null) {
+                return fallback;
+            }
+            return Math.max(value, 0);
         }
     }
 

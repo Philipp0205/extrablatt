@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/settings-shell :: head('Kindle')}"></head>
+<body>
+<div class="wrap">
+  <th:block th:replace="~{fragments/settings-shell :: top}"></th:block>
+
+  <a class="back-link" th:href="@{/settings}">← Settings</a>
+  <h1>Kindle</h1>
+
+  <form th:action="@{/settings/kindle-email}" method="post">
+    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+    <label for="kindleEmail">Your Kindle e-mail</label>
+    <input id="kindleEmail" name="kindleEmail" type="email"
+           th:value="${account.kindleEmail}" placeholder="yourname@kindle.com"/>
+    <div class="row" style="margin-top:1rem">
+      <button class="btn" type="submit">Save</button>
+    </div>
+  </form>
+  <p class="meta">Articles are sent from
+    <strong th:text="${mailFrom} ?: 'our sender address'">mail@extrablatt.app</strong>.
+    Amazon only delivers them if that address is on your
+    <em>Approved Personal Document E-mail List</em>.</p>
+
+  <!-- Setup instructions matter exactly once: expanded until a Kindle address is
+       saved, folded away afterwards so the page stays short. -->
+  <details class="tools" style="margin-top:1rem"
+           th:open="${#strings.isEmpty(account.kindleEmail)}">
+    <summary>Amazon setup instructions</summary>
+    <div class="tools-body meta">
+      <p>To let articles reach your Kindle, add our sender address to Amazon's
+        approved list:</p>
+      <ol>
+        <li>Find your Send-to-Kindle e-mail on Amazon under
+          <em>Manage Your Content and Devices → Preferences → Personal Document Settings</em>,
+          and enter it above.</li>
+        <li>In the same place, add
+          <strong th:text="${mailFrom} ?: 'our sender address'">mail@extrablatt.app</strong>
+          to the <em>Approved Personal Document E-mail List</em>.</li>
+      </ol>
+      <p>
+        <a class="btn" href="https://www.amazon.de/hz/mycd/preferences/myx#/home/settings/payment"
+           target="_blank" rel="noopener noreferrer">Open Amazon settings</a>
+        — easiest to complete on your phone.
+      </p>
+    </div>
+  </details>
+
+  <div th:if="${newslettersEnabled}" style="margin-top:1.5rem">
+    <h2>Newsletters</h2>
+    <p class="meta">Some sources only publish by e-mail. Subscribe to any of them using
+      the address below — issues show up in <a th:href="@{/}">Feeds</a> (each sender
+      becomes its own entry the first time it writes) and send to Kindle exactly like
+      any other article.</p>
+    <code class="address-box" th:text="${newsletterAddress}">news@example.com</code>
+    <form th:action="@{/settings/newsletter-address/regenerate}" method="post"
+          onsubmit="return confirm('Replace your newsletter address? Anything still sent to the old one will be lost, but newsletters already received stay put.');">
+      <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+      <button class="btn" type="submit">New address</button>
+    </form>
+  </div>
+
+  <div th:replace="~{fragments/site-footer :: siteFooter}"></div>
+</div>
+</body>
+</html>

@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/settings-shell :: head('Changelog')}"></head>
+<body>
+<div class="wrap">
+  <th:block th:replace="~{fragments/settings-shell :: top}"></th:block>
+
+  <a class="back-link" th:href="@{/settings}">← Settings</a>
+  <h1>Changelog</h1>
+  <p class="meta">What changed in recent releases. A short notice also appears after each new one.</p>
+
+  <article class="changelog-release" th:each="release : ${changelogReleases}">
+    <h2 th:text="${release.title}">Release</h2>
+    <p class="meta" th:text="${release.date}">date</p>
+    <ul class="changelog-list">
+      <li th:each="item : ${release.changes}" th:text="${item}">change</li>
+    </ul>
+  </article>
+
+  <div th:replace="~{fragments/site-footer :: siteFooter}"></div>
+</div>
+</body>
+</html>

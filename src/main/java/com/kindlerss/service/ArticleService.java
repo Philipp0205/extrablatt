@@ -69,6 +69,11 @@ public class ArticleService {
         return articleRepository.countSentTotal(userId);
     }
 
+    /** Deliveries since a moment, for showing how much of an allowance is left. */
+    public long countSentSince(long userId, Instant since) {
+        return articleRepository.countSentSince(userId, since);
+    }
+
     @Transactional
     public Article markRead(long userId, long id, boolean read) {
         Article article = articleRepository.findById(userId, id)
@@ -83,24 +88,16 @@ public class ArticleService {
         return articleRepository.markRead(userId, ids, read);
     }
 
-    /** Bookmarks an article, or takes the bookmark off again. */
+    /**
+     * Marks every unread article in a feed as read. Throws when the feed is not
+     * on this account, so the caller can say so instead of reporting zero.
+     */
     @Transactional
-    public Article setSaved(long userId, long id, boolean saved) {
-        if (!articleRepository.setSaved(userId, id, saved)) {
-            throw new NotFoundException("Article not found");
+    public int markFeedRead(long userId, long feedId) {
+        if (feedRepository.findById(userId, feedId).isEmpty()) {
+            throw new NotFoundException("Feed not found");
         }
-        return articleRepository.findById(userId, id)
-                .orElseThrow(() -> new NotFoundException("Article not found"));
-    }
-
-    public List<Article> findSavedPage(long userId, int page, int pageSize) {
-        int safePage = Math.max(page, 1);
-        int safeSize = Math.min(Math.max(pageSize, 1), 100);
-        return articleRepository.findSavedPage(userId, safeSize, (safePage - 1) * safeSize);
-    }
-
-    public long countSaved(long userId) {
-        return articleRepository.countSaved(userId);
+        return articleRepository.markFeedRead(userId, feedId);
     }
 
     /**

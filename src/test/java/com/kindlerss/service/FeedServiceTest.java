@@ -5,7 +5,9 @@ import com.kindlerss.domain.Feed;
 import com.kindlerss.domain.FeedSource;
 import com.kindlerss.repository.ArticleRepository;
 import com.kindlerss.repository.FeedRepository;
+import com.kindlerss.repository.SubscriptionRepository;
 import com.kindlerss.repository.UserRepository;
+import com.kindlerss.repository.UserSendLimitRepository;
 import org.junit.jupiter.api.Test;
 import org.mockito.stubbing.Answer;
 
@@ -56,10 +58,14 @@ class FeedServiceTest {
     private FeedService service(int maxEntries, Executor refreshExecutor) {
         AppProperties properties = new AppProperties(
                 "from@example.com", null, "remember-me",
-                null, new AppProperties.Feeds(maxEntries), null, null, null, null);
+                null, new AppProperties.Feeds(maxEntries), null, null, null, null, null);
         when(userRepository.findMarkReadOnNextPageByFeedId(anyLong())).thenReturn(Optional.of(true));
+        // A real entitlement service, not a mock: with billing off it has to hand back
+        // the configured app.limits values, which is exactly what these tests assume.
+        EntitlementService entitlements = new EntitlementService(
+                mock(SubscriptionRepository.class), mock(UserSendLimitRepository.class), properties);
         return new FeedService(feedRepository, articleRepository, userRepository, httpClient,
-                new HtmlSanitizer(), properties, refreshExecutor);
+                new HtmlSanitizer(), entitlements, properties, refreshExecutor);
     }
 
     private static Feed feed(String url) {
@@ -148,6 +154,46 @@ class FeedServiceTest {
         service(100).addFeed(UID, url, "Local");
 
         verify(httpClient, times(1)).get(url);
+    }
+
+    @Test
+    void addingAnAddressWithoutASchemeFetchesItOverHttps() {
+        when(httpClient.get("https://test.de/feed")).thenAnswer(respondWithFeed());
+        when(feedRepository.insert(eq(UID), eq("Example"), eq("https://test.de/feed"),
+                eq("https://example.com/"), isNull())).thenReturn(feed("https://test.de/feed"));
+        when(feedRepository.findById(UID, 1L)).thenReturn(Optional.of(feed("https://test.de/feed")));
+
+        Feed added = service(100).addFeed(UID, "test.de/feed", null);
+
+        assertEquals("https://test.de/feed", added.url());
+        verify(httpClient, never()).get("http://test.de/feed");
+    }
+
+    @Test
+    void anAddressThatServesNoHttpsIsFetchedOverHttp() {
+        when(httpClient.get("https://test.de"))
+                .thenThrow(new SafeHttpClient.FetchException("Failed to fetch https://test.de"));
+        when(httpClient.get("http://test.de")).thenAnswer(respondWithFeed());
+        when(feedRepository.insert(eq(UID), eq("Example"), eq("http://test.de"),
+                eq("https://example.com/"), isNull())).thenReturn(feed("http://test.de"));
+        when(feedRepository.findById(UID, 1L)).thenReturn(Optional.of(feed("http://test.de")));
+
+        Feed added = service(100).addFeed(UID, " test.de ", null);
+
+        assertEquals("http://test.de", added.url());
+    }
+
+    @Test
+    void anAddressThatAnswersOnNeitherSchemeReportsTheHttpsFailure() {
+        when(httpClient.get("https://test.de"))
+                .thenThrow(new SafeHttpClient.FetchException("DNS resolution failed for test.de"));
+        when(httpClient.get("http://test.de"))
+                .thenThrow(new SafeHttpClient.FetchException("Connection refused"));
+
+        Exception failure = assertThrows(SafeHttpClient.FetchException.class,
+                () -> service(100).addFeed(UID, "test.de", null));
+
+        assertEquals("DNS resolution failed for test.de", failure.getMessage());
     }
 
     @Test

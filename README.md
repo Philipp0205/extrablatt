@@ -20,12 +20,11 @@ Multi-user RSS/Atom reader that extracts readable article HTML and emails EPUB f
 - Page-at-a-time reading sized to the device screen, instead of scrolling
 - Send-to-Kindle as EPUB 3 through one shared, provider-verified sender
 - Per-account limits and IP-based rate limiting on auth endpoints
-- Optional "help keep the servers running" reminder every 10th article sent,
-  plus a permanent donation link in Settings — the app itself stays free and
-  ad-free either way
-
-Need large type, topics instead of feed URLs, and read-aloud? That lives in the
-sibling app **[Klarblatt](https://github.com/Philipp0205/klarblatt)**.
+- Optional paid subscriptions: a week of the full plan at no charge, then a
+  "Supporter" plan at €3.99/month or €35 paid once for 12 months, with a subscription menu, a
+  publicly reachable cancellation page, and the order and withdrawal wording
+  German consumer law requires. Off unless `BILLING_ENABLED` is set, so a
+  self-hosted copy charges nobody (see [Subscriptions](#subscriptions-optional))
 
 ## Requirements
 
@@ -45,7 +44,7 @@ sibling app **[Klarblatt](https://github.com/Philipp0205/klarblatt)**.
 | `DATABASE_URL` | JDBC URL, e.g. `jdbc:postgresql://localhost:5432/kindle_rss` |
 | `DATABASE_USER` / `DATABASE_PASSWORD` | DB credentials |
 | `APP_PUBLIC_URL` | Base URL used in verification / reset e-mails (e.g. `http://localhost:8080`) |
-| `MAIL_FROM` | Shared sender on your verified domain (`noreply@yourdomain.com`) |
+| `MAIL_FROM` | Shared sender on your verified domain (`mail@yourdomain.com`) |
 | `SMTP_HOST` / `SMTP_PORT` / `SMTP_USERNAME` / `SMTP_PASSWORD` | SMTP (Resend: host `smtp.resend.com`, username `resend`, password = API key) |
 | `REMEMBER_ME_KEY` | Secret for remember-me tokens |
 | `ADMIN_EMAILS` | Comma-separated account e-mails allowed to view telemetry and manage per-user send limits |
@@ -124,8 +123,8 @@ already says how many it wants (`?count=`, `?limit=`, `?n=`) is left alone, and
 
 Nothing is thrown away afterwards, so a feed keeps growing past what it
 publishes at any one moment. `ARTICLE_PAGE_SIZE` (50, at most 100) sets how many
-of those articles one page of the list holds; **Next page** at the end of a
-Kindle screen loads the next ones.
+of those articles one page of the list holds; **Mark read and load more** at the
+end of the last Kindle screen of a batch loads the next ones.
 
 ## Reading a page at a time
 
@@ -137,14 +136,16 @@ article list are therefore laid out as whole pages:
 - **Previous page** / **Next page** sit under the text. Tapping the left quarter of
   the page goes back, tapping anywhere else goes forward, and the arrow, space and
   page keys work on a keyboard.
-- In the article list, **Next page** on the last page loads the next articles.
-  With **Mark articles as read when I go to the next page** on in Settings
-  (the default), that also marks the articles you paged past as read, so a list
-  can be cleared by reading through it instead of marking every article by hand.
-  The button says **Mark read** when that is what it will do, and the next page
-  reports how many were marked. Turn the setting off and new feed articles arrive
-  already read, so a refresh does not fill Unread with a backlog. An article that
-  was opened by mistake takes **Mark unread** on its own page.
+- In the article list, the last page of a loaded batch names both halves of what
+  pressing it does: **Mark read and load more** with **Mark articles as read when
+  I go to the next page** on in Settings (the default), or **Load more articles**
+  with it off. One press is enough — the next batch arrives straight away, and the
+  page it lands on reports how many articles were marked. So a list can be cleared
+  by reading through it instead of marking every article by hand. On the last batch
+  of the list there is nothing further to fetch, and the label reads **Mark read
+  and continue**. Turn the setting off and new feed articles arrive already read,
+  so a refresh does not fill Unread with a backlog. An article that was opened by
+  mistake takes **Mark unread** on its own page.
 - Your position is remembered per article, so sending to Kindle or marking an
   article unread returns you to the page you were on.
 - Rotating the device or changing the browser font re-splits the pages and keeps
@@ -157,7 +158,9 @@ back to a normally scrolling document with the same content and links.
 ## Send-to-Kindle (Amazon)
 
 Delivery uses one shared sender (`MAIL_FROM`) for everyone. Amazon only accepts
-documents from approved sender addresses, so each user does this once:
+documents from approved sender addresses, so each user does this once. Hosted
+Extrablatt sends from `mail@extrablatt.app` (shown as **Extrablatt**); do not
+use Amazon trademarks such as `kindle` in the local part.
 
 1. In Amazon account settings, open **Content & Devices** → **Preferences** → **Personal Document Settings**.
 2. Note your **Send-to-Kindle Email** and enter it in the app under **Settings**.
@@ -204,6 +207,96 @@ belongs to, and names that feed the first time), `Subject`, `HtmlBody`/
 does), and `Date`. Leaving `NEWSLETTER_INBOUND_DOMAIN` unset hides the feature
 entirely; existing RSS feeds are unaffected either way.
 
+## Subscriptions (optional)
+
+Left alone, this feature does not exist: with `BILLING_ENABLED` unset there are no
+prices, no subscription menu, no cancellation page, and every account keeps the
+full `MAX_*` allowances. That is the right setting for a self-hosted copy, which is
+not the one collecting the money.
+
+Turned on, a new account gets a week of the paid allowances at no charge. After
+that week the gate sits on Kindle delivery, because that is the only thing with
+a real unit cost — one article sent is one e-mail — so reading in the browser
+stays free and unmetered.
+
+| | After the free week | Supporter |
+|---|---|---|
+| Send to Kindle | no (unless `BILLING_FREE_SENDS_PER_MONTH` is set) | no monthly limit, up to `MAX_SENDS_PER_DAY` (50) a day |
+| Feeds | existing feeds stay; adding more needs a plan | `MAX_FEEDS_PER_USER` (50) |
+| Newsletter inbox | — | yes |
+| Price | €0 for seven days | €3.99/month, or €35.00 paid once for 12 months |
+
+`MAX_SENDS_PER_DAY` stays in force for everyone, including subscribers, as an
+abuse guardrail rather than a plan limit. The complimentary week is
+`BILLING_TRIAL_DAYS` (7) and does not renew.
+
+Every account that exists when the original subscriptions migration ran is
+grandfathered permanently: it was never advertised as something with a
+subscription, and capping it afterwards would be both unfair and bad for the
+project. An administrator can also grant the plan by hand from **Settings →
+Telemetry**, which is how a reader whose payment went through but whose callback
+went missing gets fixed.
+
+Setup is a hosted checkout link per interval plus a webhook:
+
+1. Create two prices at your payment provider — one yearly, one monthly — and take
+   the hosted checkout (Stripe payment link or Paddle checkout) URL for each.
+2. Point the provider's webhook at `https://<your-app>/webhooks/billing` and copy
+   the signing secret. Stripe's `Stripe-Signature` and Paddle's `Paddle-Signature`
+   schemes are both understood; `BILLING_PROVIDER` says which to expect.
+3. Set the `BILLING_*` variables (see `.env.example`) and redeploy.
+
+The callback is the only thing that grants a subscription — the page a reader lands
+on after paying grants nothing — so a reader who closes the tab still ends up
+subscribed. Losing a subscription never deletes anything; feeds, articles and
+reading position stay. Reading in the browser continues; sending to Kindle needs
+a paid period.
+
+Two things are deliberately manual, because the app holds no provider API key: a
+cancellation is e-mailed to `BILLING_OPERATOR_EMAIL` so the payment is stopped at
+the provider by hand, and a missed callback is fixed with the admin grant above.
+
+Before charging anyone there is work no configuration flag covers.
+[`docs/going-live.md`](docs/going-live.md) is the runbook: the tax and establishment
+question that has to be settled first because it decides the provider, then the
+dashboard steps for Stripe or Paddle, then the mailbox the imprint needs.
+[`docs/subscriptions-and-payments.md`](docs/subscriptions-and-payments.md) has the
+pricing arithmetic and the reasoning behind the Stripe-versus-Paddle choice.
+
+## Data protection
+
+Every account can download everything held about it from **Settings → Your data** —
+a JSON file, no request to make and nobody to ask. That covers the right of access
+and the right to portability without anyone having to remember to answer an e-mail
+within a month.
+
+Deleting an account really deletes it. Feeds, articles, delivery history, tokens,
+display preferences, send limits and subscription all go through database cascades;
+the stored payment payload is emptied explicitly, since a payment event's id has to
+outlive the account to keep a replayed webhook harmless. The one thing kept is a
+payment or cancellation record, unlinked from the account, where tax and commercial
+law require it.
+
+A nightly sweep stops anything growing for ever — delivery history, spent
+confirmation links, raw payment payloads, and cached article text for articles
+already read and not saved, which is re-extracted from its own URL when next needed.
+The periods are `RETENTION_*` in `.env.example`, and `0` switches any of them off.
+
+There is **no cookie banner and no need for one**: the four cookies (session,
+opt-in "remember me", and two display settings written only when a reader changes
+them) all fall inside the strictly-necessary exception in § 25 TDDDG, and there is
+no analytics, advertising or third-party script anywhere in the app. They are listed
+in the privacy notice, which is what that exception does require.
+
+Logs deliberately carry no e-mail addresses, Kindle addresses or IP addresses. Worth
+keeping in mind when adding a log line: log files are where personal data quietly
+accumulates with no retention period at all.
+
+[`docs/data-protection.md`](docs/data-protection.md) is the Art. 30 record of
+processing activities — what is held, on what legal basis, for how long, who receives
+it, and the known gaps. It is written to be handed to an EU representative, who has
+their own obligation to hold it.
+
 ## Deploy on Railway (recommended, no personal VPS)
 
 The app is a small always-on service, which fits [Railway](https://railway.app)
@@ -222,7 +315,7 @@ well: managed Postgres, TLS, and Dockerfile builds with low ops.
    APP_PUBLIC_URL    = https://<your-service>.up.railway.app
    REMEMBER_ME_KEY   = <long random string>
    ADMIN_EMAILS      = you@yourdomain.com
-   MAIL_FROM         = noreply@yourdomain.com
+   MAIL_FROM         = mail@yourdomain.com
    SMTP_HOST         = smtp.resend.com
    SMTP_PORT         = 587
    SMTP_USERNAME     = resend
@@ -246,6 +339,7 @@ This repo's Railway project has two environments:
 |---|---|---|
 | GitHub branch | `main` | `staging` |
 | App URL | https://reader.extrablatt.app | https://staging.extrablatt.app |
+| Landing page URL | https://extrablatt.app | https://marketing-site-staging-staging.up.railway.app |
 | Database | live Postgres | **copy** of production (own instance) |
 | How it deploys | Railway GitHub trigger on `main` | Railway GitHub trigger on `staging`, plus `.github/workflows/deploy-railway.yml` |
 
@@ -276,12 +370,82 @@ railway domain extrablatt.app --service marketing-site   # reader.extrablatt.app
 Any static file host (GitHub Pages, Cloudflare Pages, Netlify, …) works
 just as well if you'd rather not run it on Railway.
 
-## Klarblatt
+#### The staging landing page
 
-The accessibility-first reader is a separate app and repository:
-**[Klarblatt](https://github.com/Philipp0205/klarblatt)**. Topics instead of feed
-URLs, large high-contrast type, key points before full text, and read-aloud. It
-is deployed on its own, not as a second face of this process.
+The landing page quotes prices and links to the cancellation and withdrawal
+pages, so it needs somewhere to be read before it is live. Staging gets its own
+`marketing-site` service, in the `staging` environment, with one variable the
+production one does not have:
+
+It already exists, as **`marketing-site-staging`**, live on
+<https://marketing-site-staging-staging.up.railway.app>. Its configuration is the
+production service with one branch changed:
+
+| | `marketing-site` (production) | `marketing-site-staging` |
+|---|---|---|
+| Branch | `main` | `staging` |
+| Root directory | `marketing` | `marketing` |
+| Builder | Dockerfile | Dockerfile |
+| `SITE_ENV` | unset (so, production) | `staging` |
+| Domain | `extrablatt.app` | generated `*.up.railway.app` |
+
+The name has to differ because **Railway service names are unique across a
+project, not per environment** — `railway add --service marketing-site` fails
+with "already exists in this project" even from the staging environment. The app
+service is called `kindle-rss-app` in both only because it predates the split.
+
+A generated domain rather than a custom one keeps the DNS zone free of a
+hostname only you will visit. If you do add one, note that the production zone
+is behind Cloudflare, which serves its own content-signals `robots.txt` — worth
+checking that it does not shadow the one in the image. The `noindex` tag in the
+page holds either way, which is why the build writes both.
+
+To recreate it from scratch, or to build a second one:
+
+```bash
+railway environment staging                                          # switch the linked environment
+railway add --service marketing-site-staging --repo Philipp0205/kindle-rss \
+    --branch staging --variables "SITE_ENV=staging"
+railway domain --service marketing-site-staging --environment staging
+```
+
+Then, in the dashboard, **Settings → Source → Root Directory → `marketing`**.
+The CLI has no flag for it, and without it Railway builds the repo root and
+deploys the app instead of the landing page.
+
+`railway add` has no `--environment` flag — it creates the service in whichever
+environment is currently linked, which is why the switch comes first. Check with
+`railway status` if you are not sure where you are.
+
+Deploys come from Railway's own GitHub trigger on the `staging` branch, the same
+mechanism that ships the production page. The `railway up` step in
+`deploy-railway.yml` is a belt-and-braces extra that does nothing today: it
+guards on a `RAILWAY_TOKEN` repository secret that is not set, so it prints a
+skip notice and exits 0 on every run.
+
+To change `SITE_ENV` later, it is `railway variable set SITE_ENV=staging
+--service marketing-site-staging --environment staging` (`railway variables
+--set …` is the deprecated spelling).
+
+`SITE_ENV=staging` is what makes it a staging copy rather than a second live
+one. Railway passes it into the Docker build, where `marketing/make-staging.sh`:
+
+- **points every link at `staging.extrablatt.app`.** The page mentions the app
+  in twenty-odd places — buttons, the address to type on the Kindle, the meta
+  description — and they are all the same string, so one substitution moves all
+  of them. Skip this and "Choose yearly" on staging opens the *live* checkout.
+- **keeps the copy out of search results,** with `robots.txt` and a `noindex`
+  meta tag. It is the live page word for word, so an indexable second copy
+  competes with the real one for the same searches.
+- **puts a banner across the top** saying which site you are on.
+
+The build refuses to finish if the substitution left a production hostname
+behind, so a misconfigured staging site fails to deploy rather than quietly
+pointing at production.
+
+One thing this does *not* solve: the staging app's own `BILLING_*` variables
+decide what its checkout does. Point them at your payment provider's test mode,
+or the staging landing page will walk you into a real payment.
 
 ## Marketing / landing page
 
@@ -302,6 +466,12 @@ The production split is two names against this deployment:
 To update the landing page's copy or screenshots, edit files under
 `marketing/` and redeploy as usual — `deploy/deploy.sh` syncs the whole repo,
 including this folder, and Caddy serves whatever is on disk with no rebuild.
+
+The committed files are the *production* page: they name `reader.extrablatt.app`
+throughout, and that is what ships to `extrablatt.app`. The staging copy is
+built from the same files by `marketing/make-staging.sh`, so there is one page
+to edit rather than two that drift apart. See
+[The staging landing page](#the-staging-landing-page) for how that is wired.
 
 ## DNS / TLS
 

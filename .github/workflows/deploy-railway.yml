@@ -5,6 +5,9 @@
 # Staging is the same pattern against the `staging` branch, plus this
 # workflow so a merge to `staging` also runs an explicit `railway up`.
 #
+# Both environments hold both services, so the two steps below differ only in
+# which environment they target.
+#
 # Required repository secret:
 #   RAILWAY_TOKEN  — Railway account or project token with access to the
 #                    Extrablatt project (Project settings → Tokens).
@@ -47,7 +50,16 @@ jobs:
           else
             ENV=staging
           fi
+          # Railway service names are unique across the whole project, not per
+          # environment, so the staging landing page could not also be called
+          # marketing-site. The app service predates the split and is shared.
+          if [ "$ENV" = "production" ]; then
+            MARKETING=marketing-site
+          else
+            MARKETING=marketing-site-staging
+          fi
           echo "environment=$ENV" >> "$GITHUB_OUTPUT"
+          echo "marketing_service=$MARKETING" >> "$GITHUB_OUTPUT"
 
       - name: Install Railway CLI
         run: npm install -g @railway/cli
@@ -66,8 +78,11 @@ jobs:
             --environment "${{ steps.target.outputs.environment }}" \
             --project "$RAILWAY_PROJECT_ID"
 
-      - name: Deploy marketing site (production only)
-        if: ${{ steps.target.outputs.environment == 'production' }}
+      # The landing page carries prices and legal links, so it needs somewhere to
+      # be read before it is live. Staging has its own service for it, with
+      # SITE_ENV=staging set, which makes the build retarget the page at the
+      # staging app and keep the copy out of search results.
+      - name: Deploy marketing site
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
           RAILWAY_PROJECT_ID: ${{ vars.RAILWAY_PROJECT_ID || '5acb693d-239d-4354-9146-ded20c78a027' }}
@@ -78,6 +93,6 @@ jobs:
             exit 0
           fi
           railway up --ci --yes --path-as-root \
-            --service marketing-site \
-            --environment production \
+            --service "${{ steps.target.outputs.marketing_service }}" \
+            --environment "${{ steps.target.outputs.environment }}" \
             --project "$RAILWAY_PROJECT_ID"

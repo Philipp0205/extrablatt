@@ -31,7 +31,11 @@ public class SecurityConfig {
     /** Public pages that must be reachable without an account. */
     private static final String[] PUBLIC_PATHS = {
             "/login", "/register", "/verify", "/forgot-password", "/reset-password",
-            "/check-email", "/privacy", "/terms"
+            "/check-email", "/privacy", "/terms", "/imprint", "/withdrawal",
+            // § 312k BGB requires the cancellation path to be permanently available
+            // and not to sit behind account credentials, so it is public on purpose.
+            // CSRF still applies; the form carries a token like every other.
+            "/cancel"
     };
 
     /** Session attribute holding the e-mail from a failed login, so the form can keep it. */
@@ -71,12 +75,20 @@ public class SecurityConfig {
                         // Called by the inbound e-mail provider, not a browser; guarded by its
                         // own shared secret instead of a session (see NewsletterInboundController).
                         .requestMatchers("/inbound/newsletters").permitAll()
+                        // Called by the payment provider, not a browser; authenticated by
+                        // its HMAC signature (see BillingWebhookController).
+                        .requestMatchers("/webhooks/billing").permitAll()
                         .requestMatchers("/admin", "/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )
                 .formLogin(form -> form
                         .loginPage("/login")
-                        .defaultSuccessUrl("/", true)
+                        // Not alwaysUse: a reader sent here from a page they asked for —
+                        // the landing page's "Choose yearly" button lands on
+                        // /billing/order — comes back to it after signing in instead of
+                        // being dumped on the home page and having to find it again.
+                        // With no such destination remembered, "/" is still the default.
+                        .defaultSuccessUrl("/")
                         .failureHandler(loginFailureHandler())
                         .permitAll()
                 )
@@ -93,8 +105,9 @@ public class SecurityConfig {
                 .addFilterBefore(rateLimitingFilter, UsernamePasswordAuthenticationFilter.class)
                 .csrf(csrf -> csrf
                         // A mail provider cannot carry a CSRF token; the shared secret is its
-                        // authentication instead.
-                        .ignoringRequestMatchers("/inbound/newsletters"));
+                        // authentication instead. Nor can a payment provider, which signs the
+                        // request body instead.
+                        .ignoringRequestMatchers("/inbound/newsletters", "/webhooks/billing"));
         return http.build();
     }
 
