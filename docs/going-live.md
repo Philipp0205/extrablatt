@@ -222,8 +222,9 @@ where a cancellation notice goes so the payment gets stopped at the provider.
 Three facts found while looking at the DNS, all worth knowing before changing anything:
 
 - **The domain is `extrablatt.app`, not `extrablatt.com`.** There is no `.com` zone in
-  the Cloudflare account. Everything — the app, the marketing site, the Resend
-  verification — is on `.app`.
+  the Cloudflare account, and the `.com` is somebody else's registration entirely (see
+  below). Everything — the app, the marketing site, the Resend verification — is on
+  `.app`.
 - **The root domain's MX records already point at IONOS** (`mx00.ionos.de`,
   `mx01.ionos.de`), with an IONOS SPF record and an IONOS DMARC CNAME alongside them.
   Mail to `hello@extrablatt.app` is being routed to IONOS today, whether or not there
@@ -231,6 +232,20 @@ Three facts found while looking at the DNS, all worth knowing before changing an
 - **Resend is already set up for outbound** on this domain: `resend._domainkey` and a
   `send.extrablatt.app` SPF record are both in place. Sending works; only receiving is
   missing.
+
+### A test send to `hello@extrablatt.com` proves nothing
+
+Worth stating plainly, because the address looks plausible and the bounce looks like a
+broken setting on our side. `extrablatt.com` is a third party's domain: registered in
+January 2000 through RegistryGate, on All-Inkl nameservers (`ns5`/`ns6.kasserver.com`)
+with its MX at `w0071693.kasserver.com`, serving an unrelated German page, and absent
+from this Cloudflare account. Mail sent there is delivered to *their* server, which
+rejects a recipient it has never heard of, and the sender gets a failure notice.
+
+No forwarding rule for it can be created here, now or later, because forwarding is
+configured by whoever controls the receiving domain. The address the app actually
+publishes — on `/imprint`, `/privacy` and `/withdrawal` — is `hello@extrablatt.app`,
+and that is the one to test once the forward below exists.
 
 ### Resend is the wrong tool for this
 
@@ -259,6 +274,13 @@ no rule behind it would point the domain's mail at a service that then rejects i
 **The zone was therefore left exactly as it was found** — both IONOS MX records present,
 verified afterwards in public DNS.
 
+Re-checked on 1 September 2026 and unchanged: `mx00`/`mx01.ionos.de` are still the only
+MX records, and the zone's Email Routing is still `unconfigured` and disabled with no
+destination address and no rule. Until the four clicks below happen, `hello@extrablatt.app`
+has no forward either — where a message to it lands today depends on whether the IONOS
+mail package still holds a mailbox or catch-all for the domain, which is only visible
+from the IONOS panel.
+
 Do it in the dashboard instead; the UI handles the MX conflict itself, which is the
 thing the API refused:
 
@@ -275,7 +297,12 @@ thing the API refused:
 Afterwards, three IONOS leftovers are worth tidying — and one of them is a real trap:
 
 - `_dmarc.extrablatt.app` → CNAME to `dmarc.ionos.de`, and the `autodiscover` CNAME.
-  Both dead once IONOS mail is gone; delete them.
+  Both dead once IONOS mail is gone; delete them. Both are also Cloudflare-*proxied*
+  today, which has a consequence beyond tidiness: `_dmarc.extrablatt.app` answers with
+  Cloudflare's own IP addresses instead of following the CNAME, so the domain publishes
+  no DMARC record at all and the `v=DMARC1; p=none;` at `dmarc.ionos.de` never reaches a
+  checker. Whatever DMARC record ends up there, keep the proxy off it — an underscore
+  record has nothing to proxy.
 - The root SPF record is `v=spf1 include:_spf-eu.ionos.com ~all`. **Do not simply
   delete this one.** The app sends its own mail — verification e-mails and every Kindle
   delivery — through Resend, so this record should end up authorising Resend rather
