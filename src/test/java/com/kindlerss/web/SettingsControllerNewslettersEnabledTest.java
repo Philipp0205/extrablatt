@@ -7,7 +7,6 @@ import com.kindlerss.security.AppUserDetails;
 import com.kindlerss.security.CurrentUser;
 import com.kindlerss.security.RateLimiter;
 import com.kindlerss.security.RateLimitingFilter;
-import com.kindlerss.service.AdminTelemetryService;
 import com.kindlerss.service.ArticleService;
 import com.kindlerss.service.DataExportService;
 import com.kindlerss.service.EntitlementService;
@@ -75,9 +74,6 @@ class SettingsControllerNewslettersEnabledTest {
     ArticleService articleService;
 
     @MockitoBean
-    AdminTelemetryService telemetryService;
-
-    @MockitoBean
     CurrentUser currentUser;
 
     @MockitoBean
@@ -101,7 +97,7 @@ class SettingsControllerNewslettersEnabledTest {
     void settingsShowsTheAccountsGeneratedNewsletterAddress() throws Exception {
         when(userService.ensureNewsletterInboundToken(UID)).thenReturn("abc123");
 
-        mockMvc.perform(get("/settings").param("view", "kindle"))
+        mockMvc.perform(get("/settings/kindle"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("abc123@news.example.com")));
     }
@@ -113,7 +109,7 @@ class SettingsControllerNewslettersEnabledTest {
 
         mockMvc.perform(post("/settings/newsletter-address/regenerate").with(csrf()))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/settings#kindle"))
+                .andExpect(redirectedUrl("/settings/kindle"))
                 .andExpect(flash().attribute("message", containsString("freshtoken@news.example.com")));
         verify(userService).regenerateNewsletterInboundToken(UID);
     }

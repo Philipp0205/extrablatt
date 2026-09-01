@@ -18,7 +18,6 @@ public record AppProperties(
         Articles articles,
         Limits limits,
         Newsletters newsletters,
-        String donateUrl,
         Billing billing,
         Retention retention
 ) {
@@ -55,11 +54,6 @@ public record AppProperties(
             // Signs the remember-me cookie (TokenBasedRememberMeServices). Override
             // in production so tokens cannot be forged with the well-known default.
             rememberMeKey = "kindle-rss-remember-me-change-me";
-        }
-        if (donateUrl == null || donateUrl.isBlank()) {
-            // Shown in Settings and in the occasional "help keep the servers running"
-            // reminder after sending several articles.
-            donateUrl = "https://paypal.me/philippkurrle";
         }
     }
 

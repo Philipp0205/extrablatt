@@ -25,7 +25,6 @@ import java.util.Optional;
 import java.util.Properties;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -61,7 +60,6 @@ class KindleMailServiceTest {
                 "approved@example.com",
                 null,
                 "remember-key",
-                null,
                 null,
                 null,
                 null,
@@ -203,35 +201,6 @@ class KindleMailServiceTest {
         verify(mailSender, never()).send(any(MimeMessage.class));
     }
 
-    /**
-     * The tenth article is both the donation nudge's turn and the moment a free reader
-     * runs out. Two different asks in the same breath is one too many, so with billing
-     * on the free plan the subscription is left to make the case.
-     */
-    @Test
-    void theDonationNudgeStandsAsideForTheSubscriptionOnAFreePlan() {
-        service = freeTierService();
-        when(subscriptionRepository.findByUserId(UID)).thenReturn(Optional.empty());
-        when(articleRepository.countSentSince(eq(UID), any())).thenReturn(1L);
-        when(articleRepository.countSentTotal(UID)).thenReturn(10L);
-
-        assertFalse(service.sendToKindle(UID, 7L, false));
-    }
-
-    /** A subscriber is not being upsold, so the nudge behaves as it always did. */
-    @Test
-    void aSupporterStillSeesTheDonationNudge() {
-        service = freeTierService();
-        when(subscriptionRepository.findByUserId(UID)).thenReturn(Optional.of(
-                new Subscription(UID, Plan.SUPPORTER, SubscriptionStatus.ACTIVE,
-                        BillingInterval.YEARLY, "stripe", "cus_1", "sub_1",
-                        Instant.now().plusSeconds(86_400), false, Instant.now())));
-        when(articleRepository.countSentSince(eq(UID), any())).thenReturn(5L);
-        when(articleRepository.countSentTotal(UID)).thenReturn(10L);
-
-        assertTrue(service.sendToKindle(UID, 7L, false));
-    }
-
     private KindleMailService freeTierService() {
         AppProperties properties = billingOn();
         return new KindleMailService(mailSender, new EpubService(), articleService,
@@ -246,7 +215,7 @@ class KindleMailServiceTest {
                 "https://pay/monthly", "https://pay/yearly", null, null, null,
                 null, null, null, null, null);
         return new AppProperties("approved@example.com", null, "remember-key", null, null, null,
-                null, null, null, billing, null);
+                null, null, billing, null);
     }
 
     @Test

@@ -1168,6 +1168,7 @@ dialog.donate-dialog .row {
   margin-top: 1.25rem;
 }
 
+.changelog-release h2,
 .changelog-release h3 {
   margin: 0;
 }

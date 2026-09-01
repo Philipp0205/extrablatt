@@ -27,14 +27,6 @@ import java.util.Locale;
 @Service
 public class KindleMailService {
 
-    /**
-     * How often, in lifetime successful sends, the "help keep the servers running"
-     * donation reminder resurfaces. The app is free to use; this is a gentle, easy
-     * to dismiss nudge rather than a paywall, so it repeats sparingly instead of
-     * showing on every send.
-     */
-    static final int DONATION_REMINDER_INTERVAL = 10;
-
     /** "1 September 2026" rather than "2026-09-01", since a reader reads this. */
     private static final DateTimeFormatter RESET_DATE =
             DateTimeFormatter.ofPattern("d MMMM yyyy", Locale.ENGLISH);
@@ -67,11 +59,9 @@ public class KindleMailService {
     }
 
     /**
-     * Sends the article and returns whether the donation reminder should be shown
-     * now, i.e. this delivery just completed a multiple of
-     * {@link #DONATION_REMINDER_INTERVAL} lifetime sends for the account.
+     * Sends the article as an EPUB to the account's Kindle address.
      */
-    public boolean sendToKindle(long userId, long articleId, boolean includeImages) {
+    public void sendToKindle(long userId, long articleId, boolean includeImages) {
         AppUser user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalStateException("Account not found"));
         requireSenderConfig();
@@ -108,14 +98,6 @@ public class KindleMailService {
 
         articleRepository.recordSend(userId, articleId, Instant.now());
         articleRepository.markRead(userId, articleId, true);
-
-        long totalSent = articleRepository.countSentTotal(userId);
-        boolean everyTenth = totalSent > 0 && totalSent % DONATION_REMINDER_INTERVAL == 0;
-        // With billing switched on, a free reader who has just used their tenth article
-        // is about to meet the paywall. Asking them for a donation in the same breath
-        // muddles two different requests, so the subscription is left to make the case.
-        boolean askInsteadForASubscription = properties.billing().enabled() && !entitlement.paid();
-        return everyTenth && !askInsteadForASubscription;
     }
 
     private void requireSenderConfig() {
@@ -159,7 +141,7 @@ public class KindleMailService {
                 throw new IllegalStateException(
                         "You have used all " + entitlement.maxSendsPerMonth()
                                 + " of this month's free articles. The Supporter plan removes the "
-                                + "monthly limit — see Settings. Otherwise your free articles come "
+                                + "monthly limit — see Settings → Subscription. Otherwise your free articles come "
                                 + "back on " + RESET_DATE.format(entitlements.nextResetDate()) + ".");
             }
         }
