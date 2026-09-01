@@ -462,6 +462,62 @@ class AppControllerSecurityTest {
 
     @Test
     @WithMockUser
+    void lastScreenOfABatchOffersToMarkItReadAndLoadTheNext() throws Exception {
+        List<Article> articles = new ArrayList<>();
+        for (int i = 1; i <= 20; i++) {
+            articles.add(new Article((long) i, 1L, "guid-" + i, "Article " + i, null, null,
+                    null, null, null, null, false, null, null, null, "Example Feed"));
+        }
+        when(articleService.findPage(eq(UID), isNull(), isNull(), eq(1), eq(20))).thenReturn(articles);
+        when(articleService.count(eq(UID), isNull(), isNull())).thenReturn(33L);
+        when(feedService.listFeeds(UID)).thenReturn(List.of());
+
+        // One press does both, so the button on the last screen of the batch says so
+        // rather than leaving the reader to find out by pressing it. The pager and the
+        // button behind it carry the same label, because it is the same step.
+        mockMvc.perform(get("/items").param("unread", "false"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(
+                        containsString("data-reader-next-end-label=\"Mark read and load more\"")))
+                .andExpect(content().string(containsString(
+                        "<button class=\"btn reader-hide-when-paged\" type=\"submit\">"
+                                + "Mark read and load more</button>")));
+    }
+
+    @Test
+    @WithMockUser
+    void lastScreenOfABatchOnlyOffersToLoadMoreWhenNothingIsMarkedRead() throws Exception {
+        when(userService.markReadOnNextPage(UID)).thenReturn(false);
+        List<Article> articles = new ArrayList<>();
+        for (int i = 1; i <= 20; i++) {
+            articles.add(new Article((long) i, 1L, "guid-" + i, "Article " + i, null, null,
+                    null, null, null, null, false, null, null, null, "Example Feed"));
+        }
+        when(articleService.findPage(eq(UID), isNull(), isNull(), eq(1), eq(20))).thenReturn(articles);
+        when(articleService.count(eq(UID), isNull(), isNull())).thenReturn(33L);
+        when(feedService.listFeeds(UID)).thenReturn(List.of());
+
+        mockMvc.perform(get("/items").param("unread", "false"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(
+                        containsString("data-reader-next-end-label=\"Load more articles\"")))
+                .andExpect(content().string(not(containsString("Mark read"))));
+    }
+
+    @Test
+    void theForwardLabelNamesWhatPressingItDoes() {
+        org.junit.jupiter.api.Assertions.assertEquals("Mark read and load more",
+                AppController.forwardLabel(true, true));
+        org.junit.jupiter.api.Assertions.assertEquals("Mark read and continue",
+                AppController.forwardLabel(true, false));
+        org.junit.jupiter.api.Assertions.assertEquals("Load more articles",
+                AppController.forwardLabel(false, true));
+        org.junit.jupiter.api.Assertions.assertEquals("Next articles",
+                AppController.forwardLabel(false, false));
+    }
+
+    @Test
+    @WithMockUser
     void lastItemsPageOnlyLeadsBackwards() throws Exception {
         when(articleService.findPage(eq(UID), isNull(), isNull(), eq(2), eq(20)))
                 .thenReturn(List.of(new Article(21L, 1L, "guid-21", "Article 21", null, null,
@@ -472,7 +528,10 @@ class AppControllerSecurityTest {
         mockMvc.perform(get("/items").param("page", "2").param("unread", "false"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("data-reader-prev-url")))
-                .andExpect(content().string(containsString("data-reader-next-end-label=\"Mark read\"")))
+                // The list ends here, so the label promises no further batch.
+                .andExpect(content().string(
+                        containsString("data-reader-next-end-label=\"Mark read and continue\"")))
+                .andExpect(content().string(not(containsString("load more"))))
                 .andExpect(content().string(not(containsString("Mark these read"))))
                 .andExpect(content().string(not(containsString("Older articles"))))
                 .andExpect(content().string(containsString("21–21 of 21 articles")));
@@ -603,7 +662,9 @@ class AppControllerSecurityTest {
         mockMvc.perform(get("/items").param("unread", "false"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("data-reader-next-form=\"advance\"")))
-                .andExpect(content().string(not(containsString("data-reader-next-end-label=\"Mark read\""))))
+                .andExpect(content().string(
+                        containsString("data-reader-next-end-label=\"Next articles\"")))
+                .andExpect(content().string(not(containsString("Mark read"))))
                 .andExpect(content().string(not(containsString("Older articles"))));
     }
 
@@ -702,7 +763,8 @@ class AppControllerSecurityTest {
                 .andExpect(content().string(containsString("data-reader-next-form=\"advance\"")))
                 .andExpect(content().string(containsString("action=\"/items/advance\"")))
                 .andExpect(content().string(containsString("name=\"id\" value=\"4\"")))
-                .andExpect(content().string(containsString("data-reader-next-end-label=\"Mark read\"")))
+                .andExpect(content().string(
+                        containsString("data-reader-next-end-label=\"Mark read and continue\"")))
                 .andExpect(content().string(not(containsString("Mark these read"))))
                 // Paging marks articles read, so entries carry no read/unread button.
                 .andExpect(content().string(not(containsString("/articles/4/read"))));
