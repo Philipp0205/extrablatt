@@ -63,7 +63,10 @@
         </div>
 
         <p th:if="${#lists.isEmpty(articles)}" class="muted">No articles.</p>
-        <ul class="item-list" th:if="${!#lists.isEmpty(articles)}">
+        <!-- data-reader-fill: the reader deals these rows out over the pages
+             itself and spaces each page's rows to the bottom of the screen,
+             rather than leaving the last page half empty. -->
+        <ul class="item-list" data-reader-fill th:if="${!#lists.isEmpty(articles)}">
           <!-- The unread mark is always in the markup and merely hidden once read:
                turning a page marks articles read where the reader stands, and a mark
                that was removed outright would reflow the columns under them. -->
@@ -91,7 +94,10 @@
           </li>
         </ul>
 
-        <div class="pagination" th:if="${!#lists.isEmpty(articles)}">
+        <!-- Hidden as a whole while the pager turns the pages: the buttons inside
+             are the fallback for a browser without it, and the row's own spacing
+             would otherwise take a strip off the bottom of the last page. -->
+        <div class="pagination reader-hide-when-paged" th:if="${!#lists.isEmpty(articles)}">
           <!-- Paging forward posts this form. Whether that also marks the articles
                read is a Settings choice; there is no separate skip-without-marking
                link, because Next page is the only way the list moves on. -->
@@ -105,10 +111,10 @@
             <input type="hidden" name="id" th:each="a : ${articles}" th:value="${a.id}"/>
             <!-- The pager turns pages where the reader script runs; where it cannot,
                  this is the only way forward. -->
-            <button class="btn reader-hide-when-paged" type="submit"
+            <button class="btn" type="submit"
                     th:text="${markReadOnNextPage} ? 'Mark read and continue' : 'Next articles'">Next articles</button>
           </form>
-          <a class="btn reader-hide-when-paged" th:if="${page > 1}"
+          <a class="btn" th:if="${page > 1}"
              th:href="@{/items(feed=${feedId}, category=${category}, unread=${unread} ? true : null, snapshot=${snapshot}, page=${page - 1})}">Newer articles</a>
         </div>
       </div>

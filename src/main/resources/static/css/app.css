@@ -835,8 +835,9 @@ details.nested-tools {
 }
 
 /* Controls the pager already provides while paging: hidden so the last page does
-   not show a second, identical "Mark read" button. Without the reader script
-   these stay visible as the plain fallback. */
+   not show a second, identical "Mark read" button, and so that the row they sit
+   in does not take a strip off the bottom of that page. Without the reader
+   script these stay visible as the plain fallback. */
 .reader.paged .reader-hide-when-paged {
   display: none;
 }
