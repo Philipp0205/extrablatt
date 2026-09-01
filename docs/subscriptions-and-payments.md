@@ -1,7 +1,7 @@
-# Subscriptions and payments — €2 a month, and what it takes to charge it legally
+# Subscriptions and payments — what it takes to charge it legally
 
-Extrablatt now has a free plan and a paid **Supporter** plan: €2.00 a month billed
-yearly (€24.00 at once), or €2.50 a month billed monthly. This note records why
+Extrablatt now has a free plan and a paid **Supporter** plan: €2.99 a month billed
+yearly (€35.88 at once), or €3.99 a month billed monthly. This note records why
 those numbers, what a Swiss company changes about charging European consumers,
 how the code implements it, and what still has to be filled in by hand before
 anyone is charged.
@@ -14,6 +14,11 @@ is why the app has a public `/cancel` page instead of relying on the payment
 provider's customer portal.
 
 ## Why €24 a year and €2.50 a month
+
+The advertised sticker is now €2.99 a month billed yearly (€35.88) and €3.99 a
+month billed monthly. The section below is the original fee arithmetic that
+justified yearly billing and a modest annual discount; the same fee logic still
+applies at the higher sticker.
 
 A payment processor's fixed per-transaction fee does not shrink with the price, so
 at these amounts it is the only thing that matters. Stripe in Germany takes

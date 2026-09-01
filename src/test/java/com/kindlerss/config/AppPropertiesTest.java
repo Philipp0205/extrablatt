@@ -64,10 +64,10 @@ class AppPropertiesTest {
         AppProperties.Billing billing = new AppProperties.Billing(true, null, null, null, null,
                 null, null, null, null, null, null, null, null);
 
-        assertEquals(250, billing.monthlyPriceCents());
-        assertEquals(2_400, billing.yearlyPriceCents());
-        // €24.00 a year is what gets advertised as €2.00 a month.
-        assertEquals(200, billing.yearlyPricePerMonthCents());
+        assertEquals(399, billing.monthlyPriceCents());
+        assertEquals(3_588, billing.yearlyPriceCents());
+        // €35.88 a year is what gets advertised as €2.99 a month.
+        assertEquals(299, billing.yearlyPricePerMonthCents());
         assertEquals(5, billing.freeMaxSendsPerMonth());
         assertEquals(15, billing.freeMaxFeeds());
     }

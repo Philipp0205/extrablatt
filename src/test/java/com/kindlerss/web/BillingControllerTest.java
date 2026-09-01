@@ -102,20 +102,20 @@ class BillingControllerTest {
 
     @Test
     @WithMockUser
-    void theYearlyOrderPageQuotesTwentyFourEuroAndTwoAMonth() throws Exception {
+    void theYearlyOrderPageQuotesThirtyFiveEightyEightAndTwoNinetyNineAMonth() throws Exception {
         mockMvc.perform(get("/billing/order").param("interval", "yearly"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("\u20ac24.00")))
-                .andExpect(content().string(containsString("\u20ac2.00")))
+                .andExpect(content().string(containsString("\u20ac35.88")))
+                .andExpect(content().string(containsString("\u20ac2.99")))
                 .andExpect(content().string(containsString("including VAT")));
     }
 
     @Test
     @WithMockUser
-    void theMonthlyOrderPageQuotesTwoFifty() throws Exception {
+    void theMonthlyOrderPageQuotesThreeNinetyNine() throws Exception {
         mockMvc.perform(get("/billing/order").param("interval", "monthly"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("\u20ac2.50")));
+                .andExpect(content().string(containsString("\u20ac3.99")));
     }
 
     @Test
