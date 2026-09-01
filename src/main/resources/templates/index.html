@@ -28,7 +28,9 @@
     <p><strong>Welcome! Two quick steps to start sending articles to your Kindle:</strong></p>
     <ol>
       <li>Open <a th:href="@{/settings}">Settings</a> and enter your
-        <strong>Send-to-Kindle e-mail</strong> (it ends in <em>@kindle.com</em>).</li>
+        <strong>Send-to-Kindle e-mail</strong> (it ends in <em>@kindle.com</em>).
+        Amazon lists it under
+        <em>Manage Your Content and Devices → Preferences → Personal Document Settings</em>.</li>
       <li>Add our sender address
         <strong th:text="${mailFrom} ?: 'shown on the Settings page'">sender@example.com</strong>
         to Amazon's <em>Approved Personal Document E-mail List</em>. Open your
