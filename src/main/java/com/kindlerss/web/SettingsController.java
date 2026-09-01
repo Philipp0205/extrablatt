@@ -4,9 +4,7 @@ import com.kindlerss.config.AppProperties;
 import com.kindlerss.domain.AppUser;
 import com.kindlerss.domain.Entitlement;
 import com.kindlerss.domain.Subscription;
-import com.kindlerss.security.AppUserDetails;
 import com.kindlerss.security.CurrentUser;
-import com.kindlerss.service.AdminTelemetryService;
 import com.kindlerss.service.ArticleService;
 import com.kindlerss.service.DataExportService;
 import com.kindlerss.service.EntitlementService;
@@ -32,13 +30,12 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 
-/** Per-account settings: Kindle destination address and account deletion. */
+/** Per-account settings, split into short pages so a Kindle does not have to scroll. */
 @Controller
 public class SettingsController {
 
     private final UserService userService;
     private final ArticleService articleService;
-    private final AdminTelemetryService telemetryService;
     private final EntitlementService entitlementService;
     private final SubscriptionService subscriptionService;
     private final DataExportService dataExportService;
@@ -47,7 +44,6 @@ public class SettingsController {
     private final AppProperties properties;
 
     public SettingsController(UserService userService, ArticleService articleService,
-                              AdminTelemetryService telemetryService,
                               EntitlementService entitlementService,
                               SubscriptionService subscriptionService,
                               DataExportService dataExportService,
@@ -56,7 +52,6 @@ public class SettingsController {
                               AppProperties properties) {
         this.userService = userService;
         this.articleService = articleService;
-        this.telemetryService = telemetryService;
         this.entitlementService = entitlementService;
         this.subscriptionService = subscriptionService;
         this.dataExportService = dataExportService;
@@ -67,33 +62,46 @@ public class SettingsController {
 
     @GetMapping("/settings")
     public String settings(Model model) {
-        long userId = currentUser.requireId();
-        AppUser user = userService.findById(userId)
-                .orElseThrow(() -> new IllegalStateException("Account not found"));
+        model.addAttribute("account", requireAccount());
+        return "settings";
+    }
+
+    @GetMapping("/settings/kindle")
+    public String kindle(Model model) {
+        AppUser user = requireAccount();
         model.addAttribute("account", user);
         model.addAttribute("mailFrom", properties.mailFrom());
-        model.addAttribute("totalSent", articleService.countSentTotal(userId));
+        addNewsletterAttributes(model, user);
+        return "settings-kindle";
+    }
+
+    @GetMapping("/settings/reading")
+    public String reading(Model model) {
+        model.addAttribute("account", requireAccount());
+        return "settings-reading";
+    }
+
+    @GetMapping("/settings/account")
+    public String account(Model model) {
+        model.addAttribute("account", requireAccount());
+        return "settings-account";
+    }
+
+    @GetMapping("/settings/subscription")
+    public String subscription(Model model) {
+        if (!properties.billing().enabled()) {
+            return "redirect:/settings";
+        }
+        long userId = currentUser.requireId();
         Entitlement entitlement = entitlementService.forUser(userId);
-        // A newsletter inbox needs a second provider on top of the outbound one, so it
-        // belongs to the paid plan. An address already handed out keeps working —
-        // losing a subscription changes allowances, it does not take things away.
-        boolean newslettersEnabled = properties.newsletters().enabled()
-                && (entitlement.newsletters() || user.newsletterInboundToken() != null);
-        model.addAttribute("newslettersEnabled", newslettersEnabled);
-        if (newslettersEnabled) {
-            String token = userService.ensureNewsletterInboundToken(userId);
-            model.addAttribute("newsletterAddress", token + "@" + properties.newsletters().inboundDomain());
-        }
-        model.addAttribute("entitlement", entitlement);
         addSubscriptionAttributes(model, userId, entitlement);
-        boolean admin = currentUser.details().map(AppUserDetails::admin).orElse(false);
+        return "settings-subscription";
+    }
+
+    @GetMapping("/settings/data")
+    public String data(Model model) {
         model.addAttribute("retention", properties.retention());
-        if (admin) {
-            model.addAttribute("summary", telemetryService.summary());
-            model.addAttribute("users", telemetryService.users());
-            model.addAttribute("defaultDailyLimit", properties.limits().maxSendsPerDay());
-        }
-        return "settings";
+        return "settings-data";
     }
 
     @GetMapping("/settings/changelog")
@@ -109,9 +117,6 @@ public class SettingsController {
      */
     private void addSubscriptionAttributes(Model model, long userId, Entitlement entitlement) {
         AppProperties.Billing billing = properties.billing();
-        if (!billing.enabled()) {
-            return;
-        }
         Subscription subscription = subscriptionService.forUser(userId);
         model.addAttribute("subscription", subscription);
         model.addAttribute("supporterPlan", entitlement.paid());
@@ -139,6 +144,24 @@ public class SettingsController {
         }
     }
 
+    private void addNewsletterAttributes(Model model, AppUser user) {
+        Entitlement entitlement = entitlementService.forUser(user.id());
+        // A newsletter inbox needs a second provider on top of the outbound one, so it
+        // belongs to the paid plan. An address already handed out keeps working —
+        // losing a subscription changes allowances, it does not take things away.
+        boolean newslettersEnabled = properties.newsletters().enabled()
+                && (entitlement.newsletters() || user.newsletterInboundToken() != null);
+        model.addAttribute("newslettersEnabled", newslettersEnabled);
+        if (newslettersEnabled) {
+            String token = userService.ensureNewsletterInboundToken(user.id());
+            model.addAttribute("newsletterAddress", token + "@" + properties.newsletters().inboundDomain());
+        }
+    }
+
+    private AppUser requireAccount() {
+        return userService.findById(currentUser.requireId())
+                .orElseThrow(() -> new IllegalStateException("Account not found"));
+    }
 
     @PostMapping("/settings/kindle-email")
     public String updateKindleEmail(@RequestParam(value = "kindleEmail", required = false) String kindleEmail,
@@ -149,7 +172,7 @@ public class SettingsController {
         } catch (IllegalArgumentException e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
         }
-        return "redirect:/settings#kindle";
+        return "redirect:/settings/kindle";
     }
 
     @PostMapping("/settings/reading")
@@ -157,7 +180,7 @@ public class SettingsController {
                                 RedirectAttributes redirectAttributes) {
         userService.updateMarkReadOnNextPage(currentUser.requireId(), markReadOnNextPage != null);
         redirectAttributes.addFlashAttribute("message", "Reading preference saved");
-        return "redirect:/settings#reading";
+        return "redirect:/settings/reading";
     }
 
     @PostMapping("/settings/changelog/ack")
@@ -171,12 +194,12 @@ public class SettingsController {
     public String regenerateNewsletterAddress(RedirectAttributes redirectAttributes) {
         if (!properties.newsletters().enabled()) {
             redirectAttributes.addFlashAttribute("error", "Newsletters are not configured on this server");
-            return "redirect:/settings#kindle";
+            return "redirect:/settings/kindle";
         }
         String token = userService.regenerateNewsletterInboundToken(currentUser.requireId());
         redirectAttributes.addFlashAttribute("message",
                 "New newsletter address: " + token + "@" + properties.newsletters().inboundDomain());
-        return "redirect:/settings#kindle";
+        return "redirect:/settings/kindle";
     }
 
     /**

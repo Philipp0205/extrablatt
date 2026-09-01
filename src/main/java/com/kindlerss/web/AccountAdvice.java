@@ -38,12 +38,6 @@ public class AccountAdvice {
         return currentUser.details().map(AppUserDetails::admin).orElse(false);
     }
 
-    /** PayPal.me link shown in Settings and in the occasional donation reminder. */
-    @ModelAttribute("donateUrl")
-    public String donateUrl() {
-        return properties.donateUrl();
-    }
-
     /**
      * Whether the account is on the paid plan. False for a free account, and also
      * false for nobody signed in, so a template can ask without checking twice.

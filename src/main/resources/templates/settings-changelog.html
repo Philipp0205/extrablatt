@@ -1,25 +1,9 @@
 <!DOCTYPE html>
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
-<head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>Changelog — Extrablatt</title>
-  <link rel="stylesheet" th:href="@{/css/app.css}"/>
-</head>
+<head th:replace="~{fragments/settings-shell :: head('Changelog')}"></head>
 <body>
 <div class="wrap">
-  <header class="app">
-    <a class="brand" th:href="@{/}">Extrablatt</a>
-    <nav class="top">
-      <a th:href="@{/}">Feeds</a>
-      <a th:href="@{/items}">Articles</a>
-      <a class="active" aria-current="page" th:href="@{/settings}">Settings</a>
-    </nav>
-  </header>
-
-  <div th:if="${message}" class="flash" th:text="${message}"></div>
-  <div th:if="${error}" class="flash error" th:text="${error}"></div>
-  <div th:replace="~{fragments/whats-new-dialog :: whatsNewDialog}"></div>
+  <th:block th:replace="~{fragments/settings-shell :: top}"></th:block>
 
   <a class="back-link" th:href="@{/settings}">← Settings</a>
   <h1>Changelog</h1>

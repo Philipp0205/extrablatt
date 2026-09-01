@@ -114,7 +114,7 @@ class BuildInfoViewTest {
     @Test
     @WithMockUser
     void versionSettingsReportsVersionRevisionAndBuildTime() throws Exception {
-        mockMvc.perform(get("/settings").param("view", "version"))
+        mockMvc.perform(get("/settings"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("1.0.0-SNAPSHOT")))
                 .andExpect(content().string(containsString("abc1234")))
