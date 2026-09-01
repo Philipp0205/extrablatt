@@ -36,11 +36,10 @@ public class AppController {
     private static final int FILTER_LABEL_MAX = 18;
 
     /**
-     * Leaves an open category and puts the filter row back on the categories. An arrow
-     * rather than the row's own ‹ › so that going back is not read as turning the row,
-     * and the same one the feed list already goes back with.
+     * Leaves an open category and puts the filter row back on the categories. The view
+     * draws the arrow, because the narrowest screens keep the arrow and drop the word.
      */
-    private static final String BACK_LABEL = "\u2190 All";
+    private static final String BACK_LABEL = "All";
 
     /** Feeds that were never put in a category are browsed last. */
     private static final Comparator<String> CATEGORY_ORDER =

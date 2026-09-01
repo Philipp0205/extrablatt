@@ -843,6 +843,10 @@ details.nested-tools {
   font-size: 0.8em;
 }
 
+.filters .filter-nav .nav-word {
+  margin-left: 0.3rem;
+}
+
 /* Weight as well as a rule: a 3px line is easy to lose on a panel that has not
    finished refreshing, and bold survives it. */
 .filters a.active {
@@ -1143,6 +1147,26 @@ dialog.donate-dialog .row {
 @media (max-width: 520px) {
   html { font-size: 17px; }
   .wrap { padding: 0.75rem 0.75rem 2.5rem; }
+
+  /* The head of the filter row costs the same on any screen, and on one this
+     narrow every pixel it takes comes off the level. The rule goes first: the
+     switch is told apart from the feed names by its dot in any case, which is the
+     part of the distinction that carries the meaning. A Kindle is wider than this
+     and keeps both. */
+  .filters .filter-divide {
+    display: none;
+  }
+
+  .filters .mode-dot {
+    margin-right: 0.2rem;
+  }
+
+  /* The way out keeps its arrow and gives up its word. At the head of a row, on a
+     screen held in one hand, an arrow on its own is the plainest thing there is —
+     and the word costs more here than a whole category name is wide. */
+  .filters .filter-nav .nav-word {
+    display: none;
+  }
 }
 
 /*
