@@ -262,7 +262,9 @@ class SettingsControllerTest {
                 .andExpect(content().string(containsString("id=\"changelog\"")))
                 .andExpect(content().string(containsString("Changelog")))
                 .andExpect(content().string(containsString("What's new")))
-                .andExpect(content().string(containsString("id=\"whats-new-dialog\"")));
+                .andExpect(content().string(containsString("id=\"whats-new-dialog\"")))
+                .andExpect(content().string(containsString("class=\"btn primary\"")))
+                .andExpect(content().string(containsString("Got it")));
     }
 
     @Test
