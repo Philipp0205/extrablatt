@@ -399,20 +399,57 @@ class AppControllerSecurityTest {
                 new Feed(5L, "Android Police", "https://example.com/a", null, "Technology", null, null, null)));
 
         // Arriving by feed alone still opens that feed's category, and back and the
-        // unread toggle sit ahead of the strip, where turning it cannot hide them.
+        // unread switch sit ahead of the strip, where turning it cannot hide them.
         String body = mockMvc.perform(get("/items").param("feed", "5").param("unread", "false"))
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
 
         int back = body.indexOf("← All");
         int unreadToggle = body.indexOf("/items?feed=5&amp;unread=true");
+        int divide = body.indexOf("filter-divide");
         int strip = body.indexOf("data-strip-track");
-        org.junit.jupiter.api.Assertions.assertTrue(back > 0 && back < strip,
-                "back chip belongs before the strip");
-        org.junit.jupiter.api.Assertions.assertTrue(unreadToggle > 0 && unreadToggle < strip,
-                "unread toggle belongs before the strip");
+        org.junit.jupiter.api.Assertions.assertTrue(back > 0 && back < divide,
+                "back chip belongs before the divide");
+        org.junit.jupiter.api.Assertions.assertTrue(unreadToggle > 0 && unreadToggle < divide,
+                "unread switch belongs before the divide");
+        org.junit.jupiter.api.Assertions.assertTrue(divide < strip,
+                "the divide fences the level off from the controls that are not part of it");
         org.junit.jupiter.api.Assertions.assertTrue(body.contains("href=\"/items?category=Technology&amp;unread=false\""),
                 "the open category leads its own feeds");
+    }
+
+    @Test
+    @WithMockUser
+    void theUnreadSwitchIsNotDrawnLikeAFeed() throws Exception {
+        when(articleService.findPage(eq(UID), isNull(), eq("Technology"), isNull(), isNull(), eq(1), eq(20)))
+                .thenReturn(List.of());
+        when(articleService.count(eq(UID), isNull(), eq("Technology"), isNull(), isNull())).thenReturn(0L);
+        when(feedService.listFeeds(UID)).thenReturn(List.of(
+                new Feed(5L, "Android Police", "https://example.com/a", null, "Technology", null, null, null)));
+
+        // Off: a hollow dot, and none of the marks a feed or category carries.
+        mockMvc.perform(get("/items").param("category", "Technology").param("unread", "false"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("class=\"btn filter-nav filter-mode\"")))
+                .andExpect(content().string(containsString(
+                        "<span class=\"mode-dot\" aria-hidden=\"true\">○</span>")));
+
+        // On: the dot fills, and the switch still does not take the active class that
+        // draws the rule under wherever the reader is.
+        String body = mockMvc.perform(get("/items")
+                        .param("category", "Technology").param("unread", "true")
+                        .param("snapshot", "1"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString(
+                        "<span class=\"mode-dot\" aria-hidden=\"true\">●</span>")))
+                .andReturn().getResponse().getContentAsString();
+
+        org.junit.jupiter.api.Assertions.assertTrue(
+                body.contains("class=\"btn filter-nav filter-mode  active\""),
+                "the switch marks itself on");
+        org.junit.jupiter.api.Assertions.assertEquals(1,
+                body.split("class=\"btn  active\"", -1).length - 1,
+                "exactly one chip in the strip is where the reader is");
     }
 
     @Test
