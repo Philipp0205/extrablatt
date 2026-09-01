@@ -8,6 +8,7 @@ import com.kindlerss.security.RateLimiter;
 import com.kindlerss.security.RateLimitingFilter;
 import com.kindlerss.service.AdminTelemetryService;
 import com.kindlerss.service.ArticleService;
+import com.kindlerss.service.ChangelogCatalog;
 import com.kindlerss.service.DataExportService;
 import com.kindlerss.service.EntitlementService;
 import com.kindlerss.service.RetentionService;
@@ -263,7 +264,9 @@ class SettingsControllerTest {
                 .andExpect(content().string(containsString("id=\"changelog\"")))
                 .andExpect(content().string(containsString("Changelog")))
                 .andExpect(content().string(containsString("What's new")))
-                .andExpect(content().string(containsString("id=\"whats-new-dialog\"")));
+                .andExpect(content().string(containsString("id=\"whats-new-dialog\"")))
+                .andExpect(content().string(containsString("class=\"btn primary\"")))
+                .andExpect(content().string(containsString("Got it")));
     }
 
     @Test
