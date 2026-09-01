@@ -96,6 +96,12 @@ public class SettingsController {
         return "settings";
     }
 
+    @GetMapping("/settings/changelog")
+    public String changelog(Model model) {
+        model.addAttribute("changelogReleases", ChangelogCatalog.instance().releases());
+        return "settings-changelog";
+    }
+
     /**
      * What the subscription menu shows. Prices are rendered here rather than in the
      * template so that the order page, the settings page and the confirmation e-mail

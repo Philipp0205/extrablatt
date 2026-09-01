@@ -255,13 +255,27 @@ class SettingsControllerTest {
 
     @Test
     @WithMockUser
-    void settingsShowsThePackagedChangelog() throws Exception {
+    void settingsLinksToTheChangelogPageAndShowsWhatsNew() throws Exception {
         mockMvc.perform(get("/settings"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("id=\"changelog\"")))
+                .andExpect(content().string(containsString("href=\"/settings/changelog\"")))
                 .andExpect(content().string(containsString("Changelog")))
+                .andExpect(content().string(not(containsString("class=\"changelog-release\""))))
                 .andExpect(content().string(containsString("What's new")))
                 .andExpect(content().string(containsString("id=\"whats-new-dialog\"")));
+    }
+
+    @Test
+    @WithMockUser
+    void changelogPageListsThePackagedReleases() throws Exception {
+        mockMvc.perform(get("/settings/changelog"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("Changelog")))
+                .andExpect(content().string(containsString("href=\"/settings\"")))
+                .andExpect(content().string(containsString("class=\"changelog-release\"")))
+                .andExpect(content().string(containsString(
+                        ChangelogCatalog.instance().latest().orElseThrow().title())));
     }
 
     @Test

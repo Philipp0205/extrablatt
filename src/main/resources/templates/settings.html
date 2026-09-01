@@ -244,13 +244,9 @@
   <section class="settings-section" id="changelog">
   <h2>Changelog</h2>
   <p class="meta">What changed in recent releases. A short notice also appears after each new one.</p>
-  <article class="changelog-release" th:each="release : ${changelogReleases}">
-    <h3 th:text="${release.title}">Release</h3>
-    <p class="meta" th:text="${release.date}">date</p>
-    <ul class="changelog-list">
-      <li th:each="item : ${release.changes}" th:text="${item}">change</li>
-    </ul>
-  </article>
+  <p>
+    <a class="btn" th:href="@{/settings/changelog}">All changes</a>
+  </p>
   </section>
 
 <section class="settings-section" id="data">
