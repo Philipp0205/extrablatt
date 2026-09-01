@@ -64,9 +64,9 @@ class AppPropertiesTest {
         AppProperties.Billing billing = new AppProperties.Billing(true, null, null, null, null,
                 null, null, null, null, null, null, null, null, null);
 
-        assertEquals(499, billing.monthlyPriceCents());
-        assertEquals(4_000, billing.yearlyPriceCents());
-        assertEquals(333, billing.yearlyPricePerMonthCents());
+        assertEquals(399, billing.monthlyPriceCents());
+        assertEquals(3_500, billing.yearlyPriceCents());
+        assertEquals(292, billing.yearlyPricePerMonthCents());
         assertEquals(0, billing.freeMaxSendsPerMonth());
         assertEquals(0, billing.freeMaxFeeds());
         assertEquals(7, billing.trialDays());

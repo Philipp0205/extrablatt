@@ -154,8 +154,8 @@ public record AppProperties(
             Integer graceDays,
             Integer trialDays
     ) {
-        public static final int DEFAULT_MONTHLY_PRICE_CENTS = 499;
-        public static final int DEFAULT_YEARLY_PRICE_CENTS = 4_000;
+        public static final int DEFAULT_MONTHLY_PRICE_CENTS = 399;
+        public static final int DEFAULT_YEARLY_PRICE_CENTS = 3_500;
         public static final int DEFAULT_FREE_MAX_SENDS_PER_MONTH = 0;
         public static final int DEFAULT_FREE_MAX_FEEDS = 0;
         public static final int DEFAULT_GRACE_DAYS = 7;
