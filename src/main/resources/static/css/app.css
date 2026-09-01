@@ -835,7 +835,9 @@ details.nested-tools {
   /* Short of the row's full height on purpose: a rule the height of the words is
      a division, one the height of the row is a border. */
   margin: 0.4rem 0.7rem 0.4rem 0.3rem;
-  background: #bbb;
+  /* Dark enough to be seen at arm's length on a panel that dithers greys badly.
+     A hairline nobody notices is a hairline that divides nothing. */
+  background: #888;
 }
 
 .filters .mode-dot {
