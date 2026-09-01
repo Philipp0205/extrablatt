@@ -25,7 +25,7 @@
   <h1>Changelog</h1>
   <p class="meta">What changed in recent releases. A short notice also appears after each new one.</p>
 
-  <article class="changelog-release" id="changelog" th:each="release : ${changelogReleases}">
+  <article class="changelog-release" th:each="release : ${changelogReleases}">
     <h2 th:text="${release.title}">Release</h2>
     <p class="meta" th:text="${release.date}">date</p>
     <ul class="changelog-list">

@@ -274,8 +274,8 @@ class SettingsControllerTest {
                 .andExpect(content().string(containsString("Changelog")))
                 .andExpect(content().string(containsString("href=\"/settings\"")))
                 .andExpect(content().string(containsString("class=\"changelog-release\"")))
-                .andExpect(content().string(containsString(
-                        ChangelogCatalog.instance().latest().orElseThrow().title())));
+                .andExpect(content().string(containsString("31 August 2026")))
+                .andExpect(content().string(containsString("Paste a URL, categories, and e-reader reading")));
     }
 
     @Test
