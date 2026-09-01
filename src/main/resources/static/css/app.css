@@ -709,8 +709,28 @@ details.nested-tools {
   margin-top: 0;
 }
 
-.feed-list details.tools {
+.feed-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   margin-top: 0.5rem;
+}
+
+.feed-row-actions > details.tools,
+.feed-row-actions > form.inline {
+  margin: 0 0.5rem 0 0;
+}
+
+.feed-row-actions button {
+  min-height: 2.25rem;
+  min-width: 2.75rem;
+  padding: 0.3rem 0.6rem;
+  border-width: 1px;
+  font-size: 0.85rem;
+}
+
+.feed-list details.tools {
+  margin-top: 0;
 }
 
 .actions {

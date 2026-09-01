@@ -176,7 +176,9 @@
       </div>
       <!-- Managing a feed is rare next to reading it, so the source address and the
            category/delete controls fold away and the list stays a plain run of
-           titles and unread counts. -->
+           titles and unread counts. Mark-as-read sits beside Edit because it is
+           used on the same row without opening those controls. -->
+      <div class="feed-row-actions">
       <details class="tools">
         <summary>Edit</summary>
         <div class="tools-body">
@@ -207,6 +209,12 @@
           </div>
         </div>
       </details>
+      <form class="inline" th:action="@{/feeds/{id}/read(id=${feed.id})}" method="post">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <input type="hidden" name="redirect" th:value="@{/(category=${selectedCategory})}"/>
+        <button type="submit" aria-label="Mark this feed as read">Mark read</button>
+      </form>
+      </div>
     </li>
     </ul>
   </div>
