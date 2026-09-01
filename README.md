@@ -21,7 +21,7 @@ Multi-user RSS/Atom reader that extracts readable article HTML and emails EPUB f
 - Send-to-Kindle as EPUB 3 through one shared, provider-verified sender
 - Per-account limits and IP-based rate limiting on auth endpoints
 - Optional paid subscriptions: a week of the full plan at no charge, then a
-  "Supporter" plan at €3.99/month or €35 paid once for 12 months, with a subscription menu, a
+  "Supporter" plan at €2.99/month billed yearly (€35.88 for 12 months) or €3.99/month, with a subscription menu, a
   publicly reachable cancellation page, and the order and withdrawal wording
   German consumer law requires. Off unless `BILLING_ENABLED` is set, so a
   self-hosted copy charges nobody (see [Subscriptions](#subscriptions-optional))
@@ -224,7 +224,7 @@ stays free and unmetered.
 | Send to Kindle | no (unless `BILLING_FREE_SENDS_PER_MONTH` is set) | no monthly limit, up to `MAX_SENDS_PER_DAY` (50) a day |
 | Feeds | existing feeds stay; adding more needs a plan | `MAX_FEEDS_PER_USER` (50) |
 | Newsletter inbox | — | yes |
-| Price | €0 for seven days | €3.99/month, or €35.00 paid once for 12 months |
+| Price | €0 for seven days | €2.99/month billed yearly (€35.88 for 12 months), or €3.99/month |
 
 `MAX_SENDS_PER_DAY` stays in force for everyone, including subscribers, as an
 abuse guardrail rather than a plan limit. The complimentary week is
