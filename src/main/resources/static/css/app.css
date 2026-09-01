@@ -248,6 +248,11 @@ button[disabled], button[disabled]:hover, button[disabled]:focus {
     background: #fff;
     color: #a00;
   }
+
+  .pager .btn.primary:hover {
+    background: #000;
+    color: #fff;
+  }
 }
 
 @supports selector(:focus-visible) {
@@ -262,6 +267,11 @@ button[disabled], button[disabled]:hover, button[disabled]:focus {
   .btn.danger:focus:not(:focus-visible) {
     background: #fff;
     color: #a00;
+  }
+
+  .pager .btn.primary:focus:not(:focus-visible) {
+    background: #000;
+    color: #fff;
   }
 }
 
@@ -469,10 +479,23 @@ input[type="number"], input[type="search"], input[type="tel"], select, textarea 
   border-bottom: 1px solid #000;
 }
 
-/* Article entries stay short so a screen holds as many as possible: the title on
-   one line, then the source and the buttons sharing the next. */
+/* Article entries stay short so a screen holds as many as possible: the title
+   over its source on the left, and the send button standing beside both. The
+   button is the tallest thing in an entry, so putting it next to the two lines
+   rather than under them is worth about a third of the entry's height — a
+   Kindle screen holds thirteen articles this way instead of nine. */
 .item-list > li {
-  padding: 0.45rem 0;
+  display: flex;
+  align-items: center;
+  padding: 0.4rem 0;
+}
+
+/* The text side gives up whatever width the button needs; a zero basis because
+   sized from its content a phone-width entry asks for more than it has and the
+   button is pushed off the edge. */
+.item-main {
+  flex: 1 1 0;
+  min-width: 0;
 }
 
 .item-title {
@@ -487,40 +510,30 @@ input[type="number"], input[type="search"], input[type="tel"], select, textarea 
   visibility: hidden;
 }
 
-.item-row {
-  display: flex;
-  align-items: center;
-  margin-top: 0.3rem;
-}
-
-.item-row > * + *,
-.item-row > form.inline {
-  margin-left: 0.5rem;
-}
-
-/* Zero basis rather than `auto`: the source line is the only part of the row that
-   may give up width, and it has to give up as much as the button needs. Sized
-   from its content instead, a phone-width row ends up asking for more than it
-   has and the button is pushed off the edge. */
-.item-row .meta {
-  flex: 1 1 0;
-  min-width: 0;
-  margin: 0;
+/* The source line is one line and stays one line: a feed title long enough to
+   wrap would cost the entry a whole line of screen for something the reader is
+   not reading. */
+.item-main .meta {
+  display: block;
+  margin: 0.1rem 0 0;
   font-size: 0.85rem;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-/* The form around the button is a flex item of the row in its own right, and
+/* The form around the button is a flex item of the entry in its own right, and
    would shrink below the button it holds — the button, which does not shrink,
-   then hangs out of the row and is clipped at the edge of the screen. */
-.item-row > form.inline {
+   then hangs out of the entry and is clipped at the edge of the screen. */
+.item-list > li > form.inline {
   flex: 0 0 auto;
+  margin-left: 0.5rem;
 }
 
-.item-row .btn,
-.item-row button {
+/* Smaller than a toolbar button, but still a target rather than a link: it is
+   what now sets the shortest an entry can be. */
+.item-list > li .btn,
+.item-list > li button {
   flex: 0 0 auto;
   min-height: 2.25rem;
   min-width: 0;
@@ -700,8 +713,28 @@ details.nested-tools {
   margin-top: 0;
 }
 
-.feed-list details.tools {
+.feed-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   margin-top: 0.5rem;
+}
+
+.feed-row-actions > details.tools,
+.feed-row-actions > form.inline {
+  margin: 0 0.5rem 0 0;
+}
+
+.feed-row-actions button {
+  min-height: 2.25rem;
+  min-width: 2.75rem;
+  padding: 0.3rem 0.6rem;
+  border-width: 1px;
+  font-size: 0.85rem;
+}
+
+.feed-list details.tools {
+  margin-top: 0;
 }
 
 .actions {
@@ -909,8 +942,9 @@ details.nested-tools {
 }
 
 /* Controls the pager already provides while paging: hidden so the last page does
-   not show a second, identical "Mark read" button. Without the reader script
-   these stay visible as the plain fallback. */
+   not show a second button with the same label on it, and so that the row they
+   sit in does not take a strip off the bottom of that page. Without the reader
+   script these stay visible as the plain fallback. */
 .reader.paged .reader-hide-when-paged {
   display: none;
 }
@@ -1005,8 +1039,25 @@ details.nested-tools {
   margin-left: 0.5rem;
 }
 
+/* Each button starts at the width of its own label and the two then share what
+   is left of the row, rather than splitting the row down the middle. The forward
+   button carries the longer label — on the last page of a list it names both
+   halves of the step, "Mark read and load more" — and an even split leaves that
+   one about a fifth of its width short of the point where a wider device font
+   would break it across the button's edge. Labels of the same length still come
+   out the same width, so the row looks no different while reading. */
 .pager .btn {
-  flex: 1 1 0;
+  flex: 1 1 auto;
+}
+
+/* Filled in, the way this app marks anything already in force: the press that
+   leaves the loaded list — marking it read and fetching the next batch — is not
+   the same as turning a page inside it, and on a grey e-ink screen a filled
+   button is the difference that survives being glanced at. reader.js puts the
+   class on when the last page is reached and takes it off again on the way back. */
+.pager .btn.primary {
+  background: #000;
+  color: #fff;
 }
 
 .pager-label {
