@@ -377,16 +377,23 @@ class AppControllerSecurityTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string(stringContainsCount("data-strip-track", 1)))
                 .andExpect(content().string(containsString("Science")))
-                .andExpect(content().string(not(containsString("← All"))));
+                .andExpect(content().string(not(containsString(BACK_CONTROL))));
 
         // Inside a category the row is that category and its feeds; the other
-        // categories are behind the back button rather than beside them.
+        // categories are behind the back control rather than beside them.
         mockMvc.perform(get("/items").param("category", "Technology").param("unread", "false"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(stringContainsCount("data-strip-track", 1)))
-                .andExpect(content().string(containsString("← All")))
+                .andExpect(content().string(containsString(BACK_CONTROL)))
                 .andExpect(content().string(not(containsString("Science"))));
     }
+
+    /**
+     * The way out of a level. Named by what a screen reader is told rather than by the
+     * arrow: the arrow and the word are separate elements, because the narrowest
+     * screens keep the arrow and drop the word.
+     */
+    private static final String BACK_CONTROL = "aria-label=\"All categories\"";
 
     @Test
     @WithMockUser
@@ -404,7 +411,7 @@ class AppControllerSecurityTest {
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
 
-        int back = body.indexOf("← All");
+        int back = body.indexOf(BACK_CONTROL);
         int unreadToggle = body.indexOf("/items?feed=5&amp;unread=true");
         int divide = body.indexOf("filter-divide");
         int strip = body.indexOf("data-strip-track");

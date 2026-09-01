@@ -46,9 +46,14 @@
              are kept apart from the level by a rule and drawn differently from it — a
              switch that looked like a feed name read as a feed called "Unread". -->
         <div class="filters" data-strip>
+          <!-- The arrow and the word are separate so that the narrowest screens can
+               keep the arrow and drop the word; the label a screen reader is given
+               stays whole either way. -->
           <a class="btn filter-nav" th:if="${backChip != null}"
-             th:href="@{${backChip.href}}"
-             th:text="${backChip.label}">← All</a>
+             th:href="@{${backChip.href}}" aria-label="All categories">
+            <span aria-hidden="true">←</span>
+            <span class="nav-word" th:text="${backChip.label}">All</span>
+          </a>
           <a class="btn filter-nav filter-mode"
              th:classappend="${modeChip.active} ? ' active'"
              th:href="@{${modeChip.href}}">
