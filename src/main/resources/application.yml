@@ -69,6 +69,10 @@ app:
   remember-me-key: ${REMEMBER_ME_KEY:kindle-rss-remember-me-change-me}
   # Shown in Settings and in the occasional donation reminder after several sends.
   donate-url: ${DONATE_URL:https://paypal.me/philippkurrle}
+  # Address published on the imprint, privacy notice and withdrawal page. § 5 DDG
+  # wants a mailbox that is really read: point this at one that accepts mail today
+  # (see docs/going-live.md), not at one that still needs a forward set up.
+  contact-email: ${CONTACT_EMAIL:hello@extrablatt.app}
   http:
     connect-timeout: 10s
     read-timeout: 20s

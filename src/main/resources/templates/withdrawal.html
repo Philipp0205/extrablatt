@@ -23,7 +23,7 @@
   </p>
   <p>
     To withdraw, tell us clearly that you do. An e-mail to
-    <a href="mailto:hello@extrablatt.app">hello@extrablatt.app</a> is enough; so is
+    <!--email_off--><a th:href="'mailto:' + ${contactEmail}" th:text="${contactEmail}">hello@extrablatt.app</a><!--/email_off--> is enough; so is
     the <a th:href="@{/cancel}">cancellation page</a>, where you can say that you are
     withdrawing in the reason field. Sending the notice before the 14 days are up is
     all that is needed to be in time.
@@ -62,7 +62,8 @@
   <div class="receipt">
     <p style="margin:0">
       To Kubri by Philipp Kurrle und Ali Abriani KLG, Wehntalerstrasse 17,
-      8057 Zürich, Switzerland, <a href="mailto:hello@extrablatt.app">hello@extrablatt.app</a>:<br/><br/>
+      8057 Zürich, Switzerland,
+      <!--email_off--><a th:href="'mailto:' + ${contactEmail}" th:text="${contactEmail}">hello@extrablatt.app</a><!--/email_off-->:<br/><br/>
       I hereby withdraw from the contract concluded by me for the provision of the
       following service: Extrablatt Supporter.<br/><br/>
       Ordered on: ____________<br/>
