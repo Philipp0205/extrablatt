@@ -213,4 +213,24 @@ class BillingControllerTest {
         // monthly" must not come back to the yearly order page.
         assertArrayEquals(new String[]{"monthly"}, saved.getParameterMap().get("interval"));
     }
+
+    @Test
+    void signingInAfterChoosingAPlanReturnsToTheOrderPage() throws Exception {
+        MvcResult bounced = mockMvc.perform(get("/billing/order").param("interval", "monthly"))
+                .andExpect(status().is3xxRedirection())
+                .andReturn();
+
+        String hash = new org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder()
+                .encode("test-password-123");
+        com.kindlerss.domain.AppUser account = new com.kindlerss.domain.AppUser(UID,
+                "reader@example.com", hash, null, Instant.now(), null, Instant.now(), Instant.now());
+        when(userDetailsService.loadUserByUsername("reader@example.com"))
+                .thenReturn(new AppUserDetails(account));
+
+        mockMvc.perform(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestBuilders
+                        .formLogin().user("reader@example.com").password("test-password-123")
+                        .session((org.springframework.mock.web.MockHttpSession) bounced.getRequest().getSession()))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/billing/order?interval=monthly"));
+    }
 }

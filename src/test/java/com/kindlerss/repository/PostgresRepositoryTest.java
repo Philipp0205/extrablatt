@@ -10,6 +10,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 
 import javax.sql.DataSource;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Optional;
 
@@ -161,17 +162,27 @@ class PostgresRepositoryTest {
                 "https://metrics.example.com", null);
         long articleId = insertArticle(feed.id(), "metrics-1");
         articles.recordSend(userId, articleId, Instant.now());
+        long olderArticleId = insertArticle(feed.id(), "metrics-old");
+        articles.recordSend(userId, olderArticleId, Instant.now().minus(40, ChronoUnit.DAYS));
         Instant blockedUntil = Instant.now().plusSeconds(3600);
         sendLimits.save(userId, 3, blockedUntil);
+        Instant lastLogin = Instant.parse("2026-08-15T10:00:00Z");
+        users.updateLastLoginAt(userId, lastLogin);
 
         var summary = telemetry.summary();
-        assertTrue(summary.sendsTotal() >= 1);
+        assertTrue(summary.sendsTotal() >= 2);
         assertTrue(summary.sends24h() >= 1);
+        assertTrue(summary.sends30d() >= 1);
 
         var usage = telemetry.userUsage().stream()
                 .filter(row -> row.userId() == userId)
                 .findFirst().orElseThrow();
-        assertTrue(usage.sendsTotal() >= 1);
+        assertTrue(usage.sendsTotal() >= 2);
+        assertTrue(usage.sends24h() >= 1);
+        assertTrue(usage.sends30d() >= 1);
+        assertTrue(usage.sendsTotal() > usage.sends30d(),
+                "a send older than 30 days counts in the total but not the month");
+        assertEquals(lastLogin, usage.lastLoginAt());
         assertEquals(3, usage.maxSendsPerDay());
         assertTrue(usage.blocked());
         assertEquals(3, sendLimits.findByUserId(userId).orElseThrow().maxSendsPerDay());

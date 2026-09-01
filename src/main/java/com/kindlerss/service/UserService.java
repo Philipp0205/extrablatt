@@ -172,6 +172,11 @@ public class UserService {
         return userRepository.findById(userId).map(AppUser::markReadOnNextPage).orElse(true);
     }
 
+    /** Writes the time of a successful form or remember-me login for admin telemetry. */
+    public void recordLastLogin(long userId) {
+        userRepository.updateLastLoginAt(userId, Instant.now());
+    }
+
     /** Records that the account has seen this changelog release, so the notice stays dismissed. */
     @Transactional
     public void acknowledgeChangelog(long userId, String changelogId) {
