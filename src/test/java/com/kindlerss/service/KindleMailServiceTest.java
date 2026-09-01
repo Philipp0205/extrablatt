@@ -13,6 +13,7 @@ import com.kindlerss.repository.SubscriptionRepository;
 import com.kindlerss.repository.UserRepository;
 import com.kindlerss.repository.UserSendLimitRepository;
 import jakarta.mail.Session;
+import jakarta.mail.internet.InternetAddress;
 import jakarta.mail.internet.MimeMessage;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -117,6 +118,9 @@ class KindleMailServiceTest {
         verify(mailSender).send(message.capture());
         message.getValue().saveChanges();
         assertEquals("Useful Article", message.getValue().getSubject());
+        InternetAddress from = (InternetAddress) message.getValue().getFrom()[0];
+        assertEquals("approved@example.com", from.getAddress());
+        assertEquals("Extrablatt", from.getPersonal());
         assertEquals("reader@kindle.com", message.getValue().getAllRecipients()[0].toString());
         assertTrue(message.getValue().getContentType().startsWith("multipart/"));
         verify(articleRepository).recordSend(eq(UID), eq(7L), any(Instant.class));

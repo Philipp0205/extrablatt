@@ -34,6 +34,10 @@
       <button class="btn" type="submit">Save</button>
     </div>
   </form>
+  <p class="meta">Articles are sent from
+    <strong th:text="${mailFrom} ?: 'our sender address'">mail@extrablatt.app</strong>.
+    Amazon only delivers them if that address is on your
+    <em>Approved Personal Document E-mail List</em>.</p>
 
   <!-- Setup instructions matter exactly once: expanded until a Kindle address is
        saved, folded away afterwards so the page stays short. -->
@@ -48,7 +52,7 @@
           <em>Manage Your Content and Devices → Preferences → Personal Document Settings</em>,
           and enter it above.</li>
         <li>In the same place, add
-          <strong th:text="${mailFrom} ?: 'our sender address'">sender@example.com</strong>
+          <strong th:text="${mailFrom} ?: 'our sender address'">mail@extrablatt.app</strong>
           to the <em>Approved Personal Document E-mail List</em>.</li>
       </ol>
       <p>

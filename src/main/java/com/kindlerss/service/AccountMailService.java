@@ -94,7 +94,7 @@ public class AccountMailService {
         try {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, false, "UTF-8");
-            helper.setFrom(properties.mailFrom());
+            helper.setFrom(properties.mailFrom(), "Extrablatt");
             helper.setTo(toEmail);
             helper.setSubject(subject);
             helper.setText(body, false);
