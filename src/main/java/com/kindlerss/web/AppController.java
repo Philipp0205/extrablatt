@@ -274,6 +274,21 @@ public class AppController {
         return "Renamed category for " + updatedFeeds + (updatedFeeds == 1 ? " feed" : " feeds");
     }
 
+    @PostMapping("/feeds/{id}/read")
+    public String markFeedRead(@PathVariable("id") long id,
+                               @RequestParam(value = "redirect", defaultValue = "/") String redirect,
+                               RedirectAttributes redirectAttributes) {
+        try {
+            int marked = articleService.markFeedRead(currentUser.requireId(), id);
+            redirectAttributes.addFlashAttribute("message", marked == 0
+                    ? "Nothing left to mark as read"
+                    : marked == 1 ? "1 article marked as read" : marked + " articles marked as read");
+        } catch (ArticleService.NotFoundException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+        }
+        return "redirect:" + safeRedirect(redirect);
+    }
+
     @PostMapping("/feeds/{id}/delete")
     public String deleteFeed(@PathVariable("id") long id,
                              @RequestParam(value = "redirect", defaultValue = "/") String redirect,
@@ -345,6 +360,8 @@ public class AppController {
         model.addAttribute("firstIndex", articles.isEmpty() ? 0 : (long) (safePage - 1) * pageSize + 1);
         model.addAttribute("lastIndex", (long) (safePage - 1) * pageSize + articles.size());
         model.addAttribute("markReadOnNextPage", markReadOnNextPage);
+        model.addAttribute("forwardLabel", articles.isEmpty()
+                ? null : forwardLabel(markReadOnNextPage, safePage < totalPages));
         // Counted without the snapshot: the snapshot deliberately holds on to the
         // articles this sitting has already read, and what is left to read is the
         // one number the reader cannot work out from the list in front of them.
@@ -361,6 +378,22 @@ public class AppController {
         }
         long done = Math.max(0, Math.min(total, total - unreadLeft));
         return (int) (done * 100 / total);
+    }
+
+    /**
+     * What leaving the loaded page does, in the reader's own words.
+     *
+     * <p>One label for both the pager's last page and the button that stands in for it
+     * without the reader script, because it is one action: it can mark the articles
+     * that were paged past read, and it fetches the next batch when the list has one.
+     * Saying both is what makes the last page of a batch worth pressing — the reader
+     * would otherwise have to guess whether "Mark read" also loads what follows.
+     */
+    static String forwardLabel(boolean marksRead, boolean hasMore) {
+        if (marksRead) {
+            return hasMore ? "Mark read and load more" : "Mark read and continue";
+        }
+        return hasMore ? "Load more articles" : "Next articles";
     }
 
     /**

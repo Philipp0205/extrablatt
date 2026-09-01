@@ -431,10 +431,15 @@
       prevButton.disabled = page === 0 && !prevUrl;
     }
     if (nextButton) {
-      nextButton.disabled = atEnd && !nextUrl && !nextForm;
       // The last page leads out of what is loaded, which for a list of articles
-      // means marking them read; say so rather than just "Next page".
-      nextButton.innerHTML = atEnd && nextEndLabel ? nextEndLabel : nextLabel;
+      // means marking it read and fetching the next batch; the server names both
+      // rather than leaving the reader with "Next page".
+      var leaving = atEnd && !!nextEndLabel;
+      nextButton.disabled = atEnd && !nextUrl && !nextForm;
+      nextButton.innerHTML = leaving ? nextEndLabel : nextLabel;
+      // Filled in as well as renamed: it is a different step from turning a page
+      // inside the list, and worth telling apart at a glance on a grey screen.
+      nextButton.className = leaving ? 'btn primary' : 'btn';
     }
     storePosition();
   }

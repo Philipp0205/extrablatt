@@ -89,6 +89,18 @@ public class ArticleService {
     }
 
     /**
+     * Marks every unread article in a feed as read. Throws when the feed is not
+     * on this account, so the caller can say so instead of reporting zero.
+     */
+    @Transactional
+    public int markFeedRead(long userId, long feedId) {
+        if (feedRepository.findById(userId, feedId).isEmpty()) {
+            throw new NotFoundException("Feed not found");
+        }
+        return articleRepository.markFeedRead(userId, feedId);
+    }
+
+    /**
      * Returns sanitized HTML for display/EPUB. Images are stripped by default.
      * Caches extracted content when Readability succeeds.
      */

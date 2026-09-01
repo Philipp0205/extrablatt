@@ -181,6 +181,20 @@ public class ArticleRepository {
                 """, read, read, id, userId);
     }
 
+    /**
+     * Marks every unread article in one of the account's feeds as read.
+     * Returns how many articles actually changed state. A feed that is not
+     * theirs (or does not exist) changes nothing.
+     */
+    public int markFeedRead(long userId, long feedId) {
+        return jdbc.update("""
+                UPDATE articles
+                SET read = TRUE, read_at = NOW(), updated_at = NOW()
+                WHERE feed_id = ? AND read = FALSE
+                AND feed_id IN (SELECT id FROM feeds WHERE user_id = ?)
+                """, feedId, userId);
+    }
+
     /** Returns how many of the account's articles actually changed state. */
     public int markRead(long userId, Collection<Long> ids, boolean read) {
         if (ids == null || ids.isEmpty()) {
