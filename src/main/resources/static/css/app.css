@@ -830,8 +830,10 @@ details.nested-tools {
    run of words as the feed names and read as a feed called "Unread". */
 .filters .filter-divide {
   flex: 0 0 auto;
-  width: 1px;
-  height: 1.5rem;
+  /* Two pixels, not one: a single-pixel line is the first thing a screenshot, a
+     video frame or a half-refreshed e-ink panel throws away. */
+  width: 2px;
+  height: 1.7rem;
   /* Short of the row's full height on purpose: a rule the height of the words is
      a division, one the height of the row is a border. */
   margin: 0.4rem 0.7rem 0.4rem 0.3rem;
