@@ -105,9 +105,9 @@ app:
     # custom_data[user_id].
     reference-param: ${BILLING_REFERENCE_PARAM:client_reference_id}
     # Gross prices in euro cents: a consumer price in the EU is the total paid.
-    # 399 = €3.99 a month; 3500 = €35.00 paid once for 12 months.
+    # 399 = €3.99 a month; 3588 = €35.88 paid once for 12 months (€2.99/month).
     monthly-price-cents: ${BILLING_MONTHLY_PRICE_CENTS:399}
-    yearly-price-cents: ${BILLING_YEARLY_PRICE_CENTS:3500}
+    yearly-price-cents: ${BILLING_YEARLY_PRICE_CENTS:3588}
     # After the trial, unpaid accounts get this many Kindle sends a calendar month
     # and this many feeds. Zero (the default) means reading stays, sending does not.
     free-max-sends-per-month: ${BILLING_FREE_SENDS_PER_MONTH:0}
