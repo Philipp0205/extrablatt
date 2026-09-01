@@ -67,7 +67,18 @@ public class UserService {
             log.info("Registration attempt for existing address ignored");
             return;
         }
+        startAtCurrentRelease(user);
         issueVerification(user);
+    }
+
+    /**
+     * Releases shipped before the account existed are not news to it, so the
+     * current release counts as already seen and the "what's new" notice waits
+     * for the next one.
+     */
+    private void startAtCurrentRelease(AppUser user) {
+        ChangelogCatalog.instance().latestId()
+                .ifPresent(id -> userRepository.updateLastSeenChangelogId(user.id(), id));
     }
 
     private void issueVerification(AppUser user) {

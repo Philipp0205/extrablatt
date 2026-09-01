@@ -249,7 +249,7 @@ button[disabled], button[disabled]:hover, button[disabled]:focus {
     color: #a00;
   }
 
-  .pager .btn.primary:hover {
+  .btn.primary:hover {
     background: #000;
     color: #fff;
   }
@@ -269,7 +269,7 @@ button[disabled], button[disabled]:hover, button[disabled]:focus {
     color: #a00;
   }
 
-  .pager .btn.primary:focus:not(:focus-visible) {
+  .btn.primary:focus:not(:focus-visible) {
     background: #000;
     color: #fff;
   }
@@ -1050,12 +1050,12 @@ details.nested-tools {
   flex: 1 1 auto;
 }
 
-/* Filled in, the way this app marks anything already in force: the press that
-   leaves the loaded list — marking it read and fetching the next batch — is not
-   the same as turning a page inside it, and on a grey e-ink screen a filled
-   button is the difference that survives being glanced at. reader.js puts the
-   class on when the last page is reached and takes it off again on the way back. */
-.pager .btn.primary {
+/* Filled in, the way this app marks a preferred action: the notice's "Got it"
+   button, and the pager press that leaves the loaded list. On a grey e-ink
+   screen a filled button is the difference that survives being glanced at.
+   reader.js puts the class on the next-page control when the last page is
+   reached and takes it off again on the way back. */
+.btn.primary {
   background: #000;
   color: #fff;
 }

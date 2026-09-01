@@ -8,6 +8,7 @@ import com.kindlerss.security.AppUserDetails;
 import com.kindlerss.security.CurrentUser;
 import com.kindlerss.service.AdminTelemetryService;
 import com.kindlerss.service.ArticleService;
+import com.kindlerss.service.ChangelogCatalog;
 import com.kindlerss.service.DataExportService;
 import com.kindlerss.service.EntitlementService;
 import com.kindlerss.service.Money;
