@@ -80,9 +80,10 @@
           <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
           <label for="url">Feed or homepage URL</label>
           <p class="meta">Paste a feed address or a normal website, we try to find its
-            RSS/Atom feed for you.</p>
+            RSS/Atom feed for you. The https:// part is optional.</p>
           <div class="row">
-            <input id="url" name="url" type="url" required placeholder="https://example.com"/>
+            <input id="url" name="url" type="text" inputmode="url" required placeholder="example.com"
+                   autocomplete="url" autocapitalize="none" spellcheck="false"/>
             <select id="category" name="category" class="category-select" data-category-select>
               <option value="" th:selected="${selectedCategory == 'Uncategorized'}">Uncategorized</option>
               <option th:each="c : ${categories}" th:value="${c}" th:text="${c}"
