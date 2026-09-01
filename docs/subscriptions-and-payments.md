@@ -1,14 +1,14 @@
-# Subscriptions and payments — €3.99 a month or €35 for 12 months
+# Subscriptions and payments — €2.99 a month billed yearly, or €3.99 a month
 
 Extrablatt now has a **free week** of the full plan, then a paid **Supporter**
-plan: €3.99 a month, or €35.00 paid once for 12 months. Reading in the browser stays
-free after the week; sending to Kindle does not. This note records why those
-numbers, what a Swiss company changes about charging European consumers,
-how the code implements it, and what still has to be filled in by hand before
-anyone is charged.
+plan: €2.99 a month billed yearly (€35.88 paid once for 12 months), or €3.99 a
+month. Reading in the browser stays free after the week; sending to Kindle does
+not. This note records why those numbers, what a Swiss company changes about
+charging European consumers, how the code implements it, and what still has to
+be filled in by hand before anyone is charged.
 
 The short version of the money: yearly is still the plan to steer people to
-(one processor fee instead of twelve), and €35 / €3.99 is high enough that fees
+(one processor fee instead of twelve), and €2.99 / €3.99 is high enough that fees
 and VAT do not eat the margin. The short version of the law is unchanged: the
 order button and the public `/cancel` page are required.
 
@@ -16,14 +16,14 @@ order button and the public `/cancel` page are required.
 
 | | Free week | Supporter yearly | Supporter monthly |
 |---|---|---|---|
-| Price | €0 for 7 days, no card | €35.00 paid once for 12 months incl. VAT | €3.99 / month incl. VAT |
+| Price | €0 for 7 days, no card | €35.88 paid once for 12 months (€2.99/month) incl. VAT | €3.99 / month incl. VAT |
 | Kindle sends | full paid allowances | no monthly limit, 50/day | same |
 | After it ends | reading stays; sending needs a plan | renews until cancelled | renews until cancelled |
 
 Accounts that existed when charging began stay **grandfathered**. There is no
 ongoing free send ration.
 
-## Why €35 for 12 months and €3.99 a month
+## Why €2.99 a month billed yearly and €3.99 a month
 
 A payment processor's fixed per-transaction fee does not shrink with the price, so
 at these amounts it still matters, but much less than at €2:
@@ -35,13 +35,13 @@ at these amounts it still matters, but much less than at €2:
 | €2.50 / month | 12.7% | 23.4% |
 | **€3.99 / month** | **~7.8%** | ~18% |
 | €24 / year | 3.7% | 6.9% |
-| **€35 / 12 months** | **~2.2%** | ~6% |
+| **€35.88 / 12 months** | **~2.2%** | ~6% |
 
 Twelve small charges cost twelve fixed fees; one larger charge costs one. Hence
 the shape of the offer: **the yearly plan is the one to steer people to**, at
-€35.00 paid once for all 12 months — equivalent to about €2.92 a month — and
+€35.88 paid once for all 12 months — advertised as €2.99 a month — and
 the monthly plan exists for people who will not prepay a year. The annual
-discount against 12 × €3.99 is about 27%, which is large enough to reward the
+discount against 12 × €3.99 is about 25%, which is large enough to reward the
 commitment without making monthly billing look punitive.
 
 Earlier drafts used €24 / €2.50. Those amounts left too little after VAT and the

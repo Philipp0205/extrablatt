@@ -65,8 +65,8 @@ class AppPropertiesTest {
                 null, null, null, null, null, null, null, null, null);
 
         assertEquals(399, billing.monthlyPriceCents());
-        assertEquals(3_500, billing.yearlyPriceCents());
-        assertEquals(292, billing.yearlyPricePerMonthCents());
+        assertEquals(3_588, billing.yearlyPriceCents());
+        assertEquals(299, billing.yearlyPricePerMonthCents());
         assertEquals(0, billing.freeMaxSendsPerMonth());
         assertEquals(0, billing.freeMaxFeeds());
         assertEquals(7, billing.trialDays());
