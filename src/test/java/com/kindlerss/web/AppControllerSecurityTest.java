@@ -201,6 +201,7 @@ class AppControllerSecurityTest {
         mockMvc.perform(formLogin().user("user@example.com").password("test-password-123"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/"));
+        verify(userService, org.mockito.Mockito.atLeastOnce()).recordLastLogin(UID);
     }
 
     @Test
@@ -214,6 +215,7 @@ class AppControllerSecurityTest {
         mockMvc.perform(formLogin().user("user@example.com").password("test-password-123"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/login?unverified"));
+        verify(userService, never()).recordLastLogin(anyLong());
 
         mockMvc.perform(get("/login").param("unverified", ""))
                 .andExpect(content().string(containsString("Confirm your e-mail address before logging in")));

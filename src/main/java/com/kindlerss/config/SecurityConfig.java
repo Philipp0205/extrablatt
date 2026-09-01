@@ -1,20 +1,27 @@
 package com.kindlerss.config;
 
+import com.kindlerss.security.AppUserDetails;
 import com.kindlerss.security.RateLimitingFilter;
+import com.kindlerss.service.UserService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.Environment;
 import org.springframework.core.env.Profiles;
+import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.authentication.DisabledException;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
+import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.security.web.authentication.RememberMeServices;
+import org.springframework.security.web.authentication.SavedRequestAwareAuthenticationSuccessHandler;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.authentication.rememberme.TokenBasedRememberMeServices;
 
@@ -27,6 +34,8 @@ import org.springframework.security.web.authentication.rememberme.TokenBasedReme
 @EnableWebSecurity
 @EnableConfigurationProperties(AppProperties.class)
 public class SecurityConfig {
+
+    private static final Logger log = LoggerFactory.getLogger(SecurityConfig.class);
 
     /** Public pages that must be reachable without an account. */
     private static final String[] PUBLIC_PATHS = {
@@ -67,7 +76,8 @@ public class SecurityConfig {
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http,
                                             RememberMeServices rememberMeServices,
-                                            RateLimitingFilter rateLimitingFilter) throws Exception {
+                                            RateLimitingFilter rateLimitingFilter,
+                                            UserService userService) throws Exception {
         http
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/actuator/health", "/actuator/health/**", "/css/**", "/js/**").permitAll()
@@ -83,12 +93,7 @@ public class SecurityConfig {
                 )
                 .formLogin(form -> form
                         .loginPage("/login")
-                        // Not alwaysUse: a reader sent here from a page they asked for —
-                        // the landing page's "Choose yearly" button lands on
-                        // /billing/order — comes back to it after signing in instead of
-                        // being dumped on the home page and having to find it again.
-                        // With no such destination remembered, "/" is still the default.
-                        .defaultSuccessUrl("/")
+                        .successHandler(formLoginSuccessHandler(userService))
                         .failureHandler(loginFailureHandler())
                         .permitAll()
                 )
@@ -109,6 +114,38 @@ public class SecurityConfig {
                         // request body instead.
                         .ignoringRequestMatchers("/inbound/newsletters", "/webhooks/billing"));
         return http.build();
+    }
+
+    /**
+     * Records last login, then continues the usual post-login redirect. A reader
+     * sent here from a page they asked for — the landing page's "Choose yearly"
+     * button lands on /billing/order — comes back to it after signing in instead of
+     * being dumped on the home page. With no such destination remembered, "/" is
+     * still the default.
+     */
+    private AuthenticationSuccessHandler formLoginSuccessHandler(UserService userService) {
+        SavedRequestAwareAuthenticationSuccessHandler redirect =
+                new SavedRequestAwareAuthenticationSuccessHandler();
+        redirect.setDefaultTargetUrl("/");
+        return (request, response, authentication) -> {
+            recordLastLogin(userService, authentication);
+            redirect.onAuthenticationSuccess(request, response, authentication);
+        };
+    }
+
+    static void recordLastLogin(UserService userService, Authentication authentication) {
+        if (authentication == null) {
+            return;
+        }
+        Object principal = authentication.getPrincipal();
+        if (!(principal instanceof AppUserDetails details)) {
+            return;
+        }
+        try {
+            userService.recordLastLogin(details.id());
+        } catch (RuntimeException e) {
+            log.warn("Could not record last login for user {}: {}", details.id(), e.getMessage());
+        }
     }
 
     /**
