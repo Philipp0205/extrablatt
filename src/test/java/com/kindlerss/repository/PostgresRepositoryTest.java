@@ -86,12 +86,12 @@ class PostgresRepositoryTest {
 
     @Test
     void marksEveryUnreadArticleInAFeedAndLeavesOtherFeedsAlone() {
-        var feed = feeds.insert(userId, "Bulk", "https://bulk.example.com/feed.xml",
-                "https://bulk.example.com", null);
-        var neighbor = feeds.insert(userId, "Neighbor", "https://neighbor.example.com/feed.xml",
-                "https://neighbor.example.com", null);
-        var theirs = feeds.insert(otherUserId, "Theirs", "https://theirs.example.com/feed.xml",
-                "https://theirs.example.com", null);
+        var feed = feeds.insert(userId, "Mark all", "https://mark-all.example.com/feed.xml",
+                "https://mark-all.example.com", null);
+        var neighbor = feeds.insert(userId, "Mark neighbor", "https://mark-neighbor.example.com/feed.xml",
+                "https://mark-neighbor.example.com", null);
+        var theirs = feeds.insert(otherUserId, "Mark theirs", "https://mark-theirs.example.com/feed.xml",
+                "https://mark-theirs.example.com", null);
         long first = insertArticle(feed.id(), "feed-1");
         long second = insertArticle(feed.id(), "feed-2");
         long already = insertArticle(feed.id(), "feed-3");
