@@ -54,7 +54,7 @@ public class AdminController {
         try {
             telemetryService.grantSupporter(userId, months);
             redirectAttributes.addFlashAttribute("message", months <= 0
-                    ? "Account moved back to the free plan"
+                    ? "Account returned to unpaid access"
                     : "Supporter plan granted for " + months + " month(s)");
         } catch (IllegalArgumentException e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());

@@ -131,17 +131,24 @@ public class KindleMailService {
             throw new IllegalStateException("Sending is temporarily paused for this account");
         }
 
-        // The monthly allowance is checked first because it is the one the free plan is
-        // actually about, and because it is where most readers will meet the price. The
-        // message therefore says what happens next rather than only refusing.
+        // Unpaid after the trial: there is no monthly ration to wait for. Reading
+        // in the browser is not gated; sending an e-mail is.
+        if (!entitlement.paid() && !entitlement.hasMonthlyCap()) {
+            throw new IllegalStateException(
+                    "Your free week has ended. Subscribe under Settings → Subscription "
+                            + "to send articles to your Kindle. Reading in the browser is not limited.");
+        }
+
+        // An operator can still configure a small monthly ration instead of a hard
+        // paywall. The message then says both ways out — subscribe, or wait.
         if (entitlement.hasMonthlyCap()) {
             long usedThisMonth = articleRepository.countSentSince(
                     userId, entitlements.startOfCurrentMonth());
             if (usedThisMonth >= entitlement.maxSendsPerMonth()) {
                 throw new IllegalStateException(
                         "You have used all " + entitlement.maxSendsPerMonth()
-                                + " of this month's free articles. The Supporter plan removes the "
-                                + "monthly limit — see Settings → Subscription. Otherwise your free articles come "
+                                + " of this month's included articles. The Supporter plan has no "
+                                + "monthly limit — see Settings → Subscription. Otherwise they come "
                                 + "back on " + RESET_DATE.format(entitlements.nextResetDate()) + ".");
             }
         }

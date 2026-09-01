@@ -7,7 +7,7 @@ package com.kindlerss.domain;
  */
 public enum Plan {
 
-    /** Enough to read with every day, small enough to give away indefinitely. */
+    /** After the trial: reading stays, Kindle delivery and new feeds do not. */
     FREE,
 
     /** The paid plan: the full {@code app.limits.*} allowances plus newsletters. */

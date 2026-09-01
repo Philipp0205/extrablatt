@@ -20,11 +20,11 @@ Multi-user RSS/Atom reader that extracts readable article HTML and emails EPUB f
 - Page-at-a-time reading sized to the device screen, instead of scrolling
 - Send-to-Kindle as EPUB 3 through one shared, provider-verified sender
 - Per-account limits and IP-based rate limiting on auth endpoints
-- Optional paid subscriptions: a free plan and a "Supporter" plan at €2.00/month
-  billed yearly or €2.50/month, with a subscription menu, a publicly reachable
-  cancellation page, and the order and withdrawal wording German consumer law
-  requires. Off unless `BILLING_ENABLED` is set, so a self-hosted copy charges
-  nobody (see [Subscriptions](#subscriptions-optional))
+- Optional paid subscriptions: a week of the full plan at no charge, then a
+  "Supporter" plan at €4.99/month or €40/year, with a subscription menu, a
+  publicly reachable cancellation page, and the order and withdrawal wording
+  German consumer law requires. Off unless `BILLING_ENABLED` is set, so a
+  self-hosted copy charges nobody (see [Subscriptions](#subscriptions-optional))
 
 ## Requirements
 
@@ -214,26 +214,28 @@ prices, no subscription menu, no cancellation page, and every account keeps the
 full `MAX_*` allowances. That is the right setting for a self-hosted copy, which is
 not the one collecting the money.
 
-Turned on, accounts fall into two plans. The gate sits on Kindle delivery, because
-that is the only thing with a real unit cost — one article sent is one e-mail —
-so reading in the browser stays free and unmetered.
+Turned on, a new account gets a week of the paid allowances at no charge. After
+that week the gate sits on Kindle delivery, because that is the only thing with
+a real unit cost — one article sent is one e-mail — so reading in the browser
+stays free and unmetered.
 
-| | Free | Supporter |
+| | After the free week | Supporter |
 |---|---|---|
-| Send to Kindle | `BILLING_FREE_SENDS_PER_MONTH` (5) a month | no monthly limit, up to `MAX_SENDS_PER_DAY` (50) a day |
-| Feeds | `BILLING_FREE_MAX_FEEDS` (15) | `MAX_FEEDS_PER_USER` (50) |
+| Send to Kindle | no (unless `BILLING_FREE_SENDS_PER_MONTH` is set) | no monthly limit, up to `MAX_SENDS_PER_DAY` (50) a day |
+| Feeds | existing feeds stay; adding more needs a plan | `MAX_FEEDS_PER_USER` (50) |
 | Newsletter inbox | — | yes |
-| Price | €0 | €2.00/month billed yearly (€24.00), or €2.50/month |
+| Price | €0 for seven days | €4.99/month, or €40.00/year |
 
-The free allowance is a calendar month and refills on the 1st, which is what a reader
-assumes "five a month" means. `MAX_SENDS_PER_DAY` stays in force for everyone,
-including subscribers, as an abuse guardrail rather than a plan limit.
+`MAX_SENDS_PER_DAY` stays in force for everyone, including subscribers, as an
+abuse guardrail rather than a plan limit. The complimentary week is
+`BILLING_TRIAL_DAYS` (7) and does not renew.
 
-Every account that exists when the migration runs is grandfathered permanently: it
-was never advertised as something with a subscription, and capping it afterwards
-would be both unfair and bad for the project. An administrator can also grant the
-plan by hand from **Settings → Telemetry**, which is how a reader whose payment
-went through but whose callback went missing gets fixed.
+Every account that exists when the original subscriptions migration ran is
+grandfathered permanently: it was never advertised as something with a
+subscription, and capping it afterwards would be both unfair and bad for the
+project. An administrator can also grant the plan by hand from **Settings →
+Telemetry**, which is how a reader whose payment went through but whose callback
+went missing gets fixed.
 
 Setup is a hosted checkout link per interval plus a webhook:
 
@@ -247,7 +249,8 @@ Setup is a hosted checkout link per interval plus a webhook:
 The callback is the only thing that grants a subscription — the page a reader lands
 on after paying grants nothing — so a reader who closes the tab still ends up
 subscribed. Losing a subscription never deletes anything; feeds, articles and
-reading position stay, and the free plan's limits apply from then on.
+reading position stay. Reading in the browser continues; sending to Kindle needs
+a paid period.
 
 Two things are deliberately manual, because the app holds no provider API key: a
 cancellation is e-mailed to `BILLING_OPERATOR_EMAIL` so the payment is stopped at

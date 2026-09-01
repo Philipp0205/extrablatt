@@ -40,7 +40,7 @@ public record AppProperties(
         }
         if (billing == null) {
             billing = new Billing(false, null, null, null, null, null, null, null,
-                    null, null, null, null, null);
+                    null, null, null, null, null, null);
         }
         if (retention == null) {
             retention = new Retention(null, null, null, null);
@@ -134,8 +134,9 @@ public record AppProperties(
      * deliberately turns it on.
      *
      * <p>Prices are gross, in euro cents, because a consumer price in the EU has to
-     * be the total the customer pays. The free tier's allowances are separate from
-     * {@code app.limits.*}, which become the paid tier's allowances.
+     * be the total the customer pays. New accounts get a week of the paid
+     * allowances; after that, reading stays free and Kindle delivery needs a
+     * subscription. {@code app.limits.*} are the paid plan's allowances.
      */
     public record Billing(
             boolean enabled,
@@ -150,13 +151,15 @@ public record AppProperties(
             Integer yearlyPriceCents,
             Integer freeMaxSendsPerMonth,
             Integer freeMaxFeeds,
-            Integer graceDays
+            Integer graceDays,
+            Integer trialDays
     ) {
-        public static final int DEFAULT_MONTHLY_PRICE_CENTS = 250;
-        public static final int DEFAULT_YEARLY_PRICE_CENTS = 2_400;
-        public static final int DEFAULT_FREE_MAX_SENDS_PER_MONTH = 5;
-        public static final int DEFAULT_FREE_MAX_FEEDS = 15;
+        public static final int DEFAULT_MONTHLY_PRICE_CENTS = 499;
+        public static final int DEFAULT_YEARLY_PRICE_CENTS = 4_000;
+        public static final int DEFAULT_FREE_MAX_SENDS_PER_MONTH = 0;
+        public static final int DEFAULT_FREE_MAX_FEEDS = 0;
         public static final int DEFAULT_GRACE_DAYS = 7;
+        public static final int DEFAULT_TRIAL_DAYS = 7;
 
         /**
          * Query parameter carrying the account id into a hosted checkout, so the
@@ -189,20 +192,24 @@ public record AppProperties(
             if (freeMaxSendsPerMonth == null) {
                 freeMaxSendsPerMonth = DEFAULT_FREE_MAX_SENDS_PER_MONTH;
             }
-            freeMaxSendsPerMonth = Math.min(Math.max(freeMaxSendsPerMonth, 1), 10_000);
+            freeMaxSendsPerMonth = Math.min(Math.max(freeMaxSendsPerMonth, 0), 10_000);
             if (freeMaxFeeds == null) {
                 freeMaxFeeds = DEFAULT_FREE_MAX_FEEDS;
             }
-            freeMaxFeeds = Math.min(Math.max(freeMaxFeeds, 1), 1_000);
+            freeMaxFeeds = Math.min(Math.max(freeMaxFeeds, 0), 1_000);
             if (graceDays == null || graceDays < 0) {
                 graceDays = DEFAULT_GRACE_DAYS;
             }
+            if (trialDays == null || trialDays < 0) {
+                trialDays = DEFAULT_TRIAL_DAYS;
+            }
+            trialDays = Math.min(trialDays, 90);
         }
 
         /**
          * Whether a payment can actually be taken right now. Billing can be enabled
          * before a provider is connected — the plans and prices are then visible and
-         * the free tier applies, but ordering says so instead of failing obscurely.
+         * the trial still runs, but ordering says so instead of failing obscurely.
          */
         public boolean checkoutConfigured() {
             return enabled && monthlyCheckoutUrl != null && yearlyCheckoutUrl != null;
