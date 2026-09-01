@@ -48,10 +48,10 @@
   <div class="plan-grid" th:unless="${supporterPlan and !subscription.trialing()}">
     <div class="plan">
       <h2>Yearly</h2>
-      <span class="price" th:text="${yearlyPrice}">€40.00</span>
+      <span class="price" th:text="${yearlyPerMonth}">€2.92</span>
       <span class="price-note">
-        per year · incl. VAT · that's
-        <span th:text="${yearlyPerMonth}">€3.33</span> a month
+        per month · <strong><span th:text="${yearlyPrice}">€35.00</span>
+        paid once for all 12 months</strong> · incl. VAT
       </span>
       <ul>
         <li>No monthly limit — up to
@@ -64,7 +64,7 @@
     </div>
     <div class="plan">
       <h2>Monthly</h2>
-      <span class="price" th:text="${monthlyPrice}">€4.99</span>
+      <span class="price" th:text="${monthlyPrice}">€3.99</span>
       <span class="price-note">per month · incl. VAT</span>
       <ul>
         <li>Everything in the yearly plan</li>
