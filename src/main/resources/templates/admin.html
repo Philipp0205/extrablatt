@@ -54,10 +54,9 @@
       <p class="meta" th:if="${u.blockedUntil != null}">
         Blocked until <span th:text="${#temporals.format(u.blockedUntil, 'yyyy-MM-dd HH:mm')}">date</span>
       </p>
-      <form th:action="@{/admin/users/limit}" method="post">
+        <form th:action="@{/admin/users/limit}" method="post">
         <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
         <input type="hidden" name="userId" th:value="${u.userId}"/>
-        <input type="hidden" name="redirect" value="/admin"/>
         <div class="row">
           <label>
             Custom daily limit
@@ -76,6 +75,25 @@
           <button class="btn" type="submit">Apply</button>
         </div>
       </form>
+        <!-- The manual counterpart to the provider callback. Callbacks go missing,
+             and a reader who paid and was not credited needs a fix that does not
+             involve a database client. It is also how a free subscription is given
+             to someone who should not have to pay. -->
+        <form th:if="${billingEnabled}" th:action="@{/admin/users/plan}" method="post">
+          <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+          <input type="hidden" name="userId" th:value="${u.userId}"/>
+          <div class="row">
+            <label>
+              Grant Supporter
+              <select name="months">
+                <option value="1">1 month</option>
+                <option value="12" selected>12 months</option>
+                <option value="0">Back to free</option>
+              </select>
+            </label>
+            <button class="btn" type="submit">Set plan</button>
+          </div>
+        </form>
     </section>
   </div>
 </div>

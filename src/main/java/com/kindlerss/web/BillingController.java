@@ -88,7 +88,7 @@ public class BillingController {
             return "redirect:" + checkoutUrl;
         } catch (IllegalStateException e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
-            return "redirect:/settings#subscription";
+            return "redirect:/settings/subscription";
         }
     }
 
@@ -110,7 +110,7 @@ public class BillingController {
         if (portalUrl == null) {
             redirectAttributes.addFlashAttribute("error",
                     "There is no payment portal configured. Write to us and we will sort it out.");
-            return "redirect:/settings#subscription";
+            return "redirect:/settings/subscription";
         }
         return "redirect:" + portalUrl;
     }
