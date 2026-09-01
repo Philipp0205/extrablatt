@@ -227,11 +227,54 @@ Three facts found while looking at the DNS, all worth knowing before changing an
   `.app`.
 - **The root domain's MX records already point at IONOS** (`mx00.ionos.de`,
   `mx01.ionos.de`), with an IONOS SPF record and an IONOS DMARC CNAME alongside them.
-  Mail to `hello@extrablatt.app` is being routed to IONOS today, whether or not there
-  is a mailbox there to catch it.
+  Mail to `hello@extrablatt.app` is routed to IONOS today, and IONOS rejects it as an
+  unknown recipient — measured, not assumed; see below.
 - **Resend is already set up for outbound** on this domain: `resend._domainkey` and a
   `send.extrablatt.app` SPF record are both in place. Sending works; only receiving is
   missing.
+
+### What IONOS does with `hello@extrablatt.app` today, measured
+
+A real message was sent to it on 1 September 2026 (from `philippk@mailbox.org` through
+`smtp.mailbox.org`, which accepted it for delivery) and came back as a bounce:
+
+```text
+<hello@extrablatt.app>: host mx01.ionos.de[212.227.15.188] said: 550-Requested
+    action not taken: mailbox unavailable 550 For explanation visit
+    https://postmaster.1und1.de/en/case?c=r1601
+    (in reply to RCPT TO command)
+```
+
+IONOS's own page for that case reads: "the specified recipient does not exist on our
+systems", or the mailbox is disabled through inactivity, or blocked administratively.
+
+Two things follow. The rejection is at `RCPT TO` and it is *not* "relay access denied",
+so the domain is still inside an IONOS mail package and IONOS is answering for it — but
+there is no `hello` mailbox, no alias and no catch-all behind it. That makes Option B
+below — one alias in the IONOS panel, no DNS change — both the shortest path and a
+confirmed-available one; Cloudflare Email Routing remains the alternative, at the cost
+of the MX swap.
+
+The second thing is that this address is what `/imprint`, `/privacy` and `/withdrawal`
+publish, so the bounce above is what a reader exercising a § 5 DDG or GDPR right gets
+today. Those pages read the address from `CONTACT_EMAIL` (default `hello@extrablatt.app`),
+so it can be pointed at `philippk@mailbox.org` directly until the alias exists, and moved
+back afterwards without touching the templates.
+
+### Cloudflare was hiding the address as well
+
+Separately from delivery: the zone has Scrape Shield's **Email Address Obfuscation** on,
+so the address on the live imprint was being rewritten into
+`<a href="/cdn-cgi/l/email-protection"><span class="__cf_email__">[email protected]</span></a>`,
+which only JavaScript can decode. In an app whose whole point is working in a Kindle's
+browser without JavaScript, that is a contact address nobody can read — and § 5 Abs. 1
+Nr. 2 DDG asks for an address, not a placeholder.
+
+The published addresses are now wrapped in Cloudflare's documented opt-out markers,
+`<!--email_off-->…<!--/email_off-->`, which leaves obfuscation on everywhere else. A
+test covers this, because the markers are invisible in the rendered page and easy to
+drop while editing. Turning the zone setting off entirely would also work, at the price
+of the whole site's addresses being harvestable.
 
 ### A test send to `hello@extrablatt.com` proves nothing
 
@@ -276,10 +319,7 @@ verified afterwards in public DNS.
 
 Re-checked on 1 September 2026 and unchanged: `mx00`/`mx01.ionos.de` are still the only
 MX records, and the zone's Email Routing is still `unconfigured` and disabled with no
-destination address and no rule. Until the four clicks below happen, `hello@extrablatt.app`
-has no forward either — where a message to it lands today depends on whether the IONOS
-mail package still holds a mailbox or catch-all for the domain, which is only visible
-from the IONOS panel.
+destination address and no rule.
 
 Do it in the dashboard instead; the UI handles the MX conflict itself, which is the
 thing the API refused:
