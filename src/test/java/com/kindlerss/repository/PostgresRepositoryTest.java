@@ -85,6 +85,32 @@ class PostgresRepositoryTest {
     }
 
     @Test
+    void marksEveryUnreadArticleInAFeedAndLeavesOtherFeedsAlone() {
+        var feed = feeds.insert(userId, "Bulk", "https://bulk.example.com/feed.xml",
+                "https://bulk.example.com", null);
+        var neighbor = feeds.insert(userId, "Neighbor", "https://neighbor.example.com/feed.xml",
+                "https://neighbor.example.com", null);
+        var theirs = feeds.insert(otherUserId, "Theirs", "https://theirs.example.com/feed.xml",
+                "https://theirs.example.com", null);
+        long first = insertArticle(feed.id(), "feed-1");
+        long second = insertArticle(feed.id(), "feed-2");
+        long already = insertArticle(feed.id(), "feed-3");
+        long otherFeed = insertArticle(neighbor.id(), "neighbor-1");
+        long stolen = insertArticle(theirs.id(), "theirs-1");
+        articles.markRead(userId, already, true);
+
+        assertEquals(2, articles.markFeedRead(userId, feed.id()));
+        assertEquals(0, articles.markFeedRead(userId, feed.id()));
+        assertEquals(0, articles.markFeedRead(otherUserId, feed.id()));
+
+        assertTrue(articles.findById(userId, first).orElseThrow().read());
+        assertTrue(articles.findById(userId, second).orElseThrow().read());
+        assertTrue(articles.findById(userId, already).orElseThrow().read());
+        assertFalse(articles.findById(userId, otherFeed).orElseThrow().read());
+        assertFalse(articles.findById(otherUserId, stolen).orElseThrow().read());
+    }
+
+    @Test
     void insertsReturnOnlyTheGeneratedIdWithPostgres() {
         var feed = feeds.insert(userId, "Example", "https://example.com/feed.xml",
                 "https://example.com", null);

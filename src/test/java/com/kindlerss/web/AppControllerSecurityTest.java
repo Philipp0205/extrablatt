@@ -281,6 +281,9 @@ class AppControllerSecurityTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("href=\"/\">← All categories</a>")))
                 .andExpect(content().string(containsString("action=\"/feeds/5/category\"")))
+                .andExpect(content().string(containsString("action=\"/feeds/5/read\"")))
+                .andExpect(content().string(containsString("<summary>Edit</summary>")))
+                .andExpect(content().string(containsString(">Mark read</button>")))
                 .andExpect(content().string(containsString(">Technology</h1>")))
                 .andExpect(content().string(containsString(">Android</a>")));
     }
@@ -808,6 +811,52 @@ class AppControllerSecurityTest {
                         .param("redirect", "https://evil.example"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/items"));
+    }
+
+    @Test
+    @WithMockUser
+    void markingAFeedReadStaysOnTheCategoryAndReportsHowManyChanged() throws Exception {
+        when(articleService.markFeedRead(UID, 5L)).thenReturn(3);
+
+        mockMvc.perform(post("/feeds/5/read").with(csrf())
+                        .param("redirect", "/?category=Technology"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/?category=Technology"))
+                .andExpect(flash().attribute("message", "3 articles marked as read"));
+
+        verify(articleService).markFeedRead(UID, 5L);
+    }
+
+    @Test
+    @WithMockUser
+    void markingAFeedReadWhenNothingIsUnreadSaysSo() throws Exception {
+        when(articleService.markFeedRead(UID, 5L)).thenReturn(0);
+
+        mockMvc.perform(post("/feeds/5/read").with(csrf()))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/"))
+                .andExpect(flash().attribute("message", "Nothing left to mark as read"));
+    }
+
+    @Test
+    @WithMockUser
+    void markingAMissingFeedReadSaysSo() throws Exception {
+        when(articleService.markFeedRead(UID, 99L))
+                .thenThrow(new ArticleService.NotFoundException("Feed not found"));
+
+        mockMvc.perform(post("/feeds/99/read").with(csrf())
+                        .param("redirect", "/?category=Technology"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/?category=Technology"))
+                .andExpect(flash().attribute("error", "Feed not found"));
+    }
+
+    @Test
+    @WithMockUser
+    void markingAFeedReadWithoutCsrfIsRejected() throws Exception {
+        mockMvc.perform(post("/feeds/5/read"))
+                .andExpect(status().isForbidden());
+        verify(articleService, never()).markFeedRead(anyLong(), anyLong());
     }
 
     @Test
