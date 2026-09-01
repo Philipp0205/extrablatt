@@ -39,13 +39,27 @@
         <!-- One row of filters, whichever level it is on: the categories, or the feeds
              of the category that is open. A row wider than the screen is turned a page
              at a time by filters.js, which is what the two arrows are for; without the
-             script the row simply wraps. The chips before the arrows leave the level
-             and are never turned out of reach. -->
+             script the row simply wraps.
+
+             Ahead of the arrows, and so never turned out of reach, are the two controls
+             that are not places: the way out of the level, and the unread switch. They
+             are kept apart from the level by a rule and drawn differently from it — a
+             switch that looked like a feed name read as a feed called "Unread". -->
         <div class="filters" data-strip>
-          <a class="btn filter-nav" th:each="chip : ${navChips}"
-             th:classappend="${chip.active} ? ' active'"
-             th:href="@{${chip.href}}"
-             th:text="${chip.label}">Unread</a>
+          <a class="btn filter-nav" th:if="${backChip != null}"
+             th:href="@{${backChip.href}}"
+             th:text="${backChip.label}">← All</a>
+          <a class="btn filter-nav filter-mode"
+             th:classappend="${modeChip.active} ? ' active'"
+             th:href="@{${modeChip.href}}">
+            <!-- Filled or hollow rather than marked or unmarked: a switch shows both of
+                 its states, and the filled circle is the one the list already puts
+                 against an unread title. -->
+            <span class="mode-dot" aria-hidden="true"
+                  th:text="${modeChip.active} ? '●' : '○'">○</span>
+            <span th:text="${modeChip.label}">Unread</span>
+          </a>
+          <span class="filter-divide" aria-hidden="true"></span>
           <button class="btn strip-step" type="button" data-strip-prev aria-label="Earlier filters">‹</button>
           <div class="strip" data-strip-track>
             <a class="btn" th:each="chip : ${filterChips}"

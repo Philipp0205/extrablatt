@@ -820,10 +820,27 @@ details.nested-tools {
   font-size: 1rem;
 }
 
-/* Only the level itself is clipped and turned. The chips that leave it keep their
-   place at the head of the row, where they can always be reached. */
+/* Only the level itself is clipped and turned. The controls that are not part of
+   it keep their place at the head of the row, where they can always be reached. */
 .filters .filter-nav {
   flex: 0 0 auto;
+}
+
+/* And they are fenced off from it. Without this the unread switch sat in the same
+   run of words as the feed names and read as a feed called "Unread". */
+.filters .filter-divide {
+  flex: 0 0 auto;
+  width: 1px;
+  height: 1.5rem;
+  /* Short of the row's full height on purpose: a rule the height of the words is
+     a division, one the height of the row is a border. */
+  margin: 0.4rem 0.7rem 0.4rem 0.3rem;
+  background: #bbb;
+}
+
+.filters .mode-dot {
+  margin-right: 0.3rem;
+  font-size: 0.8em;
 }
 
 /* Weight as well as a rule: a 3px line is easy to lose on a panel that has not
@@ -833,6 +850,14 @@ details.nested-tools {
   color: #000;
   font-weight: 700;
   border-bottom-color: #000;
+}
+
+/* The switch says so with its dot instead, which leaves the rule meaning one
+   thing only — where the reader is. Otherwise "unread, in Science" was drawn as
+   two identical marks, and the row looked like two places at once. */
+.filters .filter-mode.active {
+  font-weight: 400;
+  border-bottom-color: transparent;
 }
 
 /* The row does not invert. A word turned into a black block is a heavier mark
@@ -845,6 +870,15 @@ details.nested-tools {
   background: #fff;
   color: #000;
   border-bottom-color: #000;
+}
+
+/* The switch answers with its own underline rather than with the rule. A tap
+   leaves :focus behind where the browser cannot tell a tap from a keyboard, and a
+   rule left stuck there would put the switch back among the places. */
+.filters .filter-mode:hover,
+.filters .filter-mode:focus {
+  border-bottom-color: transparent;
+  text-decoration: underline;
 }
 
 /* An arrow with nowhere to go answers nothing. */

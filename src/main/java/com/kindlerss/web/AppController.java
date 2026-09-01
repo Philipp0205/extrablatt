@@ -376,11 +376,12 @@ public class AppController {
      * at a time two lines of every page, and a row holding every feed of every
      * category is longer than the screen is wide anyway.
      *
-     * <p>The row comes in two parts. {@code filterChips} is the level itself, rendered
-     * whole and clipped to one line in the browser, where the buttons can actually be
-     * measured. The chips that leave the level — {@code navChips}: back, and the
-     * unread toggle — stay outside that clipping, so turning the row cannot carry
-     * them off the screen.
+     * <p>The row holds three kinds of thing, and the view draws each differently
+     * because they answer different questions. {@code filterChips} is the level
+     * itself — where the reader is — rendered whole and clipped to one line in the
+     * browser, where the buttons can actually be measured. {@code backChip} leaves
+     * the level, and {@code modeChip} turns unread-only on and off; both stay outside
+     * that clipping, so turning the row cannot carry them off the screen.
      */
     private void addFilterBar(Model model, List<Feed> feeds, Long feedId, String category,
                               boolean unread) {
@@ -392,17 +393,18 @@ public class AppController {
                     .findFirst().orElse(null);
         }
 
-        List<FilterChip> navChips = new ArrayList<>();
+        FilterChip backChip = null;
+        FilterChip modeChip;
         List<FilterChip> filterChips = new ArrayList<>();
         if (activeCategory == null) {
-            navChips.add(new FilterChip("Unread", filterLink(null, null, !unread), unread));
+            modeChip = new FilterChip("Unread", filterLink(null, null, !unread), unread);
             filterChips.add(new FilterChip("All", filterLink(null, null, unread), true));
             for (String name : feeds.stream().map(Feed::categoryName).distinct().sorted(CATEGORY_ORDER).toList()) {
                 filterChips.add(new FilterChip(name, filterLink(null, name, unread), false));
             }
         } else {
-            navChips.add(new FilterChip(BACK_LABEL, filterLink(null, null, unread), false));
-            navChips.add(new FilterChip("Unread", filterLink(feedId, category, !unread), unread));
+            backChip = new FilterChip(BACK_LABEL, filterLink(null, null, unread), false);
+            modeChip = new FilterChip("Unread", filterLink(feedId, category, !unread), unread);
             // The open category leads its own feeds: it is the whole of this level, and
             // what the row falls back to when no single feed is chosen.
             filterChips.add(new FilterChip(activeCategory, filterLink(null, activeCategory, unread),
@@ -416,7 +418,8 @@ public class AppController {
             }
         }
 
-        model.addAttribute("navChips", navChips);
+        model.addAttribute("backChip", backChip);
+        model.addAttribute("modeChip", modeChip);
         model.addAttribute("filterChips", filterChips);
     }
 
