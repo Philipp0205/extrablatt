@@ -248,7 +248,8 @@ button[disabled], button[disabled]:hover, button[disabled]:focus {
     color: #a00;
   }
 
-  .filters a.active:hover {
+  .filters a.active:hover,
+  .pager .btn.primary:hover {
     background: #000;
     color: #fff;
   }
@@ -268,7 +269,8 @@ button[disabled], button[disabled]:hover, button[disabled]:focus {
     color: #a00;
   }
 
-  .filters a.active:focus:not(:focus-visible) {
+  .filters a.active:focus:not(:focus-visible),
+  .pager .btn.primary:focus:not(:focus-visible) {
     background: #000;
     color: #fff;
   }
@@ -940,6 +942,16 @@ details.nested-tools {
    out the same width, so the row looks no different while reading. */
 .pager .btn {
   flex: 1 1 auto;
+}
+
+/* Filled in, the way this app marks anything already in force: the press that
+   leaves the loaded list — marking it read and fetching the next batch — is not
+   the same as turning a page inside it, and on a grey e-ink screen a filled
+   button is the difference that survives being glanced at. reader.js puts the
+   class on when the last page is reached and takes it off again on the way back. */
+.pager .btn.primary {
+  background: #000;
+  color: #fff;
 }
 
 .pager-label {
