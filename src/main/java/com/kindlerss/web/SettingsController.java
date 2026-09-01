@@ -6,6 +6,7 @@ import com.kindlerss.domain.Entitlement;
 import com.kindlerss.domain.Subscription;
 import com.kindlerss.security.CurrentUser;
 import com.kindlerss.service.ArticleService;
+import com.kindlerss.service.ChangelogCatalog;
 import com.kindlerss.service.DataExportService;
 import com.kindlerss.service.EntitlementService;
 import com.kindlerss.service.Money;

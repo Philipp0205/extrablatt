@@ -6,6 +6,7 @@ import com.kindlerss.security.CurrentUser;
 import com.kindlerss.security.RateLimiter;
 import com.kindlerss.security.RateLimitingFilter;
 import com.kindlerss.service.ArticleService;
+import com.kindlerss.service.ChangelogCatalog;
 import com.kindlerss.service.DataExportService;
 import com.kindlerss.service.EntitlementService;
 import com.kindlerss.service.RetentionService;
@@ -152,6 +153,8 @@ class SettingsControllerTest {
     void newslettersSectionIsHiddenWhenNotConfigured() throws Exception {
         mockMvc.perform(get("/settings/kindle"))
                 .andExpect(status().isOk())
+                .andExpect(content().string(containsString("from@example.com")))
+                .andExpect(content().string(containsString("Approved Personal Document E-mail List")))
                 .andExpect(content().string(not(containsString("New address"))))
                 .andExpect(content().string(not(containsString("action=\"/refresh\""))))
                 .andExpect(content().string(not(containsString(">Refresh</button>"))));
@@ -259,7 +262,9 @@ class SettingsControllerTest {
                 .andExpect(content().string(containsString("Changelog")))
                 .andExpect(content().string(not(containsString("class=\"changelog-release\""))))
                 .andExpect(content().string(containsString("What's new")))
-                .andExpect(content().string(containsString("id=\"whats-new-dialog\"")));
+                .andExpect(content().string(containsString("id=\"whats-new-dialog\"")))
+                .andExpect(content().string(containsString("class=\"btn primary\"")))
+                .andExpect(content().string(containsString("Got it")));
     }
 
     @Test

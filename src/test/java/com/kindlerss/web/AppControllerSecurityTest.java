@@ -8,6 +8,7 @@ import com.kindlerss.security.CurrentUser;
 import com.kindlerss.security.RateLimiter;
 import com.kindlerss.security.RateLimitingFilter;
 import com.kindlerss.service.ArticleService;
+import com.kindlerss.service.ChangelogCatalog;
 import com.kindlerss.service.EntitlementService;
 import com.kindlerss.service.FeedService;
 import com.kindlerss.service.KindleMailService;
@@ -225,6 +226,32 @@ class AppControllerSecurityTest {
                 .andExpect(content().string(not(containsString("action=\"/refresh\""))))
                 .andExpect(content().string(not(containsString(">Refresh</button>"))));
         verify(feedService).refreshForUserSoon(UID);
+    }
+
+    @Test
+    @WithMockUser
+    void homeWelcomePromptExplainsWhereToFindTheKindleEmail() throws Exception {
+        when(feedService.listFeeds(UID)).thenReturn(List.of());
+        when(userService.findById(UID)).thenReturn(Optional.of(new AppUser(UID, "user@example.com",
+                "hash", null, Instant.now(), null, Instant.now(), Instant.now())));
+
+        mockMvc.perform(get("/"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("Welcome! Two quick steps")))
+                .andExpect(content().string(containsString(
+                        "Manage Your Content and Devices → Preferences → Personal Document Settings")));
+    }
+
+    @Test
+    @WithMockUser
+    void homeHidesTheWelcomePromptOnceAKindleEmailIsSaved() throws Exception {
+        when(feedService.listFeeds(UID)).thenReturn(List.of());
+        when(userService.findById(UID)).thenReturn(Optional.of(new AppUser(UID, "user@example.com",
+                "hash", "reader@kindle.com", Instant.now(), null, Instant.now(), Instant.now())));
+
+        mockMvc.perform(get("/"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(not(containsString("Welcome! Two quick steps"))));
     }
 
     @Test
