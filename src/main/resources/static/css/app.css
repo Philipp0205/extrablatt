@@ -931,8 +931,15 @@ details.nested-tools {
   margin-left: 0.5rem;
 }
 
+/* Each button starts at the width of its own label and the two then share what
+   is left of the row, rather than splitting the row down the middle. The forward
+   button carries the longer label — on the last page of a list it names both
+   halves of the step, "Mark read and load more" — and an even split leaves that
+   one about a fifth of its width short of the point where a wider device font
+   would break it across the button's edge. Labels of the same length still come
+   out the same width, so the row looks no different while reading. */
 .pager .btn {
-  flex: 1 1 0;
+  flex: 1 1 auto;
 }
 
 .pager-label {
