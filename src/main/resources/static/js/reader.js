@@ -20,6 +20,14 @@
      it, so that a fraction the measurements rounded away cannot push the last
      row into a column of its own. */
   var FILL_SLACK = 3;
+  /* How much of its own height a row may be given on top of it to help fill the
+     page. Half again is enough to close the gap the rows of a full page leave,
+     and little enough that a page of a few entries reads as a short list rather
+     than as a handful of rows stretched over the screen. */
+  var FILL_MAX_GROWTH = 0.5;
+  /* Halvings used to find how lightly the pages of a list can be loaded. Twelve
+     of them settle a page height of any screen to within a pixel. */
+  var FILL_BISECT_STEPS = 12;
   /* Sideways travel that counts as turning the page rather than as a tap that
      wandered, and the share of it that has to be sideways rather than down. */
   var SWIPE_MIN = 40;
@@ -196,26 +204,23 @@
   }
 
   /*
-   * Which rows of the article list go on which page.
+   * Deals the rows into pages holding at most `limit` of height each, in the
+   * order they are in. Everything above the list is charged to the first page
+   * and everything below it to the last, because that is where they end up.
    *
-   * Filling each page to the brim and moving on — what the browser's own columns
-   * do — leaves the final page holding whatever is left over: fifty articles at
-   * ten a page end on a page of two, under most of a screen of blank paper. So
-   * the rows are counted out to the pages first, and then pushed back a page at
-   * a time, last page first, for as long as that leaves two neighbouring pages
-   * closer to equally full than they were. The number of pages never changes;
-   * the emptiness is shared out between them until there is little left to see.
+   * Returns null when a row cannot be made to fit a page of its own, which is
+   * the reader's cue to leave the list alone.
    */
-  function planPages(heights, above, below) {
-    var capacity = pageHeight - FILL_SLACK;
+  function packPages(heights, above, below, limit) {
     var pages = [];
     var start = 0;
-    // Everything above the list — heading, counts, filter rows — is part of what
-    // the first page has already spent.
     var used = above;
-    var i;
-    for (i = 0; i < heights.length; i++) {
-      if (i > start && used + heights[i] > capacity) {
+    for (var i = 0; i < heights.length; i++) {
+      var tail = i === heights.length - 1 ? below : 0;
+      if (used + heights[i] + tail > limit) {
+        if (i === start) {
+          return null;
+        }
         pages.push({ start: start, count: i - start, used: used });
         start = i;
         used = 0;
@@ -223,42 +228,44 @@
       used += heights[i];
     }
     pages.push({ start: start, count: heights.length - start, used: used });
+    return pages;
+  }
 
-    // What follows the list rides on the last page. Where it no longer fits, the
-    // browser gives it a page of its own — a blank screen with nothing but the
-    // pager on it. Hand it the last row instead.
-    var last = pages[pages.length - 1];
-    while (last.used + below > capacity && last.count > 1) {
-      var moved = heights[last.start + last.count - 1];
-      last.count -= 1;
-      last.used -= moved;
-      pages.push({ start: last.start + last.count, count: 1, used: moved });
-      last = pages[pages.length - 1];
+  /*
+   * Which rows of the article list go on which page.
+   *
+   * Filling each page to the brim and moving on — what the browser's own columns
+   * do — leaves the final page holding whatever is left over: fifty articles at
+   * thirteen a page end on a page of two, under most of a screen of blank paper.
+   * The same rows are dealt over the same number of pages here, but evenly, so
+   * that no page is left far emptier than the one before it and what each has
+   * left over is little enough to close by spacing its own rows out.
+   *
+   * Evenly means: filled to the lightest load that still does not cost the list
+   * a page, which is found by halving the interval between an empty page and a
+   * full one. Filling to less than that would be an extra page, and every page
+   * filled to more leaves another page carrying the difference.
+   */
+  function planPages(heights, above, below) {
+    var brim = packPages(heights, above, below, pageHeight - FILL_SLACK);
+    if (!brim) {
+      return null;
     }
-
-    for (var pass = 0; pass < 2; pass++) {
-      for (var p = pages.length - 1; p > 0; p--) {
-        var here = pages[p];
-        var before = pages[p - 1];
-        while (before.count > 1) {
-          var height = heights[before.start + before.count - 1];
-          var room = leftoverOf(pages, p, below);
-          var roomBefore = leftoverOf(pages, p - 1, below);
-          // Not at the price of overflowing this page, and not past the point
-          // where the page it came from is the emptier of the two.
-          if (height > room ||
-              Math.abs((room - height) - (roomBefore + height)) >= Math.abs(room - roomBefore)) {
-            break;
-          }
-          before.count -= 1;
-          before.used -= height;
-          here.start -= 1;
-          here.count += 1;
-          here.used += height;
-        }
+    var wanted = brim.length;
+    var plan = brim;
+    var low = 0;
+    var high = pageHeight - FILL_SLACK;
+    for (var step = 0; step < FILL_BISECT_STEPS; step++) {
+      var middle = (low + high) / 2;
+      var lighter = packPages(heights, above, below, middle);
+      if (lighter && lighter.length <= wanted) {
+        high = middle;
+        plan = lighter;
+      } else {
+        low = middle;
       }
     }
-    return pages;
+    return plan;
   }
 
   /*
@@ -267,9 +274,9 @@
    * A page of a list is a run of short rows, and where the rows run out early
    * the gap left behind sits between the last entry and the rule above the pager
    * — half a screen of nothing on a Kindle. Each page's rows are given an equal
-   * share of the room its page has left, up to the point where a row would be
-   * twice its own height: a page holding three entries out of a possible twelve
-   * is a short list, not a page to stretch across the screen.
+   * share of the room its page has left, within FILL_MAX_GROWTH: a page holding
+   * three entries out of a possible thirteen is a short list, not a page to
+   * stretch across the screen.
    *
    * Leaves pageCount up to date, and the list untouched where the pages cannot
    * be planned — the columns then fall where the browser puts them, as before.
@@ -295,12 +302,13 @@
     for (var node = fillList.nextElementSibling; node; node = node.nextElementSibling) {
       below += outerHeight(node);
     }
-    if (above < 0 || above + heights[0] > pageHeight - FILL_SLACK) {
+
+    var pages = above >= 0 ? planPages(heights, above, below) : null;
+    if (!pages) {
       countPages();
       return;
     }
 
-    var pages = planPages(heights, above, below);
     for (var p = 0; p < pages.length; p++) {
       var page = pages[p];
       if (p > 0) {
@@ -311,7 +319,7 @@
         shortest = Math.min(shortest, heights[page.start + i]);
       }
       var room = leftoverOf(pages, p, below);
-      var extra = Math.min(Math.floor(room / page.count), Math.floor(shortest));
+      var extra = Math.min(Math.floor(room / page.count), Math.floor(shortest * FILL_MAX_GROWTH));
       if (extra < 1) {
         continue;
       }
