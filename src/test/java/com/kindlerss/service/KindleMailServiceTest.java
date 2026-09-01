@@ -137,32 +137,31 @@ class KindleMailServiceTest {
     }
 
     /**
-     * The monthly allowance running out is where most readers will meet the price, so
-     * the refusal says what happens next — both the way out and when it refills —
-     * rather than only saying no.
+     * After the trial there is no monthly ration to wait for, so the refusal
+     * points at the subscription page rather than a refill date.
      */
     @Test
-    void aFreeAccountOutOfMonthlyArticlesIsToldBothWaysOut() {
+    void anExpiredTrialIsToldToSubscribe() {
         service = freeTierService();
         when(subscriptionRepository.findByUserId(UID)).thenReturn(Optional.empty());
-        when(articleRepository.countSentSince(eq(UID), any())).thenReturn(5L);
 
         IllegalStateException error = assertThrows(IllegalStateException.class,
                 () -> service.sendToKindle(UID, 7L, false));
 
-        assertTrue(error.getMessage().contains("all 5 of this month's free articles"),
-                error.getMessage());
-        assertTrue(error.getMessage().contains("Supporter plan"), error.getMessage());
-        assertTrue(error.getMessage().contains("come back on"), error.getMessage());
+        assertTrue(error.getMessage().contains("free week has ended"), error.getMessage());
+        assertTrue(error.getMessage().contains("Settings → Subscription"), error.getMessage());
         verify(mailSender, never()).send(any(MimeMessage.class));
     }
 
-    /** One below the cap is still one to go: it is a ceiling, not a countdown to zero. */
+    /** A still-running trial is the paid plan: it is not metered by the month. */
     @Test
-    void aFreeAccountWithOneArticleLeftCanStillSendIt() {
+    void aLiveTrialCanSendLikeASubscriber() {
         service = freeTierService();
-        when(subscriptionRepository.findByUserId(UID)).thenReturn(Optional.empty());
-        when(articleRepository.countSentSince(eq(UID), any())).thenReturn(3L);
+        when(subscriptionRepository.findByUserId(UID)).thenReturn(Optional.of(
+                new Subscription(UID, Plan.SUPPORTER, SubscriptionStatus.TRIALING,
+                        null, null, null, null,
+                        Instant.now().plusSeconds(86_400), true, null)));
+        when(articleRepository.countSentSince(eq(UID), any())).thenReturn(40L);
 
         service.sendToKindle(UID, 7L, false);
 
@@ -213,7 +212,7 @@ class KindleMailServiceTest {
     private static AppProperties billingOn() {
         AppProperties.Billing billing = new AppProperties.Billing(true, "stripe", "whsec",
                 "https://pay/monthly", "https://pay/yearly", null, null, null,
-                null, null, null, null, null);
+                null, null, null, null, null, null);
         return new AppProperties("approved@example.com", null, "remember-key", null, null, null,
                 null, null, billing, null);
     }

@@ -30,6 +30,11 @@ public record Subscription(
         return status == SubscriptionStatus.GRANDFATHERED;
     }
 
+    /** The complimentary first week, with no payment on file. */
+    public boolean trialing() {
+        return status == SubscriptionStatus.TRIALING;
+    }
+
     /**
      * Whether the account is inside the period it paid for. Grandfathered accounts
      * have no end date and are always inside it.

@@ -1,54 +1,51 @@
-# Subscriptions and payments — €2 a month, and what it takes to charge it legally
+# Subscriptions and payments — €4.99 a month or €40 a year
 
-Extrablatt now has a free plan and a paid **Supporter** plan: €2.00 a month billed
-yearly (€24.00 at once), or €2.50 a month billed monthly. This note records why
-those numbers, what a Swiss company changes about charging European consumers,
+Extrablatt now has a **free week** of the full plan, then a paid **Supporter**
+plan: €4.99 a month, or €40.00 billed once a year. Reading in the browser stays
+free after the week; sending to Kindle does not. This note records why those
+numbers, what a Swiss company changes about charging European consumers,
 how the code implements it, and what still has to be filled in by hand before
 anyone is charged.
 
-The short version of the money: the prices are right, the interval matters more
-than the amount, and a merchant of record is now the clear choice rather than a
-close call. The short version of the law: two requirements — the order button and
-the cancellation page — changed the routing rather than the copy, and one of them
-is why the app has a public `/cancel` page instead of relying on the payment
-provider's customer portal.
+The short version of the money: yearly is still the plan to steer people to
+(one processor fee instead of twelve), and €40 / €4.99 is high enough that fees
+and VAT do not eat the margin. The short version of the law is unchanged: the
+order button and the public `/cancel` page are required.
 
-## Why €24 a year and €2.50 a month
+## Current offer
+
+| | Free week | Supporter yearly | Supporter monthly |
+|---|---|---|---|
+| Price | €0 for 7 days, no card | €40.00 / year incl. VAT | €4.99 / month incl. VAT |
+| Kindle sends | full paid allowances | no monthly limit, 50/day | same |
+| After it ends | reading stays; sending needs a plan | renews until cancelled | renews until cancelled |
+
+Accounts that existed when charging began stay **grandfathered**. There is no
+ongoing free send ration.
+
+## Why €40 a year and €4.99 a month
 
 A payment processor's fixed per-transaction fee does not shrink with the price, so
-at these amounts it is the only thing that matters. Stripe in Germany takes
-1.5% + €0.25 on a standard EEA card, plus 0.7% for Billing and 0.5% for Tax:
+at these amounts it still matters, but much less than at €2:
 
 | Price | Stripe EEA card | Paddle (merchant of record) |
 |---|---|---|
 | €1 / month | 27.7% | 51.0% |
 | €2 / month | 15.2% | 28.0% |
 | €2.50 / month | 12.7% | 23.4% |
-| €4 / month | 9.0% | 20.3% |
-| €18 / year | 4.1% | 7.6% |
-| **€24 / year** | **3.7%** | 6.9% |
+| **€4.99 / month** | **~6.5%** | ~20% |
+| €24 / year | 3.7% | 6.9% |
+| **€40 / year** | **~2.8%** | ~6% |
 
 Twelve small charges cost twelve fixed fees; one larger charge costs one. Hence
 the shape of the offer: **the yearly plan is the one to steer people to**, at
-€24.00 — advertised as €2.00 a month, which is what it works out to — and the
-monthly plan exists for people who will not prepay a year.
+€40.00 — about €3.33 a month — and the monthly plan exists for people who will
+not prepay a year. The annual discount against 12 × €4.99 is about a third,
+which is steeper than a textbook 20% "two months free", and is the price that
+was chosen.
 
-Two decisions inside that are worth recording, because both are easy to get wrong.
-
-**Why €24 and not €18.** €18 was underpriced. It is well under what comparable
-readers charge — Feedly and Inoreader Pro are around $8 a month — and the extra €6
-moves break-even from about 22 subscribers to about 16 while barely registering with
-anyone deciding whether to pay. The fee also improves, from 4.1% to 3.7%.
-
-**Why €2.50 and not €4 for the monthly plan.** €4 was considered and rejected. It
-yields more per monthly subscriber — €43.70 a year against €26.19 — and the fee is
-better at 9.0% against 12.7%. But €48 a year against €24 is a 50% discount for paying
-annually, where the conventional range is 15–25%. At 50%, almost nobody who intends to
-stay picks monthly, so the higher price rarely fires; and for those who do pick it,
-doubling the headline reads as a penalty for indecision, on a product whose whole pitch
-is no ads, no tracking and cancel-from-anywhere. €24 with €2.50 is a 20% discount,
-which steers to yearly without the monthly plan looking punitive. The margin given up
-is real and deliberate.
+Earlier drafts used €24 / €2.50. Those amounts left too little after VAT and the
+€0.25 card fee, and sat well below what comparable readers charge.
 
 Running costs are almost entirely fixed, plus roughly €0.05 a month per active
 reader, because the only cost with a real unit price is e-mail: one article sent is
@@ -94,21 +91,16 @@ The 100/day ceiling usually bites before the monthly one — roughly 50 paying r
 sending 60 articles each, or fewer if a few of them send in bursts. Budget for the
 step rather than being surprised by it.
 
-Because e-mail is the cost, **the gate sits on Kindle delivery and nothing else**, and
-it is metered by the month rather than by the day, because "five articles a month" is a
-sentence a reader can hold in their head:
+Because e-mail is the cost, **the gate sits on Kindle delivery and nothing else**.
+A new account gets the full paid allowances for seven days. After that there is
+no monthly ration unless an operator configures one:
 
-| | Free | Supporter |
-|---|---|---|
-| Send to Kindle | 5 per calendar month | no monthly limit, up to 50 a day |
-| Feeds | 15 | 50 |
-| Newsletter inbox | — | yes |
-| Reading, categories, paged reader | yes | yes |
-
-Five sends a month is about **€0.004 of e-mail a month** to serve — a Resend Pro plan's
-50,000 messages would cover ten thousand free readers. So the free plan costs
-essentially nothing even if it never converts, and it is not a trial: it refills on the
-first of every month and does not run out.
+| | Free week | After the week | Supporter |
+|---|---|---|---|
+| Send to Kindle | full paid allowances | none | no monthly limit, up to 50 a day |
+| Feeds | 50 | existing stay; no new ones | 50 |
+| Newsletter inbox | yes | — | yes |
+| Reading, categories, paged reader | yes | yes | yes |
 
 The daily cap stays in force for everyone, subscribers included. It is an abuse
 guardrail rather than a plan limit — the thing that stops one account emptying the

@@ -6,6 +6,7 @@ import com.rometools.rome.feed.synd.SyndFeed;
 import com.rometools.rome.io.SyndFeedInput;
 import com.rometools.rome.io.XmlReader;
 import com.kindlerss.config.AppProperties;
+import com.kindlerss.domain.Entitlement;
 import com.kindlerss.domain.Feed;
 import com.kindlerss.domain.FeedSource;
 import com.kindlerss.repository.ArticleRepository;
@@ -154,10 +155,10 @@ public class FeedService {
         if (trimmed.isEmpty()) {
             throw new IllegalArgumentException("Feed URL is required");
         }
-        int maxFeeds = entitlements.forUser(userId).maxFeeds();
+        Entitlement entitlement = entitlements.forUser(userId);
+        int maxFeeds = entitlement.maxFeeds();
         if (feedRepository.countByUser(userId) >= maxFeeds) {
-            throw new IllegalArgumentException(
-                    "Feed limit reached (" + maxFeeds + "). Delete a feed before adding another.");
+            throw new IllegalArgumentException(feedLimitMessage(entitlement, maxFeeds));
         }
         SafeHttpClient.FetchedContent fetched = fetchAddress(trimmed);
         String feedUrl = fetched.finalUri().toString();
@@ -183,6 +184,13 @@ public class FeedService {
         Feed feed = feedRepository.insert(userId, title, feedUrl, parsed.siteUrl(), category);
         storeEntries(feed, parsed);
         return feedRepository.findById(userId, feed.id()).orElse(feed);
+    }
+
+    private static String feedLimitMessage(Entitlement entitlement, int maxFeeds) {
+        if (!entitlement.paid() && maxFeeds <= 0) {
+            return "Your free week has ended. Subscribe under Settings → Subscription to add feeds.";
+        }
+        return "Feed limit reached (" + maxFeeds + "). Delete a feed before adding another.";
     }
 
     /**
@@ -240,7 +248,8 @@ public class FeedService {
         String senderUrl = "newsletter:" + sender;
         Feed feed = feedRepository.findByUrl(userId, senderUrl).orElse(null);
         if (feed == null) {
-            if (feedRepository.countByUser(userId) >= entitlements.forUser(userId).maxFeeds()) {
+            Entitlement entitlement = entitlements.forUser(userId);
+            if (feedRepository.countByUser(userId) >= entitlement.maxFeeds()) {
                 // The sender's address is deliberately not logged: it is a third party's
                 // e-mail address, and the account id is enough to work out what happened.
                 log.info("Dropping newsletter issue for user {}: feed limit reached", userId);
