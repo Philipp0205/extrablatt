@@ -60,6 +60,7 @@ management:
 
 app:
   # Shared, provider-verified sender used for account e-mail and Kindle delivery.
+  # Hosted Extrablatt uses mail@extrablatt.app (not a Kindle-branded local part).
   mail-from: ${MAIL_FROM:}
   # Public base URL used to build links in verification / password-reset e-mails.
   public-url: ${APP_PUBLIC_URL:http://localhost:8080}
