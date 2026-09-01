@@ -5,6 +5,7 @@ import com.kindlerss.domain.Article;
 import com.kindlerss.domain.Feed;
 import com.kindlerss.security.CurrentUser;
 import com.kindlerss.service.ArticleService;
+import com.kindlerss.service.EntitlementService;
 import com.kindlerss.service.FeedService;
 import com.kindlerss.service.KindleMailService;
 import com.kindlerss.service.UserService;
@@ -16,6 +17,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.util.ArrayList;
@@ -34,6 +36,12 @@ public class AppController {
     /** How much of a feed title a filter button carries. */
     private static final int FILTER_LABEL_MAX = 18;
 
+    /**
+     * Leaves an open category and puts the filter row back on the categories. The view
+     * draws the arrow, because the narrowest screens keep the arrow and drop the word.
+     */
+    private static final String BACK_LABEL = "All";
+
     /** Feeds that were never put in a category are browsed last. */
     private static final Comparator<String> CATEGORY_ORDER =
             Comparator.comparing((String name) -> Feed.UNCATEGORIZED.equals(name))
@@ -44,6 +52,7 @@ public class AppController {
     private final KindleMailService kindleMailService;
     private final UserService userService;
     private final CurrentUser currentUser;
+    private final EntitlementService entitlementService;
     private final AppProperties properties;
     private final int pageSize;
     private final String mailFrom;
@@ -53,12 +62,14 @@ public class AppController {
                          KindleMailService kindleMailService,
                          UserService userService,
                          CurrentUser currentUser,
+                         EntitlementService entitlementService,
                          AppProperties properties) {
         this.feedService = feedService;
         this.articleService = articleService;
         this.kindleMailService = kindleMailService;
         this.userService = userService;
         this.currentUser = currentUser;
+        this.entitlementService = entitlementService;
         this.properties = properties;
         this.pageSize = properties.articles().pageSize();
         this.mailFrom = properties.mailFrom();
@@ -109,9 +120,12 @@ public class AppController {
                 selectedFeeds.stream().mapToLong(Feed::unreadCount).sum());
         model.addAttribute("kindleConfigured", isKindleConfigured(userId));
         model.addAttribute("mailFrom", mailFrom);
-        boolean newslettersEnabled = properties.newsletters().enabled();
+        var user = userService.findById(userId).orElse(null);
+        var entitlement = entitlementService.forUser(userId);
+        boolean newslettersEnabled = properties.newsletters().enabled()
+                && (entitlement.newsletters() || (user != null && user.newsletterInboundToken() != null));
         model.addAttribute("newslettersEnabled", newslettersEnabled);
-        if (newslettersEnabled) {
+        if (newslettersEnabled && user != null) {
             String token = userService.ensureNewsletterInboundToken(userId);
             model.addAttribute("newsletterAddress", token + "@" + properties.newsletters().inboundDomain());
         }
@@ -205,12 +219,8 @@ public class AppController {
         }
         String successTarget = "/articles/" + article.id() + (images ? "?images=true" : "");
         try {
-            boolean donationPrompt = kindleMailService.sendToKindle(
-                    currentUser.requireId(), article.id(), images);
+            kindleMailService.sendToKindle(currentUser.requireId(), article.id(), images);
             redirectAttributes.addFlashAttribute("message", "Sent to Kindle");
-            if (donationPrompt) {
-                redirectAttributes.addFlashAttribute("donationPrompt", true);
-            }
         } catch (Exception e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
         }
@@ -271,6 +281,21 @@ public class AppController {
             return "No feeds found in that category";
         }
         return "Renamed category for " + updatedFeeds + (updatedFeeds == 1 ? " feed" : " feeds");
+    }
+
+    @PostMapping("/feeds/{id}/read")
+    public String markFeedRead(@PathVariable("id") long id,
+                               @RequestParam(value = "redirect", defaultValue = "/") String redirect,
+                               RedirectAttributes redirectAttributes) {
+        try {
+            int marked = articleService.markFeedRead(currentUser.requireId(), id);
+            redirectAttributes.addFlashAttribute("message", marked == 0
+                    ? "Nothing left to mark as read"
+                    : marked == 1 ? "1 article marked as read" : marked + " articles marked as read");
+        } catch (ArticleService.NotFoundException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+        }
+        return "redirect:" + safeRedirect(redirect);
     }
 
     @PostMapping("/feeds/{id}/delete")
@@ -344,16 +369,54 @@ public class AppController {
         model.addAttribute("firstIndex", articles.isEmpty() ? 0 : (long) (safePage - 1) * pageSize + 1);
         model.addAttribute("lastIndex", (long) (safePage - 1) * pageSize + articles.size());
         model.addAttribute("markReadOnNextPage", markReadOnNextPage);
+        model.addAttribute("forwardLabel", articles.isEmpty()
+                ? null : forwardLabel(markReadOnNextPage, safePage < totalPages));
+        // Counted without the snapshot: the snapshot deliberately holds on to the
+        // articles this sitting has already read, and what is left to read is the
+        // one number the reader cannot work out from the list in front of them.
+        long unreadLeft = articleService.count(userId, feedId, category, Boolean.TRUE, null);
+        model.addAttribute("unreadLeft", unreadLeft);
+        model.addAttribute("readThroughPercent", readThroughPercent(total, unreadLeft));
         return "items";
     }
 
+    /** How much of the list on screen is behind the reader, as a whole percentage. */
+    static int readThroughPercent(long total, long unreadLeft) {
+        if (total <= 0) {
+            return 0;
+        }
+        long done = Math.max(0, Math.min(total, total - unreadLeft));
+        return (int) (done * 100 / total);
+    }
+
     /**
-     * The filter bar browses categories first and only opens up the feeds of the
-     * category that is being read, because a list of every feed is both longer than
-     * the screen is wide and rarely what is wanted.
+     * What leaving the loaded page does, in the reader's own words.
      *
-     * <p>Both rows are rendered whole; a row too long for the screen is turned a page
-     * at a time in the browser, where the buttons can actually be measured.
+     * <p>One label for both the pager's last page and the button that stands in for it
+     * without the reader script, because it is one action: it can mark the articles
+     * that were paged past read, and it fetches the next batch when the list has one.
+     * Saying both is what makes the last page of a batch worth pressing — the reader
+     * would otherwise have to guess whether "Mark read" also loads what follows.
+     */
+    static String forwardLabel(boolean marksRead, boolean hasMore) {
+        if (marksRead) {
+            return hasMore ? "Mark read and load more" : "Mark read and continue";
+        }
+        return hasMore ? "Load more articles" : "Next articles";
+    }
+
+    /**
+     * The filter bar is one row on either level: the categories, or — once one of them
+     * is open — the feeds inside it. A second row costs a list that is read a screen
+     * at a time two lines of every page, and a row holding every feed of every
+     * category is longer than the screen is wide anyway.
+     *
+     * <p>The row holds three kinds of thing, and the view draws each differently
+     * because they answer different questions. {@code filterChips} is the level
+     * itself — where the reader is — rendered whole and clipped to one line in the
+     * browser, where the buttons can actually be measured. {@code backChip} leaves
+     * the level, and {@code modeChip} turns unread-only on and off; both stay outside
+     * that clipping, so turning the row cannot carry them off the screen.
      */
     private void addFilterBar(Model model, List<Feed> feeds, Long feedId, String category,
                               boolean unread) {
@@ -365,31 +428,34 @@ public class AppController {
                     .findFirst().orElse(null);
         }
 
-        List<FilterChip> categoryChips = new ArrayList<>();
-        categoryChips.add(new FilterChip("All", filterLink(null, null, unread),
-                feedId == null && activeCategory == null));
-        categoryChips.add(new FilterChip("Unread", filterLink(feedId, category, !unread), unread));
-        for (String name : feeds.stream().map(Feed::categoryName).distinct().sorted(CATEGORY_ORDER).toList()) {
-            categoryChips.add(new FilterChip(name, filterLink(null, name, unread), name.equals(activeCategory)));
-        }
-
-        List<FilterChip> feedChips = new ArrayList<>();
-        String openCategory = activeCategory;
-        if (openCategory != null) {
+        FilterChip backChip = null;
+        FilterChip modeChip;
+        List<FilterChip> filterChips = new ArrayList<>();
+        if (activeCategory == null) {
+            modeChip = new FilterChip("Unread", filterLink(null, null, !unread), unread);
+            filterChips.add(new FilterChip("All", filterLink(null, null, unread), true));
+            for (String name : feeds.stream().map(Feed::categoryName).distinct().sorted(CATEGORY_ORDER).toList()) {
+                filterChips.add(new FilterChip(name, filterLink(null, name, unread), false));
+            }
+        } else {
+            backChip = new FilterChip(BACK_LABEL, filterLink(null, null, unread), false);
+            modeChip = new FilterChip("Unread", filterLink(feedId, category, !unread), unread);
+            // The open category leads its own feeds: it is the whole of this level, and
+            // what the row falls back to when no single feed is chosen.
+            filterChips.add(new FilterChip(activeCategory, filterLink(null, activeCategory, unread),
+                    feedId == null));
             for (Feed feed : feeds) {
-                if (openCategory.equals(feed.categoryName())) {
-                    feedChips.add(new FilterChip(chipLabel(feed.title()),
+                if (activeCategory.equals(feed.categoryName())) {
+                    filterChips.add(new FilterChip(chipLabel(feed.title()),
                             filterLink(feed.id(), null, unread),
                             feed.id() != null && feed.id().equals(feedId)));
                 }
             }
         }
 
-        model.addAttribute("categoryChips", categoryChips);
-        model.addAttribute("feedChips", feedChips);
-        model.addAttribute("filterLabel", feedId != null
-                ? feeds.stream().filter(feed -> feedId.equals(feed.id())).map(Feed::title).findFirst().orElse(null)
-                : activeCategory);
+        model.addAttribute("backChip", backChip);
+        model.addAttribute("modeChip", modeChip);
+        model.addAttribute("filterChips", filterChips);
     }
 
     /**
@@ -470,6 +536,27 @@ public class AppController {
             return "redirect:" + itemsPath(feedId, category, true, 1, null) + "#start";
         }
         return "redirect:" + itemsPath(feedId, category, unreadOnly, next, snapshot) + "#start";
+    }
+
+    /**
+     * Marks the articles of one screen read without leaving the list.
+     *
+     * <p>The reader turns several screens inside a single loaded page, and a screen
+     * that has been turned past has been read through just as much as a whole page
+     * has. Posting it here keeps that promise while the reader stays put, and
+     * answers with what is still unread so the meter under the page can follow.
+     */
+    @PostMapping("/items/read")
+    @ResponseBody
+    public Map<String, Object> markScreenRead(@RequestParam(value = "feed", required = false) Long feedId,
+                                              @RequestParam(value = "category", required = false) String category,
+                                              @RequestParam(value = "id", required = false) List<Long> ids) {
+        long userId = currentUser.requireId();
+        int marked = userService.markReadOnNextPage(userId) && ids != null && !ids.isEmpty()
+                ? articleService.markRead(userId, ids, true)
+                : 0;
+        return Map.of("marked", marked,
+                "unreadLeft", articleService.count(userId, feedId, category, Boolean.TRUE, null));
     }
 
     /** Pages the unread list of this snapshot holds, so paging can tell where it ends. */
@@ -553,11 +640,8 @@ public class AppController {
                 ? "/articles/" + id + (images ? "?images=true" : "")
                 : safeRedirect(redirect);
         try {
-            boolean donationPrompt = kindleMailService.sendToKindle(currentUser.requireId(), id, images);
+            kindleMailService.sendToKindle(currentUser.requireId(), id, images);
             redirectAttributes.addFlashAttribute("message", "Sent to Kindle");
-            if (donationPrompt) {
-                redirectAttributes.addFlashAttribute("donationPrompt", true);
-            }
         } catch (ArticleService.NotFoundException e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
             return "redirect:/items";
@@ -572,8 +656,8 @@ public class AppController {
             @PathVariable("id") long id,
             @RequestParam(value = "images", defaultValue = "false") boolean images) {
         try {
-            boolean donationPrompt = kindleMailService.sendToKindle(currentUser.requireId(), id, images);
-            return ResponseEntity.ok(Map.of("message", "Sent to Kindle", "donationPrompt", donationPrompt));
+            kindleMailService.sendToKindle(currentUser.requireId(), id, images);
+            return ResponseEntity.ok(Map.of("message", "Sent to Kindle"));
         } catch (ArticleService.NotFoundException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", e.getMessage()));
         } catch (Exception e) {

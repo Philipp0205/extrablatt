@@ -1,6 +1,31 @@
 {
   "releases": [
     {
+      "id": "2026-09-01-pricing",
+      "date": "1 September 2026",
+      "title": "Paid plan and a free week",
+      "highlights": [
+        "New accounts get a week of the full plan at no charge.",
+        "Supporter is €3.99 a month or €35 paid once for 12 months, including VAT."
+      ],
+      "changes": [
+        "A new account includes seven days of the full Supporter plan, with no card required.",
+        "After that week, reading in the browser stays free; sending to Kindle and adding feeds needs a subscription.",
+        "The paid plan is €3.99 a month or €35 paid once for 12 months, including VAT. Accounts from before charging began stay free."
+      ]
+    },
+    {
+      "id": "2026-09-01",
+      "date": "1 September 2026",
+      "title": "New send-from address",
+      "highlights": [
+        "Articles and account mail now come from mail@extrablatt.app, labelled Extrablatt."
+      ],
+      "changes": [
+        "The shared sender is mail@extrablatt.app instead of a Kindle-branded address. Add that address to Amazon's Approved Personal Document E-mail List or new deliveries will not arrive."
+      ]
+    },
+    {
       "id": "2026-08-31",
       "date": "31 August 2026",
       "title": "Changelog, reading preference, and what's new",

@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Cancel your contract — Extrablatt</title>
+  <link rel="stylesheet" th:href="@{/css/app.css}"/>
+</head>
+<body>
+<div class="wrap">
+  <header class="app">
+    <a class="brand" th:href="@{/}">Extrablatt</a>
+  </header>
+
+  <div th:if="${error}" class="flash error" th:text="${error}"></div>
+
+  <!-- The confirmation page § 312k Abs. 2 BGB requires, reached directly from the
+       cancellation button and deliberately not behind a login: the OLG Köln held
+       (10.01.2025, 6 U 62/24) that the path may not ask for credentials. The fields
+       below are the ones the statute lists — no more, because asking for more is
+       itself a defect, and no password, because that would be a credential. -->
+  <h1>Cancel your contract</h1>
+
+  <p>
+    Fill this in and your subscription ends. You do not need to be signed in, and
+    you will get written confirmation with the date and time straight away.
+  </p>
+
+  <p class="meta">
+    Nothing you have saved is deleted. Your feeds, articles and reading position
+    stay where they are. Reading in the browser continues; sending to Kindle
+    stops at the end of the period you have paid for.
+  </p>
+
+  <form th:action="@{/cancel}" method="post">
+    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+
+    <label for="email">E-mail address of your account</label>
+    <input id="email" name="email" type="email" required autocomplete="email"
+           th:value="${email}" placeholder="you@example.com"/>
+
+    <label for="name">Your name (optional)</label>
+    <input id="name" name="name" type="text" autocomplete="name"/>
+
+    <label for="contractRef">Contract or customer reference (optional)</label>
+    <input id="contractRef" name="contractRef" type="text"
+           placeholder="Extrablatt Supporter"/>
+
+    <fieldset style="border:2px solid #000;padding:0.75rem;margin:1rem 0">
+      <legend>Type of cancellation</legend>
+      <div class="check">
+        <input type="radio" id="kindOrdinary" name="kind" value="ordinary" checked/>
+        <label for="kindOrdinary">Ordinary — end it when the period I have paid for runs out</label>
+      </div>
+      <div class="check">
+        <input type="radio" id="kindImmediate" name="kind" value="immediate"/>
+        <label for="kindImmediate">Immediate — end it at once (extraordinary cancellation)</label>
+      </div>
+    </fieldset>
+
+    <label for="requestedEnd">Date it should end (optional)</label>
+    <input id="requestedEnd" name="requestedEnd" type="date" th:attr="min=${today}"/>
+
+    <label for="reason">Reason (optional)</label>
+    <textarea id="reason" name="reason" rows="3"></textarea>
+
+    <!-- § 312k Abs. 2 Satz 3 Nr. 2 BGB: this button may say nothing other than that
+         it cancels now. "Submit" or "Send cancellation request" is not enough — it
+         has to be the declaration itself, not an intention to make one. -->
+    <div class="actions">
+      <button class="btn danger" type="submit">Cancel now</button>
+      <a class="btn" th:href="@{/settings}">Back</a>
+    </div>
+  </form>
+
+  <p class="meta" th:unless="${billingEnabled}">
+    This server does not charge for anything, so there is probably nothing here to
+    cancel. Your declaration is still recorded and confirmed if you send it.
+  </p>
+</div>
+</body>
+</html>

@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Imprint — Extrablatt</title>
+  <link rel="stylesheet" th:href="@{/css/app.css}"/>
+</head>
+<body>
+<div class="wrap">
+  <header class="app">
+    <a class="brand" th:href="@{/}">Extrablatt</a>
+  </header>
+
+  <!-- The company details below are taken from the Zürich commercial register entry
+       for CHE-349.063.262. Two lines are still unfilled and are marked in place: an
+       imprint with a wrong contact address is worse than a late one, and only the
+       operator can confirm which mailbox is actually read.
+
+       Note on the register purpose: it reads "Entwicklung und Vertrieb von
+       Softwarelösungen, insbesondere für Zahnarzt- und Arztpraxen" — dental and
+       medical practice software. Extrablatt is a consumer reader, which is outside
+       that. It does not limit the partnership's capacity to contract, but it is
+       worth settling with the accountant whether this revenue belongs in the KlG's
+       books, and worth widening the purpose if it does. -->
+  <div th:fragment="content">
+  <h1>Imprint</h1>
+  <p class="meta">Information under §§ 5, 6 DDG (Digitale-Dienste-Gesetz).</p>
+
+  <h2>Operator</h2>
+  <p>
+    <strong>Kubri by Philipp Kurrle und Ali Abriani KLG</strong><br/>
+    Kollektivgesellschaft (Swiss general partnership)<br/>
+    Wehntalerstrasse 17<br/>
+    8057 Zürich<br/>
+    Switzerland
+  </p>
+
+  <h2>Partners with sole signing authority</h2>
+  <p>
+    Dr. Ali Abriani, Zürich<br/>
+    Philipp Kurrle, Stuttgart
+  </p>
+  <p class="meta">
+    Both partners are entered in the commercial register as Gesellschafter with
+    Einzelunterschrift, and are personally and jointly liable for the partnership's
+    obligations.
+  </p>
+
+  <h2>Contact</h2>
+  <!--/* § 5 Abs. 1 Nr. 2 DDG needs details allowing fast electronic contact and direct
+       communication, "including the e-mail address". A telephone number is not
+       strictly required: the CJEU held in C-649/17 (Amazon EU) that a trader need not
+       set one up, and in C-298/07 that another equally direct and efficient channel
+       can do instead. What the provision does require is that this mailbox is really
+       read and really answered — see docs/going-live.md for how it is forwarded. Add
+       a telephone number here if the business ever has one; it is the safest second
+       channel. */-->
+  <p>
+    E-mail: <a href="mailto:hello@extrablatt.app">hello@extrablatt.app</a><br/>
+    We answer at that address; there is no telephone line for the service.
+  </p>
+
+  <h2>Register</h2>
+  <p>
+    Commercial register: Handelsregisteramt des Kantons Zürich<br/>
+    Registration number: CH-020.2.010.172-0<br/>
+    Company identification number (UID): CHE-349.063.262<br/>
+    Registered: 11 September 2025
+  </p>
+
+  <h2>VAT</h2>
+  <!--/* TODO Replace both lines once the position is settled.
+         * Swiss VAT (MWST) becomes mandatory once WORLDWIDE taxable turnover
+           reaches CHF 100,000. Registered numbers read CHE-349.063.262 MWST.
+         * EU VAT is owed on digital services to EU consumers from the first sale
+           when the seller is established outside the EU — there is no threshold.
+           Either register for the Non-Union One Stop Shop and put the number here,
+           or sell through a merchant of record, which is then the seller of record
+           and this line says so instead. */-->
+  <p>
+    Swiss VAT number: not registered — below the CHF 100,000 threshold<br/>
+    EU VAT: <em>to be completed before the first paid subscription</em>
+  </p>
+
+  <h2>Responsible for this website</h2>
+  <p>Philipp Kurrle, at the address above</p>
+
+  <h2>Data protection</h2>
+  <!--/* Deliberately a contact rather than an Art. 27 declaration. Art. 27 only applies
+       where the GDPR reaches the operator through Art. 3(2); where it applies through
+       Art. 3(1) instead — an establishment in the Union, with the processing carried
+       out in the context of its activities — the EDPB's Guidelines 3/2018 are explicit
+       that no representative is required. A partner with sole signing authority lives
+       in Stuttgart and runs the service from there, so Art. 3(1) is the likely answer,
+       but it is a finding for an advisor to make and not a claim to publish before
+       they have (see docs/going-live.md, question 3).
+
+       Naming a contact is true either way, and it is what a data subject actually
+       needs. If the advice comes back that Art. 3(2) applies, a designated
+       representative under Art. 27 goes here as well, not instead. */-->
+  <p>
+    For anything about your data, write to
+    <a href="mailto:hello@extrablatt.app">hello@extrablatt.app</a>, which reaches
+    Philipp Kurrle in Stuttgart, Germany. What we hold and what you can ask for is set
+    out in the <a th:href="@{/privacy}">privacy notice</a>.
+  </p>
+
+  <h2>Consumer dispute resolution</h2>
+  <p>
+    We are not obliged to take part in, and do not take part in, dispute resolution
+    proceedings before a consumer arbitration body.
+  </p>
+
+  <h2>Cancelling a contract</h2>
+  <p>
+    You can end a subscription at any time on the
+    <a th:href="@{/cancel}">cancellation page</a>, without signing in.
+  </p>
+  </div>
+
+  <p class="meta" style="margin-top:1rem"><a th:href="@{/login}">Back</a></p>
+</div>
+</body>
+</html>

@@ -231,9 +231,10 @@ button[disabled], button[disabled]:hover, button[disabled]:focus {
 /* A touch screen has no pointer to hover with, but it does leave :hover and
    :focus behind on whatever was tapped last — so with the rules above, the
    button just pressed stays inverted for as long as the page is open and reads
-   as still held down, or as the filter now in use. Hand both states back where
-   the browser understands the question; one that matches neither query keeps
-   the plain behaviour above, which is what a Kindle is left with. */
+   as still held down. Hand both states back where the browser understands the
+   question; one that matches neither query keeps the plain behaviour above,
+   which is what a Kindle is left with. (The filter row sidesteps all of this by
+   never inverting in the first place.) */
 @media (hover: none) {
   a:hover,
   nav.top a:hover,
@@ -248,7 +249,7 @@ button[disabled], button[disabled]:hover, button[disabled]:focus {
     color: #a00;
   }
 
-  .filters a.active:hover {
+  .btn.primary:hover {
     background: #000;
     color: #fff;
   }
@@ -268,7 +269,7 @@ button[disabled], button[disabled]:hover, button[disabled]:focus {
     color: #a00;
   }
 
-  .filters a.active:focus:not(:focus-visible) {
+  .btn.primary:focus:not(:focus-visible) {
     background: #000;
     color: #fff;
   }
@@ -478,10 +479,23 @@ input[type="number"], input[type="search"], input[type="tel"], select, textarea 
   border-bottom: 1px solid #000;
 }
 
-/* Article entries stay short so a screen holds as many as possible: the title on
-   one line, then the source and the buttons sharing the next. */
+/* Article entries stay short so a screen holds as many as possible: the title
+   over its source on the left, and the send button standing beside both. The
+   button is the tallest thing in an entry, so putting it next to the two lines
+   rather than under them is worth about a third of the entry's height — a
+   Kindle screen holds thirteen articles this way instead of nine. */
 .item-list > li {
-  padding: 0.45rem 0;
+  display: flex;
+  align-items: center;
+  padding: 0.4rem 0;
+}
+
+/* The text side gives up whatever width the button needs; a zero basis because
+   sized from its content a phone-width entry asks for more than it has and the
+   button is pushed off the edge. */
+.item-main {
+  flex: 1 1 0;
+  min-width: 0;
 }
 
 .item-title {
@@ -489,40 +503,37 @@ input[type="number"], input[type="search"], input[type="tel"], select, textarea 
   line-height: 1.25;
 }
 
-.item-row {
-  display: flex;
-  align-items: center;
-  margin-top: 0.3rem;
+/* Read articles keep the mark's width so their titles stay in the same column as
+   the unread ones, and so that marking an article read while the reader is
+   standing on the page does not reflow the columns under them. */
+.unread-mark.read {
+  visibility: hidden;
 }
 
-.item-row > * + *,
-.item-row > form.inline {
-  margin-left: 0.5rem;
-}
-
-/* Zero basis rather than `auto`: the source line is the only part of the row that
-   may give up width, and it has to give up as much as the button needs. Sized
-   from its content instead, a phone-width row ends up asking for more than it
-   has and the button is pushed off the edge. */
-.item-row .meta {
-  flex: 1 1 0;
-  min-width: 0;
-  margin: 0;
+/* The source line is one line and stays one line: a feed title long enough to
+   wrap would cost the entry a whole line of screen for something the reader is
+   not reading. */
+.item-main .meta {
+  display: block;
+  margin: 0.1rem 0 0;
   font-size: 0.85rem;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-/* The form around the button is a flex item of the row in its own right, and
+/* The form around the button is a flex item of the entry in its own right, and
    would shrink below the button it holds — the button, which does not shrink,
-   then hangs out of the row and is clipped at the edge of the screen. */
-.item-row > form.inline {
+   then hangs out of the entry and is clipped at the edge of the screen. */
+.item-list > li > form.inline {
   flex: 0 0 auto;
+  margin-left: 0.5rem;
 }
 
-.item-row .btn,
-.item-row button {
+/* Smaller than a toolbar button, but still a target rather than a link: it is
+   what now sets the shortest an entry can be. */
+.item-list > li .btn,
+.item-list > li button {
   flex: 0 0 auto;
   min-height: 2.25rem;
   min-width: 0;
@@ -702,8 +713,28 @@ details.nested-tools {
   margin-top: 0;
 }
 
-.feed-list details.tools {
+.feed-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   margin-top: 0.5rem;
+}
+
+.feed-row-actions > details.tools,
+.feed-row-actions > form.inline {
+  margin: 0 0.5rem 0 0;
+}
+
+.feed-row-actions button {
+  min-height: 2.25rem;
+  min-width: 2.75rem;
+  padding: 0.3rem 0.6rem;
+  border-width: 1px;
+  font-size: 0.85rem;
+}
+
+.feed-list details.tools {
+  margin-top: 0;
 }
 
 .actions {
@@ -744,15 +775,18 @@ details.nested-tools {
 }
 
 /* Inside the reader the content is laid out in columns exactly one frame wide,
-   so these rows keep their spacing within their own width.
+   so this row keeps its spacing within its own width.
 
-   The filter bar is navigation on a page meant for reading: its buttons are
-   smaller than the toolbar's, and a row longer than the screen is clipped to one
-   line and turned by the arrows filters.js reveals. Until it does, the row wraps. */
+   The filter bar is navigation on a page meant for reading: it is set as words
+   rather than buttons (see below), and a row longer than the screen is clipped to
+   one line and turned by the arrows filters.js reveals. Until it does, it wraps. */
 .filters {
   display: flex;
   flex-wrap: wrap;
-  align-items: stretch;
+  /* Not stretch. The strip is a box around the chips, so it stands a line taller
+     than they do, and stretching hands that extra line to every chip beside it —
+     which is what made the row three different heights. */
+  align-items: flex-start;
   margin-bottom: 0.4rem;
 }
 
@@ -761,6 +795,8 @@ details.nested-tools {
   flex-wrap: wrap;
   flex: 1 1 auto;
   min-width: 0;
+  /* The chips inside carry the row's bottom margin already. */
+  margin-bottom: 0;
 }
 
 .filters.paged {
@@ -790,11 +826,18 @@ details.nested-tools {
   margin-right: 0;
 }
 
+/* No box around a filter. Names as unlike in length as "News" and "Deep Tech
+   Weekly" make a row of boxes a row of mismatched rectangles, and the boxes were
+   never carrying information: only where the reader is needs drawing. The rule
+   that draws it is reserved, transparent, on every chip, so that showing it moves
+   nothing in a row whose positions filters.js has already measured. */
 .filters .btn {
   min-height: 2.25rem;
   min-width: 0;
-  padding: 0.3rem 0.6rem;
-  font-size: 0.85rem;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  padding: 0.35rem 0.7rem;
+  font-size: 0.9rem;
   white-space: nowrap;
 }
 
@@ -810,14 +853,85 @@ details.nested-tools {
   font-size: 1rem;
 }
 
-/* The feeds of the open category read as a second level, not a second bar. */
-.filters.feeds .btn {
-  border-width: 1px;
+/* Only the level itself is clipped and turned. The controls that are not part of
+   it keep their place at the head of the row, where they can always be reached. */
+.filters .filter-nav {
+  flex: 0 0 auto;
 }
 
+/* And they are fenced off from it. Without this the unread switch sat in the same
+   run of words as the feed names and read as a feed called "Unread". */
+.filters .filter-divide {
+  flex: 0 0 auto;
+  /* Two pixels, not one: a single-pixel line is the first thing a screenshot, a
+     video frame or a half-refreshed e-ink panel throws away. */
+  width: 2px;
+  height: 1.7rem;
+  /* Short of the row's full height on purpose: a rule the height of the words is
+     a division, one the height of the row is a border. */
+  margin: 0.4rem 0.7rem 0.4rem 0.3rem;
+  /* Dark enough to be seen at arm's length on a panel that dithers greys badly.
+     A hairline nobody notices is a hairline that divides nothing. */
+  background: #888;
+}
+
+.filters .mode-dot {
+  margin-right: 0.3rem;
+  font-size: 0.8em;
+}
+
+.filters .filter-nav .nav-word {
+  margin-left: 0.3rem;
+}
+
+/* Weight as well as a rule: a 3px line is easy to lose on a panel that has not
+   finished refreshing, and bold survives it. */
 .filters a.active {
-  background: #000;
-  color: #fff;
+  background: #fff;
+  color: #000;
+  font-weight: 700;
+  border-bottom-color: #000;
+}
+
+/* The switch says so with its dot instead, which leaves the rule meaning one
+   thing only — where the reader is. Otherwise "unread, in Science" was drawn as
+   two identical marks, and the row looked like two places at once. */
+.filters .filter-mode.active {
+  font-weight: 400;
+  border-bottom-color: transparent;
+}
+
+/* The row does not invert. A word turned into a black block is a heavier mark
+   than the one that says where the reader is, and inverting is also the mark a
+   tap leaves behind on a browser that has no :focus-visible to tell a tap from
+   a keyboard. The rule is feedback enough, and where it does stick it sticks
+   under the chip that was just followed. */
+.filters .btn:hover,
+.filters .btn:focus {
+  background: #fff;
+  color: #000;
+  border-bottom-color: #000;
+}
+
+/* The switch answers with its own underline rather than with the rule. A tap
+   leaves :focus behind where the browser cannot tell a tap from a keyboard, and a
+   rule left stuck there would put the switch back among the places. */
+.filters .filter-mode:hover,
+.filters .filter-mode:focus {
+  border-bottom-color: transparent;
+  text-decoration: underline;
+}
+
+/* An arrow with nowhere to go answers nothing. */
+.filters button[disabled]:hover,
+.filters button[disabled]:focus {
+  border-bottom-color: transparent;
+}
+
+/* The count follows the last article instead of preceding the first, so it ends
+   up on the page where the list runs out rather than on the one being read. */
+.list-range {
+  margin: 0.75rem 0 0;
 }
 
 .pagination {
@@ -828,8 +942,9 @@ details.nested-tools {
 }
 
 /* Controls the pager already provides while paging: hidden so the last page does
-   not show a second, identical "Mark read" button. Without the reader script
-   these stay visible as the plain fallback. */
+   not show a second button with the same label on it, and so that the row they
+   sit in does not take a strip off the bottom of that page. Without the reader
+   script these stay visible as the plain fallback. */
 .reader.paged .reader-hide-when-paged {
   display: none;
 }
@@ -877,6 +992,37 @@ details.nested-tools {
   height: 1px;
 }
 
+/* How much of the list is behind the reader, and how many articles are still
+   unread. An e-ink panel renders a solid black block far more crisply than a
+   tint or a gradient, so progress is one filled bar against white. */
+.unread-meter {
+  display: flex;
+  align-items: center;
+  margin-top: 0.6rem;
+}
+
+.unread-meter-track {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 0.7rem;
+  border: 2px solid #000;
+  background: #fff;
+}
+
+.unread-meter-fill {
+  display: block;
+  height: 100%;
+  background: #000;
+}
+
+.unread-meter-count {
+  flex: 0 0 auto;
+  margin-left: 0.6rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
 .pager {
   display: none;
 }
@@ -893,8 +1039,25 @@ details.nested-tools {
   margin-left: 0.5rem;
 }
 
+/* Each button starts at the width of its own label and the two then share what
+   is left of the row, rather than splitting the row down the middle. The forward
+   button carries the longer label — on the last page of a list it names both
+   halves of the step, "Mark read and load more" — and an even split leaves that
+   one about a fifth of its width short of the point where a wider device font
+   would break it across the button's edge. Labels of the same length still come
+   out the same width, so the row looks no different while reading. */
 .pager .btn {
-  flex: 1 1 0;
+  flex: 1 1 auto;
+}
+
+/* Filled in, the way this app marks a preferred action: the notice's "Got it"
+   button, and the pager press that leaves the loaded list. On a grey e-ink
+   screen a filled button is the difference that survives being glanced at.
+   reader.js puts the class on the next-page control when the last page is
+   reached and takes it off again on the way back. */
+.btn.primary {
+  background: #000;
+  color: #fff;
 }
 
 .pager-label {
@@ -938,6 +1101,22 @@ body.reading .wrap {
 
 .muted {
   color: #444;
+}
+
+/* Kept in the document for anything reading it out, and out of the layout for
+   everything else — including the reader, which would otherwise give it a line
+   of the page it is measuring. */
+.offscreen {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 /* Donation reminder: a plain block by default (works with no CSS support for
@@ -989,6 +1168,7 @@ dialog.donate-dialog .row {
   margin-top: 1.25rem;
 }
 
+.changelog-release h2,
 .changelog-release h3 {
   margin: 0;
 }
@@ -1023,6 +1203,26 @@ dialog.donate-dialog .row {
 @media (max-width: 520px) {
   html { font-size: 17px; }
   .wrap { padding: 0.75rem 0.75rem 2.5rem; }
+
+  /* The head of the filter row costs the same on any screen, and on one this
+     narrow every pixel it takes comes off the level. The rule goes first: the
+     switch is told apart from the feed names by its dot in any case, which is the
+     part of the distinction that carries the meaning. A Kindle is wider than this
+     and keeps both. */
+  .filters .filter-divide {
+    display: none;
+  }
+
+  .filters .mode-dot {
+    margin-right: 0.2rem;
+  }
+
+  /* The way out keeps its arrow and gives up its word. At the head of a row, on a
+     screen held in one hand, an arrow on its own is the plainest thing there is —
+     and the word costs more here than a whole category name is wide. */
+  .filters .filter-nav .nav-word {
+    display: none;
+  }
 }
 
 /*
@@ -1086,8 +1286,14 @@ dialog.donate-dialog .row {
     padding: 0.3rem 0.4rem;
   }
 
+  /* Taller to stay a target worth aiming at, and narrower to keep fitting: with
+     no box around a filter its side padding is only spacing, and on the narrowest
+     screens a whole chip's worth of it is the difference between the open
+     category's name fitting on the row and being cut in half by its edge. */
   .filters .btn {
     min-height: 2.5rem;
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
   }
 
   /* A 9rem field beside a heading is a desktop arrangement; on a phone the
@@ -1146,4 +1352,147 @@ dialog.donate-dialog .row {
     padding-top: 0.35rem;
     margin-top: 0.35rem;
   }
+}
+
+/* Plans sit side by side where there is room and stack where there is not, in the
+   same flat boxes as the rest of the app: a price is information, not a poster. */
+.plan-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: 1rem;
+  margin: 1rem 0;
+}
+
+.plan {
+  border: 2px solid #000;
+  padding: 1rem;
+}
+
+.plan.current {
+  border-width: 4px;
+}
+
+.plan h3 {
+  margin: 0 0 0.25rem;
+}
+
+.plan .price {
+  display: block;
+  font-size: 1.6rem;
+  font-weight: 700;
+}
+
+.plan .price-note {
+  display: block;
+  font-size: 0.9rem;
+  margin-bottom: 0.5rem;
+}
+
+.plan ul {
+  margin: 0 0 1rem;
+  padding-left: 1.1rem;
+}
+
+/* The pre-contractual block § 312j Abs. 2 BGB wants "in hervorgehobener Weise"
+   immediately before the order button: boxed, directly above it, not folded away
+   behind a disclosure or a link to the terms. */
+.order-summary {
+  border: 4px solid #000;
+  padding: 1rem;
+  margin: 1rem 0;
+}
+
+.order-summary dl {
+  margin: 0;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.35rem 1rem;
+}
+
+.order-summary dt {
+  font-weight: 700;
+}
+
+.order-summary dd {
+  margin: 0;
+}
+
+.consent {
+  display: flex;
+  align-items: flex-start;
+  margin: 0.75rem 0;
+}
+
+.consent input {
+  width: 1.25rem;
+  height: 1.25rem;
+  margin: 0.2rem 0.6rem 0 0;
+  flex: 0 0 auto;
+}
+
+.consent label {
+  font-weight: 400;
+  margin: 0;
+}
+
+/* The cancellation declaration, shown back to the reader so they can keep or
+   print it — § 312k Abs. 3 BGB is about being able to hold on to it. */
+.receipt {
+  border: 2px solid #000;
+  padding: 1rem;
+  margin: 1rem 0;
+}
+
+.receipt dl {
+  margin: 0;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.35rem 1rem;
+}
+
+.receipt dt {
+  font-weight: 700;
+}
+
+.receipt dd {
+  margin: 0;
+}
+
+/* The legal footer: present on every page it belongs on, and quiet enough that it
+   does not compete with the reading it sits under. */
+.site-legal {
+  border-top: 2px solid #000;
+  margin-top: 2rem;
+  padding-top: 0.75rem;
+}
+
+.site-legal nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 1rem;
+}
+
+.site-legal a {
+  font-size: 0.9rem;
+}
+
+/* The cookie table in the privacy notice. Four rows of fact, in the same flat boxes
+   as everything else; it is there to be read once, not admired. */
+.cookie-table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1rem 0;
+  font-size: 0.9rem;
+}
+
+.cookie-table th,
+.cookie-table td {
+  border: 1px solid #000;
+  padding: 0.4rem 0.6rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+.cookie-table th {
+  font-weight: 700;
 }

@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Cancellation confirmed — Extrablatt</title>
+  <link rel="stylesheet" th:href="@{/css/app.css}"/>
+</head>
+<body>
+<div class="wrap">
+  <header class="app">
+    <a class="brand" th:href="@{/}">Extrablatt</a>
+  </header>
+
+  <h1>Your cancellation is confirmed</h1>
+
+  <p>
+    We received your cancellation and have sent the same confirmation to
+    <strong th:text="${request.email}">you@example.com</strong>. Keep either one for
+    your records — you can print this page.
+  </p>
+
+  <!-- The declaration read back, with the date and time it arrived and the moment
+       the contract ends: § 312k Abs. 3 and Abs. 4 BGB. Shown as well as e-mailed,
+       because not everyone reads e-mail on the device they cancelled from. -->
+  <div class="receipt">
+    <dl>
+      <dt>Received</dt>
+      <dd><span th:text="${receivedAt}">1 September 2026 at 09:14</span> (Central European Time)</dd>
+
+      <dt>Declared by</dt>
+      <dd th:text="${request.name} ?: 'not given'">not given</dd>
+
+      <dt>Account</dt>
+      <dd th:text="${request.email}">you@example.com</dd>
+
+      <dt>Contract</dt>
+      <dd th:text="${request.contractRef} ?: 'Extrablatt Supporter'">Extrablatt Supporter</dd>
+
+      <dt>Type</dt>
+      <dd th:if="${immediate}">Immediate (extraordinary) cancellation</dd>
+      <dd th:unless="${immediate}">Ordinary cancellation</dd>
+
+      <dt>Contract ends</dt>
+      <dd th:text="${effectiveAt}">1 September 2027</dd>
+
+      <dt>Reason given</dt>
+      <dd th:text="${request.reason} ?: 'none'">none</dd>
+    </dl>
+  </div>
+
+  <p th:if="${applied}">
+    Your subscription will not renew and no further payment will be taken.
+  </p>
+  <p th:unless="${applied}">
+    Your declaration is on record and has gone to the operator, who will stop any
+    further payment and get in touch if a refund is due.
+  </p>
+
+  <p class="meta">
+    Nothing you have saved is deleted. Your feeds, articles and reading position stay
+    exactly as they are. Reading in the browser continues. If you subscribe again
+    later, everything is where you left it.
+  </p>
+
+  <div class="actions">
+    <a class="btn" th:href="@{/}">Back to your feeds</a>
+    <a class="btn" th:href="@{/settings}">Settings</a>
+  </div>
+</div>
+</body>
+</html>

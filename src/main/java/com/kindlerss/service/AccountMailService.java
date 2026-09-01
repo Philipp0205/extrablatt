@@ -55,7 +55,9 @@ public class AccountMailService {
                 1. Add a feed: paste any RSS/Atom URL, or just a site's normal
                    homepage address, and we will try to find its feed for you.
                 2. Open Settings and add your Kindle e-mail so articles you send
-                   land on your device.
+                   land on your device. Amazon lists that address (it ends in
+                   @kindle.com) under Manage Your Content and Devices →
+                   Preferences → Personal Document Settings.
 
                 Open Extrablatt: %s
 
@@ -84,22 +86,25 @@ public class AccountMailService {
         return baseUrl + path + "?token=" + token;
     }
 
-    private void send(String toEmail, String subject, String body) {
+    /** Package-private so billing e-mail reuses the one sender and its error handling. */
+    void send(String toEmail, String subject, String body) {
         if (!StringUtils.hasText(properties.mailFrom())) {
             throw new IllegalStateException("MAIL_FROM must be configured to send account e-mail");
         }
         try {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, false, "UTF-8");
-            helper.setFrom(properties.mailFrom());
+            helper.setFrom(properties.mailFrom(), "Extrablatt");
             helper.setTo(toEmail);
             helper.setSubject(subject);
             helper.setText(body, false);
             mailSender.send(message);
         } catch (Exception e) {
             // Surface the failure so registration/reset can report it, but keep the
-            // message generic to callers to avoid leaking address existence.
-            log.warn("Failed to send account e-mail to {}: {}", toEmail, e.getMessage());
+            // message generic to callers to avoid leaking address existence. The
+            // address stays out of the log line too: production logs at WARN, and a
+            // log file is a place personal data ends up and is never cleaned out.
+            log.warn("Failed to send account e-mail ({}): {}", subject, e.getMessage());
             throw new IllegalStateException("Could not send e-mail", e);
         }
     }

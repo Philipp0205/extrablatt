@@ -3,6 +3,7 @@ package com.kindlerss.service;
 import com.kindlerss.config.AppProperties;
 import com.kindlerss.domain.AppUser;
 import com.kindlerss.domain.Article;
+import com.kindlerss.domain.Entitlement;
 import com.kindlerss.repository.ArticleRepository;
 import com.kindlerss.repository.UserRepository;
 import com.kindlerss.repository.UserSendLimitRepository;
@@ -14,7 +15,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import java.time.Instant;
+import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
+import java.util.Locale;
 
 /**
  * Builds an EPUB from an article and emails it to the account's Kindle address.
@@ -24,13 +27,9 @@ import java.time.temporal.ChronoUnit;
 @Service
 public class KindleMailService {
 
-    /**
-     * How often, in lifetime successful sends, the "help keep the servers running"
-     * donation reminder resurfaces. The app is free to use; this is a gentle, easy
-     * to dismiss nudge rather than a paywall, so it repeats sparingly instead of
-     * showing on every send.
-     */
-    static final int DONATION_REMINDER_INTERVAL = 10;
+    /** "1 September 2026" rather than "2026-09-01", since a reader reads this. */
+    private static final DateTimeFormatter RESET_DATE =
+            DateTimeFormatter.ofPattern("d MMMM yyyy", Locale.ENGLISH);
 
     private final JavaMailSender mailSender;
     private final EpubService epubService;
@@ -38,8 +37,8 @@ public class KindleMailService {
     private final ArticleRepository articleRepository;
     private final UserRepository userRepository;
     private final UserSendLimitRepository sendLimitRepository;
+    private final EntitlementService entitlements;
     private final AppProperties properties;
-    private final int maxSendsPerDay;
 
     public KindleMailService(JavaMailSender mailSender,
                              EpubService epubService,
@@ -47,6 +46,7 @@ public class KindleMailService {
                              ArticleRepository articleRepository,
                              UserRepository userRepository,
                              UserSendLimitRepository sendLimitRepository,
+                             EntitlementService entitlements,
                              AppProperties properties) {
         this.mailSender = mailSender;
         this.epubService = epubService;
@@ -54,22 +54,21 @@ public class KindleMailService {
         this.articleRepository = articleRepository;
         this.userRepository = userRepository;
         this.sendLimitRepository = sendLimitRepository;
+        this.entitlements = entitlements;
         this.properties = properties;
-        this.maxSendsPerDay = properties.limits().maxSendsPerDay();
     }
 
     /**
-     * Sends the article and returns whether the donation reminder should be shown
-     * now, i.e. this delivery just completed a multiple of
-     * {@link #DONATION_REMINDER_INTERVAL} lifetime sends for the account.
+     * Sends the article as an EPUB to the account's Kindle address.
      */
-    public boolean sendToKindle(long userId, long articleId, boolean includeImages) {
+    public void sendToKindle(long userId, long articleId, boolean includeImages) {
         AppUser user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalStateException("Account not found"));
         requireSenderConfig();
         requireVerified(user);
         String kindleEmail = requireKindleEmail(user);
-        requireWithinDailyQuota(userId);
+        Entitlement entitlement = entitlements.forUser(userId);
+        requireWithinQuota(userId, entitlement);
 
         Article article = articleRepository.findById(userId, articleId)
                 .orElseThrow(() -> new ArticleService.NotFoundException("Article not found"));
@@ -82,7 +81,7 @@ public class KindleMailService {
         try {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
-            helper.setFrom(properties.mailFrom());
+            helper.setFrom(properties.mailFrom(), "Extrablatt");
             helper.setTo(kindleEmail);
             helper.setSubject(article.title());
             helper.setText("Sent by Extrablatt", false);
@@ -99,9 +98,6 @@ public class KindleMailService {
 
         articleRepository.recordSend(userId, articleId, Instant.now());
         articleRepository.markRead(userId, articleId, true);
-
-        long totalSent = articleRepository.countSentTotal(userId);
-        return totalSent > 0 && totalSent % DONATION_REMINDER_INTERVAL == 0;
     }
 
     private void requireSenderConfig() {
@@ -123,18 +119,45 @@ public class KindleMailService {
         return user.kindleEmail();
     }
 
-    private void requireWithinDailyQuota(long userId) {
+    /**
+     * A block is not an allowance, so it stays here rather than moving into
+     * {@link EntitlementService}: an administrator pausing an account overrides
+     * whatever that account has paid for. The number of sends it is allowed, on the
+     * other hand, is a plan question, and comes from the entitlement.
+     */
+    private void requireWithinQuota(long userId, Entitlement entitlement) {
         var override = sendLimitRepository.findByUserId(userId);
         if (override.isPresent() && override.get().blocked(Instant.now())) {
             throw new IllegalStateException("Sending is temporarily paused for this account");
         }
-        int effectiveLimit = override.map(limit -> limit.maxSendsPerDay() == null
-                        ? maxSendsPerDay : limit.maxSendsPerDay())
-                .orElse(maxSendsPerDay);
-        Instant dayAgo = Instant.now().minus(1, ChronoUnit.DAYS);
-        if (articleRepository.countSentSince(userId, dayAgo) >= effectiveLimit) {
+
+        // Unpaid after the trial: there is no monthly ration to wait for. Reading
+        // in the browser is not gated; sending an e-mail is.
+        if (!entitlement.paid() && !entitlement.hasMonthlyCap()) {
             throw new IllegalStateException(
-                    "Daily send limit reached (" + effectiveLimit + "). Try again later.");
+                    "Your free week has ended. Subscribe under Settings → Subscription "
+                            + "to send articles to your Kindle. Reading in the browser is not limited.");
+        }
+
+        // An operator can still configure a small monthly ration instead of a hard
+        // paywall. The message then says both ways out — subscribe, or wait.
+        if (entitlement.hasMonthlyCap()) {
+            long usedThisMonth = articleRepository.countSentSince(
+                    userId, entitlements.startOfCurrentMonth());
+            if (usedThisMonth >= entitlement.maxSendsPerMonth()) {
+                throw new IllegalStateException(
+                        "You have used all " + entitlement.maxSendsPerMonth()
+                                + " of this month's included articles. The Supporter plan has no "
+                                + "monthly limit — see Settings → Subscription. Otherwise they come "
+                                + "back on " + RESET_DATE.format(entitlements.nextResetDate()) + ".");
+            }
+        }
+
+        int dailyLimit = entitlement.maxSendsPerDay();
+        Instant dayAgo = Instant.now().minus(1, ChronoUnit.DAYS);
+        if (articleRepository.countSentSince(userId, dayAgo) >= dailyLimit) {
+            throw new IllegalStateException(
+                    "Daily send limit reached (" + dailyLimit + "). Try again later.");
         }
     }
 
