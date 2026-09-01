@@ -55,9 +55,15 @@
        can do instead. What the provision does require is that this mailbox is really
        read and really answered — see docs/going-live.md for how it is forwarded. Add
        a telephone number here if the business ever has one; it is the safest second
-       channel. */-->
+       channel.
+
+       The email_off markers are Cloudflare's opt-out from Email Address Obfuscation,
+       which otherwise rewrites the address into a placeholder that only JavaScript
+       can decode. This app is built to work without JavaScript, and a contact address
+       a Kindle browser cannot display is not the "e-mail address" the provision asks
+       for. Keep them around every published address. */-->
   <p>
-    E-mail: <a href="mailto:hello@extrablatt.app">hello@extrablatt.app</a><br/>
+    E-mail: <!--email_off--><a th:href="'mailto:' + ${contactEmail}" th:text="${contactEmail}">hello@extrablatt.app</a><!--/email_off--><br/>
     We answer at that address; there is no telephone line for the service.
   </p>
 
@@ -101,7 +107,7 @@
        representative under Art. 27 goes here as well, not instead. */-->
   <p>
     For anything about your data, write to
-    <a href="mailto:hello@extrablatt.app">hello@extrablatt.app</a>, which reaches
+    <!--email_off--><a th:href="'mailto:' + ${contactEmail}" th:text="${contactEmail}">hello@extrablatt.app</a><!--/email_off-->, which reaches
     Philipp Kurrle in Stuttgart, Germany. What we hold and what you can ask for is set
     out in the <a th:href="@{/privacy}">privacy notice</a>.
   </p>

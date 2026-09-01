@@ -61,7 +61,7 @@
   </p>
   <p>
     For anything about your data — a copy, a correction, a deletion, or an objection —
-    write to <a href="mailto:hello@extrablatt.app">hello@extrablatt.app</a>. That
+    write to <!--email_off--><a th:href="'mailto:' + ${contactEmail}" th:text="${contactEmail}">hello@extrablatt.app</a><!--/email_off-->. That
     reaches Philipp Kurrle in Stuttgart, Germany, who runs the service.
   </p>
   <p>
