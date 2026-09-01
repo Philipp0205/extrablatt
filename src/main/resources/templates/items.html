@@ -63,35 +63,45 @@
         </div>
 
         <p th:if="${#lists.isEmpty(articles)}" class="muted">No articles.</p>
-        <ul class="item-list" th:if="${!#lists.isEmpty(articles)}">
+        <!-- data-reader-fill: the reader deals these rows out over the pages
+             itself and spaces each page's rows to the bottom of the screen,
+             rather than leaving the last page half empty. -->
+        <ul class="item-list" data-reader-fill th:if="${!#lists.isEmpty(articles)}">
           <!-- The unread mark is always in the markup and merely hidden once read:
                turning a page marks articles read where the reader stands, and a mark
                that was removed outright would reflow the columns under them. -->
+          <!-- Title and source stack in one column with the send button beside them,
+               rather than under them: the button is the tallest thing in the entry,
+               and standing it next to the two lines instead of below them is what
+               lets a screen hold a third more articles. -->
           <li th:each="a : ${articles}"
               th:attr="data-article-id=${a.id}, data-read=${a.read} ? 'true' : 'false'">
-            <a class="item-title" th:href="@{/articles/{id}(id=${a.id})}">
-              <strong class="unread-mark" th:classappend="${a.read} ? ' read'">●</strong>
-              <span th:text="${a.title}">Title</span>
-            </a>
-            <div class="item-row">
+            <div class="item-main">
+              <a class="item-title" th:href="@{/articles/{id}(id=${a.id})}">
+                <strong class="unread-mark" th:classappend="${a.read} ? ' read'">●</strong>
+                <span th:text="${a.title}">Title</span>
+              </a>
               <span class="meta">
                 <span th:text="${a.feedTitle}">Feed</span>
                 <span th:if="${a.publishedAt != null}" th:text="' · ' + ${#temporals.format(a.publishedAt, 'yyyy-MM-dd HH:mm')}"> · date</span>
                 <span th:if="${a.sentAt != null}"> · sent</span>
               </span>
-              <form class="inline" data-send-form
-                    th:action="@{/articles/{id}/send(id=${a.id})}"
-                    th:attr="data-send-url=@{/articles/{id}/send-async(id=${a.id})}" method="post">
-                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-                <!-- Sending from the list comes back to the list instead of opening the article. -->
-                <input type="hidden" name="redirect" th:value="${listPath}"/>
-                <button class="btn" type="submit">Send to Kindle</button>
-              </form>
             </div>
+            <form class="inline" data-send-form
+                  th:action="@{/articles/{id}/send(id=${a.id})}"
+                  th:attr="data-send-url=@{/articles/{id}/send-async(id=${a.id})}" method="post">
+              <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+              <!-- Sending from the list comes back to the list instead of opening the article. -->
+              <input type="hidden" name="redirect" th:value="${listPath}"/>
+              <button class="btn" type="submit">Send to Kindle</button>
+            </form>
           </li>
         </ul>
 
-        <div class="pagination" th:if="${!#lists.isEmpty(articles)}">
+        <!-- Hidden as a whole while the pager turns the pages: the buttons inside
+             are the fallback for a browser without it, and the row's own spacing
+             would otherwise take a strip off the bottom of the last page. -->
+        <div class="pagination reader-hide-when-paged" th:if="${!#lists.isEmpty(articles)}">
           <!-- Paging forward posts this form. Whether that also marks the articles
                read is a Settings choice; there is no separate skip-without-marking
                link, because Next page is the only way the list moves on. -->
@@ -105,11 +115,12 @@
             <input type="hidden" name="id" th:each="a : ${articles}" th:value="${a.id}"/>
             <!-- The pager turns pages where the reader script runs; where it cannot,
                  this is the only way forward. It carries the same label as the pager's
-                 last page, because it is the same step. -->
-            <button class="btn reader-hide-when-paged" type="submit"
+                 last page, because it is the same step. The row around it is hidden
+                 while the pager runs, so the class is not needed on the button. -->
+            <button class="btn" type="submit"
                     th:text="${forwardLabel}">Next articles</button>
           </form>
-          <a class="btn reader-hide-when-paged" th:if="${page > 1}"
+          <a class="btn" th:if="${page > 1}"
              th:href="@{/items(feed=${feedId}, category=${category}, unread=${unread} ? true : null, snapshot=${snapshot}, page=${page - 1})}">Newer articles</a>
         </div>
       </div>

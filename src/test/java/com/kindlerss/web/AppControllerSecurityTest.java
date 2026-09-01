@@ -483,8 +483,9 @@ class AppControllerSecurityTest {
                 .andExpect(content().string(
                         containsString("data-reader-next-end-label=\"Mark read and load more\"")))
                 .andExpect(content().string(containsString(
-                        "<button class=\"btn reader-hide-when-paged\" type=\"submit\">"
-                                + "Mark read and load more</button>")));
+                        "<div class=\"pagination reader-hide-when-paged\">")))
+                .andExpect(content().string(containsString(
+                        "<button class=\"btn\" type=\"submit\">Mark read and load more</button>")));
     }
 
     @Test
@@ -782,12 +783,14 @@ class AppControllerSecurityTest {
         when(articleService.count(eq(UID), isNull(), isNull())).thenReturn(1L);
         when(feedService.listFeeds(UID)).thenReturn(List.of());
 
-        // Hidden by CSS wherever the pager runs, and the only way forward where it
-        // does not.
+        // Its row is hidden by CSS wherever the pager runs, and the button is the
+        // only way forward where it does not.
         mockMvc.perform(get("/items").param("unread", "false"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString(
-                        "<button class=\"btn reader-hide-when-paged\" type=\"submit\">Mark read and continue</button>")));
+                        "<div class=\"pagination reader-hide-when-paged\">")))
+                .andExpect(content().string(containsString(
+                        "<button class=\"btn\" type=\"submit\">Mark read and continue</button>")));
     }
 
     @Test
@@ -803,7 +806,7 @@ class AppControllerSecurityTest {
         mockMvc.perform(get("/items").param("unread", "false"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString(
-                        "<button class=\"btn reader-hide-when-paged\" type=\"submit\">Next articles</button>")));
+                        "<button class=\"btn\" type=\"submit\">Next articles</button>")));
     }
 
     @Test
