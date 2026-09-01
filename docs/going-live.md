@@ -137,8 +137,8 @@ Everything below is dashboard work; the app needs no code change.
    Handelsregister number, the Zürich address and a bank account in the company's name.
    Expect an identity check on both partners.
 2. **Two products, two prices.** Products → Add product → "Extrablatt Supporter".
-   Add a recurring price of **€24.00 / year**, then a second recurring price of
-   **€2.50 / month** on the same product. Prices are gross; if you enable Stripe Tax,
+   Add a recurring price of **€40.00 / year**, then a second recurring price of
+   **€4.99 / month** on the same product. Prices are gross; if you enable Stripe Tax,
    set the prices as **tax-inclusive** so the sticker matches what the app shows.
 3. **Two payment links.** Payment links → Create → pick the yearly price → under
    *After payment*, choose **Redirect** and set
@@ -184,7 +184,7 @@ subscription up three ways rather than one.
    involved than Stripe's because they become the seller of record. Have the
    Handelsregister extract and a description of the product ready.
 2. **Catalog → Products** → new product "Extrablatt Supporter", then two prices:
-   €24.00 yearly and €2.50 monthly. Set them tax-inclusive.
+   €40.00 yearly and €4.99 monthly. Set them tax-inclusive.
 3. **Developer tools → Notifications → New destination**, pointed at
    `https://reader.extrablatt.app/webhooks/billing`, subscribed to
    `subscription.created`, `subscription.updated` and `subscription.canceled`. Copy the

@@ -18,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
@@ -57,6 +58,27 @@ public class SubscriptionService {
 
     public Subscription forUser(long userId) {
         return subscriptions.findByUserId(userId).orElseGet(() -> Subscription.free(userId));
+    }
+
+    /**
+     * Starts the complimentary week for a newly registered account. Idempotent:
+     * an account that already has a real standing (including an ended trial) is
+     * left alone, so registering twice cannot mint a second week.
+     */
+    @Transactional
+    public void startTrial(long userId) {
+        AppProperties.Billing billing = properties.billing();
+        if (!billing.enabled() || billing.trialDays() <= 0) {
+            return;
+        }
+        Subscription existing = subscriptions.findByUserId(userId).orElse(null);
+        if (existing != null && existing.status() != SubscriptionStatus.FREE) {
+            return;
+        }
+        Instant ends = Instant.now().plus(Duration.ofDays(billing.trialDays()));
+        subscriptions.save(new Subscription(userId, Plan.SUPPORTER, SubscriptionStatus.TRIALING,
+                null, null, null, null, ends, true, null));
+        log.info("Started a {}-day trial for account {} until {}", billing.trialDays(), userId, ends);
     }
 
     /**
@@ -214,8 +236,10 @@ public class SubscriptionService {
         if (!properties.billing().enabled()) {
             return 0;
         }
-        Instant cutoff = Instant.now().minus(properties.billing().grace());
-        List<Subscription> lapsed = subscriptions.findLapsed(cutoff);
+        Instant now = Instant.now();
+        Instant cutoff = now.minus(properties.billing().grace());
+        List<Subscription> lapsed = new java.util.ArrayList<>(subscriptions.findLapsed(cutoff));
+        lapsed.addAll(subscriptions.findEndedTrials(now));
         for (Subscription subscription : lapsed) {
             subscriptions.save(withStatus(subscription, SubscriptionStatus.EXPIRED,
                     subscription.currentPeriodEnd(), subscription.cancelAtPeriodEnd()));

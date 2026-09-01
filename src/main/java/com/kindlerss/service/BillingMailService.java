@@ -96,8 +96,8 @@ public class BillingMailService {
                 %s
 
                 Nothing you have saved is deleted. Your feeds, articles and reading
-                position stay exactly as they are, and your account keeps working on the
-                free plan. If you subscribe again later, everything is where you left it.
+                position stay exactly as they are. Reading in the browser continues.
+                If you subscribe again later, everything is where you left it.
 
                 If any of the above is wrong, reply to this message and we will correct it.
                 """.formatted(

@@ -36,15 +36,14 @@
       <dd>Extrablatt Supporter — no monthly limit on articles sent to your Kindle (up to
         <span th:text="${supporterSends}">50</span> a day), up to
         <span th:text="${supporterFeeds}">50</span> feeds, and a newsletter inbox
-        address. The free plan allows
-        <span th:text="${freeSends}">5</span> articles a month.</dd>
+        address. New accounts get one week of this at no charge.</dd>
 
       <dt>Price</dt>
       <dd>
-        <strong th:text="${total}">€24.00</strong>
+        <strong th:text="${total}">€40.00</strong>
         <span th:if="${monthly}">per month, including VAT</span>
         <span th:unless="${monthly}">per year, including VAT
-          (that is <span th:text="${perMonth}">€2.00</span> a month)</span>
+          (that is <span th:text="${perMonth}">€3.33</span> a month)</span>
       </dd>
 
       <dt>Term</dt>

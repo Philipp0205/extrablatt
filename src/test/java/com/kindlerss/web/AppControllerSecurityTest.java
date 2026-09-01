@@ -99,6 +99,9 @@ class AppControllerSecurityTest {
         when(currentUser.requireId()).thenReturn(UID);
         when(currentUser.details()).thenReturn(Optional.of(new AppUserDetails(user)));
         when(userService.markReadOnNextPage(UID)).thenReturn(true);
+        when(entitlementService.forUser(anyLong())).thenReturn(
+                new com.kindlerss.domain.Entitlement(
+                        com.kindlerss.domain.Plan.SUPPORTER, 50, 0, 50, true));
     }
 
     @Test

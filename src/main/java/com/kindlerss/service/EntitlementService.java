@@ -42,12 +42,12 @@ public class EntitlementService {
     }
 
     public Entitlement forUser(long userId) {
-        Plan plan = planFor(userId);
+        Subscription subscription = subscription(userId);
+        Plan plan = planFor(subscription);
         AppProperties.Billing billing = properties.billing();
         boolean paid = plan == Plan.SUPPORTER;
-        // The free plan's real limit is the monthly one. Its daily cap is set to the
-        // same number so that a reader who wants all ten in one morning can have them:
-        // the offer is ten articles a month, not ten spread thinly.
+        // After the trial there is no ongoing free ration unless an operator still
+        // configured one. Paid access has no monthly meter; the daily guardrail stays.
         int planMonthlySends = paid ? 0 : billing.freeMaxSendsPerMonth();
         int planDailySends = paid
                 ? properties.limits().maxSendsPerDay()
@@ -56,16 +56,20 @@ public class EntitlementService {
                 ? properties.limits().maxFeedsPerUser()
                 : billing.freeMaxFeeds();
         // An administrator's override is about one account's daily behaviour — usually
-        // reining in an abusive one. It deliberately does not lift the monthly cap;
+        // reining in an abusive one. It deliberately does not lift a monthly ration;
         // "Grant Supporter" on the same page is how somebody gets the paid plan.
         Integer override = sendLimits.findByUserId(userId)
                 .map(com.kindlerss.domain.UserSendLimit::maxSendsPerDay)
                 .orElse(null);
+        Instant trialEndsAt = subscription.trialing() && hasPaidAccess(subscription, Instant.now())
+                ? subscription.currentPeriodEnd()
+                : null;
         return new Entitlement(plan,
                 override == null ? planDailySends : override,
                 planMonthlySends,
                 planFeeds,
-                paid);
+                paid,
+                trialEndsAt);
     }
 
     /**
@@ -89,10 +93,14 @@ public class EntitlementService {
      * existing test — behaving exactly as it did before subscriptions existed.
      */
     public Plan planFor(long userId) {
+        return planFor(subscription(userId));
+    }
+
+    private Plan planFor(Subscription subscription) {
         if (!properties.billing().enabled()) {
             return Plan.SUPPORTER;
         }
-        return hasPaidAccess(subscription(userId), Instant.now()) ? Plan.SUPPORTER : Plan.FREE;
+        return hasPaidAccess(subscription, Instant.now()) ? Plan.SUPPORTER : Plan.FREE;
     }
 
     /** The account's subscription, or a free one when it has never ordered. */
@@ -113,8 +121,12 @@ public class EntitlementService {
         return switch (subscription.status()) {
             case GRANDFATHERED -> true;
             case CANCELED -> subscription.withinPaidPeriod(now);
+            case TRIALING -> subscription.withinPaidPeriod(now);
+            // A trial still running is kept on the order row as currentPeriodEnd, so
+            // walking over to pay does not end the week early.
+            case PENDING -> subscription.withinPaidPeriod(now);
             case ACTIVE, PAST_DUE -> withinGrace(subscription, now);
-            case FREE, PENDING, EXPIRED -> false;
+            case FREE, EXPIRED -> false;
         };
     }
 

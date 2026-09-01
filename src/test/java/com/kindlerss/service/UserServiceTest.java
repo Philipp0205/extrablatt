@@ -30,6 +30,7 @@ class UserServiceTest {
     private EmailTokenRepository tokenRepository;
     private PasswordEncoder passwordEncoder;
     private AccountMailService mailService;
+    private SubscriptionService subscriptionService;
     private UserService service;
 
     @BeforeEach
@@ -38,7 +39,9 @@ class UserServiceTest {
         tokenRepository = mock(EmailTokenRepository.class);
         passwordEncoder = mock(PasswordEncoder.class);
         mailService = mock(AccountMailService.class);
-        service = new UserService(userRepository, tokenRepository, passwordEncoder, mailService);
+        subscriptionService = mock(SubscriptionService.class);
+        service = new UserService(userRepository, tokenRepository, passwordEncoder, mailService,
+                subscriptionService);
         when(passwordEncoder.encode(anyString())).thenReturn("hashed");
     }
 
@@ -54,6 +57,7 @@ class UserServiceTest {
         service.register("New@Example.com", "supersecret");
 
         verify(userRepository).insert("new@example.com", "hashed");
+        verify(subscriptionService).startTrial(1L);
         verify(tokenRepository).insert(anyString(), eq(1L), eq(EmailToken.Purpose.VERIFY), any());
         verify(mailService).sendVerification(eq("new@example.com"), anyString());
     }
@@ -76,6 +80,7 @@ class UserServiceTest {
         service.register("taken@example.com", "supersecret");
 
         verify(mailService, never()).sendVerification(anyString(), anyString());
+        verify(subscriptionService, never()).startTrial(anyLong());
         verify(userRepository, never()).updateLastSeenChangelogId(anyLong(), anyString());
     }
 

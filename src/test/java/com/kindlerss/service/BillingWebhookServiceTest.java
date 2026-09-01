@@ -33,7 +33,7 @@ class BillingWebhookServiceTest {
     private BillingWebhookService service(String provider) {
         AppProperties.Billing billing = new AppProperties.Billing(true, provider, SECRET,
                 "https://pay/monthly", "https://pay/yearly", null, null, null,
-                null, null, null, null, null);
+                null, null, null, null, null, null);
         AppProperties properties = new AppProperties("from@example.com", null, null, null, null,
                 null, null, null, billing, null);
         return new BillingWebhookService(events, subscriptions, users, properties);
