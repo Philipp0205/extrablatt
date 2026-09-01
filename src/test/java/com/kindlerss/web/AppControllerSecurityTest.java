@@ -365,6 +365,141 @@ class AppControllerSecurityTest {
 
     @Test
     @WithMockUser
+    void openingACategoryReplacesTheFilterRowRatherThanAddingASecondOne() throws Exception {
+        when(articleService.findPage(eq(UID), isNull(), isNull(), eq(1), eq(20))).thenReturn(List.of());
+        when(articleService.count(eq(UID), isNull(), isNull())).thenReturn(0L);
+        when(articleService.findPage(eq(UID), isNull(), eq("Technology"), isNull(), isNull(), eq(1), eq(20)))
+                .thenReturn(List.of());
+        when(articleService.count(eq(UID), isNull(), eq("Technology"), isNull(), isNull())).thenReturn(0L);
+        when(feedService.listFeeds(UID)).thenReturn(List.of(
+                new Feed(5L, "Android Police", "https://example.com/a", null, "Technology", null, null, null),
+                new Feed(7L, "Nature", "https://example.com/c", null, "Science", null, null, null)));
+
+        // One strip on either level, so the list never gives up two lines to filters.
+        mockMvc.perform(get("/items").param("unread", "false"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(stringContainsCount("data-strip-track", 1)))
+                .andExpect(content().string(containsString("Science")))
+                .andExpect(content().string(not(containsString(BACK_CONTROL))));
+
+        // Inside a category the row is that category and its feeds; the other
+        // categories are behind the back control rather than beside them.
+        mockMvc.perform(get("/items").param("category", "Technology").param("unread", "false"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(stringContainsCount("data-strip-track", 1)))
+                .andExpect(content().string(containsString(BACK_CONTROL)))
+                .andExpect(content().string(not(containsString("Science"))));
+    }
+
+    /**
+     * The way out of a level. Named by what a screen reader is told rather than by the
+     * arrow: the arrow and the word are separate elements, because the narrowest
+     * screens keep the arrow and drop the word.
+     */
+    private static final String BACK_CONTROL = "aria-label=\"All categories\"";
+
+    @Test
+    @WithMockUser
+    void theChipsThatLeaveALevelStayOutsideTheTurningStrip() throws Exception {
+        when(articleService.findPage(eq(UID), eq(5L), isNull(), eq(1), eq(20))).thenReturn(List.of());
+        when(articleService.count(eq(UID), eq(5L), isNull())).thenReturn(0L);
+        when(feedService.findById(UID, 5L)).thenReturn(Optional.of(
+                new Feed(5L, "Android Police", "https://example.com/a", null, "Technology", null, null, null)));
+        when(feedService.listFeeds(UID)).thenReturn(List.of(
+                new Feed(5L, "Android Police", "https://example.com/a", null, "Technology", null, null, null)));
+
+        // Arriving by feed alone still opens that feed's category, and back and the
+        // unread switch sit ahead of the strip, where turning it cannot hide them.
+        String body = mockMvc.perform(get("/items").param("feed", "5").param("unread", "false"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        int back = body.indexOf(BACK_CONTROL);
+        int unreadToggle = body.indexOf("/items?feed=5&amp;unread=true");
+        int divide = body.indexOf("filter-divide");
+        int strip = body.indexOf("data-strip-track");
+        org.junit.jupiter.api.Assertions.assertTrue(back > 0 && back < divide,
+                "back chip belongs before the divide");
+        org.junit.jupiter.api.Assertions.assertTrue(unreadToggle > 0 && unreadToggle < divide,
+                "unread switch belongs before the divide");
+        org.junit.jupiter.api.Assertions.assertTrue(divide < strip,
+                "the divide fences the level off from the controls that are not part of it");
+        org.junit.jupiter.api.Assertions.assertTrue(body.contains("href=\"/items?category=Technology&amp;unread=false\""),
+                "the open category leads its own feeds");
+    }
+
+    @Test
+    @WithMockUser
+    void theUnreadSwitchIsNotDrawnLikeAFeed() throws Exception {
+        when(articleService.findPage(eq(UID), isNull(), eq("Technology"), isNull(), isNull(), eq(1), eq(20)))
+                .thenReturn(List.of());
+        when(articleService.count(eq(UID), isNull(), eq("Technology"), isNull(), isNull())).thenReturn(0L);
+        when(feedService.listFeeds(UID)).thenReturn(List.of(
+                new Feed(5L, "Android Police", "https://example.com/a", null, "Technology", null, null, null)));
+
+        // Off: a hollow dot, and none of the marks a feed or category carries.
+        mockMvc.perform(get("/items").param("category", "Technology").param("unread", "false"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("class=\"btn filter-nav filter-mode\"")))
+                .andExpect(content().string(containsString(
+                        "<span class=\"mode-dot\" aria-hidden=\"true\">○</span>")));
+
+        // On: the dot fills, and the switch still does not take the active class that
+        // draws the rule under wherever the reader is.
+        String body = mockMvc.perform(get("/items")
+                        .param("category", "Technology").param("unread", "true")
+                        .param("snapshot", "1"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString(
+                        "<span class=\"mode-dot\" aria-hidden=\"true\">●</span>")))
+                .andReturn().getResponse().getContentAsString();
+
+        org.junit.jupiter.api.Assertions.assertTrue(
+                body.contains("class=\"btn filter-nav filter-mode  active\""),
+                "the switch marks itself on");
+        org.junit.jupiter.api.Assertions.assertEquals(1,
+                body.split("class=\"btn  active\"", -1).length - 1,
+                "exactly one chip in the strip is where the reader is");
+    }
+
+    @Test
+    @WithMockUser
+    void theArticleListStartsAtTheFirstArticle() throws Exception {
+        when(articleService.findPage(eq(UID), isNull(), isNull(), eq(1), eq(20))).thenReturn(
+                List.of(new Article(1L, 1L, "guid-1", "Article 1", null, null,
+                        null, null, null, null, false, null, null, null, "Example Feed")));
+        when(articleService.count(eq(UID), isNull(), isNull())).thenReturn(1L);
+        when(feedService.listFeeds(UID)).thenReturn(List.of());
+
+        String body = mockMvc.perform(get("/items").param("unread", "false"))
+                .andExpect(status().isOk())
+                // The heading is left for screen readers, and the count follows the
+                // list instead of pushing it down the screen.
+                .andExpect(content().string(containsString("<h1 class=\"offscreen\">Articles</h1>")))
+                .andExpect(content().string(containsString("1–1 of 1 articles")))
+                .andReturn().getResponse().getContentAsString();
+
+        org.junit.jupiter.api.Assertions.assertTrue(
+                body.indexOf("1–1 of 1 articles") > body.indexOf("class=\"item-title\""),
+                "the count reads under the list, not above it");
+    }
+
+    /** Matches a body holding exactly {@code times} copies of {@code needle}. */
+    private static org.hamcrest.Matcher<String> stringContainsCount(String needle, int times) {
+        return new org.hamcrest.CustomTypeSafeMatcher<>(needle + " exactly " + times + " time(s)") {
+            @Override
+            protected boolean matchesSafely(String body) {
+                int found = 0;
+                for (int at = body.indexOf(needle); at >= 0; at = body.indexOf(needle, at + needle.length())) {
+                    found++;
+                }
+                return found == times;
+            }
+        };
+    }
+
+    @Test
+    @WithMockUser
     void everyFeedIsInTheRowAndTheRowCanBeTurned() throws Exception {
         List<Feed> feeds = new ArrayList<>();
         for (int i = 1; i <= 12; i++) {
