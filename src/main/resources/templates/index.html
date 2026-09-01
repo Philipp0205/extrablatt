@@ -26,18 +26,24 @@
        to complete on a phone. -->
   <div th:if="${!kindleConfigured}" class="flash onboarding">
     <p><strong>Welcome! Two quick steps to start sending articles to your Kindle:</strong></p>
+    <p><em>This is easiest to do on your phone!</em></p>
     <ol>
-      <li>Open <a th:href="@{/settings}">Settings</a> and enter your
-        <strong>Send-to-Kindle e-mail</strong> (it ends in <em>@kindle.com</em>).
-        Amazon lists it under
-        <em>Manage Your Content and Devices → Preferences → Personal Document Settings</em>.</li>
-      <li>Add our sender address
-        <strong th:text="${mailFrom} ?: 'shown on the Settings page'">mail@extrablatt.app</strong>
-        to Amazon's <em>Approved Personal Document E-mail List</em>. Open your
-        <a href="https://www.amazon.de/hz/mycd/preferences/myx#/home/settings/payment"
-           target="_blank" rel="noopener noreferrer">Amazon content &amp; devices settings</a>
-        — this is easiest to do on your phone.</li>
-    </ol>
+				<li>Open <a th:href="@{/settings}">Settings</a> and enter your
+					<strong>Send-to-Kindle e-mail</strong> (it ends in <em>@kindle.com</em>).
+					Amazon lists it under <a href="https://www.amazon.de/myk"
+					target="_blank" rel="noopener noreferrer">Amazon content &amp;
+						devices settings</a> <em>→ Preferences → Personal Document
+						Settings</em>.
+				</li>
+				<li>Add our sender address <strong
+					th:text="${mailFrom} ?: 'shown on the Settings page'">mail@extrablatt.app</strong>
+					to Amazon's <em>Approved Personal Document E-mail List</em>. Open
+					your <a
+					href="https://www.amazon.de/hz/mycd/preferences/myx#/home/settings/payment"
+					target="_blank" rel="noopener noreferrer">Amazon content &amp;
+						devices settings</a>
+				</li>
+			</ol>
   </div>
   <div th:if="${message}" class="flash" th:text="${message}"></div>
   <div th:if="${error}" class="flash error" th:text="${error}"></div>
