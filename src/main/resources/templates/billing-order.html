@@ -13,7 +13,7 @@
     <nav class="top">
       <a th:href="@{/}">Feeds</a>
       <a th:href="@{/items}">Articles</a>
-      <a th:href="@{/settings} + '#subscription'">Settings</a>
+      <a th:href="@{/settings/subscription}">Settings</a>
     </nav>
   </header>
 
@@ -96,7 +96,7 @@
          the price of getting it wrong the whole contract. -->
     <div class="actions">
       <button class="btn" type="submit" th:disabled="${!checkoutConfigured}">Order with obligation to pay</button>
-      <a class="btn" th:href="@{/settings} + '#subscription'">Cancel</a>
+      <a class="btn" th:href="@{/settings/subscription}">Cancel</a>
     </div>
   </form>
 </div>

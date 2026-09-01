@@ -18,7 +18,6 @@
 
   <div th:if="${message}" class="flash" th:text="${message}"></div>
   <div th:if="${error}" class="flash error" th:text="${error}"></div>
-  <div th:replace="~{fragments/donation-dialog :: donationDialog}"></div>
   <div th:replace="~{fragments/whats-new-dialog :: whatsNewDialog}"></div>
 
   <!-- The article list always opens at the top: unlike a single article, there is

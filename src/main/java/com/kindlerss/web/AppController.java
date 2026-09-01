@@ -212,12 +212,8 @@ public class AppController {
         }
         String successTarget = "/articles/" + article.id() + (images ? "?images=true" : "");
         try {
-            boolean donationPrompt = kindleMailService.sendToKindle(
-                    currentUser.requireId(), article.id(), images);
+            kindleMailService.sendToKindle(currentUser.requireId(), article.id(), images);
             redirectAttributes.addFlashAttribute("message", "Sent to Kindle");
-            if (donationPrompt) {
-                redirectAttributes.addFlashAttribute("donationPrompt", true);
-            }
         } catch (Exception e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
         }
@@ -637,11 +633,8 @@ public class AppController {
                 ? "/articles/" + id + (images ? "?images=true" : "")
                 : safeRedirect(redirect);
         try {
-            boolean donationPrompt = kindleMailService.sendToKindle(currentUser.requireId(), id, images);
+            kindleMailService.sendToKindle(currentUser.requireId(), id, images);
             redirectAttributes.addFlashAttribute("message", "Sent to Kindle");
-            if (donationPrompt) {
-                redirectAttributes.addFlashAttribute("donationPrompt", true);
-            }
         } catch (ArticleService.NotFoundException e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
             return "redirect:/items";
@@ -656,8 +649,8 @@ public class AppController {
             @PathVariable("id") long id,
             @RequestParam(value = "images", defaultValue = "false") boolean images) {
         try {
-            boolean donationPrompt = kindleMailService.sendToKindle(currentUser.requireId(), id, images);
-            return ResponseEntity.ok(Map.of("message", "Sent to Kindle", "donationPrompt", donationPrompt));
+            kindleMailService.sendToKindle(currentUser.requireId(), id, images);
+            return ResponseEntity.ok(Map.of("message", "Sent to Kindle"));
         } catch (ArticleService.NotFoundException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", e.getMessage()));
         } catch (Exception e) {

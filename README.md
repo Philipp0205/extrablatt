@@ -25,8 +25,6 @@ Multi-user RSS/Atom reader that extracts readable article HTML and emails EPUB f
   cancellation page, and the order and withdrawal wording German consumer law
   requires. Off unless `BILLING_ENABLED` is set, so a self-hosted copy charges
   nobody (see [Subscriptions](#subscriptions-optional))
-- Optional "help keep the servers running" reminder every 10th article sent,
-  plus a permanent donation link in Settings — the app stays ad-free either way
 
 ## Requirements
 

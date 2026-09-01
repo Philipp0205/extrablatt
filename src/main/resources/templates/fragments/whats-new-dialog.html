@@ -16,7 +16,7 @@
       <li th:each="item : ${whatsNew.popupItems()}" th:text="${item}">change</li>
     </ul>
     <div class="row">
-      <a class="btn" th:href="@{/settings#changelog}">All changes</a>
+      <a class="btn" th:href="@{/settings/changelog}">All changes</a>
       <form th:action="@{/settings/changelog/ack}" method="post">
         <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
         <input type="hidden" name="redirect" th:value="${changelogRedirect}"/>

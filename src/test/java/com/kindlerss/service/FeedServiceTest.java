@@ -58,7 +58,7 @@ class FeedServiceTest {
     private FeedService service(int maxEntries, Executor refreshExecutor) {
         AppProperties properties = new AppProperties(
                 "from@example.com", null, "remember-me",
-                null, new AppProperties.Feeds(maxEntries), null, null, null, null, null, null);
+                null, new AppProperties.Feeds(maxEntries), null, null, null, null, null);
         when(userRepository.findMarkReadOnNextPageByFeedId(anyLong())).thenReturn(Optional.of(true));
         // A real entitlement service, not a mock: with billing off it has to hand back
         // the configured app.limits values, which is exactly what these tests assume.

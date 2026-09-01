@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:fragment="head(title)">
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title th:text="${title} + ' — Extrablatt'">Settings — Extrablatt</title>
+  <link rel="stylesheet" th:href="@{/css/app.css}"/>
+</head>
+<body>
+<th:block th:fragment="top">
+  <header class="app">
+    <a class="brand" th:href="@{/}">Extrablatt</a>
+    <nav class="top">
+      <a th:href="@{/}">Feeds</a>
+      <a th:href="@{/items}">Articles</a>
+      <a class="active" aria-current="page" th:href="@{/settings}">Settings</a>
+    </nav>
+  </header>
+
+  <div th:if="${message}" class="flash" th:text="${message}"></div>
+  <div th:if="${error}" class="flash error" th:text="${error}"></div>
+  <div th:replace="~{fragments/whats-new-dialog :: whatsNewDialog}"></div>
+</th:block>
+</body>
+</html>

@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/settings-shell :: head('Your data')}"></head>
+<body>
+<div class="wrap">
+  <th:block th:replace="~{fragments/settings-shell :: top}"></th:block>
+
+  <a class="back-link" th:href="@{/settings}">← Settings</a>
+  <h1>Your data</h1>
+
+  <p class="meta">
+    You can download everything we hold about this account, at any time and without
+    asking. The file is JSON — readable in any text editor, and structured so another
+    program can import it.
+  </p>
+
+  <p>
+    <a class="btn" th:href="@{/account/export}">Download my data</a>
+  </p>
+
+  <h2>What is in it</h2>
+  <ul class="meta">
+    <li>Your e-mail address, Kindle address, and when the account was created and confirmed</li>
+    <li>Your reading preference and, if you have one, your newsletter inbox address</li>
+    <li>Your subscription, if any: plan, status, renewal date, and your payment
+      provider's identifiers for you</li>
+    <li>Every feed you follow</li>
+    <li>Every article we hold, with its title, address, and whether you read or sent it</li>
+    <li>Every Kindle delivery, with the time it happened</li>
+    <li>Any cancellation you have declared</li>
+  </ul>
+
+  <h2>What is not, and why</h2>
+  <ul class="meta">
+    <li><strong>Article text.</strong> Titles and addresses are included, but not the
+      stored text of each article: that is the publisher's writing rather than data
+      about you, and it is still at the address in the file.</li>
+    <li><strong>Your password.</strong> We only ever store a bcrypt hash of it, which
+      cannot be turned back into the password.</li>
+    <li><strong>Card details.</strong> They never reach us. Your payment provider holds
+      those, and you can ask them for a copy separately.</li>
+  </ul>
+
+  <h2>How long we keep things</h2>
+  <ul class="meta">
+    <li>Your account, feeds and articles: until you delete the account</li>
+    <li>Kindle delivery history: <span th:text="${retention.sendEventDays()}">730</span> days</li>
+    <li>Cached article text, once read:
+      <span th:text="${retention.articleCacheDays()}">365</span> days, then re-fetched
+      from the original address when you next open it</li>
+    <li>Used confirmation and password-reset links:
+      <span th:text="${retention.usedTokenDays()}">30</span> days</li>
+    <li th:if="${billingEnabled}">Payment records: as long as tax and commercial law
+      require, which outlasts the account. The raw data our payment provider sends us
+      is emptied after
+      <span th:text="${retention.billingPayloadDays()}">90</span> days.</li>
+  </ul>
+
+  <p class="meta">
+    The <a th:href="@{/privacy}">privacy notice</a> explains what we do with all of it.
+    To correct anything, or to object to how it is used, write to us at the address on
+    the <a th:href="@{/imprint}">imprint page</a>.
+  </p>
+
+  <div th:replace="~{fragments/site-footer :: siteFooter}"></div>
+</div>
+</body>
+</html>
