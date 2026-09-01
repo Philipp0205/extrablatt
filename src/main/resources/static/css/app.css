@@ -231,9 +231,10 @@ button[disabled], button[disabled]:hover, button[disabled]:focus {
 /* A touch screen has no pointer to hover with, but it does leave :hover and
    :focus behind on whatever was tapped last — so with the rules above, the
    button just pressed stays inverted for as long as the page is open and reads
-   as still held down, or as the filter now in use. Hand both states back where
-   the browser understands the question; one that matches neither query keeps
-   the plain behaviour above, which is what a Kindle is left with. */
+   as still held down. Hand both states back where the browser understands the
+   question; one that matches neither query keeps the plain behaviour above,
+   which is what a Kindle is left with. (The filter row sidesteps all of this by
+   never inverting in the first place.) */
 @media (hover: none) {
   a:hover,
   nav.top a:hover,
@@ -246,11 +247,6 @@ button[disabled], button[disabled]:hover, button[disabled]:focus {
   .btn.danger:hover {
     background: #fff;
     color: #a00;
-  }
-
-  .filters a.active:hover {
-    background: #000;
-    color: #fff;
   }
 }
 
@@ -266,11 +262,6 @@ button[disabled], button[disabled]:hover, button[disabled]:focus {
   .btn.danger:focus:not(:focus-visible) {
     background: #fff;
     color: #a00;
-  }
-
-  .filters a.active:focus:not(:focus-visible) {
-    background: #000;
-    color: #fff;
   }
 }
 
@@ -753,13 +744,16 @@ details.nested-tools {
 /* Inside the reader the content is laid out in columns exactly one frame wide,
    so this row keeps its spacing within its own width.
 
-   The filter bar is navigation on a page meant for reading: its buttons are
-   smaller than the toolbar's, and a row longer than the screen is clipped to one
-   line and turned by the arrows filters.js reveals. Until it does, the row wraps. */
+   The filter bar is navigation on a page meant for reading: it is set as words
+   rather than buttons (see below), and a row longer than the screen is clipped to
+   one line and turned by the arrows filters.js reveals. Until it does, it wraps. */
 .filters {
   display: flex;
   flex-wrap: wrap;
-  align-items: stretch;
+  /* Not stretch. The strip is a box around the chips, so it stands a line taller
+     than they do, and stretching hands that extra line to every chip beside it —
+     which is what made the row three different heights. */
+  align-items: flex-start;
   margin-bottom: 0.4rem;
 }
 
@@ -768,6 +762,8 @@ details.nested-tools {
   flex-wrap: wrap;
   flex: 1 1 auto;
   min-width: 0;
+  /* The chips inside carry the row's bottom margin already. */
+  margin-bottom: 0;
 }
 
 .filters.paged {
@@ -797,11 +793,18 @@ details.nested-tools {
   margin-right: 0;
 }
 
+/* No box around a filter. Names as unlike in length as "News" and "Deep Tech
+   Weekly" make a row of boxes a row of mismatched rectangles, and the boxes were
+   never carrying information: only where the reader is needs drawing. The rule
+   that draws it is reserved, transparent, on every chip, so that showing it moves
+   nothing in a row whose positions filters.js has already measured. */
 .filters .btn {
   min-height: 2.25rem;
   min-width: 0;
-  padding: 0.3rem 0.6rem;
-  font-size: 0.85rem;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  padding: 0.35rem 0.7rem;
+  font-size: 0.9rem;
   white-space: nowrap;
 }
 
@@ -823,9 +826,31 @@ details.nested-tools {
   flex: 0 0 auto;
 }
 
+/* Weight as well as a rule: a 3px line is easy to lose on a panel that has not
+   finished refreshing, and bold survives it. */
 .filters a.active {
-  background: #000;
-  color: #fff;
+  background: #fff;
+  color: #000;
+  font-weight: 700;
+  border-bottom-color: #000;
+}
+
+/* The row does not invert. A word turned into a black block is a heavier mark
+   than the one that says where the reader is, and inverting is also the mark a
+   tap leaves behind on a browser that has no :focus-visible to tell a tap from
+   a keyboard. The rule is feedback enough, and where it does stick it sticks
+   under the chip that was just followed. */
+.filters .btn:hover,
+.filters .btn:focus {
+  background: #fff;
+  color: #000;
+  border-bottom-color: #000;
+}
+
+/* An arrow with nowhere to go answers nothing. */
+.filters button[disabled]:hover,
+.filters button[disabled]:focus {
+  border-bottom-color: transparent;
 }
 
 /* The count follows the last article instead of preceding the first, so it ends
@@ -1147,8 +1172,14 @@ dialog.donate-dialog .row {
     padding: 0.3rem 0.4rem;
   }
 
+  /* Taller to stay a target worth aiming at, and narrower to keep fitting: with
+     no box around a filter its side padding is only spacing, and on the narrowest
+     screens a whole chip's worth of it is the difference between the open
+     category's name fitting on the row and being cut in half by its edge. */
   .filters .btn {
     min-height: 2.5rem;
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
   }
 
   /* A 9rem field beside a heading is a desktop arrangement; on a phone the
