@@ -44,7 +44,7 @@ Multi-user RSS/Atom reader that extracts readable article HTML and emails EPUB f
 | `DATABASE_URL` | JDBC URL, e.g. `jdbc:postgresql://localhost:5432/kindle_rss` |
 | `DATABASE_USER` / `DATABASE_PASSWORD` | DB credentials |
 | `APP_PUBLIC_URL` | Base URL used in verification / reset e-mails (e.g. `http://localhost:8080`) |
-| `MAIL_FROM` | Shared sender on your verified domain (`noreply@yourdomain.com`) |
+| `MAIL_FROM` | Shared sender on your verified domain (`mail@yourdomain.com`) |
 | `SMTP_HOST` / `SMTP_PORT` / `SMTP_USERNAME` / `SMTP_PASSWORD` | SMTP (Resend: host `smtp.resend.com`, username `resend`, password = API key) |
 | `REMEMBER_ME_KEY` | Secret for remember-me tokens |
 | `ADMIN_EMAILS` | Comma-separated account e-mails allowed to view telemetry and manage per-user send limits |
@@ -158,7 +158,9 @@ back to a normally scrolling document with the same content and links.
 ## Send-to-Kindle (Amazon)
 
 Delivery uses one shared sender (`MAIL_FROM`) for everyone. Amazon only accepts
-documents from approved sender addresses, so each user does this once:
+documents from approved sender addresses, so each user does this once. Hosted
+Extrablatt sends from `mail@extrablatt.app` (shown as **Extrablatt**); do not
+use Amazon trademarks such as `kindle` in the local part.
 
 1. In Amazon account settings, open **Content & Devices** → **Preferences** → **Personal Document Settings**.
 2. Note your **Send-to-Kindle Email** and enter it in the app under **Settings**.
@@ -310,7 +312,7 @@ well: managed Postgres, TLS, and Dockerfile builds with low ops.
    APP_PUBLIC_URL    = https://<your-service>.up.railway.app
    REMEMBER_ME_KEY   = <long random string>
    ADMIN_EMAILS      = you@yourdomain.com
-   MAIL_FROM         = noreply@yourdomain.com
+   MAIL_FROM         = mail@yourdomain.com
    SMTP_HOST         = smtp.resend.com
    SMTP_PORT         = 587
    SMTP_USERNAME     = resend

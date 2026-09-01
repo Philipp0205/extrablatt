@@ -59,6 +59,16 @@ class UserServiceTest {
     }
 
     @Test
+    void registrationMarksTheCurrentReleaseSeenSoTheNoticeWaitsForTheNextOne() {
+        when(userRepository.insert(anyString(), anyString())).thenReturn(user(1L, "new@example.com"));
+
+        service.register("new@example.com", "supersecret");
+
+        verify(userRepository).updateLastSeenChangelogId(1L,
+                ChangelogCatalog.instance().latestId().orElseThrow());
+    }
+
+    @Test
     void registrationForExistingEmailIsSilent() {
         when(userRepository.insert(anyString(), anyString()))
                 .thenThrow(new DuplicateKeyException("exists"));
@@ -66,6 +76,7 @@ class UserServiceTest {
         service.register("taken@example.com", "supersecret");
 
         verify(mailService, never()).sendVerification(anyString(), anyString());
+        verify(userRepository, never()).updateLastSeenChangelogId(anyLong(), anyString());
     }
 
     @Test

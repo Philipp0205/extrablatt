@@ -55,7 +55,9 @@ public class AccountMailService {
                 1. Add a feed: paste any RSS/Atom URL, or just a site's normal
                    homepage address, and we will try to find its feed for you.
                 2. Open Settings and add your Kindle e-mail so articles you send
-                   land on your device.
+                   land on your device. Amazon lists that address (it ends in
+                   @kindle.com) under Manage Your Content and Devices →
+                   Preferences → Personal Document Settings.
 
                 Open Extrablatt: %s
 
@@ -92,7 +94,7 @@ public class AccountMailService {
         try {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, false, "UTF-8");
-            helper.setFrom(properties.mailFrom());
+            helper.setFrom(properties.mailFrom(), "Extrablatt");
             helper.setTo(toEmail);
             helper.setSubject(subject);
             helper.setText(body, false);

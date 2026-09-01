@@ -66,6 +66,9 @@ public class FeedService {
 
     private static final Pattern EMAIL_ADDRESS = Pattern.compile("([a-zA-Z0-9._%+-]+)@([a-zA-Z0-9.-]+)");
 
+    /** An address that already names its protocol, e.g. {@code https://example.com}. */
+    private static final Pattern URL_SCHEME = Pattern.compile("^[a-zA-Z][a-zA-Z0-9+.-]*://");
+
     private final FeedRepository feedRepository;
     private final ArticleRepository articleRepository;
     private final UserRepository userRepository;
@@ -156,7 +159,7 @@ public class FeedService {
             throw new IllegalArgumentException(
                     "Feed limit reached (" + maxFeeds + "). Delete a feed before adding another.");
         }
-        SafeHttpClient.FetchedContent fetched = httpClient.get(trimmed);
+        SafeHttpClient.FetchedContent fetched = fetchAddress(trimmed);
         String feedUrl = fetched.finalUri().toString();
         String body = fetched.body();
 
@@ -180,6 +183,28 @@ public class FeedService {
         Feed feed = feedRepository.insert(userId, title, feedUrl, parsed.siteUrl(), category);
         storeEntries(feed, parsed);
         return feedRepository.findById(userId, feed.id()).orElse(feed);
+    }
+
+    /**
+     * Fetches an address as typed. Filling in the protocol is a browser's job, so
+     * "test.de" is tried over HTTPS and then, for the sites that still serve none,
+     * over HTTP. When neither answers, the HTTPS failure is the one reported, since
+     * that is the address the reader actually wanted.
+     */
+    private SafeHttpClient.FetchedContent fetchAddress(String address) {
+        if (URL_SCHEME.matcher(address).find()) {
+            return httpClient.get(address);
+        }
+        String host = address.replaceFirst("^/+", "");
+        try {
+            return httpClient.get("https://" + host);
+        } catch (RuntimeException httpsFailed) {
+            try {
+                return httpClient.get("http://" + host);
+            } catch (RuntimeException httpFailed) {
+                throw httpsFailed;
+            }
+        }
     }
 
     @Transactional

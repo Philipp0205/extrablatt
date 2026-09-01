@@ -157,6 +157,46 @@ class FeedServiceTest {
     }
 
     @Test
+    void addingAnAddressWithoutASchemeFetchesItOverHttps() {
+        when(httpClient.get("https://test.de/feed")).thenAnswer(respondWithFeed());
+        when(feedRepository.insert(eq(UID), eq("Example"), eq("https://test.de/feed"),
+                eq("https://example.com/"), isNull())).thenReturn(feed("https://test.de/feed"));
+        when(feedRepository.findById(UID, 1L)).thenReturn(Optional.of(feed("https://test.de/feed")));
+
+        Feed added = service(100).addFeed(UID, "test.de/feed", null);
+
+        assertEquals("https://test.de/feed", added.url());
+        verify(httpClient, never()).get("http://test.de/feed");
+    }
+
+    @Test
+    void anAddressThatServesNoHttpsIsFetchedOverHttp() {
+        when(httpClient.get("https://test.de"))
+                .thenThrow(new SafeHttpClient.FetchException("Failed to fetch https://test.de"));
+        when(httpClient.get("http://test.de")).thenAnswer(respondWithFeed());
+        when(feedRepository.insert(eq(UID), eq("Example"), eq("http://test.de"),
+                eq("https://example.com/"), isNull())).thenReturn(feed("http://test.de"));
+        when(feedRepository.findById(UID, 1L)).thenReturn(Optional.of(feed("http://test.de")));
+
+        Feed added = service(100).addFeed(UID, " test.de ", null);
+
+        assertEquals("http://test.de", added.url());
+    }
+
+    @Test
+    void anAddressThatAnswersOnNeitherSchemeReportsTheHttpsFailure() {
+        when(httpClient.get("https://test.de"))
+                .thenThrow(new SafeHttpClient.FetchException("DNS resolution failed for test.de"));
+        when(httpClient.get("http://test.de"))
+                .thenThrow(new SafeHttpClient.FetchException("Connection refused"));
+
+        Exception failure = assertThrows(SafeHttpClient.FetchException.class,
+                () -> service(100).addFeed(UID, "test.de", null));
+
+        assertEquals("DNS resolution failed for test.de", failure.getMessage());
+    }
+
+    @Test
     void addingAHomepageDiscoversTheFeedItDeclares() {
         String homepage = "https://example.com/";
         String feedUrl = "https://example.com/feed.xml";

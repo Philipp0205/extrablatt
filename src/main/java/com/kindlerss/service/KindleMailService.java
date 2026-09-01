@@ -81,7 +81,7 @@ public class KindleMailService {
         try {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
-            helper.setFrom(properties.mailFrom());
+            helper.setFrom(properties.mailFrom(), "Extrablatt");
             helper.setTo(kindleEmail);
             helper.setSubject(article.title());
             helper.setText("Sent by Extrablatt", false);
