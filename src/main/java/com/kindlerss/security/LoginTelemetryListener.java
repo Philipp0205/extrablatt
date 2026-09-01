@@ -5,12 +5,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.event.EventListener;
 import org.springframework.security.authentication.event.AuthenticationSuccessEvent;
+import org.springframework.security.authentication.event.InteractiveAuthenticationSuccessEvent;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Component;
 
 /**
- * Persists last-login time for admin telemetry. Form login publishes
- * {@link AuthenticationSuccessEvent}; remember-me publishes the interactive
- * subclass. Restoring an existing session does neither.
+ * Persists last-login time for admin telemetry. Form login is also recorded in
+ * {@code SecurityConfig}; this listener covers remember-me authentication, which
+ * does not go through the form success handler. Restoring an existing session
+ * does neither.
  */
 @Component
 public class LoginTelemetryListener {
@@ -25,7 +28,19 @@ public class LoginTelemetryListener {
 
     @EventListener
     public void onLogin(AuthenticationSuccessEvent event) {
-        Object principal = event.getAuthentication().getPrincipal();
+        record(event.getAuthentication());
+    }
+
+    @EventListener
+    public void onRememberMeLogin(InteractiveAuthenticationSuccessEvent event) {
+        record(event.getAuthentication());
+    }
+
+    private void record(Authentication authentication) {
+        if (authentication == null) {
+            return;
+        }
+        Object principal = authentication.getPrincipal();
         if (!(principal instanceof AppUserDetails details)) {
             return;
         }
