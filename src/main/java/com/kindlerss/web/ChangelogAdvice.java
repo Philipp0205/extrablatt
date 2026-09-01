@@ -1,6 +1,7 @@
 package com.kindlerss.web;
 
 import com.kindlerss.security.CurrentUser;
+import com.kindlerss.service.ChangelogCatalog;
 import com.kindlerss.service.UserService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.ui.Model;

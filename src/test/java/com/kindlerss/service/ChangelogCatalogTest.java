@@ -1,4 +1,4 @@
-package com.kindlerss.web;
+package com.kindlerss.service;
 
 import org.junit.jupiter.api.Test;
 
