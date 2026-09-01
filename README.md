@@ -125,8 +125,8 @@ already says how many it wants (`?count=`, `?limit=`, `?n=`) is left alone, and
 
 Nothing is thrown away afterwards, so a feed keeps growing past what it
 publishes at any one moment. `ARTICLE_PAGE_SIZE` (50, at most 100) sets how many
-of those articles one page of the list holds; **Next page** at the end of a
-Kindle screen loads the next ones.
+of those articles one page of the list holds; **Mark read and load more** at the
+end of the last Kindle screen of a batch loads the next ones.
 
 ## Reading a page at a time
 
@@ -138,14 +138,16 @@ article list are therefore laid out as whole pages:
 - **Previous page** / **Next page** sit under the text. Tapping the left quarter of
   the page goes back, tapping anywhere else goes forward, and the arrow, space and
   page keys work on a keyboard.
-- In the article list, **Next page** on the last page loads the next articles.
-  With **Mark articles as read when I go to the next page** on in Settings
-  (the default), that also marks the articles you paged past as read, so a list
-  can be cleared by reading through it instead of marking every article by hand.
-  The button says **Mark read** when that is what it will do, and the next page
-  reports how many were marked. Turn the setting off and new feed articles arrive
-  already read, so a refresh does not fill Unread with a backlog. An article that
-  was opened by mistake takes **Mark unread** on its own page.
+- In the article list, the last page of a loaded batch names both halves of what
+  pressing it does: **Mark read and load more** with **Mark articles as read when
+  I go to the next page** on in Settings (the default), or **Load more articles**
+  with it off. One press is enough — the next batch arrives straight away, and the
+  page it lands on reports how many articles were marked. So a list can be cleared
+  by reading through it instead of marking every article by hand. On the last batch
+  of the list there is nothing further to fetch, and the label reads **Mark read
+  and continue**. Turn the setting off and new feed articles arrive already read,
+  so a refresh does not fill Unread with a backlog. An article that was opened by
+  mistake takes **Mark unread** on its own page.
 - Your position is remembered per article, so sending to Kindle or marking an
   article unread returns you to the page you were on.
 - Rotating the device or changing the browser font re-splits the pages and keeps

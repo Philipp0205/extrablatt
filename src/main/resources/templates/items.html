@@ -28,7 +28,7 @@
        th:attr="data-reader-key='items-' + ${feedId} + '-' + ${category} + '-' + ${unread} + '-' + ${snapshot} + '-' + ${page},
                 data-reader-prev-url=${page > 1} ? @{/items(feed=${feedId}, category=${category}, unread=${unread} ? true : null, snapshot=${snapshot}, page=${page - 1})} : null,
                 data-reader-next-form=${!#lists.isEmpty(articles)} ? 'advance' : null,
-                data-reader-next-end-label=${markReadOnNextPage and !#lists.isEmpty(articles)} ? 'Mark read' : null,
+                data-reader-next-end-label=${forwardLabel},
                 data-reader-mark-form=${markReadOnNextPage and !#lists.isEmpty(articles)} ? 'mark-screen' : null">
     <div class="reader-frame" data-reader-frame>
       <div class="reader-content" data-reader-content>
@@ -114,9 +114,11 @@
             <input type="hidden" name="page" th:value="${page}"/>
             <input type="hidden" name="id" th:each="a : ${articles}" th:value="${a.id}"/>
             <!-- The pager turns pages where the reader script runs; where it cannot,
-                 this is the only way forward. -->
+                 this is the only way forward. It carries the same label as the pager's
+                 last page, because it is the same step. The row around it is hidden
+                 while the pager runs, so the class is not needed on the button. -->
             <button class="btn" type="submit"
-                    th:text="${markReadOnNextPage} ? 'Mark read and continue' : 'Next articles'">Next articles</button>
+                    th:text="${forwardLabel}">Next articles</button>
           </form>
           <a class="btn" th:if="${page > 1}"
              th:href="@{/items(feed=${feedId}, category=${category}, unread=${unread} ? true : null, snapshot=${snapshot}, page=${page - 1})}">Newer articles</a>
@@ -146,7 +148,7 @@
 
   <!-- Posted by the reader as each screen is turned past, so that a page turn
        inside the loaded list marks what it left behind. The visible fallback for
-       browsers without the reader is the Mark read and continue button above. -->
+       browsers without the reader is the forward button above. -->
   <form th:if="${markReadOnNextPage and !#lists.isEmpty(articles)}"
         id="mark-screen" th:action="@{/items/read}" method="post" hidden>
     <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
