@@ -105,12 +105,12 @@ app:
     # custom_data[user_id].
     reference-param: ${BILLING_REFERENCE_PARAM:client_reference_id}
     # Gross prices in euro cents: a consumer price in the EU is the total paid.
-    # 399 = €3.99 a month; 3588 = €35.88 a year, which is €2.99 a month — about a
-    # 25% annual discount, which steers to yearly without the monthly plan reading
-    # as a penalty. The fee still matters: €35.88 once is ~2%, the same money as
+    # 399 = €3.99 a month; 3499 = €34.99 a year, which is €2.92 a month — about a
+    # 27% annual discount, which steers to yearly without the monthly plan reading
+    # as a penalty. The fee still matters: €34.99 once is ~2%, the same money as
     # twelve monthly charges is closer to 8%.
     monthly-price-cents: ${BILLING_MONTHLY_PRICE_CENTS:399}
-    yearly-price-cents: ${BILLING_YEARLY_PRICE_CENTS:3588}
+    yearly-price-cents: ${BILLING_YEARLY_PRICE_CENTS:3499}
     # What an account gets without paying: five articles to a Kindle a month, on a
     # calendar month that refills on the 1st. Reading in the browser is never metered.
     # Five sends is about EUR 0.004 of e-mail a month, so the free plan costs almost

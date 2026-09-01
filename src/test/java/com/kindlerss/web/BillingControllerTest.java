@@ -102,11 +102,11 @@ class BillingControllerTest {
 
     @Test
     @WithMockUser
-    void theYearlyOrderPageQuotesThirtyFiveEightyEightAndTwoNinetyNineAMonth() throws Exception {
+    void theYearlyOrderPageQuotesThirtyFourNinetyNineAndTwoNinetyTwoAMonth() throws Exception {
         mockMvc.perform(get("/billing/order").param("interval", "yearly"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("\u20ac35.88")))
-                .andExpect(content().string(containsString("\u20ac2.99")))
+                .andExpect(content().string(containsString("\u20ac34.99")))
+                .andExpect(content().string(containsString("\u20ac2.92")))
                 .andExpect(content().string(containsString("including VAT")));
     }
 
