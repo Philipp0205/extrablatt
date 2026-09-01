@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Changelog — Extrablatt</title>
+  <link rel="stylesheet" th:href="@{/css/app.css}"/>
+</head>
+<body>
+<div class="wrap">
+  <header class="app">
+    <a class="brand" th:href="@{/}">Extrablatt</a>
+    <nav class="top">
+      <a th:href="@{/}">Feeds</a>
+      <a th:href="@{/items}">Articles</a>
+      <a class="active" aria-current="page" th:href="@{/settings}">Settings</a>
+    </nav>
+  </header>
+
+  <div th:if="${message}" class="flash" th:text="${message}"></div>
+  <div th:if="${error}" class="flash error" th:text="${error}"></div>
+  <div th:replace="~{fragments/whats-new-dialog :: whatsNewDialog}"></div>
+
+  <a class="back-link" th:href="@{/settings}">← Settings</a>
+  <h1>Changelog</h1>
+  <p class="meta">What changed in recent releases. A short notice also appears after each new one.</p>
+
+  <article class="changelog-release" id="changelog" th:each="release : ${changelogReleases}">
+    <h2 th:text="${release.title}">Release</h2>
+    <p class="meta" th:text="${release.date}">date</p>
+    <ul class="changelog-list">
+      <li th:each="item : ${release.changes}" th:text="${item}">change</li>
+    </ul>
+  </article>
+
+  <div th:replace="~{fragments/site-footer :: siteFooter}"></div>
+</div>
+</body>
+</html>

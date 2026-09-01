@@ -9,7 +9,7 @@ import java.util.Optional;
 
 /**
  * Release notes shipped with the app. The JSON file is the source of truth for
- * both the Settings changelog and the one-time "what's new" notice.
+ * both the Settings changelog page and the one-time "what's new" notice.
  */
 public final class ChangelogCatalog {
 
