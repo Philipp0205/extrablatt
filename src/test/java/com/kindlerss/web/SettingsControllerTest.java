@@ -222,6 +222,8 @@ class SettingsControllerTest {
         mockMvc.perform(get("/settings"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("Send-to-Kindle")))
+                .andExpect(content().string(containsString("from@example.com")))
+                .andExpect(content().string(containsString("Approved Personal Document E-mail List")))
                 .andExpect(content().string(containsString("Signed in as")))
                 .andExpect(content().string(containsString("Delete my account")))
                 .andExpect(content().string(not(containsString("aria-label=\"Settings views\""))));
