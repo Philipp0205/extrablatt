@@ -4,6 +4,7 @@ import com.kindlerss.config.AppProperties;
 import com.kindlerss.domain.Entitlement;
 import com.kindlerss.domain.Plan;
 import com.kindlerss.domain.Subscription;
+import com.kindlerss.domain.SubscriptionStatus;
 import com.kindlerss.repository.SubscriptionRepository;
 import com.kindlerss.repository.UserSendLimitRepository;
 import org.springframework.stereotype.Service;
@@ -61,7 +62,8 @@ public class EntitlementService {
         Integer override = sendLimits.findByUserId(userId)
                 .map(com.kindlerss.domain.UserSendLimit::maxSendsPerDay)
                 .orElse(null);
-        Instant trialEndsAt = subscription.trialing() && hasPaidAccess(subscription, Instant.now())
+        boolean access = hasPaidAccess(subscription, Instant.now());
+        Instant trialEndsAt = subscription.trialing() && access
                 ? subscription.currentPeriodEnd()
                 : null;
         return new Entitlement(plan,
@@ -69,7 +71,8 @@ public class EntitlementService {
                 planMonthlySends,
                 planFeeds,
                 paid,
-                trialEndsAt);
+                trialEndsAt,
+                endedComplimentaryTrial(subscription, paid));
     }
 
     /**
@@ -107,6 +110,22 @@ public class EntitlementService {
     public Subscription subscription(long userId) {
         return subscriptions.findByUserId(userId)
                 .orElseGet(() -> Subscription.notOnFile(userId, properties.billing().enabled()));
+    }
+
+    /**
+     * The complimentary week has run out and nothing was paid for. A lapsed paid
+     * subscription is a different story and does not trip this.
+     */
+    private boolean endedComplimentaryTrial(Subscription subscription, boolean paid) {
+        if (paid) {
+            return false;
+        }
+        if (subscription.trialing()) {
+            return true;
+        }
+        return subscription.status() == SubscriptionStatus.EXPIRED
+                && subscription.interval() == null
+                && subscription.providerSubscriptionId() == null;
     }
 
     /**

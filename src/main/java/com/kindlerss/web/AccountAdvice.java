@@ -5,8 +5,12 @@ import com.kindlerss.domain.Entitlement;
 import com.kindlerss.security.AppUserDetails;
 import com.kindlerss.security.CurrentUser;
 import com.kindlerss.service.EntitlementService;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpSession;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -16,6 +20,12 @@ import java.util.Locale;
 @ControllerAdvice(assignableTypes = {AppController.class, SettingsController.class, AdminController.class,
         BillingController.class})
 public class AccountAdvice {
+
+    /**
+     * Set on the session when the reader closes the post-trial notice. A new login
+     * starts a new session, so the notice returns the next time they sign in.
+     */
+    public static final String TRIAL_ENDED_ACK = "TRIAL_ENDED_ACK";
 
     private final CurrentUser currentUser;
     private final EntitlementService entitlements;
@@ -67,6 +77,50 @@ public class AccountAdvice {
         }
         return DateTimeFormatter.ofPattern("d MMMM yyyy", Locale.ENGLISH)
                 .format(entitlement.trialEndsAt().atZone(ZoneId.of("Europe/Berlin")));
+    }
+
+    /**
+     * After the complimentary week, every new login opens a notice until they
+     * close it or go to subscribe. Hidden on the subscription and checkout pages
+     * so those screens are not covered by the same message.
+     */
+    @ModelAttribute("trialEndedPrompt")
+    public boolean trialEndedPrompt() {
+        Entitlement entitlement = entitlement();
+        if (entitlement == null || !entitlement.trialExpired()) {
+            return false;
+        }
+        HttpServletRequest request = currentRequest();
+        if (request == null) {
+            return false;
+        }
+        String uri = request.getRequestURI();
+        if (uri != null && (uri.startsWith("/settings/subscription") || uri.startsWith("/billing"))) {
+            return false;
+        }
+        HttpSession session = request.getSession(false);
+        return session == null || session.getAttribute(TRIAL_ENDED_ACK) == null;
+    }
+
+    @ModelAttribute("trialEndedRedirect")
+    public String trialEndedRedirect() {
+        HttpServletRequest request = currentRequest();
+        if (request == null) {
+            return "/";
+        }
+        String uri = request.getRequestURI();
+        if (uri == null || uri.isBlank()) {
+            return "/";
+        }
+        String query = request.getQueryString();
+        return query == null || query.isBlank() ? uri : uri + "?" + query;
+    }
+
+    private static HttpServletRequest currentRequest() {
+        if (!(RequestContextHolder.getRequestAttributes() instanceof ServletRequestAttributes attrs)) {
+            return null;
+        }
+        return attrs.getRequest();
     }
 
     private Entitlement entitlement() {
