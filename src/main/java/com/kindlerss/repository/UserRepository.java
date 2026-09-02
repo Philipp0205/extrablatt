@@ -105,6 +105,14 @@ public class UserRepository {
     }
 
     /**
+     * Records a successful login. {@code updated_at} is left alone so a login is
+     * not treated as a profile change.
+     */
+    public void updateLastLoginAt(long id, Instant at) {
+        jdbc.update("UPDATE users SET last_login_at = ? WHERE id = ?", Timestamp.from(at), id);
+    }
+
+    /**
      * The article-list preference of the account that owns this feed, used when a
      * refresh has the feed but not the signed-in user.
      */

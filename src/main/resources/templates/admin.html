@@ -26,6 +26,7 @@
     <div><strong th:text="${summary.sendsTotal}">0</strong><span>Articles sent (total)</span></div>
     <div><strong th:text="${summary.sends24h}">0</strong><span>Sent in 24 hours</span></div>
     <div><strong th:text="${summary.sends7d}">0</strong><span>Sent in 7 days</span></div>
+    <div><strong th:text="${summary.sends30d}">0</strong><span>Sent in 30 days</span></div>
     <div><strong th:text="${summary.users}">0</strong><span>Users</span></div>
     <div><strong th:text="${summary.feeds}">0</strong><span>Feeds</span></div>
     <div><strong th:text="${summary.articles}">0</strong><span>Articles</span></div>
@@ -47,9 +48,16 @@
       </div>
       <p class="meta">
         <span th:text="${u.sends24h}">0</span> sent in 24h ·
+        <span th:text="${u.sends30d}">0</span> sent in 30d ·
         <span th:text="${u.sendsTotal}">0</span> total ·
         <span th:text="${u.feeds}">0</span> feeds ·
         <span th:text="${u.articles}">0</span> articles
+      </p>
+      <p class="meta">
+        Last login
+        <span th:if="${u.lastLoginAt != null}"
+              th:text="${#temporals.format(u.lastLoginAt, 'yyyy-MM-dd HH:mm')}">date</span>
+        <span th:unless="${u.lastLoginAt != null}">never</span>
       </p>
       <p class="meta" th:if="${u.blockedUntil != null}">
         Blocked until <span th:text="${#temporals.format(u.blockedUntil, 'yyyy-MM-dd HH:mm')}">date</span>

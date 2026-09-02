@@ -160,6 +160,12 @@ class UserServiceTest {
         verify(userRepository, never()).updateLastSeenChangelogId(anyLong(), anyString());
     }
 
+    @Test
+    void recordLastLoginWritesTheTimestamp() {
+        service.recordLastLogin(1L);
+        verify(userRepository).updateLastLoginAt(eq(1L), org.mockito.ArgumentMatchers.any(Instant.class));
+    }
+
     private static Instant any() {
         return org.mockito.ArgumentMatchers.any(Instant.class);
     }
