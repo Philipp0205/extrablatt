@@ -170,7 +170,7 @@ public class AppController {
     public String addDefaultFeeds(@RequestParam(value = "feed", required = false) List<String> keys,
                                   RedirectAttributes redirectAttributes) {
         if (keys == null || keys.isEmpty()) {
-            redirectAttributes.addFlashAttribute("error", "Choose at least one suggested feed");
+            redirectAttributes.addFlashAttribute("error", "Choose at least one newspaper or site");
             return "redirect:/";
         }
         long userId = currentUser.requireId();
@@ -179,7 +179,7 @@ public class AppController {
         for (String key : keys) {
             var suggestion = feedService.defaultFeed(key);
             if (suggestion.isEmpty()) {
-                errors.add("Unknown suggested feed: " + key);
+                errors.add("Unknown suggestion: " + key);
                 continue;
             }
             try {
@@ -192,7 +192,7 @@ public class AppController {
         }
         if (added > 0) {
             redirectAttributes.addFlashAttribute("message",
-                    added == 1 ? "Added 1 suggested feed" : "Added " + added + " suggested feeds");
+                    added == 1 ? "Added 1 suggested site" : "Added " + added + " suggested sites");
         }
         if (!errors.isEmpty()) {
             redirectAttributes.addFlashAttribute("error", String.join("; ", errors));
