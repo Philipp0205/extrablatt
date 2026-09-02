@@ -191,6 +191,13 @@ public class SettingsController {
         return "redirect:" + AppController.safeRedirect(redirect);
     }
 
+    @PostMapping("/settings/trial-ended/ack")
+    public String acknowledgeTrialEnded(@RequestParam(value = "redirect", defaultValue = "/") String redirect,
+                                        HttpServletRequest request) {
+        request.getSession().setAttribute(AccountAdvice.TRIAL_ENDED_ACK, Boolean.TRUE);
+        return "redirect:" + AppController.safeRedirect(redirect);
+    }
+
     @PostMapping("/settings/newsletter-address/regenerate")
     public String regenerateNewsletterAddress(RedirectAttributes redirectAttributes) {
         if (!properties.newsletters().enabled()) {

@@ -68,6 +68,7 @@ class EntitlementServiceTest {
         assertEquals(0, entitlement.maxFeeds());
         assertFalse(entitlement.newsletters());
         assertFalse(entitlement.onTrial());
+        assertFalse(entitlement.trialExpired());
     }
 
     @Test
@@ -82,6 +83,7 @@ class EntitlementServiceTest {
         assertEquals(Plan.SUPPORTER, entitlement.plan());
         assertTrue(entitlement.onTrial());
         assertEquals(ends, entitlement.trialEndsAt());
+        assertFalse(entitlement.trialExpired());
         assertFalse(entitlement.hasMonthlyCap());
         assertEquals(50, entitlement.maxSendsPerDay());
         assertEquals(50, entitlement.maxFeeds());
@@ -98,6 +100,24 @@ class EntitlementServiceTest {
 
         assertEquals(Plan.FREE, entitlement.plan());
         assertFalse(entitlement.onTrial());
+        assertTrue(entitlement.trialExpired());
+    }
+
+    @Test
+    void aSweptEndedTrialIsStillAnEndedTrial() {
+        when(subscriptions.findByUserId(UID)).thenReturn(Optional.of(
+                new Subscription(UID, Plan.FREE, SubscriptionStatus.EXPIRED, null, null,
+                        null, null, Instant.now().minus(1, ChronoUnit.DAYS), true, null)));
+
+        assertTrue(service(true).forUser(UID).trialExpired());
+    }
+
+    @Test
+    void aLapsedPaidSubscriptionIsNotAnEndedTrial() {
+        when(subscriptions.findByUserId(UID)).thenReturn(Optional.of(
+                subscription(SubscriptionStatus.EXPIRED, Instant.now().minus(1, ChronoUnit.DAYS), true)));
+
+        assertFalse(service(true).forUser(UID).trialExpired());
     }
 
     @Test
