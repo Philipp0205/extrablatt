@@ -10,6 +10,7 @@ import net.dankito.readability4j.Readability4J;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
+import org.jsoup.nodes.Node;
 import org.springframework.stereotype.Component;
 
 import java.io.ByteArrayInputStream;
@@ -257,7 +258,7 @@ public class DiscussionParser {
 
     private static void appendFragment(Element parent, String html) {
         Document fragment = Jsoup.parseBodyFragment(html == null ? "" : html);
-        for (Element child : List.copyOf(fragment.body().children())) {
+        for (Node child : List.copyOf(fragment.body().childNodes())) {
             parent.appendChild(child.clone());
         }
     }
