@@ -143,7 +143,9 @@ class KindleMailServiceTest {
     @Test
     void anExpiredTrialIsToldToSubscribe() {
         service = freeTierService();
-        when(subscriptionRepository.findByUserId(UID)).thenReturn(Optional.empty());
+        when(subscriptionRepository.findByUserId(UID)).thenReturn(Optional.of(
+                new Subscription(UID, Plan.FREE, SubscriptionStatus.EXPIRED, null, null, null,
+                        null, Instant.now().minusSeconds(86_400), true, null)));
 
         IllegalStateException error = assertThrows(IllegalStateException.class,
                 () -> service.sendToKindle(UID, 7L, false));
@@ -151,6 +153,22 @@ class KindleMailServiceTest {
         assertTrue(error.getMessage().contains("free week has ended"), error.getMessage());
         assertTrue(error.getMessage().contains("Settings → Subscription"), error.getMessage());
         verify(mailSender, never()).send(any(MimeMessage.class));
+    }
+
+    /**
+     * An account with no subscription row registered before this deployment charged
+     * for anything, and keeps sending. Refusing it was what stopped Kindle delivery
+     * on staging, which charges but runs on a copy of a database that does not.
+     */
+    @Test
+    void anAccountFromBeforeChargingBeganCanStillSend() {
+        service = freeTierService();
+        when(subscriptionRepository.findByUserId(UID)).thenReturn(Optional.empty());
+
+        service.sendToKindle(UID, 7L, false);
+
+        verify(mailSender).send(any(MimeMessage.class));
+        verify(articleRepository).recordSend(eq(UID), eq(7L), any(Instant.class));
     }
 
     /** A still-running trial is the paid plan: it is not metered by the month. */

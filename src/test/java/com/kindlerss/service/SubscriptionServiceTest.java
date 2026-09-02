@@ -60,6 +60,21 @@ class SubscriptionServiceTest {
         verify(subscriptions, never()).save(org.mockito.ArgumentMatchers.any());
     }
 
+    /**
+     * The Settings page reads this, and has to say the same thing the send path
+     * acts on: an account with nothing on file predates the charging and keeps
+     * the Supporter plan for good.
+     */
+    @Test
+    void anAccountWithNothingOnFileReadsAsGrandfathered() {
+        when(subscriptions.findByUserId(UID)).thenReturn(Optional.empty());
+
+        Subscription standing = service(true).forUser(UID);
+
+        assertTrue(standing.grandfathered());
+        assertEquals(Plan.SUPPORTER, standing.plan());
+    }
+
     @Test
     void startTrialDoesNotReplaceAnExistingStanding() {
         when(subscriptions.findByUserId(UID)).thenReturn(Optional.of(
