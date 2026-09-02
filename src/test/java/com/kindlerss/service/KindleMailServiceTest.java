@@ -12,17 +12,23 @@ import com.kindlerss.repository.ArticleRepository;
 import com.kindlerss.repository.SubscriptionRepository;
 import com.kindlerss.repository.UserRepository;
 import com.kindlerss.repository.UserSendLimitRepository;
+import jakarta.mail.BodyPart;
 import jakarta.mail.Session;
 import jakarta.mail.internet.InternetAddress;
 import jakarta.mail.internet.MimeMessage;
+import jakarta.mail.internet.MimeMultipart;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.mail.javamail.JavaMailSender;
 
+import java.io.ByteArrayInputStream;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -123,6 +129,48 @@ class KindleMailServiceTest {
         assertTrue(message.getValue().getContentType().startsWith("multipart/"));
         verify(articleRepository).recordSend(eq(UID), eq(7L), any(Instant.class));
         verify(articleRepository).markRead(UID, 7L, true);
+    }
+
+    /**
+     * The address under the heading is a reader's only way back to the page once the
+     * article is on a Kindle, so it is checked on the file that actually leaves here.
+     */
+    @Test
+    void theSentEpubShowsTheOriginalAddressUnderTheTitle() throws Exception {
+        service.sendToKindle(UID, 7L, false);
+
+        ArgumentCaptor<MimeMessage> message = ArgumentCaptor.forClass(MimeMessage.class);
+        verify(mailSender).send(message.capture());
+        message.getValue().saveChanges();
+
+        String chapter = chapter(attachedEpub(message.getValue()));
+        assertTrue(chapter.contains("""
+                <h1>Useful Article</h1>
+                  <p class="source"><a href="https://example.com/article">\
+                https://example.com/article</a></p>"""), chapter);
+    }
+
+    private static byte[] attachedEpub(MimeMessage message) throws Exception {
+        MimeMultipart parts = (MimeMultipart) message.getContent();
+        for (int i = 0; i < parts.getCount(); i++) {
+            BodyPart part = parts.getBodyPart(i);
+            if (part.getFileName() != null && part.getFileName().endsWith(".epub")) {
+                return part.getInputStream().readAllBytes();
+            }
+        }
+        throw new AssertionError("no EPUB was attached");
+    }
+
+    private static String chapter(byte[] epub) throws Exception {
+        try (ZipInputStream zip = new ZipInputStream(new ByteArrayInputStream(epub))) {
+            ZipEntry entry;
+            while ((entry = zip.getNextEntry()) != null) {
+                if ("OEBPS/article.xhtml".equals(entry.getName())) {
+                    return new String(zip.readAllBytes(), StandardCharsets.UTF_8);
+                }
+            }
+        }
+        throw new AssertionError("the EPUB has no article chapter");
     }
 
     @Test

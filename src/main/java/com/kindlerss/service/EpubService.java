@@ -14,6 +14,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.Locale;
 import java.util.UUID;
 
 /**
@@ -31,24 +32,27 @@ public class EpubService {
     private static final String STYLESHEET_HREF = "style.css";
 
     /* Kindle ignores most of a document's styling, so this only covers what it does
-       honour: a readable measure, and images that cannot run past the screen. */
+       honour: a readable measure, images that cannot run past the screen, and a
+       source line small enough to stay out of the way of the article. */
     private static final String STYLESHEET = """
             body { font-family: serif; line-height: 1.5; margin: 1em; }
             img { max-width: 100%; height: auto; }
             h1 { font-size: 1.4em; }
+            .source { font-size: 0.8em; word-wrap: break-word; }
             """;
 
-    public byte[] createEpub(String title, String author, String htmlBody) {
+    public byte[] createEpub(String title, String author, String sourceUrl, String htmlBody) {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         try {
-            writeEpub(baos, title, author, htmlBody);
+            writeEpub(baos, title, author, sourceUrl, htmlBody);
         } catch (IOException e) {
             throw new IllegalStateException("Failed to create EPUB", e);
         }
         return baos.toByteArray();
     }
 
-    public void writeEpub(OutputStream out, String title, String author, String htmlBody) throws IOException {
+    public void writeEpub(OutputStream out, String title, String author, String sourceUrl, String htmlBody)
+            throws IOException {
         String safeTitle = blankToDefault(title, "Article");
         String safeAuthor = blankToDefault(author, "Unknown");
 
@@ -62,7 +66,8 @@ public class EpubService {
         book.addResource(resource(STYLESHEET_HREF, STYLESHEET, MediaTypes.CSS));
         // One section: the spine and the table of contents both end up with a single
         // entry pointing at it.
-        book.addSection(safeTitle, resource(ARTICLE_HREF, wrapArticle(safeTitle, htmlBody), MediaTypes.XHTML));
+        book.addSection(safeTitle,
+                resource(ARTICLE_HREF, wrapArticle(safeTitle, sourceUrl, htmlBody), MediaTypes.XHTML));
 
         new EpubWriter().write(book, out);
     }
@@ -85,7 +90,7 @@ public class EpubService {
                 : new Author(name.substring(0, lastSpace), name.substring(lastSpace + 1));
     }
 
-    private static String wrapArticle(String title, String bodyHtml) {
+    private static String wrapArticle(String title, String sourceUrl, String bodyHtml) {
         String body = toXhtml(bodyHtml);
         return """
                 <?xml version="1.0" encoding="UTF-8"?>
@@ -97,11 +102,35 @@ public class EpubService {
                   <link rel="stylesheet" type="text/css" href="%s"/>
                 </head>
                 <body>
-                  <h1>%s</h1>
+                  <h1>%s</h1>%s
                   %s
                 </body>
                 </html>
-                """.formatted(escapeXml(title), STYLESHEET_HREF, escapeXml(title), body);
+                """.formatted(escapeXml(title), STYLESHEET_HREF, escapeXml(title), sourceLine(sourceUrl), body);
+    }
+
+    /**
+     * The address the article came from, shown under the heading. Readers who want
+     * the page itself — for a paywalled remainder, a comment thread, or to share it
+     * — otherwise have nothing to go on once the article is off the web.
+     */
+    private static String sourceLine(String sourceUrl) {
+        String url = httpUrl(sourceUrl);
+        if (url == null) {
+            return "";
+        }
+        String escaped = escapeXml(url);
+        return "\n  <p class=\"source\"><a href=\"%s\">%s</a></p>".formatted(escaped, escaped);
+    }
+
+    /** Only web addresses are worth printing, and only they are safe to link. */
+    private static String httpUrl(String url) {
+        if (url == null || url.isBlank()) {
+            return null;
+        }
+        String trimmed = url.trim();
+        String lower = trimmed.toLowerCase(Locale.ROOT);
+        return lower.startsWith("http://") || lower.startsWith("https://") ? trimmed : null;
     }
 
     private static String toXhtml(String bodyHtml) {
