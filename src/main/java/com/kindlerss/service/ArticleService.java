@@ -29,15 +29,18 @@ public class ArticleService {
     private final FeedRepository feedRepository;
     private final SafeHttpClient httpClient;
     private final HtmlSanitizer sanitizer;
+    private final DiscussionParser discussionParser;
 
     public ArticleService(ArticleRepository articleRepository,
                           FeedRepository feedRepository,
                           SafeHttpClient httpClient,
-                          HtmlSanitizer sanitizer) {
+                          HtmlSanitizer sanitizer,
+                          DiscussionParser discussionParser) {
         this.articleRepository = articleRepository;
         this.feedRepository = feedRepository;
         this.httpClient = httpClient;
         this.sanitizer = sanitizer;
+        this.discussionParser = discussionParser;
     }
 
     public Optional<Article> findById(long userId, long id) {
@@ -130,6 +133,15 @@ public class ArticleService {
     }
 
     private String resolveRawContent(Article article) {
+        if (discussionParser.supports(article)
+                && !discussionParser.isParsedDiscussion(article.extractedContentHtml())) {
+            Optional<String> discussion = discussionParser.parse(article);
+            if (discussion.isPresent() && !discussion.get().isBlank()) {
+                String sanitized = sanitizer.sanitizeWithImages(discussion.get());
+                articleRepository.updateExtractedContent(article.id(), sanitized);
+                return sanitized;
+            }
+        }
         if (article.extractedContentHtml() != null && !article.extractedContentHtml().isBlank()) {
             return article.extractedContentHtml();
         }

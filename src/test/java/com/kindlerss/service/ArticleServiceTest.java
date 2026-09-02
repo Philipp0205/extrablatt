@@ -60,7 +60,8 @@ class ArticleServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new ArticleService(articleRepository, feedRepository, httpClient, new HtmlSanitizer());
+        service = new ArticleService(articleRepository, feedRepository, httpClient, new HtmlSanitizer(),
+                new DiscussionParser(httpClient));
     }
 
     @Test
