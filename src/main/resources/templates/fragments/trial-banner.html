@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<!--
+  Shown on the reader pages while a complimentary week of the paid plan is still
+  running. `trialEndsOn` is a formatted date string, so it is compared to null
+  rather than used as a condition: SpEL coerces both operands of `and` to
+  boolean and throws on a string, which took the whole page down.
+-->
+<div th:fragment="trialBanner" th:if="${onTrial and trialEndsOn != null}" class="flash">
+  You have a free week of the full plan, until <strong th:text="${trialEndsOn}">8 September 2026</strong>.
+  <a th:href="@{/settings/subscription}">Subscribe</a> so Send-to-Kindle keeps working after that.
+</div>
+</body>
+</html>

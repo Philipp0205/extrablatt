@@ -1,17 +1,36 @@
 {
   "releases": [
     {
+      "id": "2026-09-02",
+      "date": "2 September 2026",
+      "title": "Settings pages, Mark read, and your data",
+      "highlights": [
+        "Settings is a list of pages so a Kindle only opens the topic it needs.",
+        "Mark a whole feed as read from the category list.",
+        "Download or delete everything we hold about the account."
+      ],
+      "changes": [
+        "Settings is split into Kindle, Reading, Account, Subscription, Changelog, and Your data.",
+        "Your data lets you download a JSON export. Deleting the account removes feeds and articles.",
+        "A feed address typed without https:// is accepted.",
+        "Until a Kindle address is saved, the Feeds page says where Amazon lists it and how to approve the Extrablatt sender.",
+        "From a category, Mark read marks every unread article in that feed.",
+        "The article list uses one filter row and fills the screen; the last page of a batch says Mark read and load more.",
+        "Imprint, privacy, terms, and withdrawal pages are linked from the footer."
+      ]
+    },
+    {
       "id": "2026-09-01-pricing",
       "date": "1 September 2026",
       "title": "Paid plan and a free week",
       "highlights": [
         "New accounts get a week of the full plan at no charge.",
-        "Supporter is €3.99 a month or €35 paid once for 12 months, including VAT."
+        "Supporter is €2.99 a month billed yearly, or €3.99 a month, including VAT."
       ],
       "changes": [
         "A new account includes seven days of the full Supporter plan, with no card required.",
         "After that week, reading in the browser stays free; sending to Kindle and adding feeds needs a subscription.",
-        "The paid plan is €3.99 a month or €35 paid once for 12 months, including VAT. Accounts from before charging began stay free."
+        "The paid plan is €2.99 a month billed as €35.88 once for 12 months, or €3.99 a month, including VAT. Accounts from before charging began stay free."
       ]
     },
     {

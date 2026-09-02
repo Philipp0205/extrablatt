@@ -102,11 +102,11 @@ class BillingControllerTest {
 
     @Test
     @WithMockUser
-    void theYearlyOrderPageQuotesThirtyFiveEuroPaidOnce() throws Exception {
+    void theYearlyOrderPageQuotesThirtyFiveEightyEightPaidOnce() throws Exception {
         mockMvc.perform(get("/billing/order").param("interval", "yearly"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("\u20ac35.00")))
-                .andExpect(content().string(containsString("\u20ac2.92")))
+                .andExpect(content().string(containsString("\u20ac35.88")))
+                .andExpect(content().string(containsString("\u20ac2.99")))
                 .andExpect(content().string(containsString("paid once for all 12 months")))
                 .andExpect(content().string(containsString("including VAT")));
     }
@@ -212,5 +212,27 @@ class BillingControllerTest {
         // The interval matters as much as the path: someone who clicked "Choose
         // monthly" must not come back to the yearly order page.
         assertArrayEquals(new String[]{"monthly"}, saved.getParameterMap().get("interval"));
+    }
+
+    @Test
+    void signingInAfterChoosingAPlanReturnsToTheOrderPage() throws Exception {
+        MvcResult bounced = mockMvc.perform(get("/billing/order").param("interval", "monthly"))
+                .andExpect(status().is3xxRedirection())
+                .andReturn();
+
+        String hash = new org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder()
+                .encode("test-password-123");
+        com.kindlerss.domain.AppUser account = new com.kindlerss.domain.AppUser(UID,
+                "reader@example.com", hash, null, Instant.now(), null, Instant.now(), Instant.now());
+        when(userDetailsService.loadUserByUsername("reader@example.com"))
+                .thenReturn(new AppUserDetails(account));
+
+        mockMvc.perform(post("/login")
+                        .session((org.springframework.mock.web.MockHttpSession) bounced.getRequest().getSession())
+                        .param("username", "reader@example.com")
+                        .param("password", "test-password-123")
+                        .with(csrf()))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrlPattern("**/billing/order*"));
     }
 }
