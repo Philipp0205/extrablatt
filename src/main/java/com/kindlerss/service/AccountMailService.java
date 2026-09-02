@@ -52,8 +52,9 @@ public class AccountMailService {
 
                 Two quick steps to get the most out of it:
 
-                1. Add a feed: paste any RSS/Atom URL, or just a site's normal
-                   homepage address, and we will try to find its feed for you.
+                1. Follow some news: pick from the suggested newspapers on
+                   the Feeds page, or paste a site's normal address
+                   (for example bbc.com).
                 2. Open Settings and add your Kindle e-mail so articles you send
                    land on your device. Amazon lists that address (it ends in
                    @kindle.com) under Manage Your Content and Devices →
