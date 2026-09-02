@@ -75,13 +75,13 @@
     <!-- Adding remains reachable before a long category or feed list. Old
          /?view=add links still open the disclosure directly. -->
     <details class="tools add-feed" id="add-feed" th:open="${activeView == 'add'}">
-      <summary>Add feed</summary>
+      <summary>Follow a site</summary>
       <div class="tools-body">
         <form th:action="@{/feeds}" method="post">
           <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-          <label for="url">Feed or homepage URL</label>
-          <p class="meta">Paste a feed address or a normal website, we try to find its
-            RSS/Atom feed for you. The https:// part is optional.</p>
+          <label for="url">Website address</label>
+          <p class="meta">Paste the site you want, like bbc.com. You do not need a
+            special news link. The https:// part is optional.</p>
           <div class="row">
             <input id="url" name="url" type="text" inputmode="url" required placeholder="example.com"
                    autocomplete="url" autocapitalize="none" spellcheck="false"/>
@@ -100,14 +100,21 @@
         <details class="tools nested-tools" th:if="${newslettersEnabled}">
           <summary>Add a newsletter instead</summary>
           <div class="tools-body">
-            <p class="meta">Some sources only publish by e-mail. Subscribe using the address
-              below; each sender becomes a feed the first time it writes.</p>
+            <p class="meta">Forward any newsletter to this address. The first issue
+              creates a feed named after the sender.</p>
             <code class="address-box" th:text="${newsletterAddress}">news@example.com</code>
-            <form th:action="@{/settings/newsletter-address/regenerate}" method="post"
-                  onsubmit="return confirm('Replace your newsletter address? Anything still sent to the old one will be lost, but newsletters already received stay put.');">
-              <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-              <button class="btn" type="submit">New address</button>
-            </form>
+            <details class="tools nested-tools">
+              <summary>Having trouble with spam?</summary>
+              <div class="tools-body">
+                <p class="meta">Get a new address. Anything still sent to the old one
+                  will be lost, but newsletters already received stay put.</p>
+                <form th:action="@{/settings/newsletter-address/regenerate}" method="post"
+                      onsubmit="return confirm('Replace your newsletter address? Anything still sent to the old one will be lost, but newsletters already received stay put.');">
+                  <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                  <button class="btn" type="submit">New address</button>
+                </form>
+              </div>
+            </details>
           </div>
         </details>
       </div>
@@ -118,17 +125,18 @@
        They disappear as soon as the account has a subscription. -->
   <div th:if="${#lists.isEmpty(feeds) and !#lists.isEmpty(defaultFeeds)}">
     <h2>Quick start</h2>
-    <p class="meta">Choose any suggested feeds you want. Nothing is added automatically.</p>
+    <p class="meta">Start with a few newspapers and sites. You can add more later.
+      Nothing is added automatically.</p>
     <form th:action="@{/feeds/defaults}" method="post">
       <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
       <label class="check" th:each="suggestion : ${defaultFeeds}">
         <input type="checkbox" name="feed" th:value="${suggestion.key}"/>
         <span>
-          <strong th:text="${suggestion.title}">Suggested feed</strong>
+          <strong th:text="${suggestion.title}">Suggested site</strong>
           <span class="meta" th:text="' · ' + ${suggestion.category}"> · Category</span>
         </span>
       </label>
-      <button class="btn" type="submit">Add selected feeds</button>
+      <button class="btn" type="submit">Start reading</button>
     </form>
   </div>
 
@@ -136,8 +144,8 @@
        category. /?view=add still hides it, matching the dedicated add screen. -->
   <form th:if="${activeView == 'feeds'}" class="paste-url" th:action="@{/articles/from-url}" method="post">
     <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-    <label for="articleUrl">Send a URL to Kindle</label>
-    <p class="meta">Paste a web page. We extract the article and email it as an EPUB.</p>
+    <label for="articleUrl">Send a page to Kindle</label>
+    <p class="meta">Paste a link to an article. We clean it up and put it in your Kindle library.</p>
     <div class="row">
       <input id="articleUrl" name="url" type="url" inputmode="url" required
              placeholder="https://example.com/article" autocomplete="url"/>
@@ -149,7 +157,8 @@
     </label>
   </form>
 
-  <p th:if="${#lists.isEmpty(feeds)}" class="muted">No feeds yet. Use Add feed to get started.</p>
+  <p th:if="${#lists.isEmpty(feeds)}" class="muted">Nothing to read yet. Pick a few sites
+    above, or tap Follow a site and paste a newspaper's address.</p>
 
   <!-- Level one: a short dashboard. Each category is one large target with
        enough context to choose it without rendering every feed underneath. -->
@@ -176,7 +185,7 @@
         <span class="badge" th:text="${feed.unreadCount}">0</span>
       </div>
       <div class="meta" th:if="${feed.lastError != null}">
-        Last error: <span th:text="${feed.lastError}">error</span>
+        Couldn't update this feed. We'll try again.
       </div>
       <!-- Managing a feed is rare next to reading it, so the source address and the
            category/delete controls fold away and the list stays a plain run of

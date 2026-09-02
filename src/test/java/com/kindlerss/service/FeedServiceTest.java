@@ -18,6 +18,7 @@ import java.util.concurrent.Executor;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -81,6 +82,28 @@ class FeedServiceTest {
     private static Answer<SafeHttpClient.FetchedContent> respondWithFeed() {
         return invocation -> new SafeHttpClient.FetchedContent(
                 URI.create(invocation.getArgument(0)), FEED_XML, "application/rss+xml");
+    }
+
+    @Test
+    void quickStartSuggestsGeneralNewspapers() {
+        FeedService svc = service(100);
+        assertEquals("BBC World News", svc.defaultFeed("bbc-world").orElseThrow().title());
+        assertEquals("The Guardian", svc.defaultFeed("the-guardian").orElseThrow().title());
+        assertEquals("NPR", svc.defaultFeed("npr").orElseThrow().title());
+        assertEquals("Tagesschau", svc.defaultFeed("tagesschau").orElseThrow().title());
+        assertEquals("Der Spiegel", svc.defaultFeed("spiegel").orElseThrow().title());
+        assertTrue(svc.defaultFeed("hacker-news").isEmpty());
+    }
+
+    @Test
+    void quickStartSuggestsGeneralNewspapers() {
+        FeedService svc = service(100);
+        assertEquals("BBC World News", svc.defaultFeed("bbc-world").orElseThrow().title());
+        assertEquals("The Guardian", svc.defaultFeed("the-guardian").orElseThrow().title());
+        assertEquals("NPR", svc.defaultFeed("npr").orElseThrow().title());
+        assertEquals("Tagesschau", svc.defaultFeed("tagesschau").orElseThrow().title());
+        assertEquals("Der Spiegel", svc.defaultFeed("spiegel").orElseThrow().title());
+        assertTrue(svc.defaultFeed("hacker-news").isEmpty());
     }
 
     @Test
