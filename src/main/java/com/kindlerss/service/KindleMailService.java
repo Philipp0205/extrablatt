@@ -8,6 +8,8 @@ import com.kindlerss.repository.ArticleRepository;
 import com.kindlerss.repository.UserRepository;
 import com.kindlerss.repository.UserSendLimitRepository;
 import jakarta.mail.internet.MimeMessage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
@@ -26,6 +28,8 @@ import java.util.Locale;
  */
 @Service
 public class KindleMailService {
+
+    private static final Logger log = LoggerFactory.getLogger(KindleMailService.class);
 
     /** "1 September 2026" rather than "2026-09-01", since a reader reads this. */
     private static final DateTimeFormatter RESET_DATE =
@@ -93,6 +97,10 @@ public class KindleMailService {
             }, "application/epub+zip");
             mailSender.send(message);
         } catch (Exception e) {
+            // Nothing else records a refused delivery, so an operator asked why
+            // sending stopped working has only the reader's word to go on. The
+            // account id stands in for the addresses, which stay out of the log.
+            log.warn("Kindle delivery failed for account {}: {}", userId, e.getMessage());
             throw new IllegalStateException("Failed to send EPUB to Kindle: " + e.getMessage(), e);
         }
 

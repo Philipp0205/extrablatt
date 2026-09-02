@@ -57,7 +57,9 @@ class EntitlementServiceTest {
 
     @Test
     void anAccountThatNeverOrderedHasNoKindleSendsAfterTheTrialModel() {
-        when(subscriptions.findByUserId(UID)).thenReturn(Optional.empty());
+        when(subscriptions.findByUserId(UID)).thenReturn(Optional.of(
+                new Subscription(UID, Plan.FREE, SubscriptionStatus.FREE, null, null,
+                        null, null, null, false, null)));
 
         Entitlement entitlement = service(true).forUser(UID);
 
@@ -68,6 +70,26 @@ class EntitlementServiceTest {
         assertEquals(0, entitlement.maxFeeds());
         assertFalse(entitlement.newsletters());
         assertFalse(entitlement.onTrial());
+    }
+
+    /**
+     * The case staging is made of: its database is a copy of production's, which
+     * charges nothing and so writes no subscription row for any account it
+     * registers. Read as a spent free plan, every one of those readers is refused
+     * Kindle delivery over a free week they were never given.
+     */
+    @Test
+    void anAccountFromBeforeChargingBeganKeepsTheFullAllowances() {
+        when(subscriptions.findByUserId(UID)).thenReturn(Optional.empty());
+
+        Entitlement entitlement = service(true).forUser(UID);
+
+        assertEquals(Plan.SUPPORTER, entitlement.plan());
+        assertTrue(entitlement.paid());
+        assertFalse(entitlement.onTrial(), "it is permanent, not a week that runs out");
+        assertEquals(50, entitlement.maxSendsPerDay());
+        assertEquals(50, entitlement.maxFeeds());
+        assertTrue(entitlement.newsletters());
     }
 
     @Test
@@ -202,7 +224,9 @@ class EntitlementServiceTest {
      */
     @Test
     void anAdministratorsCustomLimitOverridesThePlan() {
-        when(subscriptions.findByUserId(UID)).thenReturn(Optional.empty());
+        when(subscriptions.findByUserId(UID)).thenReturn(Optional.of(
+                new Subscription(UID, Plan.FREE, SubscriptionStatus.EXPIRED, null, null, null,
+                        null, Instant.now().minus(1, ChronoUnit.DAYS), true, null)));
         when(sendLimits.findByUserId(UID))
                 .thenReturn(Optional.of(new UserSendLimit(UID, 25, null)));
 
