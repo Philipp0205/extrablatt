@@ -57,13 +57,19 @@ public class SubscriptionService {
     }
 
     public Subscription forUser(long userId) {
-        return subscriptions.findByUserId(userId).orElseGet(() -> Subscription.free(userId));
+        return subscriptions.findByUserId(userId)
+                .orElseGet(() -> Subscription.notOnFile(userId, properties.billing().enabled()));
     }
 
     /**
      * Starts the complimentary week for a newly registered account. Idempotent:
      * an account that already has a real standing (including an ended trial) is
      * left alone, so registering twice cannot mint a second week.
+     *
+     * <p>A deployment that charges nothing writes no row at all, rather than a week
+     * that would already have run out by the time anyone switched charging on. What
+     * those accounts are owed is decided later, by
+     * {@link Subscription#notOnFile(long, boolean)}.
      */
     @Transactional
     public void startTrial(long userId) {

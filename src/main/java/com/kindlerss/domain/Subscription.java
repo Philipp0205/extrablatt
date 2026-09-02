@@ -25,6 +25,29 @@ public record Subscription(
                 null, null, null, null, null, false, null);
     }
 
+    /**
+     * Where an account with no row of its own stands.
+     *
+     * <p>Once a deployment charges, registration writes a trial row for every new
+     * account, so no row means the account is older than the charging is. Those keep
+     * the full allowances for good, on the same terms as the accounts grandfathered
+     * when subscriptions were first introduced: they signed up for something
+     * advertised as having no subscription. Reading the absence as a spent free plan
+     * instead refuses them Kindle delivery over a week they were never given — which
+     * is what happens on staging, whose database is a copy of production's and so
+     * carries the accounts of a deployment that does not charge.
+     *
+     * <p>Where nothing is charged the plan comes from the flag alone and this is only
+     * a placeholder.
+     */
+    public static Subscription notOnFile(long userId, boolean charging) {
+        if (!charging) {
+            return free(userId);
+        }
+        return new Subscription(userId, Plan.SUPPORTER, SubscriptionStatus.GRANDFATHERED,
+                null, null, null, null, null, false, null);
+    }
+
     /** Never charged, and never to be charged. */
     public boolean grandfathered() {
         return status == SubscriptionStatus.GRANDFATHERED;
