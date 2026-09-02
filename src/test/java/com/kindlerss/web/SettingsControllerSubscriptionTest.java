@@ -86,7 +86,7 @@ class SettingsControllerSubscriptionTest {
         when(userService.findById(UID)).thenReturn(Optional.of(user));
         when(subscriptionService.forUser(UID)).thenReturn(Subscription.free(UID));
         when(entitlementService.forUser(UID))
-                .thenReturn(new Entitlement(Plan.FREE, 10, 10, 15, false));
+                .thenReturn(new Entitlement(Plan.FREE, 10, 0, 15, false));
     }
 
     @Test
