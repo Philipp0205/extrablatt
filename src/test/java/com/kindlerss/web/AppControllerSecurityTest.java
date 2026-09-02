@@ -293,7 +293,7 @@ class AppControllerSecurityTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("Quick start")))
                 .andExpect(content().string(containsString("value=\"hacker-news\"")))
-                .andExpect(content().string(containsString("<summary>Add feed</summary>")))
+                .andExpect(content().string(containsString("<summary>Follow a site</summary>")))
                 .andExpect(content().string(not(containsString("aria-label=\"Feed views\""))));
 
         when(feedService.listFeeds(UID)).thenReturn(List.of(
@@ -1182,7 +1182,7 @@ class AppControllerSecurityTest {
         when(feedService.listFeeds(UID)).thenReturn(List.of());
         mockMvc.perform(get("/"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("Send a URL to Kindle")))
+                .andExpect(content().string(containsString("Send a page to Kindle")))
                 .andExpect(content().string(containsString("action=\"/articles/from-url\"")));
 
         mockMvc.perform(get("/").param("view", "add"))

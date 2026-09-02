@@ -217,7 +217,7 @@ public class ArticleService {
         String finalUrl = fetched.finalUri().toString();
         if (looksLikeFeed(fetched)) {
             throw new IllegalArgumentException(
-                    "That looks like an RSS or Atom feed. Add it under Add feed instead.");
+                    "That address is a whole site's news, not a single article. Follow the site from Feeds instead.");
         }
         try {
             Readability4J readability = new Readability4J(finalUrl, fetched.body());

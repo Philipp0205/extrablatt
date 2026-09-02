@@ -124,7 +124,7 @@ class ArticleServiceTest {
 
         IllegalArgumentException error = assertThrows(IllegalArgumentException.class,
                 () -> service.importFromUrl(UID, "https://example.com/feed.xml"));
-        assertTrue(error.getMessage().contains("Add feed"));
+        assertTrue(error.getMessage().contains("Follow the site from Feeds"));
         verify(feedRepository, never()).findOrCreateClippingFeed(anyLong());
     }
 
