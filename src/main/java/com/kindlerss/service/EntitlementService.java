@@ -103,9 +103,10 @@ public class EntitlementService {
         return hasPaidAccess(subscription, Instant.now()) ? Plan.SUPPORTER : Plan.FREE;
     }
 
-    /** The account's subscription, or a free one when it has never ordered. */
+    /** The account's subscription, or the standing of an account with no row on file. */
     public Subscription subscription(long userId) {
-        return subscriptions.findByUserId(userId).orElseGet(() -> Subscription.free(userId));
+        return subscriptions.findByUserId(userId)
+                .orElseGet(() -> Subscription.notOnFile(userId, properties.billing().enabled()));
     }
 
     /**
