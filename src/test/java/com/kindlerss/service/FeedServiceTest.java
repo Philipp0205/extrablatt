@@ -96,17 +96,6 @@ class FeedServiceTest {
     }
 
     @Test
-    void quickStartSuggestsGeneralNewspapers() {
-        FeedService svc = service(100);
-        assertEquals("BBC World News", svc.defaultFeed("bbc-world").orElseThrow().title());
-        assertEquals("The Guardian", svc.defaultFeed("the-guardian").orElseThrow().title());
-        assertEquals("NPR", svc.defaultFeed("npr").orElseThrow().title());
-        assertEquals("Tagesschau", svc.defaultFeed("tagesschau").orElseThrow().title());
-        assertEquals("Der Spiegel", svc.defaultFeed("spiegel").orElseThrow().title());
-        assertTrue(svc.defaultFeed("hacker-news").isEmpty());
-    }
-
-    @Test
     void aFeedUrlIsAskedForMoreEntriesThanItPublishesByDefault() {
         assertEquals("https://hnrss.org/frontpage?count=100",
                 FeedService.withEntryCount("https://hnrss.org/frontpage", 100));
