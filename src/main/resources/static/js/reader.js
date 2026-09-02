@@ -79,7 +79,7 @@
    */
   var positionMode = root.getAttribute('data-reader-restore') || 'stored';
   var restorePosition = positionMode === 'stored';
-  var addressPosition = positionMode === 'address' &&
+  var keepPageInAddress = positionMode === 'address' &&
       !!(window.history && window.history.replaceState);
 
   var marker = document.createElement('div');
@@ -509,7 +509,7 @@
    * starts at the beginning.
    */
   function writeAddressedPage() {
-    if (!addressPosition) {
+    if (!keepPageInAddress) {
       return;
     }
     var hash = page > 0 ? '#p' + (page + 1) : '';
