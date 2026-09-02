@@ -85,6 +85,27 @@ class FeedServiceTest {
     }
 
     @Test
+    void refreshErrorsAreSafeAndUsefulForReaders() {
+        assertEquals("This feed timed out while refreshing.",
+                FeedService.refreshErrorMessage(new RuntimeException("Connection timed out after 5s")));
+        assertEquals("This feed could not be found.",
+                FeedService.refreshErrorMessage(new RuntimeException("HTTP 404 from origin")));
+        assertEquals("This feed could not be refreshed.",
+                FeedService.refreshErrorMessage(new RuntimeException("java.net.ConnectException: details")));
+    }
+
+    @Test
+    void aFailedRefreshStoresOnlyTheReaderFriendlyError() {
+        when(feedRepository.findAll(UID)).thenReturn(java.util.List.of(feed("https://example.com/feed")));
+        when(httpClient.get(anyString())).thenThrow(new SafeHttpClient.FetchException(
+                "Connection timed out at 10.0.0.1:443"));
+
+        service(100).refreshForUser(UID);
+
+        verify(feedRepository).setError(1L, "This feed timed out while refreshing.");
+    }
+
+    @Test
     void quickStartSuggestsGeneralNewspapers() {
         FeedService svc = service(100);
         assertEquals("BBC World News", svc.defaultFeed("bbc-world").orElseThrow().title());

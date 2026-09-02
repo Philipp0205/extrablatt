@@ -53,7 +53,7 @@
           <span th:text="${article.feedTitle}">Feed</span>
           <span th:if="${article.author != null}" th:text="' · ' + ${article.author}"></span>
           <span th:if="${article.publishedAt != null}"
-                th:text="' · ' + ${#temporals.format(article.publishedAt, 'yyyy-MM-dd HH:mm')}"></span>
+                th:text="' · ' + ${readableTime.describe(article.publishedAt)}"></span>
           <span th:if="${article.sentAt != null}"> · sent to Kindle</span>
         </div>
         <article class="article-body" th:utext="${contentHtml}">Content</article>

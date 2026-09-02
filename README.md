@@ -84,7 +84,7 @@ Tests do not require PostgreSQL or Docker. They cover EPUB layout, HTML sanitiza
 
 ## Using the app
 
-1. Open **Add feed** beside the Feeds heading (direct feed URL or site homepage).
+1. Open **Follow a site** beside the Feeds heading (direct feed URL or site homepage).
    You do not need to hunt down an XML URL: open the Extrablatt website on your
    phone, paste the normal website address, and feed autodiscovery will usually
    find its RSS/Atom feed. The optional **Quick start** checkboxes can populate a
@@ -94,6 +94,8 @@ Tests do not require PostgreSQL or Docker. They cover EPUB layout, HTML sanitiza
    Feeds page first shows one compact row per category with feed and unread
    counts; choose a category to see and manage only its feeds. A category can
    also be renamed there, which moves every feed in it to the new name at once.
+   Newsletter forwarding addresses and controls live under **Settings → Kindle**;
+   **Follow a site** links there instead of duplicating those controls.
 2. **Send a URL** from **Feeds**: paste any article address. The page is fetched,
    stripped to readable HTML, saved under a **Pasted URLs** feed, and emailed to
    your Kindle as an EPUB.

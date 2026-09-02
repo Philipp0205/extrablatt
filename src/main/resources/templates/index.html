@@ -19,27 +19,23 @@
 
   <div th:if="${!emailVerified}" class="flash error">
     Confirm your e-mail to send articles to Kindle. Check your inbox, or
-    <a th:href="@{/settings}">review your settings</a>.
+    <a th:href="@{/settings/account}">review your account</a>.
   </div>
-  <!-- First-run guidance: until a Send-to-Kindle address is saved, spell out the
-       two-step Amazon setup. The link opens Amazon's own settings, which is easiest
-       to complete on a phone. -->
+  <!-- Keep first-run guidance short here. The full Amazon path lives on the
+       dedicated Kindle settings page. -->
   <div th:if="${!kindleConfigured}" class="flash onboarding">
-    <p><strong>Welcome! Two quick steps to start sending articles to your Kindle:</strong></p>
+    <p><strong>Welcome! Set up Send to Kindle in two steps:</strong></p>
     <ol>
-      <li>Open <a th:href="@{/settings}">Settings</a> and enter your
-        <strong>Send-to-Kindle e-mail</strong> (it ends in <em>@kindle.com</em>).
-        Amazon lists it under
-        <em>Manage Your Content and Devices → Preferences → Personal Document Settings</em>.</li>
-      <li>Add our sender address
+      <li>Save your <em>@kindle.com</em> address under
+        <a th:href="@{/settings/kindle}">Settings → Kindle</a>.</li>
+      <li>In <a href="https://www.amazon.de/hz/mycd/myx"
+        target="_blank" rel="noopener noreferrer">Amazon settings</a>, approve
         <strong th:text="${mailFrom} ?: 'shown on the Settings page'">mail@extrablatt.app</strong>
-        to Amazon's <em>Approved Personal Document E-mail List</em>. Open your
-        <a href="https://www.amazon.de/hz/mycd/preferences/myx#/home/settings/payment"
-           target="_blank" rel="noopener noreferrer">Amazon content &amp; devices settings</a>
-        — this is easiest to do on your phone.</li>
+        as a sender. This is easiest on your phone.</li>
     </ol>
   </div>
   <div th:replace="~{fragments/trial-banner :: trialBanner}"></div>
+  <div th:if="${message}" class="flash" th:text="${message}"></div>
   <div th:if="${error}" class="flash error" th:text="${error}"></div>
   <div th:replace="~{fragments/trial-ended-dialog :: trialEndedDialog}"></div>
   <div th:replace="~{fragments/whats-new-dialog :: whatsNewDialog}"></div>
@@ -97,26 +93,10 @@
           </div>
         </form>
 
-        <details class="tools nested-tools" th:if="${newslettersEnabled}">
-          <summary>Add a newsletter instead</summary>
-          <div class="tools-body">
-            <p class="meta">Forward any newsletter to this address. The first issue
-              creates a feed named after the sender.</p>
-            <code class="address-box" th:text="${newsletterAddress}">news@example.com</code>
-            <details class="tools nested-tools">
-              <summary>Having trouble with spam?</summary>
-              <div class="tools-body">
-                <p class="meta">Get a new address. Anything still sent to the old one
-                  will be lost, but newsletters already received stay put.</p>
-                <form th:action="@{/settings/newsletter-address/regenerate}" method="post"
-                      onsubmit="return confirm('Replace your newsletter address? Anything still sent to the old one will be lost, but newsletters already received stay put.');">
-                  <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-                  <button class="btn" type="submit">New address</button>
-                </form>
-              </div>
-            </details>
-          </div>
-        </details>
+        <p class="meta" th:if="${newslettersEnabled}">
+          Adding a newsletter? Find your address under
+          <a th:href="@{/settings/kindle}">Settings → Kindle</a>.
+        </p>
       </div>
     </details>
   </div>
@@ -185,7 +165,7 @@
         <span class="badge" th:text="${feed.unreadCount}">0</span>
       </div>
       <div class="meta" th:if="${feed.lastError != null}">
-        Couldn't update this feed. We'll try again.
+        <span th:text="${feed.lastError}">This feed could not be refreshed.</span>
       </div>
       <!-- Managing a feed is rare next to reading it, so the source address and the
            category/delete controls fold away and the list stays a plain run of
