@@ -80,27 +80,25 @@ public class DiscussionParser {
     }
 
     private Optional<String> parseHackerNews(Article article, String commentsUrl) {
+        Document thread;
+        try {
+            SafeHttpClient.FetchedContent fetched = httpClient.get(commentsUrl);
+            thread = Jsoup.parse(fetched.body(), fetched.finalUri().toString());
+        } catch (Exception ignored) {
+            // Do not cache a false "No comments yet" result for a temporary HN failure.
+            return Optional.empty();
+        }
+
         String postHtml = null;
         if (!samePage(article.url(), commentsUrl)) {
             postHtml = extractReadable(article.url());
         }
 
-        Document thread = null;
-        try {
-            SafeHttpClient.FetchedContent fetched = httpClient.get(commentsUrl);
-            thread = Jsoup.parse(fetched.body(), fetched.finalUri().toString());
-        } catch (Exception ignored) {
-            // The linked article is still useful when the discussion page is temporarily unavailable.
-        }
-
-        if ((postHtml == null || postHtml.isBlank()) && thread != null) {
+        if (postHtml == null || postHtml.isBlank()) {
             Element topText = thread.selectFirst(".toptext");
             if (topText != null) {
                 postHtml = topText.html();
             }
-        }
-        if ((postHtml == null || postHtml.isBlank()) && thread == null) {
-            return Optional.empty();
         }
 
         Document output = Document.createShell("");
@@ -113,7 +111,7 @@ public class DiscussionParser {
         }
         body.appendElement("h2").text("Comments");
 
-        List<Element> comments = thread == null ? List.of() : thread.select("tr.athing.comtr");
+        List<Element> comments = thread.select("tr.athing.comtr");
         if (comments.isEmpty()) {
             body.appendElement("p").appendElement("em").text("No comments yet.");
         } else {
