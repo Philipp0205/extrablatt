@@ -148,6 +148,10 @@ article list are therefore laid out as whole pages:
   mistake takes **Mark unread** on its own page.
 - Your position is remembered per article, so sending to Kindle or marking an
   article unread returns you to the page you were on.
+- The list remembers which of its pages you are on for as long as it is that list:
+  reading an entry and going back with the browser returns to the page the entry
+  was picked from, not to the first one. A list opened afresh from **Articles** or
+  a filter holds other articles and still starts at its beginning.
 - Rotating the device or changing the browser font re-splits the pages and keeps
   your place.
 

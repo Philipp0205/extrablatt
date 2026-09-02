@@ -676,6 +676,23 @@ class AppControllerSecurityTest {
     }
 
     @Test
+    @WithMockUser
+    void theListKeepsItsPageInTheAddressSoAnEntryCanBeReadAndComeBackToIt() throws Exception {
+        when(articleService.findPage(eq(UID), isNull(), isNull(), eq(1), eq(20))).thenReturn(List.of(
+                new Article(1L, 1L, "guid-1", "Article 1", null, null,
+                        null, null, null, null, false, null, null, null, "Example Feed")));
+        when(articleService.count(eq(UID), isNull(), isNull())).thenReturn(1L);
+        when(feedService.listFeeds(UID)).thenReturn(List.of());
+
+        // The reader writes the page it is on into the history entry, which is what
+        // the browser's back returns to; a stored position would instead follow a
+        // list around after it has been opened afresh with other articles in it.
+        mockMvc.perform(get("/items").param("unread", "false"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("data-reader-restore=\"address\"")));
+    }
+
+    @Test
     void theForwardLabelNamesWhatPressingItDoes() {
         org.junit.jupiter.api.Assertions.assertEquals("Mark read and load more",
                 AppController.forwardLabel(true, true));

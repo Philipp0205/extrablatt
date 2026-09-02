@@ -63,9 +63,24 @@
   // A list whose rows are dealt out over the pages rather than left to the
   // browser's own column fill; see fillPages().
   var fillList = content.querySelector('[data-reader-fill]');
-  // A list (as opposed to a single article) is asked to always open at the top,
-  // so a stored scroll position is neither saved nor restored for it.
-  var restorePosition = root.getAttribute('data-reader-restore') !== 'false';
+  /*
+   * Where the reader's place in the document is kept.
+   *
+   * An article keeps it in storage under its own key ("stored", the default), so
+   * that it opens where it was left however it is reached again.
+   *
+   * A list keeps it in the address instead ("address"). A list that is opened
+   * afresh — "Articles", a filter, the next batch — holds other articles than the
+   * one left behind and so opens at the top; but the history entry the browser
+   * goes back to keeps the screen the list was on, so an article opened out of
+   * the list comes back to the screen it was picked from.
+   *
+   * "false" keeps it nowhere.
+   */
+  var positionMode = root.getAttribute('data-reader-restore') || 'stored';
+  var restorePosition = positionMode === 'stored';
+  var addressPosition = positionMode === 'address' &&
+      !!(window.history && window.history.replaceState);
 
   var marker = document.createElement('div');
   marker.className = 'reader-end';
@@ -442,6 +457,7 @@
       nextButton.className = leaving ? 'btn primary' : 'btn';
     }
     storePosition();
+    writeAddressedPage();
   }
 
   /*
@@ -471,6 +487,40 @@
       return isNaN(fraction) ? 0 : Math.round(fraction * pageCount);
     } catch (e) {
       return 0;
+    }
+  }
+
+  /* Pages are numbered from one in the address, as they are in the pager's label. */
+  var ADDRESSED_PAGE = /^#p([0-9]+)$/;
+
+  /** The page the address names, or -1 when it names none. */
+  function addressedPage() {
+    var match = ADDRESSED_PAGE.exec(window.location.hash);
+    return match ? parseInt(match[1], 10) - 1 : -1;
+  }
+
+  /*
+   * Writes the page into the address of the current history entry.
+   *
+   * Replaced rather than pushed: the pages of a list are not stops to walk back
+   * through, and back has to keep leading out of the list. What it buys is that
+   * the entry the browser returns to from an article names the page the list was
+   * left on, while a list opened afresh — with no page in its address — still
+   * starts at the beginning.
+   */
+  function writeAddressedPage() {
+    if (!addressPosition) {
+      return;
+    }
+    var hash = page > 0 ? '#p' + (page + 1) : '';
+    if (hash === window.location.hash) {
+      return;
+    }
+    try {
+      window.history.replaceState(null, '',
+          window.location.pathname + window.location.search + hash);
+    } catch (e) {
+      // Not worth losing a page turn over: the page is still shown.
     }
   }
 
@@ -834,7 +884,11 @@
     }
 
     layout(function () {
-      return window.location.hash === '#end' ? pageCount - 1 : storedPosition();
+      if (window.location.hash === '#end') {
+        return pageCount - 1;
+      }
+      var addressed = addressedPage();
+      return addressed >= 0 ? addressed : storedPosition();
     });
     forgetHash();
   }

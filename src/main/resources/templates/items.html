@@ -21,10 +21,12 @@
   <div th:if="${error}" class="flash error" th:text="${error}"></div>
   <div th:replace="~{fragments/whats-new-dialog :: whatsNewDialog}"></div>
 
-  <!-- The article list always opens at the top: unlike a single article, there is
-       no reading position worth restoring, and returning to "Articles" should show
-       page one from its start. -->
-  <div class="reader" data-reader data-reader-restore="false"
+  <!-- A list that is opened afresh starts at the top: unlike a single article it has
+       no reading position worth keeping between visits, and "Articles" or a filter
+       should show page one from its start. The page it is on is kept in the address
+       all the same, so that reading an entry and coming back with the browser's own
+       back returns to the page the entry was picked from. -->
+  <div class="reader" data-reader data-reader-restore="address"
        th:attr="data-reader-key='items-' + ${feedId} + '-' + ${category} + '-' + ${unread} + '-' + ${snapshot} + '-' + ${page},
                 data-reader-prev-url=${page > 1} ? @{/items(feed=${feedId}, category=${category}, unread=${unread} ? true : null, snapshot=${snapshot}, page=${page - 1})} : null,
                 data-reader-next-form=${!#lists.isEmpty(articles)} ? 'advance' : null,
