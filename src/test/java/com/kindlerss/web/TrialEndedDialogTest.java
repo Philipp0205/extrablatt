@@ -88,6 +88,9 @@ class TrialEndedDialogTest {
     UserService userService;
 
     @MockitoBean
+    com.kindlerss.service.ReadableTime readableTime;
+
+    @MockitoBean
     DataExportService dataExportService;
 
     @MockitoBean

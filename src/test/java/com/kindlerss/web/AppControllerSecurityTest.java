@@ -62,7 +62,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @TestPropertySource(properties = {
         "app.mail-from=from@example.com",
         "app.remember-me-key=test-remember-key",
-        "app.articles.page-size=20"
+        "app.articles.page-size=20",
+        "app.newsletters.inbound-domain=news.example.com",
+        "app.newsletters.inbound-secret=shh"
 })
 class AppControllerSecurityTest {
 
@@ -91,6 +93,9 @@ class AppControllerSecurityTest {
 
     @MockitoBean
     UserService userService;
+
+    @MockitoBean
+    com.kindlerss.service.ReadableTime readableTime;
 
     @BeforeEach
     void signInAsUserOne() {
@@ -235,16 +240,16 @@ class AppControllerSecurityTest {
 
     @Test
     @WithMockUser
-    void homeWelcomePromptExplainsWhereToFindTheKindleEmail() throws Exception {
+    void homeWelcomePromptLinksToTheTwoKindleSetupPages() throws Exception {
         when(feedService.listFeeds(UID)).thenReturn(List.of());
         when(userService.findById(UID)).thenReturn(Optional.of(new AppUser(UID, "user@example.com",
                 "hash", null, Instant.now(), null, Instant.now(), Instant.now())));
 
         mockMvc.perform(get("/"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("Welcome! Two quick steps")))
-                .andExpect(content().string(containsString(
-                        "Manage Your Content and Devices → Preferences → Personal Document Settings")));
+                .andExpect(content().string(containsString("Welcome! Set up Send to Kindle in two steps")))
+                .andExpect(content().string(containsString("href=\"/settings/kindle\"")))
+                .andExpect(content().string(containsString("href=\"https://www.amazon.de/hz/mycd/myx\"")));
     }
 
     @Test
@@ -256,7 +261,22 @@ class AppControllerSecurityTest {
 
         mockMvc.perform(get("/"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(not(containsString("Welcome! Two quick steps"))));
+                .andExpect(content().string(not(containsString("Welcome! Set up Send to Kindle"))));
+    }
+
+    @Test
+    @WithMockUser
+    void homeShowsFeedbackAndPointsNewsletterSetupToSettings() throws Exception {
+        when(feedService.listFeeds(UID)).thenReturn(List.of());
+
+        mockMvc.perform(get("/").flashAttr("message", "Added feed: Example"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("Added feed: Example")))
+                .andExpect(content().string(containsString("Adding a newsletter?")))
+                .andExpect(content().string(not(containsString("Add a newsletter instead"))))
+                .andExpect(content().string(not(containsString("@news.example.com"))));
+
+        verify(userService, never()).ensureNewsletterInboundToken(UID);
     }
 
     @Test
@@ -355,6 +375,7 @@ class AppControllerSecurityTest {
         mockMvc.perform(get("/items").param("unread", "false"))
                 .andExpect(status().isOk())
                 .andExpect(view().name("items"))
+                .andExpect(content().string(containsString("No articles here yet.")))
                 .andExpect(content().string(not(containsString("action=\"/refresh\""))))
                 .andExpect(content().string(not(containsString(">Refresh</button>"))));
         verify(feedService).refreshForUserSoon(UID);
@@ -497,17 +518,20 @@ class AppControllerSecurityTest {
     @Test
     @WithMockUser
     void theArticleListStartsAtTheFirstArticle() throws Exception {
+        Instant publishedAt = Instant.parse("2026-09-02T08:00:00Z");
         when(articleService.findPage(eq(UID), isNull(), isNull(), eq(1), eq(20))).thenReturn(
                 List.of(new Article(1L, 1L, "guid-1", "Article 1", null, null,
-                        null, null, null, null, false, null, null, null, "Example Feed")));
+                        publishedAt, null, null, null, false, null, null, null, "Example Feed")));
         when(articleService.count(eq(UID), isNull(), isNull())).thenReturn(1L);
         when(feedService.listFeeds(UID)).thenReturn(List.of());
+        when(readableTime.describe(publishedAt)).thenReturn("1 hour ago");
 
         String body = mockMvc.perform(get("/items").param("unread", "false"))
                 .andExpect(status().isOk())
                 // The heading is left for screen readers, and the count follows the
                 // list instead of pushing it down the screen.
                 .andExpect(content().string(containsString("<h1 class=\"offscreen\">Articles</h1>")))
+                .andExpect(content().string(containsString("1 hour ago")))
                 .andExpect(content().string(containsString("1–1 of 1 articles")))
                 .andReturn().getResponse().getContentAsString();
 
@@ -592,16 +616,19 @@ class AppControllerSecurityTest {
     @Test
     @WithMockUser
     void articlePageRendersPagedReader() throws Exception {
+        Instant publishedAt = Instant.parse("2026-09-02T08:00:00Z");
         Article article = new Article(7L, 1L, "guid", "Paged article", "https://example.com/a", null,
-                null, null, null, null, true, null, null, null, "Example Feed");
+                publishedAt, null, null, null, true, null, null, null, "Example Feed");
         when(articleService.findById(UID, 7L)).thenReturn(Optional.of(article));
         when(articleService.getContentHtml(any(Article.class), eq(false))).thenReturn("<p>Body</p>");
+        when(readableTime.describe(publishedAt)).thenReturn("1 hour ago");
 
         mockMvc.perform(get("/articles/7"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("data-reader-frame")))
                 .andExpect(content().string(containsString("data-reader-prev")))
                 .andExpect(content().string(containsString("data-reader-next")))
+                .andExpect(content().string(containsString("1 hour ago")))
                 .andExpect(content().string(containsString("/js/reader.js")))
                 .andExpect(content().string(containsString("<button class=\"btn\" type=\"submit\">Send to Kindle</button>")))
                 .andExpect(content().string(containsString("<details class=\"action-menu\" data-reader-refit>")))
@@ -722,6 +749,7 @@ class AppControllerSecurityTest {
                 .andExpect(content().string(not(containsString("load more"))))
                 .andExpect(content().string(not(containsString("Mark these read"))))
                 .andExpect(content().string(not(containsString("Older articles"))))
+                .andExpect(content().string(containsString(">Previous page</a>")))
                 .andExpect(content().string(containsString("21–21 of 21 articles")));
     }
 

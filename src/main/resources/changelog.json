@@ -1,6 +1,23 @@
 {
   "releases": [
     {
+      "id": "2026-09-02-polish",
+      "date": "2 September 2026",
+      "title": "Clearer setup and reading feedback",
+      "highlights": [
+        "The first Kindle setup message is shorter and links straight to the right settings.",
+        "Newsletter addresses now live in one place under Settings → Kindle.",
+        "Article dates, empty lists, and delivery errors are easier to understand."
+      ],
+      "changes": [
+        "Feeds now confirms successful actions such as adding, renaming, deleting, and marking read.",
+        "The first Kindle setup message is shorter and opens Amazon's content and device settings instead of payment settings.",
+        "Newsletter addresses and controls live under Settings → Kindle, with a short pointer from Follow a site.",
+        "Article dates are shown as readable phrases such as “3 hours ago” and “14 March 2026”.",
+        "Feed refresh and Send-to-Kindle failures stay on the page and use reader-friendly messages."
+      ]
+    },
+    {
       "id": "2026-09-02-newsreader",
       "date": "2 September 2026",
       "title": "Easier to follow the news",

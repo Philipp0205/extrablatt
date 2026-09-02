@@ -8,6 +8,7 @@ import com.kindlerss.service.ArticleService;
 import com.kindlerss.service.EntitlementService;
 import com.kindlerss.service.FeedService;
 import com.kindlerss.service.KindleMailService;
+import com.kindlerss.service.ReadableTime;
 import com.kindlerss.service.UserService;
 import org.springframework.stereotype.Controller;
 import org.springframework.http.HttpStatus;
@@ -53,6 +54,7 @@ public class AppController {
     private final UserService userService;
     private final CurrentUser currentUser;
     private final EntitlementService entitlementService;
+    private final ReadableTime readableTime;
     private final AppProperties properties;
     private final int pageSize;
     private final String mailFrom;
@@ -63,6 +65,7 @@ public class AppController {
                          UserService userService,
                          CurrentUser currentUser,
                          EntitlementService entitlementService,
+                         ReadableTime readableTime,
                          AppProperties properties) {
         this.feedService = feedService;
         this.articleService = articleService;
@@ -70,6 +73,7 @@ public class AppController {
         this.userService = userService;
         this.currentUser = currentUser;
         this.entitlementService = entitlementService;
+        this.readableTime = readableTime;
         this.properties = properties;
         this.pageSize = properties.articles().pageSize();
         this.mailFrom = properties.mailFrom();
@@ -125,10 +129,6 @@ public class AppController {
         boolean newslettersEnabled = properties.newsletters().enabled()
                 && (entitlement.newsletters() || (user != null && user.newsletterInboundToken() != null));
         model.addAttribute("newslettersEnabled", newslettersEnabled);
-        if (newslettersEnabled && user != null) {
-            String token = userService.ensureNewsletterInboundToken(userId);
-            model.addAttribute("newsletterAddress", token + "@" + properties.newsletters().inboundDomain());
-        }
         return "index";
     }
 
@@ -355,6 +355,7 @@ public class AppController {
                 : articleService.findPage(userId, feedId, category, unreadOnly, unreadSnapshot, safePage, pageSize);
 
         model.addAttribute("articles", articles);
+        model.addAttribute("readableTime", readableTime);
         addFilterBar(model, feedService.listFeeds(userId), feedId, category, unreadByDefault);
         model.addAttribute("feedId", feedId);
         model.addAttribute("category", category);
@@ -603,6 +604,7 @@ public class AppController {
         }
         String contentHtml = articleService.getContentHtml(article, images);
         model.addAttribute("article", article);
+        model.addAttribute("readableTime", readableTime);
         model.addAttribute("contentHtml", contentHtml);
         model.addAttribute("images", images);
         model.addAttribute("originalUrl", safeHttpUrl(article.url()));

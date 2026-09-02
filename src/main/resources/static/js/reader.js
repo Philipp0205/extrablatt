@@ -784,6 +784,25 @@
    * Keep the current document and reader position in place instead of following
    * the form's redirect and laying the whole screen out again.
    */
+  function clearSendError() {
+    var error = root.parentNode.querySelector('[data-send-error]');
+    if (error) {
+      error.parentNode.removeChild(error);
+      onReaderChromeToggle();
+    }
+  }
+
+  function showSendError(message) {
+    clearSendError();
+    var error = document.createElement('div');
+    error.className = 'flash error';
+    error.setAttribute('data-send-error', '');
+    error.setAttribute('role', 'alert');
+    error.textContent = message || 'Could not send article';
+    root.parentNode.insertBefore(error, root);
+    onReaderChromeToggle();
+  }
+
   function enableAsyncSending() {
     if (!window.fetch || !window.FormData) {
       return;
@@ -800,6 +819,7 @@
           if (event.preventDefault) {
             event.preventDefault();
           }
+          clearSendError();
           button.style.width = button.offsetWidth + 'px';
           button.disabled = true;
           var originalLabel = button.textContent;
@@ -820,7 +840,7 @@
             button.disabled = false;
             button.textContent = originalLabel;
             button.style.width = '';
-            window.alert(error.message || 'Could not send article');
+            showSendError(error.message || 'Could not send article');
           });
         });
       })(forms[i]);

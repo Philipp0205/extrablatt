@@ -155,6 +155,8 @@ class SettingsControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("from@example.com")))
                 .andExpect(content().string(containsString("Approved Personal Document E-mail List")))
+                .andExpect(content().string(containsString("href=\"https://www.amazon.de/hz/mycd/myx\"")))
+                .andExpect(content().string(not(containsString("#/home/settings/payment"))))
                 .andExpect(content().string(not(containsString("New address"))))
                 .andExpect(content().string(not(containsString("action=\"/refresh\""))))
                 .andExpect(content().string(not(containsString(">Refresh</button>"))));

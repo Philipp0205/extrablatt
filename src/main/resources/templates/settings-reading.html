@@ -7,7 +7,7 @@
 
   <a class="back-link" th:href="@{/settings}">← Settings</a>
   <h1>Reading</h1>
-  <p class="meta">Choose how articles become marked as read.</p>
+  <p class="meta">Choose how articles leave your Unread list.</p>
   <form th:action="@{/settings/reading}" method="post">
     <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
     <label class="check">
@@ -15,9 +15,8 @@
              th:checked="${account.markReadOnNextPage}"/>
       <span>Mark articles as read when I go to the next page</span>
     </label>
-    <p class="meta">When this is on, paging past a list of articles marks them read.
-      When it is off, new articles arrive already marked read, so Unread stays empty
-      until you open something, and Next page only loads more articles.</p>
+    <p class="meta">When on, paging past a list marks those articles read.
+      When off, new articles arrive already read, so Unread stays empty.</p>
     <div class="row" style="margin-top:1rem">
       <button class="btn" type="submit">Save</button>
     </div>

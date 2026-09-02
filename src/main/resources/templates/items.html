@@ -78,7 +78,8 @@
           <button class="btn strip-step" type="button" data-strip-next aria-label="More filters">›</button>
         </div>
 
-        <p th:if="${#lists.isEmpty(articles)}" class="muted">No articles.</p>
+        <p th:if="${#lists.isEmpty(articles)}" class="muted"
+           th:text="${unread} ? 'No unread articles.' : 'No articles here yet.'">No articles here yet.</p>
         <!-- data-reader-fill: the reader deals these rows out over the pages
              itself and spaces each page's rows to the bottom of the screen,
              rather than leaving the last page half empty. -->
@@ -99,7 +100,7 @@
               </a>
               <span class="meta">
                 <span th:text="${a.feedTitle}">Feed</span>
-                <span th:if="${a.publishedAt != null}" th:text="' · ' + ${#temporals.format(a.publishedAt, 'yyyy-MM-dd HH:mm')}"> · date</span>
+                <span th:if="${a.publishedAt != null}" th:text="' · ' + ${readableTime.describe(a.publishedAt)}"> · date</span>
                 <span th:if="${a.sentAt != null}"> · sent</span>
               </span>
             </div>
@@ -145,7 +146,7 @@
                     th:text="${forwardLabel}">Next articles</button>
           </form>
           <a class="btn" th:if="${page > 1}"
-             th:href="@{/items(feed=${feedId}, category=${category}, unread=${unread} ? true : null, snapshot=${snapshot}, page=${page - 1})}">Newer articles</a>
+             th:href="@{/items(feed=${feedId}, category=${category}, unread=${unread} ? true : null, snapshot=${snapshot}, page=${page - 1})}">Previous page</a>
         </div>
       </div>
     </div>

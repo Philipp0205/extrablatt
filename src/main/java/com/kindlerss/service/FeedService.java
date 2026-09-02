@@ -359,7 +359,6 @@ public class FeedService {
                 refreshFeed(feed);
             } catch (Exception e) {
                 log.warn("Failed to refresh feed {}: {}", feed.id(), e.getMessage());
-                feedRepository.setError(feed.id(), e.getMessage());
             }
         }
     }
@@ -375,9 +374,20 @@ public class FeedService {
             feedRepository.clearError(feed.id());
             log.info("Refreshed feed {} ({} new articles)", feed.id(), inserted);
         } catch (Exception e) {
-            feedRepository.setError(feed.id(), e.getMessage());
+            feedRepository.setError(feed.id(), refreshErrorMessage(e));
             throw e instanceof RuntimeException re ? re : new RuntimeException(e);
         }
+    }
+
+    static String refreshErrorMessage(Exception error) {
+        String message = error.getMessage() == null ? "" : error.getMessage().toLowerCase();
+        if (message.contains("timed out") || message.contains("timeout")) {
+            return "This feed timed out while refreshing.";
+        }
+        if (message.contains("404") || message.contains("not found")) {
+            return "This feed could not be found.";
+        }
+        return "This feed could not be refreshed.";
     }
 
     private int storeEntries(Feed feed, ParsedFeed parsed) {

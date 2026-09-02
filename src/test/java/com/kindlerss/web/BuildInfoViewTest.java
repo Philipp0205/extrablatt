@@ -100,6 +100,9 @@ class BuildInfoViewTest {
     UserService userService;
 
     @MockitoBean
+    com.kindlerss.service.ReadableTime readableTime;
+
+    @MockitoBean
     UserDetailsService userDetailsService;
 
     @BeforeEach
