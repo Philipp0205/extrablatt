@@ -27,20 +27,23 @@ public class TelemetryRepository {
                   (SELECT COUNT(*) FROM article_send_events
                      WHERE sent_at >= NOW() - INTERVAL '24 hours') AS sends_24h,
                   (SELECT COUNT(*) FROM article_send_events
-                     WHERE sent_at >= NOW() - INTERVAL '7 days') AS sends_7d
+                     WHERE sent_at >= NOW() - INTERVAL '7 days') AS sends_7d,
+                  (SELECT COUNT(*) FROM article_send_events
+                     WHERE sent_at >= NOW() - INTERVAL '30 days') AS sends_30d
                 """, (rs, rowNum) -> new Summary(
                 rs.getLong("users"),
                 rs.getLong("feeds"),
                 rs.getLong("articles"),
                 rs.getLong("sends_total"),
                 rs.getLong("sends_24h"),
-                rs.getLong("sends_7d")
+                rs.getLong("sends_7d"),
+                rs.getLong("sends_30d")
         ));
     }
 
     public List<UserUsage> userUsage() {
         return jdbc.query("""
-                SELECT u.id, u.email, u.email_verified_at, u.created_at,
+                SELECT u.id, u.email, u.email_verified_at, u.created_at, u.last_login_at,
                        COUNT(DISTINCT f.id) AS feeds,
                        COUNT(DISTINCT a.id) AS articles,
                        (SELECT COUNT(*) FROM article_send_events e
@@ -48,6 +51,9 @@ public class TelemetryRepository {
                        (SELECT COUNT(*) FROM article_send_events e
                           WHERE e.user_id = u.id
                             AND e.sent_at >= NOW() - INTERVAL '24 hours') AS sends_24h,
+                       (SELECT COUNT(*) FROM article_send_events e
+                          WHERE e.user_id = u.id
+                            AND e.sent_at >= NOW() - INTERVAL '30 days') AS sends_30d,
                        l.max_sends_per_day, l.blocked_until
                 FROM users u
                 LEFT JOIN feeds f ON f.user_id = u.id
@@ -61,10 +67,12 @@ public class TelemetryRepository {
                 rs.getString("email"),
                 rs.getTimestamp("email_verified_at") != null,
                 toInstant(rs.getTimestamp("created_at")),
+                toInstant(rs.getTimestamp("last_login_at")),
                 rs.getLong("feeds"),
                 rs.getLong("articles"),
                 rs.getLong("sends_total"),
                 rs.getLong("sends_24h"),
+                rs.getLong("sends_30d"),
                 (Integer) rs.getObject("max_sends_per_day"),
                 toInstant(rs.getTimestamp("blocked_until"))
         ));
@@ -80,7 +88,8 @@ public class TelemetryRepository {
             long articles,
             long sendsTotal,
             long sends24h,
-            long sends7d
+            long sends7d,
+            long sends30d
     ) {}
 
     public record UserUsage(
@@ -88,10 +97,12 @@ public class TelemetryRepository {
             String email,
             boolean verified,
             Instant createdAt,
+            Instant lastLoginAt,
             long feeds,
             long articles,
             long sendsTotal,
             long sends24h,
+            long sends30d,
             Integer maxSendsPerDay,
             Instant blockedUntil
     ) {
