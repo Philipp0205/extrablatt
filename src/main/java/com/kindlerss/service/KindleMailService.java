@@ -79,7 +79,7 @@ public class KindleMailService {
 
         String html = articleService.getContentHtml(article, includeImages);
         String author = StringUtils.hasText(article.author()) ? article.author() : article.feedTitle();
-        byte[] epub = epubService.createEpub(article.title(), author, html);
+        byte[] epub = epubService.createEpub(article.title(), author, article.url(), html);
         String filename = documentName(article.title()) + ".epub";
 
         try {

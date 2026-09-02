@@ -18,7 +18,8 @@ Multi-user RSS/Atom reader that extracts readable article HTML and emails EPUB f
   handful of entries it publishes by default
 - Article extraction (Readability4J) with sanitized HTML caching
 - Page-at-a-time reading sized to the device screen, instead of scrolling
-- Send-to-Kindle as EPUB 3 through one shared, provider-verified sender
+- Send-to-Kindle as EPUB 3 through one shared, provider-verified sender, with the
+  article's own address printed under the title so the page can be found again
 - Per-account limits and IP-based rate limiting on auth endpoints
 - Optional paid subscriptions: a week of the full plan at no charge, then a
   "Supporter" plan at €2.99/month billed yearly (€35.88 for 12 months) or €3.99/month, with a subscription menu, a
