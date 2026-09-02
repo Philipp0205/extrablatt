@@ -20,12 +20,18 @@ public record Entitlement(
         int maxSendsPerMonth,
         int maxFeeds,
         boolean newsletters,
-        Instant trialEndsAt
+        Instant trialEndsAt,
+        boolean trialExpired
 ) {
 
     public Entitlement(Plan plan, int maxSendsPerDay, int maxSendsPerMonth, int maxFeeds,
                        boolean newsletters) {
-        this(plan, maxSendsPerDay, maxSendsPerMonth, maxFeeds, newsletters, null);
+        this(plan, maxSendsPerDay, maxSendsPerMonth, maxFeeds, newsletters, null, false);
+    }
+
+    public Entitlement(Plan plan, int maxSendsPerDay, int maxSendsPerMonth, int maxFeeds,
+                       boolean newsletters, Instant trialEndsAt) {
+        this(plan, maxSendsPerDay, maxSendsPerMonth, maxFeeds, newsletters, trialEndsAt, false);
     }
 
     public boolean paid() {
