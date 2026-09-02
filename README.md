@@ -355,7 +355,9 @@ so verification and reset links stay on staging.
 
 To let GitHub Actions talk to Railway, add a repository secret named
 `RAILWAY_TOKEN` (a Railway account or project token). The dashboard trigger
-keeps deploying even without that secret.
+keeps deploying even without that secret. Until the secret is set, both
+`deploy-railway.yml` and **Sync staging database** skip their Railway steps
+with exit 0 instead of failing the Actions run.
 
 The steps above cover the application service. `marketing/` also has its own
 `Dockerfile` (a tiny Caddy container serving the folder on `$PORT`), so it can
