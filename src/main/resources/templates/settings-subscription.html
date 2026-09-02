@@ -8,6 +8,12 @@
   <a class="back-link" th:href="@{/settings}">← Settings</a>
   <h1>Subscription</h1>
 
+  <!-- Checkout and the payment portal do not work in the Kindle browser. -->
+  <p class="flash">
+    Do this on your phone, not on the Kindle e-reader. Subscribing and changing
+    payment need a browser that can complete checkout.
+  </p>
+
   <!-- What the account has now, before what it could have: someone opening this
        page usually wants to check or cancel, not to be sold to. -->
   <p class="meta" th:if="${subscription.grandfathered()}">
