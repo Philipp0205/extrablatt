@@ -10,6 +10,8 @@ import java.time.Instant;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class DiscussionParserTest {
@@ -101,6 +103,17 @@ class DiscussionParserTest {
                 "https://www.reddit.com/r/stuttgart/comments/abc123/a_post/.rss",
                 DiscussionParser.redditCommentsFeedUrl(
                         "https://www.reddit.com/r/stuttgart/comments/abc123/a_post/?utm_source=rss"));
+    }
+
+    @Test
+    void hackerNewsFailureIsNotCachedAsAnEmptyCommentThread() {
+        String articleUrl = "https://example.com/story";
+        String commentsUrl = "https://news.ycombinator.com/item?id=49529898";
+        when(httpClient.get(commentsUrl)).thenThrow(new SafeHttpClient.FetchException("HTTP 503"));
+        String summary = "<a href=\"" + commentsUrl + "\">comments</a>";
+
+        assertTrue(parser.parse(article(articleUrl, summary, null, "Hacker News")).isEmpty());
+        verify(httpClient, never()).get(articleUrl);
     }
 
     private static Article article(String url, String summary, String content, String feedTitle) {
