@@ -846,11 +846,33 @@ details.nested-tools {
   display: none;
 }
 
+/* An arrow with more of the level behind it is drawn as a control: a box around
+   it and the glyph in the row's own black, a size up from the names beside it. In
+   the same grey as a spent arrow it read as ornament on a row of plain words, and
+   the categories past the edge of the screen went unlooked for.
+
+   Both states keep the box and the weight, the spent one with the box in
+   transparent, so that turning the row changes nothing about the width filters.js
+   has already measured. */
 .filters.paged .strip-step {
   display: inline-flex;
   flex: 0 0 auto;
-  padding: 0.3rem 0.5rem;
-  font-size: 1rem;
+  border: 2px solid #000;
+  padding: 0.3rem 0.45rem;
+  font-size: 1.4rem;
+  font-weight: 700;
+  /* The glyph is drawn well above its baseline and would otherwise sit low in a
+     box the height of the row. */
+  line-height: 1;
+}
+
+/* Nothing lies that way, so the arrow says as little as it can from where it
+   stands: the box goes and the glyph drops back to grey. */
+.filters.paged .strip-step[disabled],
+.filters.paged .strip-step[disabled]:hover,
+.filters.paged .strip-step[disabled]:focus {
+  border-color: transparent;
+  color: #999;
 }
 
 /* Only the level itself is clipped and turned. The controls that are not part of
