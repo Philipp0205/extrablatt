@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<!--
+  Shown on each new login after the complimentary week ends, until Close is
+  used (session only) or they go to subscribe. Rendered `open` by the server.
+-->
+<div th:fragment="trialEndedDialog">
+  <dialog id="trial-ended-dialog" class="donate-dialog" th:if="${trialEndedPrompt}" open>
+    <h2>Your trial has ended</h2>
+    <p>Thank you for using Extrablatt.</p>
+    <p class="meta">
+      Reading in the browser is not limited. Sending articles to your Kindle, and
+      adding more feeds, needs a subscription.
+    </p>
+    <div class="row">
+      <a class="btn primary" th:href="@{/settings/subscription}">Subscribe</a>
+      <form th:action="@{/settings/trial-ended/ack}" method="post">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <input type="hidden" name="redirect" th:value="${trialEndedRedirect}"/>
+        <button class="btn" type="submit">Close</button>
+      </form>
+    </div>
+  </dialog>
+</div>
+</body>
+</html>
