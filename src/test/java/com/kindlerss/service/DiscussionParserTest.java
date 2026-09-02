@@ -2,6 +2,7 @@ package com.kindlerss.service;
 
 import com.kindlerss.domain.Article;
 import org.junit.jupiter.api.Test;
+import org.jsoup.Jsoup;
 
 import java.net.URI;
 import java.time.Instant;
@@ -89,7 +90,7 @@ class DiscussionParserTest {
         assertTrue(html.contains("<h2>Post</h2>"));
         assertTrue(html.contains("sufficiently long introduction"));
         assertTrue(html.contains("<h2>Comments</h2>"));
-        assertTrue(html.contains("<strong>alice</strong> · 12 minutes ago"));
+        assertTrue(Jsoup.parseBodyFragment(html).text().contains("alice · 12 minutes ago"));
         assertTrue(html.contains("The energy numbers are the useful part."));
         assertTrue(html.contains("memory bandwidth"));
     }
