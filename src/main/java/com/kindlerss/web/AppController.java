@@ -502,6 +502,10 @@ public class AppController {
      * page. Reading past its last page means the whole list has been read through:
      * a fresh unread list is opened, which leaves those articles behind and shows
      * only what is still unread.
+     *
+     * <p>Marking is not announced. The count would land above the list on every
+     * page turn, where it takes a strip off every screen of the page it opens,
+     * and the meter under the list already says what is left to read.
      */
     @PostMapping("/items/advance")
     public String advance(@RequestParam(value = "feed", required = false) Long feedId,
@@ -509,17 +513,11 @@ public class AppController {
                           @RequestParam(value = "unread", required = false) Boolean unread,
                           @RequestParam(value = "snapshot", required = false) Long snapshot,
                           @RequestParam(value = "page", defaultValue = "1") int page,
-                          @RequestParam(value = "id", required = false) List<Long> ids,
-                          RedirectAttributes redirectAttributes) {
+                          @RequestParam(value = "id", required = false) List<Long> ids) {
         long userId = currentUser.requireId();
         boolean markReadOnNextPage = userService.markReadOnNextPage(userId);
-        int marked = 0;
-        if (markReadOnNextPage) {
-            marked = ids == null || ids.isEmpty() ? 0
-                    : articleService.markRead(userId, ids, true);
-            redirectAttributes.addFlashAttribute("message", marked == 0
-                    ? "Nothing left to mark as read"
-                    : marked == 1 ? "1 article marked as read" : marked + " articles marked as read");
+        if (markReadOnNextPage && ids != null && !ids.isEmpty()) {
+            articleService.markRead(userId, ids, true);
         }
 
         boolean unreadOnly = Boolean.TRUE.equals(unread);

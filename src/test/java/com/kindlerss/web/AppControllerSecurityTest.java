@@ -755,6 +755,20 @@ class AppControllerSecurityTest {
 
     @Test
     @WithMockUser
+    void advanceDoesNotAnnounceWhatItMarkedRead() throws Exception {
+        when(articleService.markRead(eq(UID), anyList(), eq(true))).thenReturn(3);
+
+        // A notice above the list costs a strip of every screen of the page it opens,
+        // and the reader can already see the list it just paged past.
+        mockMvc.perform(post("/items/advance").with(csrf())
+                        .param("page", "1")
+                        .param("id", "1", "2", "3"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(flash().attributeCount(0));
+    }
+
+    @Test
+    @WithMockUser
     void advanceOnAnUnreadListWithoutASnapshotStaysOnTheSamePage() throws Exception {
         when(articleService.markRead(eq(UID), anyList(), eq(true))).thenReturn(20);
 
