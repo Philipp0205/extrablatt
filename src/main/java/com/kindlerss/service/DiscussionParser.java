@@ -16,6 +16,7 @@ import org.springframework.stereotype.Component;
 import java.io.ByteArrayInputStream;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
@@ -41,8 +42,7 @@ public class DiscussionParser {
         if (html == null || html.isBlank()) {
             return false;
         }
-        return Jsoup.parseBodyFragment(html).select("h2").stream()
-                .anyMatch(heading -> "Comments".equalsIgnoreCase(heading.text().trim()));
+        return Jsoup.parseBodyFragment(html).selectFirst("[data-discussion-comments]") != null;
     }
 
     public Optional<String> parse(Article article) {
@@ -66,11 +66,12 @@ public class DiscussionParser {
             body.appendElement("h2").text("Post");
             appendFragment(body, redditBody(entries.getFirst()));
             body.appendElement("h2").text("Comments");
+            Element comments = body.appendElement("div").attr("data-discussion-comments", "");
             if (entries.size() == 1) {
-                body.appendElement("p").appendElement("em").text("No comments yet.");
+                comments.appendElement("p").appendElement("em").text("No comments yet.");
             } else {
                 for (SyndEntry comment : entries.subList(1, entries.size())) {
-                    appendComment(body, redditAuthor(comment), redditBody(comment), null);
+                    appendComment(comments, redditAuthor(comment), redditBody(comment), null);
                 }
             }
             return Optional.of(body.html());
@@ -110,11 +111,13 @@ public class DiscussionParser {
             appendFragment(body, postHtml);
         }
         body.appendElement("h2").text("Comments");
+        Element outputComments = body.appendElement("div").attr("data-discussion-comments", "");
 
         List<Element> comments = thread.select("tr.athing.comtr");
         if (comments.isEmpty()) {
-            body.appendElement("p").appendElement("em").text("No comments yet.");
+            outputComments.appendElement("p").appendElement("em").text("No comments yet.");
         } else {
+            List<Element> ancestors = new ArrayList<>();
             for (Element row : comments) {
                 Element text = row.selectFirst(".commtext");
                 if (text == null || text.text().isBlank()) {
@@ -122,13 +125,64 @@ public class DiscussionParser {
                 }
                 Element author = row.selectFirst(".hnuser");
                 Element age = row.selectFirst(".age");
-                appendComment(body,
+                int depth = hackerNewsDepth(row);
+                Element parent = commentParent(outputComments, ancestors, depth);
+                Element comment = appendComment(parent,
                         author == null ? "Anonymous" : author.text(),
                         text.html(),
                         age == null ? null : age.text());
+                rememberAtDepth(ancestors, comment, depth);
             }
+            labelReplyControls(outputComments);
         }
         return Optional.of(body.html());
+    }
+
+    private static int hackerNewsDepth(Element row) {
+        Element indent = row.selectFirst("td.ind");
+        if (indent == null) {
+            return 0;
+        }
+        String value = indent.attr("indent");
+        if (value.matches("\\d+")) {
+            return Integer.parseInt(value);
+        }
+        Element spacer = indent.selectFirst("img[width]");
+        String width = spacer == null ? "" : spacer.attr("width");
+        return width.matches("\\d+") ? Integer.parseInt(width) / 40 : 0;
+    }
+
+    private static Element commentParent(Element roots, List<Element> ancestors, int requestedDepth) {
+        int depth = Math.min(Math.max(requestedDepth, 0), ancestors.size());
+        if (depth == 0) {
+            return roots;
+        }
+        Element parentComment = ancestors.get(depth - 1);
+        Element replies = parentComment.selectFirst(":scope > details[data-comment-replies]");
+        if (replies == null) {
+            replies = parentComment.appendElement("details").attr("data-comment-replies", "");
+            replies.appendElement("summary").text("Show replies");
+            replies.appendElement("div").attr("data-comment-reply-list", "");
+        }
+        return replies.selectFirst(":scope > [data-comment-reply-list]");
+    }
+
+    private static void rememberAtDepth(List<Element> ancestors, Element comment, int requestedDepth) {
+        int depth = Math.min(Math.max(requestedDepth, 0), ancestors.size());
+        while (ancestors.size() > depth) {
+            ancestors.removeLast();
+        }
+        ancestors.add(comment);
+    }
+
+    private static void labelReplyControls(Element comments) {
+        for (Element replies : comments.select("details[data-comment-replies]")) {
+            int count = replies.select("[data-discussion-comment]").size();
+            Element summary = replies.selectFirst(":scope > summary");
+            if (summary != null) {
+                summary.text("Show " + count + (count == 1 ? " reply" : " replies"));
+            }
+        }
     }
 
     private String extractReadable(String url) {
@@ -261,13 +315,14 @@ public class DiscussionParser {
         }
     }
 
-    private static void appendComment(Element body, String author, String html, String age) {
-        Element comment = body.appendElement("blockquote");
+    private static Element appendComment(Element body, String author, String html, String age) {
+        Element comment = body.appendElement("blockquote").attr("data-discussion-comment", "");
         Element byline = comment.appendElement("p");
         byline.appendElement("strong").text(author);
         if (age != null && !age.isBlank()) {
             byline.appendText(" · " + age);
         }
         appendFragment(comment, html);
+        return comment;
     }
 }

@@ -10,9 +10,12 @@ import org.springframework.stereotype.Component;
 public class HtmlSanitizer {
 
     private static final Safelist ARTICLE = Safelist.relaxed()
-            .addTags("figure", "figcaption", "picture", "source")
+            .addTags("figure", "figcaption", "picture", "source", "details", "summary")
             .addAttributes("img", "alt", "title", "width", "height")
             .addAttributes("a", "title")
+            .addAttributes("blockquote", "data-discussion-comment")
+            .addAttributes("details", "data-comment-replies")
+            .addAttributes("div", "data-discussion-comments", "data-comment-reply-list")
             .addAttributes("source", "srcset", "type", "media")
             .addProtocols("img", "src", "http", "https")
             .addProtocols("a", "href", "http", "https", "mailto")
@@ -20,8 +23,11 @@ public class HtmlSanitizer {
 
     private static final Safelist ARTICLE_NO_IMAGES = Safelist.relaxed()
             .removeTags("img")
-            .addTags("figure", "figcaption")
+            .addTags("figure", "figcaption", "details", "summary")
             .addAttributes("a", "title")
+            .addAttributes("blockquote", "data-discussion-comment")
+            .addAttributes("details", "data-comment-replies")
+            .addAttributes("div", "data-discussion-comments", "data-comment-reply-list")
             .addProtocols("a", "href", "http", "https", "mailto")
             .preserveRelativeLinks(false);
 
