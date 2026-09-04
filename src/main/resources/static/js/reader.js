@@ -779,6 +779,86 @@
     layout(function () { return Math.round(progress * (pageCount - 1)); });
   }
 
+  var SEND_FAILED = 'Could not send article.';
+  var SEND_UNREACHABLE = 'Could not reach Extrablatt. Check the connection and try again.';
+  var SEND_SIGNED_OUT = 'You are no longer signed in. Reload this page, sign in, and send again.';
+  var SEND_SERVER_ERROR = 'Sending failed on the server. Try again in a moment.';
+
+  /*
+   * Where a send result is written. A banner in the page rather than alert():
+   * e-ink browsers do not reliably draw a modal dialogue, and a send that was
+   * refused for a reason the reader can act on — no Kindle address saved, the
+   * month's articles used up — is worth nothing if the reason never appears.
+   *
+   * The slot is normally in the markup, above the reader, so that the templates
+   * decide where it sits. One is made if a page carries a send form without it.
+   */
+  function sendFeedbackSlot() {
+    var slot = document.querySelector('[data-send-feedback]');
+    if (!slot) {
+      slot = document.createElement('div');
+      slot.setAttribute('data-send-feedback', '');
+      root.parentNode.insertBefore(slot, root);
+    }
+    return slot;
+  }
+
+  function emptySlot(slot) {
+    var emptied = !!slot.firstChild;
+    while (slot.firstChild) {
+      slot.removeChild(slot.firstChild);
+    }
+    return emptied;
+  }
+
+  function clearSendFeedback() {
+    var slot = document.querySelector('[data-send-feedback]');
+    // The banner was taking a strip off the top of the reader.
+    if (slot && emptySlot(slot)) {
+      onReaderChromeToggle();
+    }
+  }
+
+  function showSendError(message, settingsUrl) {
+    var slot = sendFeedbackSlot();
+    emptySlot(slot);
+    var banner = document.createElement('div');
+    banner.className = 'flash error';
+    banner.setAttribute('role', 'alert');
+    banner.appendChild(document.createTextNode(message));
+    if (settingsUrl) {
+      banner.appendChild(document.createTextNode(' '));
+      var link = document.createElement('a');
+      link.href = settingsUrl;
+      link.textContent = 'Open Kindle settings';
+      banner.appendChild(link);
+    }
+    slot.appendChild(banner);
+    onReaderChromeToggle();
+  }
+
+  /* Carries the sentence the reader is shown, so that a rejection from fetch
+     itself — which reads "Failed to fetch" — can be told from one of ours. */
+  function sendFailure(message, setup) {
+    var failure = new Error(message);
+    failure.sendMessage = message;
+    failure.sendSetup = !!setup;
+    return failure;
+  }
+
+  /*
+   * The send endpoint always answers with JSON. Anything else did not come from
+   * it: a signed-out POST is answered with a redirect to the login page, which
+   * fetch() follows and then reports as a perfectly good 200 — which used to be
+   * taken for a successful send and left the button reading "Sent".
+   */
+  function answeredWithJson(response) {
+    var type = response.headers && response.headers.get
+        ? response.headers.get('Content-Type')
+        : null;
+    return !!type && type.indexOf('json') >= 0;
+  }
+
   /*
    * Sending can take several seconds while the EPUB is built and SMTP responds.
    * Keep the current document and reader position in place instead of following
@@ -800,6 +880,7 @@
           if (event.preventDefault) {
             event.preventDefault();
           }
+          clearSendFeedback();
           button.style.width = button.offsetWidth + 'px';
           button.disabled = true;
           var originalLabel = button.textContent;
@@ -810,9 +891,12 @@
             body: new window.FormData(form),
             headers: {'Accept': 'application/json'}
           }).then(function (response) {
+            if (!answeredWithJson(response)) {
+              throw sendFailure(response.status >= 500 ? SEND_SERVER_ERROR : SEND_SIGNED_OUT);
+            }
             return response.json().catch(function () { return {}; }).then(function (data) {
               if (!response.ok) {
-                throw new Error(data.error || 'Could not send article');
+                throw sendFailure(data.error || SEND_FAILED, data.setup);
               }
               button.textContent = 'Sent';
             });
@@ -820,11 +904,22 @@
             button.disabled = false;
             button.textContent = originalLabel;
             button.style.width = '';
-            window.alert(error.message || 'Could not send article');
+            if (error && error.sendMessage) {
+              showSendError(error.sendMessage, error.sendSetup ? settingsUrl() : null);
+            } else {
+              showSendError(SEND_UNREACHABLE, null);
+            }
           });
         });
       })(forms[i]);
     }
+  }
+
+  /* Built by the template, so that a deployment under a path prefix still links
+     to the right page. */
+  function settingsUrl() {
+    var slot = document.querySelector('[data-send-feedback]');
+    return slot ? slot.getAttribute('data-send-settings-url') : null;
   }
 
   /* Turns paging on and shows the page that pickPage() asks for once the columns
@@ -878,7 +973,9 @@
       on(window.visualViewport, 'resize', onResize);
     }
     on(window, 'orientationchange', onResize);
-    var refittingDetails = document.querySelectorAll('[data-reader-refit]');
+    var refittingDetails = document.querySelectorAll(
+      '[data-reader-refit], details[data-comment-replies]'
+    );
     for (var i = 0; i < refittingDetails.length; i++) {
       on(refittingDetails[i], 'toggle', onReaderChromeToggle);
     }
