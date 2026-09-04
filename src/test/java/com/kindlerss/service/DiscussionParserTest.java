@@ -98,6 +98,51 @@ class DiscussionParserTest {
     }
 
     @Test
+    void hackerNewsRepliesAreNestedAndCollapsedUnderTheirRootComment() {
+        String commentsUrl = "https://news.ycombinator.com/item?id=49529898";
+        when(httpClient.get(commentsUrl)).thenReturn(fetched(commentsUrl, """
+                <html><body><table>
+                  <tr class="athing comtr"><td class="ind" indent="0"></td><td>
+                    <a class="hnuser">alice</a><span class="age">12 minutes ago</span>
+                    <div class="commtext">Root observation.</div>
+                  </td></tr>
+                  <tr class="athing comtr"><td class="ind" indent="1"></td><td>
+                    <a class="hnuser">bob</a><span class="age">8 minutes ago</span>
+                    <div class="commtext">Direct answer.</div>
+                  </td></tr>
+                  <tr class="athing comtr"><td class="ind" indent="2"></td><td>
+                    <a class="hnuser">carol</a><span class="age">6 minutes ago</span>
+                    <div class="commtext">Answer to the answer.</div>
+                  </td></tr>
+                  <tr class="athing comtr"><td class="ind" indent="0"></td><td>
+                    <a class="hnuser">dave</a><span class="age">2 minutes ago</span>
+                    <div class="commtext">Second root.</div>
+                  </td></tr>
+                </table></body></html>
+                """, "text/html"));
+
+        String html = parser.parse(article(commentsUrl, null, null, "Hacker News")).orElseThrow();
+        org.jsoup.nodes.Document output = Jsoup.parseBodyFragment(html);
+        org.jsoup.nodes.Element comments = output.selectFirst("[data-discussion-comments]");
+
+        assertEquals(2, comments.select(":scope > [data-discussion-comment]").size());
+        org.jsoup.nodes.Element firstRoot =
+                comments.selectFirst(":scope > [data-discussion-comment]");
+        org.jsoup.nodes.Element firstReplies =
+                firstRoot.selectFirst(":scope > details[data-comment-replies]");
+        assertTrue(firstReplies != null && !firstReplies.hasAttr("open"));
+        assertEquals("Show 2 replies", firstReplies.selectFirst(":scope > summary").text());
+
+        org.jsoup.nodes.Element directReply = firstReplies.selectFirst(
+                ":scope > [data-comment-reply-list] > [data-discussion-comment]");
+        assertTrue(directReply.text().contains("Direct answer."));
+        org.jsoup.nodes.Element nestedReplies =
+                directReply.selectFirst(":scope > details[data-comment-replies]");
+        assertEquals("Show 1 reply", nestedReplies.selectFirst(":scope > summary").text());
+        assertTrue(nestedReplies.text().contains("Answer to the answer."));
+    }
+
+    @Test
     void derivesRedditCommentFeedWithoutKeepingTrackingParameters() {
         assertEquals(
                 "https://www.reddit.com/r/stuttgart/comments/abc123/a_post/.rss",
