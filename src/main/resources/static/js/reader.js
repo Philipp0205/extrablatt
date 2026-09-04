@@ -36,8 +36,19 @@
      for: a phone browser reports small changes of its own accord. */
   var REFIT_THRESHOLD = 24;
 
+  /* reader-boot.js holds the reader out of sight from the <head> onwards so that
+     the long unpaged document is never painted; this is what shows it again, and
+     it has to run whether the page ends up paged, scrolling, or without a reader
+     at all. */
+  function reveal() {
+    if (window.revealReader) {
+      window.revealReader();
+    }
+  }
+
   var root = document.querySelector('[data-reader]');
   if (!root) {
+    reveal();
     return;
   }
 
@@ -45,6 +56,7 @@
   var content = root.querySelector('[data-reader-content]');
   var pager = root.querySelector('[data-reader-pager]');
   if (!frame || !content || !pager) {
+    reveal();
     return;
   }
 
@@ -891,6 +903,7 @@
       return addressed >= 0 ? addressed : storedPosition();
     });
     forgetHash();
+    reveal();
   }
 
   /* #end and #start only say where to open the page; leaving them in the address
