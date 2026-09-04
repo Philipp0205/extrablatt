@@ -5,6 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title th:text="${article.title} + ' — Extrablatt'">Article — Extrablatt</title>
   <link rel="stylesheet" th:href="@{/css/app.css}"/>
+  <!-- Runs before the article is parsed, so that the unpaged document underneath
+       is never painted; reader.js shows the reader again once it has laid it out. -->
+  <script th:src="@{/js/reader-boot.js}"></script>
 </head>
 <body class="reading">
 <div class="wrap">
