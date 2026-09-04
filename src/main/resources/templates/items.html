@@ -19,6 +19,9 @@
   <div th:replace="~{fragments/trial-banner :: trialBanner}"></div>
   <div th:if="${message}" class="flash" th:text="${message}"></div>
   <div th:if="${error}" class="flash error" th:text="${error}"></div>
+  <!-- Where reader.js writes the reason a send did not happen. Empty, and so
+       taking up no room, until there is something to say. -->
+  <div data-send-feedback th:attr="data-send-settings-url=@{/settings/kindle}"></div>
   <div th:replace="~{fragments/trial-ended-dialog :: trialEndedDialog}"></div>
   <div th:replace="~{fragments/whats-new-dialog :: whatsNewDialog}"></div>
 

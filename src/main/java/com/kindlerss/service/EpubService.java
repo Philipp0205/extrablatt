@@ -135,6 +135,19 @@ public class EpubService {
 
     private static String toXhtml(String bodyHtml) {
         Document document = Jsoup.parseBodyFragment(bodyHtml == null ? "" : bodyHtml);
+        // Browser readers can fold reply trees to keep the first page concise.
+        // Kindle documents are read linearly, so remove only that interaction
+        // wrapper while retaining every nested comment in document order.
+        for (org.jsoup.nodes.Element replies : document.select("details[data-comment-replies]")) {
+            org.jsoup.nodes.Element summary = replies.children().stream()
+                    .filter(child -> child.tagName().equals("summary"))
+                    .findFirst()
+                    .orElse(null);
+            if (summary != null) {
+                summary.remove();
+            }
+            replies.unwrap();
+        }
         document.outputSettings()
                 .syntax(Document.OutputSettings.Syntax.xml)
                 .charset(StandardCharsets.UTF_8)
