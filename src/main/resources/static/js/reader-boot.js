@@ -19,6 +19,7 @@
   'use strict';
 
   var LOADING_CLASS = 'reader-loading';
+  var LOADING_PATTERN = /\s*\breader-loading\b/g;
   /* Long enough that it cannot fire while a Kindle is still parsing a batch of
      articles, since revealing early is the very reflow this avoids. It is only
      ever reached when the load event does not arrive either. */
@@ -32,7 +33,7 @@
       window.clearTimeout(timer);
       timer = null;
     }
-    root.className = root.className.replace(/\s*\breader-loading\b/g, '');
+    root.className = root.className.replace(LOADING_PATTERN, '');
   }
 
   root.className = root.className ? root.className + ' ' + LOADING_CLASS : LOADING_CLASS;
