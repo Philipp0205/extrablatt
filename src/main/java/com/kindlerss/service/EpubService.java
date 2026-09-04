@@ -139,7 +139,10 @@ public class EpubService {
         // Kindle documents are read linearly, so remove only that interaction
         // wrapper while retaining every nested comment in document order.
         for (org.jsoup.nodes.Element replies : document.select("details[data-comment-replies]")) {
-            org.jsoup.nodes.Element summary = replies.selectFirst(":scope > summary");
+            org.jsoup.nodes.Element summary = replies.children().stream()
+                    .filter(child -> child.tagName().equals("summary"))
+                    .findFirst()
+                    .orElse(null);
             if (summary != null) {
                 summary.remove();
             }

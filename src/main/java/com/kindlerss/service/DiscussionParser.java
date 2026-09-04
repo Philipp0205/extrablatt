@@ -158,13 +158,13 @@ public class DiscussionParser {
             return roots;
         }
         Element parentComment = ancestors.get(depth - 1);
-        Element replies = parentComment.selectFirst(":scope > details[data-comment-replies]");
+        Element replies = directChild(parentComment, "details[data-comment-replies]");
         if (replies == null) {
             replies = parentComment.appendElement("details").attr("data-comment-replies", "");
             replies.appendElement("summary").text("Show replies");
             replies.appendElement("div").attr("data-comment-reply-list", "");
         }
-        return replies.selectFirst(":scope > [data-comment-reply-list]");
+        return directChild(replies, "[data-comment-reply-list]");
     }
 
     private static void rememberAtDepth(List<Element> ancestors, Element comment, int requestedDepth) {
@@ -178,11 +178,18 @@ public class DiscussionParser {
     private static void labelReplyControls(Element comments) {
         for (Element replies : comments.select("details[data-comment-replies]")) {
             int count = replies.select("[data-discussion-comment]").size();
-            Element summary = replies.selectFirst(":scope > summary");
+            Element summary = directChild(replies, "summary");
             if (summary != null) {
                 summary.text("Show " + count + (count == 1 ? " reply" : " replies"));
             }
         }
+    }
+
+    private static Element directChild(Element parent, String selector) {
+        return parent.children().stream()
+                .filter(child -> child.is(selector))
+                .findFirst()
+                .orElse(null);
     }
 
     private String extractReadable(String url) {
