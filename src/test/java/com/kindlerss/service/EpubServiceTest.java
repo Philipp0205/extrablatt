@@ -118,12 +118,9 @@ class EpubServiceTest {
                       <summary>Show 2 replies</summary>
                       <div data-comment-reply-list>
                         <blockquote data-discussion-comment><p>First reply.</p>
-                          <details data-comment-replies>
-                            <summary>Show 1 reply</summary>
-                            <div data-comment-reply-list>
-                              <blockquote data-discussion-comment><p>Nested reply.</p></blockquote>
-                            </div>
-                          </details>
+                          <div data-comment-reply-list>
+                            <blockquote data-discussion-comment><p>Nested reply.</p></blockquote>
+                          </div>
                         </blockquote>
                       </div>
                     </details>

@@ -158,13 +158,19 @@ public class DiscussionParser {
             return roots;
         }
         Element parentComment = ancestors.get(depth - 1);
-        Element replies = directChild(parentComment, "details[data-comment-replies]");
-        if (replies == null) {
-            replies = parentComment.appendElement("details").attr("data-comment-replies", "");
-            replies.appendElement("summary").text("Show replies");
-            replies.appendElement("div").attr("data-comment-reply-list", "");
+        if (depth == 1) {
+            Element replies = directChild(parentComment, "details[data-comment-replies]");
+            if (replies == null) {
+                replies = parentComment.appendElement("details").attr("data-comment-replies", "");
+                replies.appendElement("summary").text("Show replies");
+                replies.appendElement("div").attr("data-comment-reply-list", "");
+            }
+            return directChild(replies, "[data-comment-reply-list]");
         }
-        return directChild(replies, "[data-comment-reply-list]");
+        Element replyList = directChild(parentComment, "[data-comment-reply-list]");
+        return replyList == null
+                ? parentComment.appendElement("div").attr("data-comment-reply-list", "")
+                : replyList;
     }
 
     private static void rememberAtDepth(List<Element> ancestors, Element comment, int requestedDepth) {

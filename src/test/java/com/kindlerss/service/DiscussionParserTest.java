@@ -135,9 +135,10 @@ class DiscussionParserTest {
         org.jsoup.nodes.Element directReply =
                 directChild(firstReplies, "data-comment-reply-list").children().first();
         assertTrue(directReply.text().contains("Direct answer."));
-        org.jsoup.nodes.Element nestedReplies = directChild(directReply, "data-comment-replies");
-        assertEquals("Show 1 reply", nestedReplies.children().first().text());
-        assertTrue(nestedReplies.text().contains("Answer to the answer."));
+        assertTrue(directChild(directReply, "data-comment-replies") == null);
+        org.jsoup.nodes.Element nestedReply =
+                directChild(directReply, "data-comment-reply-list").children().first();
+        assertTrue(nestedReply.text().contains("Answer to the answer."));
     }
 
     @Test
