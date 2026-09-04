@@ -122,9 +122,20 @@ public class KindleMailService {
 
     private String requireKindleEmail(AppUser user) {
         if (!StringUtils.hasText(user.kindleEmail())) {
-            throw new IllegalStateException("Add your Kindle e-mail address in Settings first");
+            throw new SetupRequiredException("Add your Kindle e-mail address in Settings first");
         }
         return user.kindleEmail();
+    }
+
+    /**
+     * A send refused because the account's Kindle side is not set up yet, as
+     * opposed to one that failed. Told apart from the rest so that the reader is
+     * offered the page that fixes it rather than only the sentence saying so.
+     */
+    public static class SetupRequiredException extends IllegalStateException {
+        public SetupRequiredException(String message) {
+            super(message);
+        }
     }
 
     /**
