@@ -599,7 +599,7 @@ public class AppController {
             articleService.markRead(userId, id, true);
             article = articleService.findById(userId, id).orElse(article);
         }
-        String contentHtml = articleService.getContentHtml(article, images);
+        String contentHtml = articleService.getReaderHtml(article, images);
         model.addAttribute("article", article);
         model.addAttribute("contentHtml", contentHtml);
         model.addAttribute("images", images);

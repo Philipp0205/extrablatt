@@ -1100,6 +1100,15 @@ body.reading .wrap {
   border: 1px solid #000;
 }
 
+.article-body .image-placeholder {
+  display: inline-block;
+  margin: 0.5rem 0;
+  padding: 0.1rem 0.4rem;
+  border: 1px dashed #000;
+  font-size: 0.85rem;
+  color: #444;
+}
+
 /* Discussion feeds arrive as trees. Keep each root comment in the reading flow,
    then let its answers open in place instead of spending several pages on a
    thread the reader may not want. Nested blockquotes preserve who answered whom. */
