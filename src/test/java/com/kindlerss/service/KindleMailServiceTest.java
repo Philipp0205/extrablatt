@@ -173,6 +173,25 @@ class KindleMailServiceTest {
         throw new AssertionError("the EPUB has no article chapter");
     }
 
+    /**
+     * An account that never saved a Kindle address has not hit a failure so much as
+     * a step it has not taken. Refusing it with its own type is what lets the page
+     * offer the settings alongside the sentence.
+     */
+    @Test
+    void anAccountWithoutAKindleAddressIsToldToSetOneUp() {
+        when(userRepository.findById(UID)).thenReturn(Optional.of(
+                new AppUser(UID, "user@example.com", "hash", null,
+                        Instant.now(), null, Instant.now(), Instant.now())));
+
+        KindleMailService.SetupRequiredException error = assertThrows(
+                KindleMailService.SetupRequiredException.class,
+                () -> service.sendToKindle(UID, 7L, false));
+
+        assertTrue(error.getMessage().contains("Kindle e-mail address"), error.getMessage());
+        verify(mailSender, never()).send(any(MimeMessage.class));
+    }
+
     @Test
     void smtpFailureDoesNotRecordDelivery() {
         doThrow(new IllegalStateException("SMTP unavailable"))
