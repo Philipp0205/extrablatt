@@ -114,6 +114,19 @@ public class ArticleService {
     }
 
     /**
+     * The same content for the browser, where hidden images leave a marker behind:
+     * on screen "Show images" is one tap away, so it is worth saying that there is
+     * something to load. A Kindle has no such choice, so the EPUB stays clean.
+     */
+    @Transactional
+    public String getReaderHtml(Article article, boolean includeImages) {
+        String raw = resolveRawContent(article);
+        return includeImages
+                ? sanitizer.sanitizeWithImages(raw)
+                : sanitizer.sanitizeWithImagePlaceholders(raw);
+    }
+
+    /**
      * Feed metadata sometimes carries a discussion link that does not exist on the
      * linked article itself (notably Hacker News). Keep that route available even
      * when Readability replaces the feed summary with the full source article.
