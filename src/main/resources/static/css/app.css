@@ -1088,6 +1088,15 @@ body.reading .wrap {
   border: 1px solid #000;
 }
 
+.article-body .image-placeholder {
+  display: inline-block;
+  margin: 0.5rem 0;
+  padding: 0.1rem 0.4rem;
+  border: 1px dashed #000;
+  font-size: 0.85rem;
+  color: #444;
+}
+
 .article-body pre, .article-body code {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 0.9rem;
