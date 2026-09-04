@@ -147,6 +147,9 @@ article list are therefore laid out as whole pages:
   and continue**. Turn the setting off and new feed articles arrive already read,
   so a refresh does not fill Unread with a backlog. An article that was opened by
   mistake takes **Mark unread** on its own page.
+- Opening a list or an article shows the finished page: the reader stays blank
+  until the columns have been measured, rather than painting the whole batch in
+  normal flow and then collapsing it to one screen once the script has run.
 - Your position is remembered per article, so sending to Kindle or marking an
   article unread returns you to the page you were on.
 - The list remembers which of its pages you are on for as long as it is that list:
