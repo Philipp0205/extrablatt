@@ -651,6 +651,13 @@ public class AppController {
         return "redirect:" + target;
     }
 
+    /**
+     * The answer is always JSON, and always carries the reason a send did not
+     * happen: it is the only thing the reader is told, since the page it was
+     * started from stays put. A refusal the account can lift itself — no Kindle
+     * address saved yet — is marked as such, so the page can offer the settings
+     * along with the sentence.
+     */
     @PostMapping("/articles/{id}/send-async")
     public ResponseEntity<Map<String, Object>> sendAsync(
             @PathVariable("id") long id,
@@ -659,11 +666,20 @@ public class AppController {
             kindleMailService.sendToKindle(currentUser.requireId(), id, images);
             return ResponseEntity.ok(Map.of("message", "Sent to Kindle"));
         } catch (ArticleService.NotFoundException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", e.getMessage()));
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", message(e)));
+        } catch (KindleMailService.SetupRequiredException e) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(Map.of("error", message(e), "setup", true));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("error", e.getMessage() == null ? "Could not send article" : e.getMessage()));
+                    .body(Map.of("error", message(e)));
         }
+    }
+
+    private static String message(Exception e) {
+        return e.getMessage() == null || e.getMessage().isBlank()
+                ? "Could not send article"
+                : e.getMessage();
     }
 
     /**
