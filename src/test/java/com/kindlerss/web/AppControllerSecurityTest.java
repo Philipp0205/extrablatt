@@ -595,7 +595,7 @@ class AppControllerSecurityTest {
         Article article = new Article(7L, 1L, "guid", "Paged article", "https://example.com/a", null,
                 null, null, null, null, true, null, null, null, "Example Feed");
         when(articleService.findById(UID, 7L)).thenReturn(Optional.of(article));
-        when(articleService.getContentHtml(any(Article.class), eq(false))).thenReturn("<p>Body</p>");
+        when(articleService.getReaderHtml(any(Article.class), eq(false))).thenReturn("<p>Body</p>");
 
         mockMvc.perform(get("/articles/7"))
                 .andExpect(status().isOk())
