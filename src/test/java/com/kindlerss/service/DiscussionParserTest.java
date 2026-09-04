@@ -125,20 +125,18 @@ class DiscussionParserTest {
         org.jsoup.nodes.Document output = Jsoup.parseBodyFragment(html);
         org.jsoup.nodes.Element comments = output.selectFirst("[data-discussion-comments]");
 
-        assertEquals(2, comments.select(":scope > [data-discussion-comment]").size());
-        org.jsoup.nodes.Element firstRoot =
-                comments.selectFirst(":scope > [data-discussion-comment]");
-        org.jsoup.nodes.Element firstReplies =
-                firstRoot.selectFirst(":scope > details[data-comment-replies]");
+        assertEquals(2, comments.children().stream()
+                .filter(child -> child.hasAttr("data-discussion-comment")).count());
+        org.jsoup.nodes.Element firstRoot = comments.children().first();
+        org.jsoup.nodes.Element firstReplies = directChild(firstRoot, "data-comment-replies");
         assertTrue(firstReplies != null && !firstReplies.hasAttr("open"));
-        assertEquals("Show 2 replies", firstReplies.selectFirst(":scope > summary").text());
+        assertEquals("Show 2 replies", firstReplies.children().first().text());
 
-        org.jsoup.nodes.Element directReply = firstReplies.selectFirst(
-                ":scope > [data-comment-reply-list] > [data-discussion-comment]");
+        org.jsoup.nodes.Element directReply =
+                directChild(firstReplies, "data-comment-reply-list").children().first();
         assertTrue(directReply.text().contains("Direct answer."));
-        org.jsoup.nodes.Element nestedReplies =
-                directReply.selectFirst(":scope > details[data-comment-replies]");
-        assertEquals("Show 1 reply", nestedReplies.selectFirst(":scope > summary").text());
+        org.jsoup.nodes.Element nestedReplies = directChild(directReply, "data-comment-replies");
+        assertEquals("Show 1 reply", nestedReplies.children().first().text());
         assertTrue(nestedReplies.text().contains("Answer to the answer."));
     }
 
@@ -168,5 +166,13 @@ class DiscussionParserTest {
 
     private static SafeHttpClient.FetchedContent fetched(String url, String body, String type) {
         return new SafeHttpClient.FetchedContent(URI.create(url), body, type);
+    }
+
+    private static org.jsoup.nodes.Element directChild(
+            org.jsoup.nodes.Element parent, String attribute) {
+        return parent.children().stream()
+                .filter(child -> child.hasAttr(attribute))
+                .findFirst()
+                .orElse(null);
     }
 }
