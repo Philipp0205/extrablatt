@@ -106,6 +106,42 @@ class EpubServiceTest {
         }
     }
 
+    @Test
+    void kindleChapterContainsEveryReplyWithoutBrowserExpansionControls() throws Exception {
+        String discussion = """
+                <h2>Post</h2><p>The article.</p>
+                <h2>Comments</h2>
+                <div data-discussion-comments>
+                  <blockquote data-discussion-comment>
+                    <p><strong>Alice</strong></p><p>Root comment.</p>
+                    <details data-comment-replies>
+                      <summary>Show 2 replies</summary>
+                      <div data-comment-reply-list>
+                        <blockquote data-discussion-comment><p>First reply.</p>
+                          <div data-comment-reply-list>
+                            <blockquote data-discussion-comment><p>Nested reply.</p></blockquote>
+                          </div>
+                        </blockquote>
+                      </div>
+                    </details>
+                  </blockquote>
+                </div>
+                """;
+
+        String article = text(entries(epubService.createEpub(
+                "A story", "Jane Doe", "https://example.com/a", discussion)), "OEBPS/article.xhtml");
+
+        assertTrue(article.contains("The article."));
+        assertTrue(article.contains("Root comment."));
+        assertTrue(article.contains("First reply."));
+        assertTrue(article.contains("Nested reply."));
+        assertFalse(article.contains("<details"));
+        assertFalse(article.contains("<summary"));
+        assertFalse(article.contains("Show 2 replies"));
+        DocumentBuilderFactory.newInstance().newDocumentBuilder()
+                .parse(new ByteArrayInputStream(article.getBytes(StandardCharsets.UTF_8)));
+    }
+
     private static Map<String, byte[]> entries(byte[] epub) throws Exception {
         Map<String, byte[]> entries = new LinkedHashMap<>();
         try (ZipInputStream zis = new ZipInputStream(new ByteArrayInputStream(epub))) {

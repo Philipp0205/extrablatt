@@ -28,4 +28,28 @@ class HtmlSanitizerTest {
         assertFalse(without.contains("<img"));
         assertTrue(without.contains("Text"));
     }
+
+    @Test
+    void preservesOnlyTheDiscussionAttributesNeededForCollapsibleReplies() {
+        String html = """
+                <div class="offscreen" data-discussion-comments>
+                  <blockquote data-discussion-comment>
+                    Root
+                    <details class="action-menu" data-comment-replies>
+                      <summary>Show 1 reply</summary>
+                      <div data-comment-reply-list><blockquote data-discussion-comment>Reply</blockquote></div>
+                    </details>
+                  </blockquote>
+                </div>
+                """;
+
+        String clean = sanitizer.sanitizeWithoutImages(html);
+
+        assertTrue(clean.contains("data-discussion-comments"));
+        assertTrue(clean.contains("data-discussion-comment"));
+        assertTrue(clean.contains("data-comment-replies"));
+        assertTrue(clean.contains("data-comment-reply-list"));
+        assertFalse(clean.contains("offscreen"));
+        assertFalse(clean.contains("action-menu"));
+    }
 }

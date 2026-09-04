@@ -878,7 +878,9 @@
       on(window.visualViewport, 'resize', onResize);
     }
     on(window, 'orientationchange', onResize);
-    var refittingDetails = document.querySelectorAll('[data-reader-refit]');
+    var refittingDetails = document.querySelectorAll(
+      '[data-reader-refit], details[data-comment-replies]'
+    );
     for (var i = 0; i < refittingDetails.length; i++) {
       on(refittingDetails[i], 'toggle', onReaderChromeToggle);
     }
