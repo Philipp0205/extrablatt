@@ -36,8 +36,19 @@
      for: a phone browser reports small changes of its own accord. */
   var REFIT_THRESHOLD = 24;
 
+  /* reader-boot.js holds the reader out of sight from the <head> onwards so that
+     the long unpaged document is never painted; this is what shows it again, and
+     it has to run whether the page ends up paged, scrolling, or without a reader
+     at all. */
+  function reveal() {
+    if (window.revealReader) {
+      window.revealReader();
+    }
+  }
+
   var root = document.querySelector('[data-reader]');
   if (!root) {
+    reveal();
     return;
   }
 
@@ -45,6 +56,7 @@
   var content = root.querySelector('[data-reader-content]');
   var pager = root.querySelector('[data-reader-pager]');
   if (!frame || !content || !pager) {
+    reveal();
     return;
   }
 
@@ -63,9 +75,24 @@
   // A list whose rows are dealt out over the pages rather than left to the
   // browser's own column fill; see fillPages().
   var fillList = content.querySelector('[data-reader-fill]');
-  // A list (as opposed to a single article) is asked to always open at the top,
-  // so a stored scroll position is neither saved nor restored for it.
-  var restorePosition = root.getAttribute('data-reader-restore') !== 'false';
+  /*
+   * Where the reader's place in the document is kept.
+   *
+   * An article keeps it in storage under its own key ("stored", the default), so
+   * that it opens where it was left however it is reached again.
+   *
+   * A list keeps it in the address instead ("address"). A list that is opened
+   * afresh — "Articles", a filter, the next batch — holds other articles than the
+   * one left behind and so opens at the top; but the history entry the browser
+   * goes back to keeps the screen the list was on, so an article opened out of
+   * the list comes back to the screen it was picked from.
+   *
+   * "false" keeps it nowhere.
+   */
+  var positionMode = root.getAttribute('data-reader-restore') || 'stored';
+  var restorePosition = positionMode === 'stored';
+  var keepPageInAddress = positionMode === 'address' &&
+      !!(window.history && window.history.replaceState);
 
   var marker = document.createElement('div');
   marker.className = 'reader-end';
@@ -442,6 +469,7 @@
       nextButton.className = leaving ? 'btn primary' : 'btn';
     }
     storePosition();
+    writeAddressedPage();
   }
 
   /*
@@ -471,6 +499,40 @@
       return isNaN(fraction) ? 0 : Math.round(fraction * pageCount);
     } catch (e) {
       return 0;
+    }
+  }
+
+  /* Pages are numbered from one in the address, as they are in the pager's label. */
+  var ADDRESSED_PAGE = /^#p([0-9]+)$/;
+
+  /** The page the address names, or -1 when it names none. */
+  function addressedPage() {
+    var match = ADDRESSED_PAGE.exec(window.location.hash);
+    return match ? parseInt(match[1], 10) - 1 : -1;
+  }
+
+  /*
+   * Writes the page into the address of the current history entry.
+   *
+   * Replaced rather than pushed: the pages of a list are not stops to walk back
+   * through, and back has to keep leading out of the list. What it buys is that
+   * the entry the browser returns to from an article names the page the list was
+   * left on, while a list opened afresh — with no page in its address — still
+   * starts at the beginning.
+   */
+  function writeAddressedPage() {
+    if (!keepPageInAddress) {
+      return;
+    }
+    var hash = page > 0 ? '#p' + (page + 1) : '';
+    if (hash === window.location.hash) {
+      return;
+    }
+    try {
+      window.history.replaceState(null, '',
+          window.location.pathname + window.location.search + hash);
+    } catch (e) {
+      // Not worth losing a page turn over: the page is still shown.
     }
   }
 
@@ -729,6 +791,86 @@
     layout(function () { return Math.round(progress * (pageCount - 1)); });
   }
 
+  var SEND_FAILED = 'Could not send article.';
+  var SEND_UNREACHABLE = 'Could not reach Extrablatt. Check the connection and try again.';
+  var SEND_SIGNED_OUT = 'You are no longer signed in. Reload this page, sign in, and send again.';
+  var SEND_SERVER_ERROR = 'Sending failed on the server. Try again in a moment.';
+
+  /*
+   * Where a send result is written. A banner in the page rather than alert():
+   * e-ink browsers do not reliably draw a modal dialogue, and a send that was
+   * refused for a reason the reader can act on — no Kindle address saved, the
+   * month's articles used up — is worth nothing if the reason never appears.
+   *
+   * The slot is normally in the markup, above the reader, so that the templates
+   * decide where it sits. One is made if a page carries a send form without it.
+   */
+  function sendFeedbackSlot() {
+    var slot = document.querySelector('[data-send-feedback]');
+    if (!slot) {
+      slot = document.createElement('div');
+      slot.setAttribute('data-send-feedback', '');
+      root.parentNode.insertBefore(slot, root);
+    }
+    return slot;
+  }
+
+  function emptySlot(slot) {
+    var emptied = !!slot.firstChild;
+    while (slot.firstChild) {
+      slot.removeChild(slot.firstChild);
+    }
+    return emptied;
+  }
+
+  function clearSendFeedback() {
+    var slot = document.querySelector('[data-send-feedback]');
+    // The banner was taking a strip off the top of the reader.
+    if (slot && emptySlot(slot)) {
+      onReaderChromeToggle();
+    }
+  }
+
+  function showSendError(message, settingsUrl) {
+    var slot = sendFeedbackSlot();
+    emptySlot(slot);
+    var banner = document.createElement('div');
+    banner.className = 'flash error';
+    banner.setAttribute('role', 'alert');
+    banner.appendChild(document.createTextNode(message));
+    if (settingsUrl) {
+      banner.appendChild(document.createTextNode(' '));
+      var link = document.createElement('a');
+      link.href = settingsUrl;
+      link.textContent = 'Open Kindle settings';
+      banner.appendChild(link);
+    }
+    slot.appendChild(banner);
+    onReaderChromeToggle();
+  }
+
+  /* Carries the sentence the reader is shown, so that a rejection from fetch
+     itself — which reads "Failed to fetch" — can be told from one of ours. */
+  function sendFailure(message, setup) {
+    var failure = new Error(message);
+    failure.sendMessage = message;
+    failure.sendSetup = !!setup;
+    return failure;
+  }
+
+  /*
+   * The send endpoint always answers with JSON. Anything else did not come from
+   * it: a signed-out POST is answered with a redirect to the login page, which
+   * fetch() follows and then reports as a perfectly good 200 — which used to be
+   * taken for a successful send and left the button reading "Sent".
+   */
+  function answeredWithJson(response) {
+    var type = response.headers && response.headers.get
+        ? response.headers.get('Content-Type')
+        : null;
+    return !!type && type.indexOf('json') >= 0;
+  }
+
   /*
    * Sending can take several seconds while the EPUB is built and SMTP responds.
    * Keep the current document and reader position in place instead of following
@@ -750,6 +892,7 @@
           if (event.preventDefault) {
             event.preventDefault();
           }
+          clearSendFeedback();
           button.style.width = button.offsetWidth + 'px';
           button.disabled = true;
           var originalLabel = button.textContent;
@@ -760,9 +903,12 @@
             body: new window.FormData(form),
             headers: {'Accept': 'application/json'}
           }).then(function (response) {
+            if (!answeredWithJson(response)) {
+              throw sendFailure(response.status >= 500 ? SEND_SERVER_ERROR : SEND_SIGNED_OUT);
+            }
             return response.json().catch(function () { return {}; }).then(function (data) {
               if (!response.ok) {
-                throw new Error(data.error || 'Could not send article');
+                throw sendFailure(data.error || SEND_FAILED, data.setup);
               }
               button.textContent = 'Sent';
             });
@@ -770,11 +916,22 @@
             button.disabled = false;
             button.textContent = originalLabel;
             button.style.width = '';
-            window.alert(error.message || 'Could not send article');
+            if (error && error.sendMessage) {
+              showSendError(error.sendMessage, error.sendSetup ? settingsUrl() : null);
+            } else {
+              showSendError(SEND_UNREACHABLE, null);
+            }
           });
         });
       })(forms[i]);
     }
+  }
+
+  /* Built by the template, so that a deployment under a path prefix still links
+     to the right page. */
+  function settingsUrl() {
+    var slot = document.querySelector('[data-send-feedback]');
+    return slot ? slot.getAttribute('data-send-settings-url') : null;
   }
 
   /* Turns paging on and shows the page that pickPage() asks for once the columns
@@ -828,15 +985,22 @@
       on(window.visualViewport, 'resize', onResize);
     }
     on(window, 'orientationchange', onResize);
-    var refittingDetails = document.querySelectorAll('[data-reader-refit]');
+    var refittingDetails = document.querySelectorAll(
+      '[data-reader-refit], details[data-comment-replies]'
+    );
     for (var i = 0; i < refittingDetails.length; i++) {
       on(refittingDetails[i], 'toggle', onReaderChromeToggle);
     }
 
     layout(function () {
-      return window.location.hash === '#end' ? pageCount - 1 : storedPosition();
+      if (window.location.hash === '#end') {
+        return pageCount - 1;
+      }
+      var addressed = addressedPage();
+      return addressed >= 0 ? addressed : storedPosition();
     });
     forgetHash();
+    reveal();
   }
 
   /* #end and #start only say where to open the page; leaving them in the address

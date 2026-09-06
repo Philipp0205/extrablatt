@@ -56,13 +56,16 @@ public class FeedService {
      */
     private static final Set<String> ENTRY_COUNT_PARAMETERS = Set.of("count", "limit", "n");
     private static final List<DefaultFeed> DEFAULT_FEEDS = List.of(
-            new DefaultFeed("hacker-news", "Hacker News", "https://hnrss.org/frontpage", "Technology"),
-            new DefaultFeed("android-developers", "Android Developers",
-                    "https://android-developers.googleblog.com/feeds/posts/default", "Technology"),
-            new DefaultFeed("ars-technica", "Ars Technica",
-                    "https://feeds.arstechnica.com/arstechnica/index", "Technology"),
             new DefaultFeed("bbc-world", "BBC World News",
-                    "https://feeds.bbci.co.uk/news/world/rss.xml", "News")
+                    "https://feeds.bbci.co.uk/news/world/rss.xml", "News"),
+            new DefaultFeed("the-guardian", "The Guardian",
+                    "https://www.theguardian.com/world/rss", "News"),
+            new DefaultFeed("npr", "NPR",
+                    "https://feeds.npr.org/1001/rss.xml", "News"),
+            new DefaultFeed("tagesschau", "Tagesschau",
+                    "https://www.tagesschau.de/index~rss2.xml", "News"),
+            new DefaultFeed("spiegel", "Der Spiegel",
+                    "https://www.spiegel.de/schlagzeilen/index.rss", "News")
     );
 
     private static final Pattern EMAIL_ADDRESS = Pattern.compile("([a-zA-Z0-9._%+-]+)@([a-zA-Z0-9.-]+)");
@@ -153,7 +156,7 @@ public class FeedService {
     public Feed addFeed(long userId, String rawUrl, String category) {
         String trimmed = rawUrl == null ? "" : rawUrl.trim();
         if (trimmed.isEmpty()) {
-            throw new IllegalArgumentException("Feed URL is required");
+            throw new IllegalArgumentException("A website address is required");
         }
         Entitlement entitlement = entitlements.forUser(userId);
         int maxFeeds = entitlement.maxFeeds();
@@ -177,7 +180,7 @@ public class FeedService {
         }
 
         if (feedRepository.findByUrl(userId, feedUrl).isPresent()) {
-            throw new IllegalArgumentException("Feed already exists");
+            throw new IllegalArgumentException("You're already following that site");
         }
 
         String title = parsed.title() == null || parsed.title().isBlank() ? feedUrl : parsed.title().trim();
@@ -188,9 +191,9 @@ public class FeedService {
 
     private static String feedLimitMessage(Entitlement entitlement, int maxFeeds) {
         if (!entitlement.paid() && maxFeeds <= 0) {
-            return "Your free week has ended. Subscribe under Settings → Subscription to add feeds.";
+            return "Your free week has ended. Subscribe under Settings → Subscription to follow more sites.";
         }
-        return "Feed limit reached (" + maxFeeds + "). Delete a feed before adding another.";
+        return "You can follow at most " + maxFeeds + " sites. Remove one before adding another.";
     }
 
     /**
@@ -509,7 +512,7 @@ public class FeedService {
             }
         }
         throw new IllegalArgumentException(
-                "Could not find an RSS/Atom feed at that address. Try the feed's direct URL.");
+                "This site doesn't publish in a way Extrablatt can follow automatically. Try the homepage, or another newspaper.");
     }
 
     /** Ordered, de-duplicated feed candidates gathered from a page's markup and site conventions. */

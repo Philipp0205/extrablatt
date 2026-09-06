@@ -2,6 +2,7 @@ package com.kindlerss.service;
 
 import org.junit.jupiter.api.Test;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -27,5 +28,98 @@ class HtmlSanitizerTest {
         assertTrue(with.contains("<img"));
         assertFalse(without.contains("<img"));
         assertTrue(without.contains("Text"));
+    }
+
+    @Test
+    void aHiddenImageLeavesAMarkerBehind() {
+        String html = "<p>Text</p><img src=\"https://example.com/a.png\" alt=\"A harbour at dawn\"/>";
+
+        String marked = sanitizer.sanitizeWithImagePlaceholders(html);
+
+        assertFalse(marked.contains("<img"));
+        assertFalse(marked.contains("example.com/a.png"));
+        assertTrue(marked.contains("<span class=\"image-placeholder\">[Image: A harbour at dawn]</span>"));
+        assertTrue(marked.contains("Text"));
+    }
+
+    @Test
+    void aMarkerWithoutACaptionJustSaysImage() {
+        String marked = sanitizer.sanitizeWithImagePlaceholders("<img src=\"https://example.com/a.png\"/>");
+
+        assertTrue(marked.contains(">[Image]</span>"));
+    }
+
+    @Test
+    void aLongCaptionIsCutShort() {
+        String caption = "word ".repeat(60).trim();
+
+        String marked = sanitizer.sanitizeWithImagePlaceholders(
+                "<img src=\"https://example.com/a.png\" alt=\"" + caption + "\"/>");
+
+        assertTrue(marked.contains("…]</span>"));
+        assertTrue(marked.length() < caption.length());
+    }
+
+    @Test
+    void captionsAreEscapedRatherThanRendered() {
+        String marked = sanitizer.sanitizeWithImagePlaceholders(
+                "<img src=\"https://example.com/a.png\" alt=\"&lt;script&gt;alert(1)&lt;/script&gt;\"/>");
+
+        assertFalse(marked.contains("<script"));
+        assertTrue(marked.contains("&lt;script&gt;"));
+    }
+
+    /** An address the safelist drops would not load anyway, so promising one would be a lie. */
+    @Test
+    void anImageThatCouldNotBeLoadedLeavesNoMarker() {
+        String marked = sanitizer.sanitizeWithImagePlaceholders(
+                "<p>Text</p><img src=\"/local/a.png\" alt=\"Local\"/>");
+
+        assertFalse(marked.contains("image-placeholder"));
+        assertTrue(marked.contains("Text"));
+    }
+
+    @Test
+    void aPictureLeavesOneMarkerRatherThanItsAlternatives() {
+        String html = """
+                <figure>
+                  <picture>
+                    <source srcset="https://example.com/a.webp" type="image/webp"/>
+                    <img src="https://example.com/a.png" alt="Chart"/>
+                  </picture>
+                  <figcaption>Sales over time</figcaption>
+                </figure>
+                """;
+
+        String marked = sanitizer.sanitizeWithImagePlaceholders(html);
+
+        assertFalse(marked.contains("<source"));
+        assertFalse(marked.contains("a.webp"));
+        assertEquals(1, marked.split("image-placeholder", -1).length - 1);
+        assertTrue(marked.contains("Sales over time"));
+    }
+
+    @Test
+    void preservesOnlyTheDiscussionAttributesNeededForCollapsibleReplies() {
+        String html = """
+                <div class="offscreen" data-discussion-comments>
+                  <blockquote data-discussion-comment>
+                    Root
+                    <details class="action-menu" data-comment-replies>
+                      <summary>Show 1 reply</summary>
+                      <div data-comment-reply-list><blockquote data-discussion-comment>Reply</blockquote></div>
+                    </details>
+                  </blockquote>
+                </div>
+                """;
+
+        String clean = sanitizer.sanitizeWithoutImages(html);
+
+        assertTrue(clean.contains("data-discussion-comments"));
+        assertTrue(clean.contains("data-discussion-comment"));
+        assertTrue(clean.contains("data-comment-replies"));
+        assertTrue(clean.contains("data-comment-reply-list"));
+        assertFalse(clean.contains("offscreen"));
+        assertFalse(clean.contains("action-menu"));
     }
 }

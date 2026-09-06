@@ -964,6 +964,18 @@ details.nested-tools {
   position: relative;
 }
 
+/* Until reader.js has measured the screen, the document it was handed is the
+   whole batch in normal flow: the pager hidden, the fallback buttons showing and
+   the unread bar several screens down. Painting that first and the page after it
+   makes the list, the buttons and the bar all jump at once, which on e-ink is a
+   second full redraw. The reader is therefore held back — laid out and
+   measurable, but not drawn — until it is the page it will stay as. The class is
+   set from the <head> by reader-boot.js and removed once the layout has settled,
+   so a browser without JavaScript never hides anything. */
+.reader-loading .reader {
+  visibility: hidden;
+}
+
 .reader.paged .reader-frame {
   overflow: hidden;
   /* Pages are turned by sideways swipes of the reader's own. A phone browser
@@ -1086,6 +1098,48 @@ body.reading .wrap {
   display: block;
   margin: 1rem 0;
   border: 1px solid #000;
+}
+
+.article-body .image-placeholder {
+  display: inline-block;
+  margin: 0.5rem 0;
+  padding: 0.1rem 0.4rem;
+  border: 1px dashed #000;
+  font-size: 0.85rem;
+  color: #444;
+}
+
+/* Discussion feeds arrive as trees. Keep each root comment in the reading flow,
+   then let its answers open in place instead of spending several pages on a
+   thread the reader may not want. Nested blockquotes preserve who answered whom. */
+[data-discussion-comments] > [data-discussion-comment] {
+  margin: 0 0 1rem;
+  padding: 0.75rem 0 0.25rem 0.8rem;
+  border-left: 3px solid #000;
+}
+
+[data-comment-reply-list] > [data-discussion-comment] {
+  margin: 0.75rem 0 0 0.45rem;
+  padding-left: 0.65rem;
+  border-left: 2px solid #777;
+}
+
+details[data-comment-replies] {
+  margin-top: 0.5rem;
+}
+
+details[data-comment-replies] > summary {
+  display: inline-block;
+  padding: 0.2rem 0.45rem;
+  border: 1px solid #000;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+details[data-comment-replies][open] > summary {
+  background: #000;
+  color: #fff;
 }
 
 .article-body pre, .article-body code {

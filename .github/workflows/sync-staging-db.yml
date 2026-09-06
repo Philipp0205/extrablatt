@@ -5,6 +5,7 @@
 # production instance (Flyway on staging must never run against prod).
 #
 # Required repository secret: RAILWAY_TOKEN
+# When the secret is missing the job skips (exit 0), same as deploy-railway.yml.
 
 name: Sync staging database
 
@@ -26,19 +27,30 @@ jobs:
       - name: Check out
         uses: actions/checkout@v4
 
+      - name: Check Railway token
+        id: auth
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          if [ -z "$RAILWAY_TOKEN" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "RAILWAY_TOKEN is not set; skipping staging database sync."
+            echo "Add a repository secret named RAILWAY_TOKEN (a Railway project token) to enable this job."
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Install Railway CLI
+        if: steps.auth.outputs.skip != 'true'
         run: npm install -g @railway/cli
 
       - name: Install PostgreSQL client
+        if: steps.auth.outputs.skip != 'true'
         run: sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client
 
       - name: Dump production and restore onto staging
+        if: steps.auth.outputs.skip != 'true'
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
           RAILWAY_PROJECT_ID: ${{ vars.RAILWAY_PROJECT_ID || '5acb693d-239d-4354-9146-ded20c78a027' }}
-        run: |
-          if [ -z "$RAILWAY_TOKEN" ]; then
-            echo "RAILWAY_TOKEN is not set; cannot sync staging from GitHub Actions."
-            exit 1
-          fi
-          bash deploy/sync-staging-db.sh
+        run: bash deploy/sync-staging-db.sh

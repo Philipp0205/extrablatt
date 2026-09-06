@@ -60,7 +60,8 @@ class ArticleServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new ArticleService(articleRepository, feedRepository, httpClient, new HtmlSanitizer());
+        service = new ArticleService(articleRepository, feedRepository, httpClient, new HtmlSanitizer(),
+                new DiscussionParser(httpClient));
     }
 
     @Test
@@ -77,6 +78,24 @@ class ArticleServiceTest {
 
         assertEquals("https://news.ycombinator.com/item?id=12345",
                 service.findCommentsUrl(article).orElseThrow());
+    }
+
+    /**
+     * On screen a hidden image is one tap away from being loaded, so the reader is
+     * told it is there. The EPUB has no such tap, so it keeps the plain text.
+     */
+    @Test
+    void theReaderMarksHiddenImagesWhileTheKindleFileDoesNot() {
+        Article article = illustratedArticle();
+
+        String hidden = service.getReaderHtml(article, false);
+        String shown = service.getReaderHtml(article, true);
+        String forKindle = service.getContentHtml(article, false);
+
+        assertTrue(hidden.contains("[Image: A harbour at dawn]"));
+        assertTrue(shown.contains("<img"));
+        assertTrue(forKindle.contains("Text"));
+        assertTrue(!forKindle.contains("[Image") && !forKindle.contains("<img"));
     }
 
     @Test
@@ -123,7 +142,7 @@ class ArticleServiceTest {
 
         IllegalArgumentException error = assertThrows(IllegalArgumentException.class,
                 () -> service.importFromUrl(UID, "https://example.com/feed.xml"));
-        assertTrue(error.getMessage().contains("Add feed"));
+        assertTrue(error.getMessage().contains("Follow the site from Feeds"));
         verify(feedRepository, never()).findOrCreateClippingFeed(anyLong());
     }
 
@@ -160,6 +179,13 @@ class ArticleServiceTest {
     private static Feed clippingFeed() {
         return new Feed(11L, "Pasted URLs", Feed.CLIPPING_URL, null, "Pasted", null,
                 Instant.EPOCH, Instant.EPOCH, 0, FeedSource.CLIPPING);
+    }
+
+    private static Article illustratedArticle() {
+        return new Article(3L, 11L, "guid", "Illustrated", "https://example.com/story", null,
+                Instant.EPOCH, null, null,
+                "<p>Text</p><img src=\"https://example.com/a.png\" alt=\"A harbour at dawn\"/>",
+                false, null, Instant.EPOCH, Instant.EPOCH, "Example Feed");
     }
 
     private static Article storedArticle(long id, String title) {

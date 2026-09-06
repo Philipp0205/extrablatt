@@ -8,7 +8,7 @@
   release is shipped.
 -->
 <div th:fragment="whatsNewDialog">
-  <dialog id="whats-new-dialog" class="donate-dialog" th:if="${whatsNewPrompt}" open>
+  <dialog id="whats-new-dialog" class="donate-dialog" th:if="${whatsNewPrompt and !trialEndedPrompt}" open>
     <h2>What's new</h2>
     <p class="meta" th:if="${whatsNew.date}" th:text="${whatsNew.date}">date</p>
     <p th:if="${whatsNew.title}" th:text="${whatsNew.title}">title</p>

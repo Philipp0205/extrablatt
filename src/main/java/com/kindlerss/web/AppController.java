@@ -170,7 +170,7 @@ public class AppController {
     public String addDefaultFeeds(@RequestParam(value = "feed", required = false) List<String> keys,
                                   RedirectAttributes redirectAttributes) {
         if (keys == null || keys.isEmpty()) {
-            redirectAttributes.addFlashAttribute("error", "Choose at least one suggested feed");
+            redirectAttributes.addFlashAttribute("error", "Choose at least one newspaper or site");
             return "redirect:/";
         }
         long userId = currentUser.requireId();
@@ -179,7 +179,7 @@ public class AppController {
         for (String key : keys) {
             var suggestion = feedService.defaultFeed(key);
             if (suggestion.isEmpty()) {
-                errors.add("Unknown suggested feed: " + key);
+                errors.add("Unknown suggestion: " + key);
                 continue;
             }
             try {
@@ -192,7 +192,7 @@ public class AppController {
         }
         if (added > 0) {
             redirectAttributes.addFlashAttribute("message",
-                    added == 1 ? "Added 1 suggested feed" : "Added " + added + " suggested feeds");
+                    added == 1 ? "Added 1 suggested site" : "Added " + added + " suggested sites");
         }
         if (!errors.isEmpty()) {
             redirectAttributes.addFlashAttribute("error", String.join("; ", errors));
@@ -502,6 +502,10 @@ public class AppController {
      * page. Reading past its last page means the whole list has been read through:
      * a fresh unread list is opened, which leaves those articles behind and shows
      * only what is still unread.
+     *
+     * <p>Marking is not announced. The count would land above the list on every
+     * page turn, where it takes a strip off every screen of the page it opens,
+     * and the meter under the list already says what is left to read.
      */
     @PostMapping("/items/advance")
     public String advance(@RequestParam(value = "feed", required = false) Long feedId,
@@ -509,17 +513,11 @@ public class AppController {
                           @RequestParam(value = "unread", required = false) Boolean unread,
                           @RequestParam(value = "snapshot", required = false) Long snapshot,
                           @RequestParam(value = "page", defaultValue = "1") int page,
-                          @RequestParam(value = "id", required = false) List<Long> ids,
-                          RedirectAttributes redirectAttributes) {
+                          @RequestParam(value = "id", required = false) List<Long> ids) {
         long userId = currentUser.requireId();
         boolean markReadOnNextPage = userService.markReadOnNextPage(userId);
-        int marked = 0;
-        if (markReadOnNextPage) {
-            marked = ids == null || ids.isEmpty() ? 0
-                    : articleService.markRead(userId, ids, true);
-            redirectAttributes.addFlashAttribute("message", marked == 0
-                    ? "Nothing left to mark as read"
-                    : marked == 1 ? "1 article marked as read" : marked + " articles marked as read");
+        if (markReadOnNextPage && ids != null && !ids.isEmpty()) {
+            articleService.markRead(userId, ids, true);
         }
 
         boolean unreadOnly = Boolean.TRUE.equals(unread);
@@ -601,7 +599,7 @@ public class AppController {
             articleService.markRead(userId, id, true);
             article = articleService.findById(userId, id).orElse(article);
         }
-        String contentHtml = articleService.getContentHtml(article, images);
+        String contentHtml = articleService.getReaderHtml(article, images);
         model.addAttribute("article", article);
         model.addAttribute("contentHtml", contentHtml);
         model.addAttribute("images", images);
@@ -651,6 +649,13 @@ public class AppController {
         return "redirect:" + target;
     }
 
+    /**
+     * The answer is always JSON, and always carries the reason a send did not
+     * happen: it is the only thing the reader is told, since the page it was
+     * started from stays put. A refusal the account can lift itself — no Kindle
+     * address saved yet — is marked as such, so the page can offer the settings
+     * along with the sentence.
+     */
     @PostMapping("/articles/{id}/send-async")
     public ResponseEntity<Map<String, Object>> sendAsync(
             @PathVariable("id") long id,
@@ -659,11 +664,20 @@ public class AppController {
             kindleMailService.sendToKindle(currentUser.requireId(), id, images);
             return ResponseEntity.ok(Map.of("message", "Sent to Kindle"));
         } catch (ArticleService.NotFoundException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", e.getMessage()));
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", message(e)));
+        } catch (KindleMailService.SetupRequiredException e) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(Map.of("error", message(e), "setup", true));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("error", e.getMessage() == null ? "Could not send article" : e.getMessage()));
+                    .body(Map.of("error", message(e)));
         }
+    }
+
+    private static String message(Exception e) {
+        return e.getMessage() == null || e.getMessage().isBlank()
+                ? "Could not send article"
+                : e.getMessage();
     }
 
     /**

@@ -47,6 +47,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.flash;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestBuilders.formLogin;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -293,7 +294,7 @@ class AppControllerSecurityTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("Quick start")))
                 .andExpect(content().string(containsString("value=\"hacker-news\"")))
-                .andExpect(content().string(containsString("<summary>Add feed</summary>")))
+                .andExpect(content().string(containsString("<summary>Follow a site</summary>")))
                 .andExpect(content().string(not(containsString("aria-label=\"Feed views\""))));
 
         when(feedService.listFeeds(UID)).thenReturn(List.of(
@@ -595,7 +596,7 @@ class AppControllerSecurityTest {
         Article article = new Article(7L, 1L, "guid", "Paged article", "https://example.com/a", null,
                 null, null, null, null, true, null, null, null, "Example Feed");
         when(articleService.findById(UID, 7L)).thenReturn(Optional.of(article));
-        when(articleService.getContentHtml(any(Article.class), eq(false))).thenReturn("<p>Body</p>");
+        when(articleService.getReaderHtml(any(Article.class), eq(false))).thenReturn("<p>Body</p>");
 
         mockMvc.perform(get("/articles/7"))
                 .andExpect(status().isOk())
@@ -676,6 +677,23 @@ class AppControllerSecurityTest {
     }
 
     @Test
+    @WithMockUser
+    void theListKeepsItsPageInTheAddressSoAnEntryCanBeReadAndComeBackToIt() throws Exception {
+        when(articleService.findPage(eq(UID), isNull(), isNull(), eq(1), eq(20))).thenReturn(List.of(
+                new Article(1L, 1L, "guid-1", "Article 1", null, null,
+                        null, null, null, null, false, null, null, null, "Example Feed")));
+        when(articleService.count(eq(UID), isNull(), isNull())).thenReturn(1L);
+        when(feedService.listFeeds(UID)).thenReturn(List.of());
+
+        // The reader writes the page it is on into the history entry, which is what
+        // the browser's back returns to; a stored position would instead follow a
+        // list around after it has been opened afresh with other articles in it.
+        mockMvc.perform(get("/items").param("unread", "false"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("data-reader-restore=\"address\"")));
+    }
+
+    @Test
     void theForwardLabelNamesWhatPressingItDoes() {
         org.junit.jupiter.api.Assertions.assertEquals("Mark read and load more",
                 AppController.forwardLabel(true, true));
@@ -733,6 +751,20 @@ class AppControllerSecurityTest {
                 .andExpect(redirectedUrl("/items?page=2&unread=false#start"));
 
         verify(articleService).markRead(UID, List.of(1L, 2L, 3L), true);
+    }
+
+    @Test
+    @WithMockUser
+    void advanceDoesNotAnnounceWhatItMarkedRead() throws Exception {
+        when(articleService.markRead(eq(UID), anyList(), eq(true))).thenReturn(3);
+
+        // A notice above the list costs a strip of every screen of the page it opens,
+        // and the reader can already see the list it just paged past.
+        mockMvc.perform(post("/items/advance").with(csrf())
+                        .param("page", "1")
+                        .param("id", "1", "2", "3"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(flash().attributeCount(0));
     }
 
     @Test
@@ -1036,6 +1068,106 @@ class AppControllerSecurityTest {
         verify(kindleMailService).sendToKindle(UID, 4L, false);
     }
 
+    /*
+     * The page the send was started from stays put, so this answer is the only
+     * thing the reader is ever told about a failure. It has to carry the reason.
+     */
+    @Test
+    @WithMockUser
+    void aFailedSendSaysWhyInsteadOfAnsweringWithNothing() throws Exception {
+        org.mockito.Mockito.doThrow(new IllegalStateException("Failed to send EPUB to Kindle: connection refused"))
+                .when(kindleMailService).sendToKindle(UID, 4L, false);
+
+        mockMvc.perform(post("/articles/4/send-async").with(csrf()))
+                .andExpect(status().isInternalServerError())
+                .andExpect(content().contentTypeCompatibleWith("application/json"))
+                .andExpect(jsonPath("$.error")
+                        .value("Failed to send EPUB to Kindle: connection refused"));
+    }
+
+    /* A failure with no message of its own still gets a sentence to show. */
+    @Test
+    @WithMockUser
+    void aFailedSendWithoutAMessageStillNamesTheProblem() throws Exception {
+        org.mockito.Mockito.doThrow(new IllegalStateException())
+                .when(kindleMailService).sendToKindle(UID, 4L, false);
+
+        mockMvc.perform(post("/articles/4/send-async").with(csrf()))
+                .andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.error").value("Could not send article"));
+    }
+
+    /*
+     * A missing Kindle address is the reader's to fix, and is marked as such so
+     * that the banner can offer the settings page next to the sentence.
+     */
+    @Test
+    @WithMockUser
+    void aSendRefusedForWantOfSetupIsMarkedAsSomethingToPutRight() throws Exception {
+        org.mockito.Mockito.doThrow(new KindleMailService.SetupRequiredException(
+                        "Add your Kindle e-mail address in Settings first"))
+                .when(kindleMailService).sendToKindle(UID, 4L, false);
+
+        mockMvc.perform(post("/articles/4/send-async").with(csrf()))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error").value("Add your Kindle e-mail address in Settings first"))
+                .andExpect(jsonPath("$.setup").value(true));
+    }
+
+    @Test
+    @WithMockUser
+    void aSendForAnArticleThatIsGoneIsNotFound() throws Exception {
+        org.mockito.Mockito.doThrow(new ArticleService.NotFoundException("Article not found"))
+                .when(kindleMailService).sendToKindle(UID, 4L, false);
+
+        mockMvc.perform(post("/articles/4/send-async").with(csrf()))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error").value("Article not found"));
+    }
+
+    /*
+     * Signed out, the send is answered with a redirect to the login page rather
+     * than with JSON. fetch() follows it and reports a plain 200, so reader.js
+     * checks the content type before it believes a send happened; this pins the
+     * behaviour that check is there for.
+     */
+    @Test
+    void aSignedOutSendIsAnsweredWithTheLoginPageRatherThanJson() throws Exception {
+        mockMvc.perform(post("/articles/4/send-async").with(csrf()))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrlPattern("**/login"));
+
+        verify(kindleMailService, never()).sendToKindle(anyLong(), anyLong(), anyBoolean());
+    }
+
+    /* The reader has to be able to see the banner, wherever the send started. */
+    @Test
+    @WithMockUser
+    void theArticlePageCarriesASlotForSendFeedback() throws Exception {
+        Article article = new Article(7L, 1L, "guid", "A story", "https://example.com/a", null,
+                null, null, null, null, true, null, null, null, "Example Feed");
+        when(articleService.findById(UID, 7L)).thenReturn(Optional.of(article));
+        when(articleService.getContentHtml(any(Article.class), eq(false))).thenReturn("<p>Body</p>");
+
+        mockMvc.perform(get("/articles/7"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("data-send-feedback")))
+                .andExpect(content().string(containsString("data-send-settings-url=\"/settings/kindle\"")));
+    }
+
+    @Test
+    @WithMockUser
+    void theListPageCarriesASlotForSendFeedback() throws Exception {
+        when(articleService.findPage(eq(UID), isNull(), isNull(), eq(1), eq(20))).thenReturn(List.of());
+        when(articleService.count(eq(UID), isNull(), isNull())).thenReturn(0L);
+        when(feedService.listFeeds(UID)).thenReturn(List.of());
+
+        mockMvc.perform(get("/items").param("unread", "false"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("data-send-feedback")))
+                .andExpect(content().string(containsString("data-send-settings-url=\"/settings/kindle\"")));
+    }
+
     @Test
     @WithMockUser
     void sendingCannotBeTalkedIntoLeavingTheApp() throws Exception {
@@ -1165,7 +1297,7 @@ class AppControllerSecurityTest {
         when(feedService.listFeeds(UID)).thenReturn(List.of());
         mockMvc.perform(get("/"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("Send a URL to Kindle")))
+                .andExpect(content().string(containsString("Send a page to Kindle")))
                 .andExpect(content().string(containsString("action=\"/articles/from-url\"")));
 
         mockMvc.perform(get("/").param("view", "add"))
