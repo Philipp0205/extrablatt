@@ -12,6 +12,7 @@ import java.util.zip.ZipInputStream;
 import javax.xml.parsers.DocumentBuilderFactory;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class EpubServiceTest {
@@ -24,7 +25,8 @@ class EpubServiceTest {
      */
     @Test
     void createsValidEpubLayoutWithUncompressedMimetypeFirst() throws Exception {
-        byte[] epub = epubService.createEpub("Hello & Friends", "Jane Doe", "<p>Body<br>More</p>");
+        byte[] epub = epubService.createEpub("Hello & Friends", "Jane Doe",
+                "https://example.com/story", "<p>Body<br>More</p>");
         Map<String, byte[]> entries = entries(epub);
 
         assertEquals("mimetype", entries.keySet().iterator().next());
@@ -59,15 +61,85 @@ class EpubServiceTest {
     /** Feeds often name a publication rather than a person, and some name nobody. */
     @Test
     void fallsBackToPlaceholdersAndKeepsSingleWordBylinesIntact() throws Exception {
-        Map<String, byte[]> named = entries(epubService.createEpub("Title", "Reuters", "<p>Body</p>"));
+        Map<String, byte[]> named = entries(
+                epubService.createEpub("Title", "Reuters", "https://example.com/a", "<p>Body</p>"));
         assertTrue(text(named, "OEBPS/content.opf").contains("Reuters"));
 
-        Map<String, byte[]> blank = entries(epubService.createEpub("  ", null, null));
+        Map<String, byte[]> blank = entries(epubService.createEpub("  ", null, null, null));
         String opf = text(blank, "OEBPS/content.opf");
         assertTrue(opf.contains("<dc:title>Article</dc:title>"));
         assertTrue(opf.contains("Unknown"));
         DocumentBuilderFactory.newInstance().newDocumentBuilder()
                 .parse(new ByteArrayInputStream(blank.get("OEBPS/article.xhtml")));
+    }
+
+    /**
+     * The address is the only way back to the page once the article is on a Kindle,
+     * so it is printed in full under the heading rather than hidden behind a word.
+     */
+    @Test
+    void printsTheOriginalAddressUnderTheHeading() throws Exception {
+        String article = text(entries(epubService.createEpub("A story", "Jane Doe",
+                "https://example.com/a?ref=feed&page=2", "<p>Body</p>")), "OEBPS/article.xhtml");
+
+        assertTrue(article.contains("""
+                <h1>A story</h1>
+                  <p class="source"><a href="https://example.com/a?ref=feed&amp;page=2">\
+                https://example.com/a?ref=feed&amp;page=2</a></p>"""),
+                article);
+        assertTrue(article.indexOf("class=\"source\"") < article.indexOf("<p>Body</p>"));
+        assertTrue(text(entries(epubService.createEpub("A story", null, "https://example.com/a", null)),
+                "OEBPS/style.css").contains(".source"));
+    }
+
+    /** No address, nothing to print — and nothing that is not a web address either. */
+    @Test
+    void leavesOutAnAddressThatIsMissingOrNotAWebLink() throws Exception {
+        for (String url : new String[] {null, "  ", "javascript:alert(1)", "data:text/html,<b>x</b>",
+                "mailto:someone@example.com", "/relative/path"}) {
+            String article = text(entries(epubService.createEpub("A story", "Jane Doe", url, "<p>Body</p>")),
+                    "OEBPS/article.xhtml");
+            assertFalse(article.contains("class=\"source\""), "leaked source line for: " + url);
+            assertTrue(article.contains("<h1>A story</h1>\n  <p>Body</p>"), article);
+            DocumentBuilderFactory.newInstance().newDocumentBuilder()
+                    .parse(new ByteArrayInputStream(article.getBytes(StandardCharsets.UTF_8)));
+        }
+    }
+
+    @Test
+    void kindleChapterContainsEveryReplyWithoutBrowserExpansionControls() throws Exception {
+        String discussion = """
+                <h2>Post</h2><p>The article.</p>
+                <h2>Comments</h2>
+                <div data-discussion-comments>
+                  <blockquote data-discussion-comment>
+                    <p><strong>Alice</strong></p><p>Root comment.</p>
+                    <details data-comment-replies>
+                      <summary>Show 2 replies</summary>
+                      <div data-comment-reply-list>
+                        <blockquote data-discussion-comment><p>First reply.</p>
+                          <div data-comment-reply-list>
+                            <blockquote data-discussion-comment><p>Nested reply.</p></blockquote>
+                          </div>
+                        </blockquote>
+                      </div>
+                    </details>
+                  </blockquote>
+                </div>
+                """;
+
+        String article = text(entries(epubService.createEpub(
+                "A story", "Jane Doe", "https://example.com/a", discussion)), "OEBPS/article.xhtml");
+
+        assertTrue(article.contains("The article."));
+        assertTrue(article.contains("Root comment."));
+        assertTrue(article.contains("First reply."));
+        assertTrue(article.contains("Nested reply."));
+        assertFalse(article.contains("<details"));
+        assertFalse(article.contains("<summary"));
+        assertFalse(article.contains("Show 2 replies"));
+        DocumentBuilderFactory.newInstance().newDocumentBuilder()
+                .parse(new ByteArrayInputStream(article.getBytes(StandardCharsets.UTF_8)));
     }
 
     private static Map<String, byte[]> entries(byte[] epub) throws Exception {

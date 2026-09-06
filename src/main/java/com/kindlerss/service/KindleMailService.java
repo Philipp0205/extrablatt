@@ -8,6 +8,8 @@ import com.kindlerss.repository.ArticleRepository;
 import com.kindlerss.repository.UserRepository;
 import com.kindlerss.repository.UserSendLimitRepository;
 import jakarta.mail.internet.MimeMessage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
@@ -26,6 +28,8 @@ import java.util.Locale;
  */
 @Service
 public class KindleMailService {
+
+    private static final Logger log = LoggerFactory.getLogger(KindleMailService.class);
 
     /** "1 September 2026" rather than "2026-09-01", since a reader reads this. */
     private static final DateTimeFormatter RESET_DATE =
@@ -75,7 +79,7 @@ public class KindleMailService {
 
         String html = articleService.getContentHtml(article, includeImages);
         String author = StringUtils.hasText(article.author()) ? article.author() : article.feedTitle();
-        byte[] epub = epubService.createEpub(article.title(), author, html);
+        byte[] epub = epubService.createEpub(article.title(), author, article.url(), html);
         String filename = documentName(article.title()) + ".epub";
 
         try {
@@ -93,6 +97,10 @@ public class KindleMailService {
             }, "application/epub+zip");
             mailSender.send(message);
         } catch (Exception e) {
+            // Nothing else records a refused delivery, so an operator asked why
+            // sending stopped working has only the reader's word to go on. The
+            // account id stands in for the addresses, which stay out of the log.
+            log.warn("Kindle delivery failed for account {}: {}", userId, e.getMessage());
             throw new IllegalStateException("Failed to send EPUB to Kindle: " + e.getMessage(), e);
         }
 
@@ -114,9 +122,20 @@ public class KindleMailService {
 
     private String requireKindleEmail(AppUser user) {
         if (!StringUtils.hasText(user.kindleEmail())) {
-            throw new IllegalStateException("Add your Kindle e-mail address in Settings first");
+            throw new SetupRequiredException("Add your Kindle e-mail address in Settings first");
         }
         return user.kindleEmail();
+    }
+
+    /**
+     * A send refused because the account's Kindle side is not set up yet, as
+     * opposed to one that failed. Told apart from the rest so that the reader is
+     * offered the page that fixes it rather than only the sentence saying so.
+     */
+    public static class SetupRequiredException extends IllegalStateException {
+        public SetupRequiredException(String message) {
+            super(message);
+        }
     }
 
     /**

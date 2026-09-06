@@ -5,6 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title th:text="${article.title} + ' — Extrablatt'">Article — Extrablatt</title>
   <link rel="stylesheet" th:href="@{/css/app.css}"/>
+  <!-- Runs before the article is parsed, so that the unpaged document underneath
+       is never painted; reader.js shows the reader again once it has laid it out. -->
+  <script th:src="@{/js/reader-boot.js}"></script>
 </head>
 <body class="reading">
 <div class="wrap">
@@ -42,6 +45,10 @@
 
   <div th:if="${message}" class="flash" th:text="${message}"></div>
   <div th:if="${error}" class="flash error" th:text="${error}"></div>
+  <!-- Where reader.js writes the reason a send did not happen. Empty, and so
+       taking up no room, until there is something to say. -->
+  <div data-send-feedback th:attr="data-send-settings-url=@{/settings/kindle}"></div>
+  <div th:replace="~{fragments/trial-ended-dialog :: trialEndedDialog}"></div>
   <div th:replace="~{fragments/whats-new-dialog :: whatsNewDialog}"></div>
 
   <div class="reader" data-reader th:attr="data-reader-key='article-' + ${article.id}">

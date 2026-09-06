@@ -18,7 +18,8 @@ Multi-user RSS/Atom reader that extracts readable article HTML and emails EPUB f
   handful of entries it publishes by default
 - Article extraction (Readability4J) with sanitized HTML caching
 - Page-at-a-time reading sized to the device screen, instead of scrolling
-- Send-to-Kindle as EPUB 3 through one shared, provider-verified sender
+- Send-to-Kindle as EPUB 3 through one shared, provider-verified sender, with the
+  article's own address printed under the title so the page can be found again
 - Per-account limits and IP-based rate limiting on auth endpoints
 - Optional paid subscriptions: a week of the full plan at no charge, then a
   "Supporter" plan at €2.99/month billed yearly (€35.88 for 12 months) or €3.99/month, with a subscription menu, a
@@ -146,8 +147,15 @@ article list are therefore laid out as whole pages:
   and continue**. Turn the setting off and new feed articles arrive already read,
   so a refresh does not fill Unread with a backlog. An article that was opened by
   mistake takes **Mark unread** on its own page.
+- Opening a list or an article shows the finished page: the reader stays blank
+  until the columns have been measured, rather than painting the whole batch in
+  normal flow and then collapsing it to one screen once the script has run.
 - Your position is remembered per article, so sending to Kindle or marking an
   article unread returns you to the page you were on.
+- The list remembers which of its pages you are on for as long as it is that list:
+  reading an entry and going back with the browser returns to the page the entry
+  was picked from, not to the first one. A list opened afresh from **Articles** or
+  a filter holds other articles and still starts at its beginning.
 - Rotating the device or changing the browser font re-splits the pages and keeps
   your place.
 
@@ -355,7 +363,9 @@ so verification and reset links stay on staging.
 
 To let GitHub Actions talk to Railway, add a repository secret named
 `RAILWAY_TOKEN` (a Railway account or project token). The dashboard trigger
-keeps deploying even without that secret.
+keeps deploying even without that secret. Until the secret is set, both
+`deploy-railway.yml` and **Sync staging database** skip their Railway steps
+with exit 0 instead of failing the Actions run.
 
 The steps above cover the application service. `marketing/` also has its own
 `Dockerfile` (a tiny Caddy container serving the folder on `$PORT`), so it can

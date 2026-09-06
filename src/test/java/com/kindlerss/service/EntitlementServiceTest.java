@@ -57,7 +57,9 @@ class EntitlementServiceTest {
 
     @Test
     void anAccountThatNeverOrderedHasNoKindleSendsAfterTheTrialModel() {
-        when(subscriptions.findByUserId(UID)).thenReturn(Optional.empty());
+        when(subscriptions.findByUserId(UID)).thenReturn(Optional.of(
+                new Subscription(UID, Plan.FREE, SubscriptionStatus.FREE, null, null,
+                        null, null, null, false, null)));
 
         Entitlement entitlement = service(true).forUser(UID);
 
@@ -68,6 +70,27 @@ class EntitlementServiceTest {
         assertEquals(0, entitlement.maxFeeds());
         assertFalse(entitlement.newsletters());
         assertFalse(entitlement.onTrial());
+        assertFalse(entitlement.trialExpired());
+    }
+
+    /**
+     * The case staging is made of: its database is a copy of production's, which
+     * charges nothing and so writes no subscription row for any account it
+     * registers. Read as a spent free plan, every one of those readers is refused
+     * Kindle delivery over a free week they were never given.
+     */
+    @Test
+    void anAccountFromBeforeChargingBeganKeepsTheFullAllowances() {
+        when(subscriptions.findByUserId(UID)).thenReturn(Optional.empty());
+
+        Entitlement entitlement = service(true).forUser(UID);
+
+        assertEquals(Plan.SUPPORTER, entitlement.plan());
+        assertTrue(entitlement.paid());
+        assertFalse(entitlement.onTrial(), "it is permanent, not a week that runs out");
+        assertEquals(50, entitlement.maxSendsPerDay());
+        assertEquals(50, entitlement.maxFeeds());
+        assertTrue(entitlement.newsletters());
     }
 
     @Test
@@ -82,6 +105,7 @@ class EntitlementServiceTest {
         assertEquals(Plan.SUPPORTER, entitlement.plan());
         assertTrue(entitlement.onTrial());
         assertEquals(ends, entitlement.trialEndsAt());
+        assertFalse(entitlement.trialExpired());
         assertFalse(entitlement.hasMonthlyCap());
         assertEquals(50, entitlement.maxSendsPerDay());
         assertEquals(50, entitlement.maxFeeds());
@@ -98,6 +122,24 @@ class EntitlementServiceTest {
 
         assertEquals(Plan.FREE, entitlement.plan());
         assertFalse(entitlement.onTrial());
+        assertTrue(entitlement.trialExpired());
+    }
+
+    @Test
+    void aSweptEndedTrialIsStillAnEndedTrial() {
+        when(subscriptions.findByUserId(UID)).thenReturn(Optional.of(
+                new Subscription(UID, Plan.FREE, SubscriptionStatus.EXPIRED, null, null,
+                        null, null, Instant.now().minus(1, ChronoUnit.DAYS), true, null)));
+
+        assertTrue(service(true).forUser(UID).trialExpired());
+    }
+
+    @Test
+    void aLapsedPaidSubscriptionIsNotAnEndedTrial() {
+        when(subscriptions.findByUserId(UID)).thenReturn(Optional.of(
+                subscription(SubscriptionStatus.EXPIRED, Instant.now().minus(1, ChronoUnit.DAYS), true)));
+
+        assertFalse(service(true).forUser(UID).trialExpired());
     }
 
     @Test
@@ -202,7 +244,9 @@ class EntitlementServiceTest {
      */
     @Test
     void anAdministratorsCustomLimitOverridesThePlan() {
-        when(subscriptions.findByUserId(UID)).thenReturn(Optional.empty());
+        when(subscriptions.findByUserId(UID)).thenReturn(Optional.of(
+                new Subscription(UID, Plan.FREE, SubscriptionStatus.EXPIRED, null, null, null,
+                        null, Instant.now().minus(1, ChronoUnit.DAYS), true, null)));
         when(sendLimits.findByUserId(UID))
                 .thenReturn(Optional.of(new UserSendLimit(UID, 25, null)));
 

@@ -12,17 +12,23 @@ import com.kindlerss.repository.ArticleRepository;
 import com.kindlerss.repository.SubscriptionRepository;
 import com.kindlerss.repository.UserRepository;
 import com.kindlerss.repository.UserSendLimitRepository;
+import jakarta.mail.BodyPart;
 import jakarta.mail.Session;
 import jakarta.mail.internet.InternetAddress;
 import jakarta.mail.internet.MimeMessage;
+import jakarta.mail.internet.MimeMultipart;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.mail.javamail.JavaMailSender;
 
+import java.io.ByteArrayInputStream;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -125,6 +131,67 @@ class KindleMailServiceTest {
         verify(articleRepository).markRead(UID, 7L, true);
     }
 
+    /**
+     * The address under the heading is a reader's only way back to the page once the
+     * article is on a Kindle, so it is checked on the file that actually leaves here.
+     */
+    @Test
+    void theSentEpubShowsTheOriginalAddressUnderTheTitle() throws Exception {
+        service.sendToKindle(UID, 7L, false);
+
+        ArgumentCaptor<MimeMessage> message = ArgumentCaptor.forClass(MimeMessage.class);
+        verify(mailSender).send(message.capture());
+        message.getValue().saveChanges();
+
+        String chapter = chapter(attachedEpub(message.getValue()));
+        assertTrue(chapter.contains("""
+                <h1>Useful Article</h1>
+                  <p class="source"><a href="https://example.com/article">\
+                https://example.com/article</a></p>"""), chapter);
+    }
+
+    private static byte[] attachedEpub(MimeMessage message) throws Exception {
+        MimeMultipart parts = (MimeMultipart) message.getContent();
+        for (int i = 0; i < parts.getCount(); i++) {
+            BodyPart part = parts.getBodyPart(i);
+            if (part.getFileName() != null && part.getFileName().endsWith(".epub")) {
+                return part.getInputStream().readAllBytes();
+            }
+        }
+        throw new AssertionError("no EPUB was attached");
+    }
+
+    private static String chapter(byte[] epub) throws Exception {
+        try (ZipInputStream zip = new ZipInputStream(new ByteArrayInputStream(epub))) {
+            ZipEntry entry;
+            while ((entry = zip.getNextEntry()) != null) {
+                if ("OEBPS/article.xhtml".equals(entry.getName())) {
+                    return new String(zip.readAllBytes(), StandardCharsets.UTF_8);
+                }
+            }
+        }
+        throw new AssertionError("the EPUB has no article chapter");
+    }
+
+    /**
+     * An account that never saved a Kindle address has not hit a failure so much as
+     * a step it has not taken. Refusing it with its own type is what lets the page
+     * offer the settings alongside the sentence.
+     */
+    @Test
+    void anAccountWithoutAKindleAddressIsToldToSetOneUp() {
+        when(userRepository.findById(UID)).thenReturn(Optional.of(
+                new AppUser(UID, "user@example.com", "hash", null,
+                        Instant.now(), null, Instant.now(), Instant.now())));
+
+        KindleMailService.SetupRequiredException error = assertThrows(
+                KindleMailService.SetupRequiredException.class,
+                () -> service.sendToKindle(UID, 7L, false));
+
+        assertTrue(error.getMessage().contains("Kindle e-mail address"), error.getMessage());
+        verify(mailSender, never()).send(any(MimeMessage.class));
+    }
+
     @Test
     void smtpFailureDoesNotRecordDelivery() {
         doThrow(new IllegalStateException("SMTP unavailable"))
@@ -143,7 +210,9 @@ class KindleMailServiceTest {
     @Test
     void anExpiredTrialIsToldToSubscribe() {
         service = freeTierService();
-        when(subscriptionRepository.findByUserId(UID)).thenReturn(Optional.empty());
+        when(subscriptionRepository.findByUserId(UID)).thenReturn(Optional.of(
+                new Subscription(UID, Plan.FREE, SubscriptionStatus.EXPIRED, null, null, null,
+                        null, Instant.now().minusSeconds(86_400), true, null)));
 
         IllegalStateException error = assertThrows(IllegalStateException.class,
                 () -> service.sendToKindle(UID, 7L, false));
@@ -151,6 +220,22 @@ class KindleMailServiceTest {
         assertTrue(error.getMessage().contains("free week has ended"), error.getMessage());
         assertTrue(error.getMessage().contains("Settings → Subscription"), error.getMessage());
         verify(mailSender, never()).send(any(MimeMessage.class));
+    }
+
+    /**
+     * An account with no subscription row registered before this deployment charged
+     * for anything, and keeps sending. Refusing it was what stopped Kindle delivery
+     * on staging, which charges but runs on a copy of a database that does not.
+     */
+    @Test
+    void anAccountFromBeforeChargingBeganCanStillSend() {
+        service = freeTierService();
+        when(subscriptionRepository.findByUserId(UID)).thenReturn(Optional.empty());
+
+        service.sendToKindle(UID, 7L, false);
+
+        verify(mailSender).send(any(MimeMessage.class));
+        verify(articleRepository).recordSend(eq(UID), eq(7L), any(Instant.class));
     }
 
     /** A still-running trial is the paid plan: it is not metered by the month. */

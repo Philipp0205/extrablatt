@@ -26,10 +26,10 @@
        saved, folded away afterwards so the page stays short. -->
   <details class="tools" style="margin-top:1rem"
            th:open="${#strings.isEmpty(account.kindleEmail)}">
-    <summary>Amazon setup instructions</summary>
+    <summary>Allow Extrablatt to send books to this Kindle</summary>
     <div class="tools-body meta">
-      <p>To let articles reach your Kindle, add our sender address to Amazon's
-        approved list:</p>
+      <p>Amazon only delivers articles if our sender address is on your approved
+        list. Two steps, easiest on a phone:</p>
       <ol>
         <li>Find your Send-to-Kindle e-mail on Amazon under
           <em>Manage Your Content and Devices → Preferences → Personal Document Settings</em>,
@@ -48,16 +48,22 @@
 
   <div th:if="${newslettersEnabled}" style="margin-top:1.5rem">
     <h2>Newsletters</h2>
-    <p class="meta">Some sources only publish by e-mail. Subscribe to any of them using
-      the address below — issues show up in <a th:href="@{/}">Feeds</a> (each sender
-      becomes its own entry the first time it writes) and send to Kindle exactly like
-      any other article.</p>
+    <p class="meta">Forward any newsletter to this address. Issues show up under
+      <a th:href="@{/}">Feeds</a> — the first issue from a sender creates a feed
+      named after them — and send to Kindle like any other article.</p>
     <code class="address-box" th:text="${newsletterAddress}">news@example.com</code>
-    <form th:action="@{/settings/newsletter-address/regenerate}" method="post"
-          onsubmit="return confirm('Replace your newsletter address? Anything still sent to the old one will be lost, but newsletters already received stay put.');">
-      <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-      <button class="btn" type="submit">New address</button>
-    </form>
+    <details class="tools" style="margin-top:1rem">
+      <summary>Having trouble with spam?</summary>
+      <div class="tools-body">
+        <p class="meta">Get a new address. Anything still sent to the old one
+          will be lost, but newsletters already received stay put.</p>
+        <form th:action="@{/settings/newsletter-address/regenerate}" method="post"
+              onsubmit="return confirm('Replace your newsletter address? Anything still sent to the old one will be lost, but newsletters already received stay put.');">
+          <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+          <button class="btn" type="submit">New address</button>
+        </form>
+      </div>
+    </details>
   </div>
 
   <div th:replace="~{fragments/site-footer :: siteFooter}"></div>

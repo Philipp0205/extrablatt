@@ -29,15 +29,18 @@ public class ArticleService {
     private final FeedRepository feedRepository;
     private final SafeHttpClient httpClient;
     private final HtmlSanitizer sanitizer;
+    private final DiscussionParser discussionParser;
 
     public ArticleService(ArticleRepository articleRepository,
                           FeedRepository feedRepository,
                           SafeHttpClient httpClient,
-                          HtmlSanitizer sanitizer) {
+                          HtmlSanitizer sanitizer,
+                          DiscussionParser discussionParser) {
         this.articleRepository = articleRepository;
         this.feedRepository = feedRepository;
         this.httpClient = httpClient;
         this.sanitizer = sanitizer;
+        this.discussionParser = discussionParser;
     }
 
     public Optional<Article> findById(long userId, long id) {
@@ -111,6 +114,19 @@ public class ArticleService {
     }
 
     /**
+     * The same content for the browser, where hidden images leave a marker behind:
+     * on screen "Show images" is one tap away, so it is worth saying that there is
+     * something to load. A Kindle has no such choice, so the EPUB stays clean.
+     */
+    @Transactional
+    public String getReaderHtml(Article article, boolean includeImages) {
+        String raw = resolveRawContent(article);
+        return includeImages
+                ? sanitizer.sanitizeWithImages(raw)
+                : sanitizer.sanitizeWithImagePlaceholders(raw);
+    }
+
+    /**
      * Feed metadata sometimes carries a discussion link that does not exist on the
      * linked article itself (notably Hacker News). Keep that route available even
      * when Readability replaces the feed summary with the full source article.
@@ -130,6 +146,15 @@ public class ArticleService {
     }
 
     private String resolveRawContent(Article article) {
+        if (discussionParser.supports(article)
+                && !discussionParser.isParsedDiscussion(article.extractedContentHtml())) {
+            Optional<String> discussion = discussionParser.parse(article);
+            if (discussion.isPresent() && !discussion.get().isBlank()) {
+                String sanitized = sanitizer.sanitizeWithImages(discussion.get());
+                articleRepository.updateExtractedContent(article.id(), sanitized);
+                return sanitized;
+            }
+        }
         if (article.extractedContentHtml() != null && !article.extractedContentHtml().isBlank()) {
             return article.extractedContentHtml();
         }
@@ -205,7 +230,7 @@ public class ArticleService {
         String finalUrl = fetched.finalUri().toString();
         if (looksLikeFeed(fetched)) {
             throw new IllegalArgumentException(
-                    "That looks like an RSS or Atom feed. Add it under Add feed instead.");
+                    "That address is a whole site's news, not a single article. Follow the site from Feeds instead.");
         }
         try {
             Readability4J readability = new Readability4J(finalUrl, fetched.body());
