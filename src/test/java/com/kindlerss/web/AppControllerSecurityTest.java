@@ -33,6 +33,7 @@ import java.util.Properties;
 import java.time.Instant;
 
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.matchesPattern;
 import static org.hamcrest.Matchers.not;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
@@ -68,6 +69,30 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class AppControllerSecurityTest {
 
     private static final long UID = 1L;
+
+    /**
+     * The reader pages load their scripts under a name that carries a hash of the
+     * file's contents, which is what lets a browser keep them for good instead of
+     * fetching them again on every page turn. Asserted as a pattern rather than a
+     * fixed name, because the hash changes whenever the script does.
+     */
+    private static final String CONTENT_ADDRESSED_READER = "(?s).*/js/reader-[0-9a-f]{32}\\.js.*";
+    private static final String CONTENT_ADDRESSED_FILTERS = "(?s).*/js/filters-[0-9a-f]{32}\\.js.*";
+
+    /**
+     * The page with the stylesheet it carries in its head taken back out. Where a
+     * test is about where something sits in the markup, the rules get in the way:
+     * they name the very classes the markup is being searched for, and they sit
+     * ahead of all of it.
+     */
+    private static String withoutStylesheet(String page) {
+        int open = page.indexOf("<style>");
+        int close = page.indexOf("</style>", open);
+        if (open < 0 || close < 0) {
+            return page;
+        }
+        return page.substring(0, open) + page.substring(close + "</style>".length());
+    }
 
     @Autowired
     MockMvc mockMvc;
@@ -447,10 +472,11 @@ class AppControllerSecurityTest {
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
 
-        int back = body.indexOf(BACK_CONTROL);
-        int unreadToggle = body.indexOf("/items?feed=5&amp;unread=true");
-        int divide = body.indexOf("filter-divide");
-        int strip = body.indexOf("data-strip-track");
+        String markup = withoutStylesheet(body);
+        int back = markup.indexOf(BACK_CONTROL);
+        int unreadToggle = markup.indexOf("/items?feed=5&amp;unread=true");
+        int divide = markup.indexOf("filter-divide");
+        int strip = markup.indexOf("data-strip-track");
         org.junit.jupiter.api.Assertions.assertTrue(back > 0 && back < divide,
                 "back chip belongs before the divide");
         org.junit.jupiter.api.Assertions.assertTrue(unreadToggle > 0 && unreadToggle < divide,
@@ -552,7 +578,7 @@ class AppControllerSecurityTest {
                 .andExpect(content().string(containsString("data-strip-track")))
                 .andExpect(content().string(containsString("data-strip-prev")))
                 .andExpect(content().string(containsString("data-strip-next")))
-                .andExpect(content().string(containsString("/js/filters.js")));
+                .andExpect(content().string(matchesPattern(CONTENT_ADDRESSED_FILTERS)));
     }
 
     @Test
@@ -603,7 +629,7 @@ class AppControllerSecurityTest {
                 .andExpect(content().string(containsString("data-reader-frame")))
                 .andExpect(content().string(containsString("data-reader-prev")))
                 .andExpect(content().string(containsString("data-reader-next")))
-                .andExpect(content().string(containsString("/js/reader.js")))
+                .andExpect(content().string(matchesPattern(CONTENT_ADDRESSED_READER)))
                 .andExpect(content().string(containsString("<button class=\"btn\" type=\"submit\">Send to Kindle</button>")))
                 .andExpect(content().string(containsString("<details class=\"action-menu\" data-reader-refit>")))
                 .andExpect(content().string(containsString("<summary class=\"btn\">More</summary>")))
