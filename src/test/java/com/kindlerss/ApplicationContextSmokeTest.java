@@ -3,16 +3,23 @@ package com.kindlerss;
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.web.servlet.MockMvc;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 
 /**
  * Boots the whole application context (security, filters, scheduler, mail, and
@@ -20,12 +27,16 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * sliced web tests cannot.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@AutoConfigureMockMvc
 class ApplicationContextSmokeTest {
 
     private static EmbeddedPostgres postgres;
 
     @LocalServerPort
     int port;
+
+    @Autowired
+    MockMvc mockMvc;
 
     @DynamicPropertySource
     static void datasource(DynamicPropertyRegistry registry) throws Exception {
@@ -67,5 +78,25 @@ class ApplicationContextSmokeTest {
         assertTrue(page.contains("box-sizing: border-box"), "the stylesheet rides in the page");
         assertTrue(page.contains("name=\"_csrf\""), "the form is complete enough to submit");
         assertTrue(page.stripTrailing().endsWith("</html>"), "the page is not cut short");
+    }
+
+    /**
+     * The error page is styled too.
+     *
+     * <p>It is the one page not rendered by a controller of ours — Spring's own
+     * {@code BasicErrorController} renders it — so it is the one that would quietly
+     * miss the model attribute carrying the stylesheet and, since nothing links a
+     * stylesheet any more, arrive with no styling at all rather than merely late.
+     * Hence the whole context rather than a sliced one: a slice would supply that
+     * controller from our own configuration and never ask the question.
+     */
+    @Test
+    @WithMockUser
+    void theErrorPageCarriesTheStylesheetToo() throws Exception {
+        String page = mockMvc.perform(get("/error").accept(MediaType.TEXT_HTML))
+                .andReturn().getResponse().getContentAsString();
+
+        assertTrue(page.contains("box-sizing: border-box"), "the stylesheet rides in the error page");
+        assertFalse(page.contains("rel=\"stylesheet\""), "and is not linked from it");
     }
 }
