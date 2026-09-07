@@ -215,43 +215,26 @@ p {
   margin: 0;
 }
 
-/* Two Kindle mockups, gently offset like a product shot. */
+/* One Kindle mockup, large enough that the screenshot inside it can be read. */
 .hero-devices {
-  position: relative;
   display: flex;
   justify-content: center;
-  align-items: flex-end;
-  min-height: 24rem;
 }
 
-/* font-size is the single knob the faked browser chrome scales from, so the
-   smaller mock needs one number rather than a set of overrides. */
+/* font-size is the single knob the whole device scales from: the bezel, the
+   faked browser chrome and the home strip are all sized in em, so a narrower
+   screen needs a width and a font size rather than a set of overrides. One em
+   is 2.85% of the device's width. */
 .kindle-mock {
-  margin: 0;
-  width: 15.5rem;
-  font-size: 0.44rem;
-  background: linear-gradient(180deg, #333336, #1b1b1d);
-  border-radius: 20px;
-  padding: 1.1rem 1rem 2.1rem;
-  box-shadow: 0 30px 55px -22px rgba(0, 0, 0, 0.55);
-}
-
-.kindle-mock-secondary {
-  position: absolute;
-  right: 0;
-  bottom: -1.5rem;
-  width: 13rem;
-  font-size: 0.38rem;
-  transform: rotate(3deg);
-  z-index: 2;
-}
-
-.kindle-mock:first-child {
   position: relative;
-  z-index: 1;
-  transform: rotate(-3deg);
-  margin-right: 4.5rem;
-  padding-bottom: 2.4rem;
+  margin: 0;
+  width: 100%;
+  max-width: 26rem;
+  font-size: 0.74rem;
+  background: linear-gradient(180deg, #333336, #1b1b1d);
+  border-radius: 2.5em;
+  padding: 2.5em 2.3em 4.8em;
+  box-shadow: 0 30px 55px -22px rgba(0, 0, 0, 0.55);
 }
 
 /* The Kindle Web Browser draws its address bar above the page, like a desktop
@@ -283,13 +266,16 @@ p {
   background: #fff;
   border-radius: 4px;
   overflow: hidden;
-  aspect-ratio: 3 / 4;
 }
 
+/* The page itself keeps the device's 3:4, so a screenshot is shown whole rather
+   than cropped at the bottom; the address bar is drawn above it, as the Kindle
+   browser draws its own. */
 .kindle-viewport {
   flex: 1 1 auto;
   min-height: 0;
   overflow: hidden;
+  aspect-ratio: 3 / 4;
 }
 
 .kindle-screen img {
@@ -303,11 +289,11 @@ p {
 .kindle-caption {
   position: absolute;
   left: 50%;
-  bottom: 0.55rem;
+  bottom: 1.2em;
   transform: translateX(-50%);
   margin: 0;
   color: #ddd;
-  font-size: 0.68rem;
+  font-size: 1.55em;
   text-align: center;
   letter-spacing: 0.02em;
   white-space: nowrap;
@@ -316,11 +302,49 @@ p {
 .kindle-mock::after {
   content: "";
   display: block;
-  width: 2.6rem;
-  height: 0.35rem;
-  margin: 0.85rem auto 0;
+  width: 5.9em;
+  height: 0.8em;
+  margin: 1.9em auto 0;
   border-radius: 999px;
   background: #55555a;
+}
+
+/* The screenshot gallery: a screen to a column, at whatever size the column
+   allows, so the text on them can be read rather than guessed at. */
+.screens {
+  padding: 4rem 0;
+  border-top: 2px solid #000;
+  background: #f7f6f3;
+}
+
+/* min() rather than a bare 24rem: on a phone the track would otherwise keep a
+   minimum wider than the screen and push the whole section sideways. */
+.screen-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(24rem, 100%), 1fr));
+  gap: 3rem;
+  align-items: start;
+}
+
+/* Capped and centred rather than left to fill its column: where the grid falls
+   to one column, a screenshot the width of the page would tower over the copy
+   around it. */
+.screen-shot {
+  margin: 0 auto;
+  max-width: 32rem;
+}
+
+.screen-shot img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 2px solid #000;
+  background: #fff;
+}
+
+.screen-shot figcaption {
+  margin-top: 1.25rem;
+  color: #222;
 }
 
 /* How to open on Kindle */
@@ -522,7 +546,6 @@ p {
 
   .hero-devices {
     order: -1;
-    min-height: 20rem;
     margin-bottom: 1rem;
   }
 
@@ -534,12 +557,14 @@ p {
 @media (max-width: 520px) {
   html { font-size: 16px; }
 
-  .kindle-mock:first-child {
-    margin-right: 3rem;
+  /* Below this the hero column is narrower than the device's own maximum, so
+     the em knob comes down with it to keep the chrome in proportion. */
+  .kindle-mock {
+    max-width: 21rem;
+    font-size: 0.6rem;
   }
 
-  .kindle-mock { width: 11.5rem; }
-  .kindle-mock-secondary { width: 9.5rem; }
+  .screen-grid { gap: 2.5rem; }
 
   .kindle-url { font-size: 1.25rem; }
   .kindle-url-inline { font-size: 1.1rem; }

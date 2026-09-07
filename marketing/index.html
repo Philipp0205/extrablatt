@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>Extrablatt — a newsreader for your Kindle</title>
 <meta name="description" content="Extrablatt is a newsreader designed to run on your Kindle's built-in Web Browser. Open reader.extrablatt.app on the device, follow newspapers and sites, then send articles to your library. One free week, then €2.99 a month billed yearly or €3.99 a month."/>
-<link rel="stylesheet" href="assets/css/style.css?v=4"/>
+<link rel="stylesheet" href="assets/css/style.css?v=5"/>
 </head>
 <body>
 
@@ -46,29 +46,55 @@
           Then €2.99 a month billed yearly, or €3.99 a month.</p>
       </div>
 
-      <div class="hero-devices" aria-hidden="false">
+      <!-- One device rather than an overlapping pair: at this width the screen is
+           a screenshot you can actually read instead of a thumbnail. -->
+      <div class="hero-devices">
         <figure class="kindle-mock">
           <div class="kindle-screen">
             <div class="kindle-browser-bar" aria-hidden="true">
               <span class="kindle-address-field">reader.extrablatt.app</span>
             </div>
             <div class="kindle-viewport">
-              <img src="assets/img/kindle-articles-list.png"
+              <img src="assets/img/kindle-articles-list.png" width="1236" height="1648"
                    alt="A Kindle e-reader showing Extrablatt's article list in the built-in Web Browser, with the address reader.extrablatt.app"/>
             </div>
           </div>
           <figcaption class="kindle-caption">On the Kindle Web Browser</figcaption>
         </figure>
-        <figure class="kindle-mock kindle-mock-secondary">
-          <div class="kindle-screen">
-            <div class="kindle-browser-bar" aria-hidden="true">
-              <span class="kindle-address-field">reader.extrablatt.app</span>
-            </div>
-            <div class="kindle-viewport">
-              <img src="assets/img/kindle-article-reading.png"
-                   alt="A Kindle e-reader showing a full extracted article open in Extrablatt's paginated reading view"/>
-            </div>
-          </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="screens" id="screens">
+    <div class="wrap">
+      <h2>A closer look at the screens</h2>
+      <p class="section-lede">
+        Screens from the app at the proportions of a Kindle: a whole page at a
+        time, with nothing scrolled out of view.
+      </p>
+
+      <!-- No device frame around these: the bezel and the faked address bar would
+           take a fifth of the width off the only part worth enlarging. -->
+      <div class="screen-grid">
+        <figure class="screen-shot">
+          <img src="assets/img/kindle-article-reading.png" width="1236" height="1648"
+               alt="Extrablatt's reading view: a full extracted article laid out as one page, with Previous page and Next page under the text"/>
+          <figcaption>
+            <strong>Reading an article.</strong> The full text, extracted and
+            stripped of everything around it, laid out a screenful at a time —
+            <em>Page 1 of 2</em> rather than a scrollbar. <em>Send to Kindle</em>
+            is on the toolbar; the quieter actions sit under <em>More</em>.
+          </figcaption>
+        </figure>
+
+        <figure class="screen-shot">
+          <img src="assets/img/kindle-feeds.png" width="1236" height="1648"
+               alt="Extrablatt's Feeds page: a box for sending a page to Kindle, and the sites being followed grouped into categories with their unread counts"/>
+          <figcaption>
+            <strong>The sites you follow.</strong> Grouped into categories with
+            what is unread in each, and a box at the top for sending any single
+            page to your library by pasting its address.
+          </figcaption>
         </figure>
       </div>
     </div>
