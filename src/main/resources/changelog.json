@@ -1,6 +1,19 @@
 {
   "releases": [
     {
+      "id": "2026-09-07",
+      "date": "7 September 2026",
+      "title": "Pages open already styled",
+      "highlights": [
+        "Pages open looking finished instead of a moment of unstyled text first.",
+        "Turning a page is lighter: the scripts stay in the browser cache."
+      ],
+      "changes": [
+        "The look of a page travels with the page itself, so it does not wait on a second request and does not flash unstyled on a slow connection.",
+        "Scripts are cached by their contents, so a page turn no longer downloads them again."
+      ]
+    },
+    {
       "id": "2026-09-06",
       "date": "6 September 2026",
       "title": "Discussions, source address, and send errors",

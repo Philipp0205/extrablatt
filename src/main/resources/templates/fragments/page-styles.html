@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+<!--
+  The stylesheet, written into the page rather than linked from it.
+
+  A linked stylesheet holds up the first paint until it arrives, and until this
+  fragment existed that wait happened on every navigation, on every device: the
+  file was served `no-store`, so no browser was allowed to keep it. On a phone
+  that is a visible moment of the bare document before the rules land. Carrying
+  the rules with the page removes the request, and with it the wait.
+
+  The rules are read from `css/app.css` at start-up — the stylesheet is still one
+  ordinary file, edited as one. See com.kindlerss.web.StylesheetAdvice.
+-->
+<style th:fragment="inline" th:utext="${stylesheet}"></style>
+</head>
+</html>
