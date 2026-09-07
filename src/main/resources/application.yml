@@ -31,6 +31,13 @@ spring:
   servlet:
     multipart:
       max-file-size: 10MB
+  web:
+    resources:
+      chain:
+        # Turns on the filter that rewrites @{/js/reader.js} in a template into the
+        # content-addressed name WebConfig serves it under. Without it the templates
+        # would keep asking for the plain name, which cannot be cached for long.
+        enabled: true
 
 server:
   port: ${PORT:8080}
