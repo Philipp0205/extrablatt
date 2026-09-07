@@ -1,6 +1,28 @@
 {
   "releases": [
     {
+      "id": "2026-09-06",
+      "date": "6 September 2026",
+      "title": "Discussions, source address, and send errors",
+      "highlights": [
+        "Reddit and Hacker News posts include comments; replies start collapsed.",
+        "Kindle files show the original web address under the title.",
+        "If Send to Kindle is refused, the reason shows on the page."
+      ],
+      "changes": [
+        "Reddit and Hacker News posts include the discussion; replies start collapsed and expand as a thread.",
+        "The Kindle file prints the article's original web address under the title.",
+        "Back from an article returns to the same page of the list it was opened from.",
+        "After the free week, a notice on login offers Subscribe or Close; Close lasts until the next login.",
+        "Subscription says to finish checkout on a phone, not the Kindle.",
+        "If Send to Kindle is refused, the reason shows in the page, with a link to Kindle settings when that is what is missing.",
+        "Hidden images leave an [Image: caption] marker instead of vanishing.",
+        "The article list waits until it has been laid out so the first paint is one page, not a jump.",
+        "Turning a page no longer prints how many articles were marked read.",
+        "Accounts from before charging began keep sending to Kindle."
+      ]
+    },
+    {
       "id": "2026-09-02-newsreader",
       "date": "2 September 2026",
       "title": "Easier to follow the news",
