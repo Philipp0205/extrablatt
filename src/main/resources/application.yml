@@ -28,6 +28,18 @@ spring:
             enable: ${SMTP_STARTTLS:true}
   thymeleaf:
     cache: false
+    servlet:
+      # Render the whole page before any of it is sent.
+      #
+      # Thymeleaf otherwise writes as it goes, which fills Tomcat's 8 KB response
+      # buffer and commits the response part-way through rendering. Nothing can
+      # touch the session after that, and a first-time visitor's login form needs
+      # to: its CSRF token is created on demand, and creating one starts a session.
+      # Since the stylesheet moved into the <head>, that 8 KB is spent before the
+      # <body> begins, so every page would have hit this. Buffering also means an
+      # error part-way through rendering still produces the error page rather than
+      # half a document.
+      produce-partial-output-while-processing: false
   servlet:
     multipart:
       max-file-size: 10MB
