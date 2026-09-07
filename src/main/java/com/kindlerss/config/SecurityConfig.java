@@ -8,11 +8,16 @@ import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
 import org.springframework.core.env.Environment;
 import org.springframework.core.env.Profiles;
 import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer;
+import org.springframework.security.config.annotation.web.configurers.RequestCacheConfigurer;
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -73,14 +78,47 @@ public class SecurityConfig {
         return services;
     }
 
+    /**
+     * The scripts, kept out of the chain below.
+     *
+     * <p>They were let through it with {@code permitAll}, which allows the request
+     * but still runs every filter on it — including the one that writes Spring
+     * Security's default headers. Those headers say {@code no-store}, which is the
+     * right answer for a page holding somebody's reading list and the wrong one for
+     * a file of code that is identical for every reader: it forbade the browser from
+     * keeping any of it, so every page load fetched every script again. The same
+     * applied to the stylesheet, and there a refetch also held up the first paint —
+     * which is the moment of unstyled page a phone would show.
+     *
+     * <p>These files reveal nothing and are the same for everyone, so they get their
+     * own chain that skips the header writer, the request cache and the session
+     * entirely, and lets {@link WebConfig}'s year-long, content-addressed caching
+     * stand.
+     */
     @Bean
+    @Order(0)
+    SecurityFilterChain staticAssetFilterChain(HttpSecurity http) throws Exception {
+        http
+                .securityMatcher("/js/**")
+                .authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
+                .sessionManagement(session -> session
+                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .requestCache(RequestCacheConfigurer::disable)
+                .csrf(AbstractHttpConfigurer::disable)
+                .headers(headers -> headers
+                        .cacheControl(HeadersConfigurer.CacheControlConfig::disable));
+        return http.build();
+    }
+
+    @Bean
+    @Order(1)
     SecurityFilterChain securityFilterChain(HttpSecurity http,
                                             RememberMeServices rememberMeServices,
                                             RateLimitingFilter rateLimitingFilter,
                                             UserService userService) throws Exception {
         http
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/actuator/health", "/actuator/health/**", "/css/**", "/js/**").permitAll()
+                        .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
                         .requestMatchers(PUBLIC_PATHS).permitAll()
                         // Called by the inbound e-mail provider, not a browser; guarded by its
                         // own shared secret instead of a session (see NewsletterInboundController).

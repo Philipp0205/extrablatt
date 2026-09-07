@@ -460,8 +460,8 @@ or the staging landing page will walk you into a real payment.
 ## Marketing / landing page
 
 `marketing/` is a small, static (plain HTML/CSS, no JavaScript, no build step)
-landing page: a short pitch plus screenshots of the app running on an actual
-Kindle, with a link through to the app itself. It is deliberately **not**
+landing page: a short pitch plus screenshots of the app inside a drawn Kindle,
+with a link through to the app itself. It is deliberately **not**
 built with Spring/Java — it is pure static content, so the simplest, cheapest
 thing to serve it with is a file server, not another JVM process. The bundled
 Caddy container already sits in front of the app, so it serves this folder
@@ -476,6 +476,12 @@ The production split is two names against this deployment:
 To update the landing page's copy or screenshots, edit files under
 `marketing/` and redeploy as usual — `deploy/deploy.sh` syncs the whole repo,
 including this folder, and Caddy serves whatever is on disk with no rebuild.
+
+The screenshots in `marketing/assets/img/` are the running app captured at
+1236 × 1648, a Kindle Paperwhite's panel. Take them from a browser window of
+618 × 824 CSS pixels at twice the device pixel ratio, signed in to an account
+holding a few feeds, so the reader lays a page out exactly as it would on the
+device. Keep that 3:4: the hero's device frame crops anything taller.
 
 The committed files are the *production* page: they name `reader.extrablatt.app`
 throughout, and that is what ships to `extrablatt.app`. The staging copy is
