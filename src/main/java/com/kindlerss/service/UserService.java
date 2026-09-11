@@ -4,6 +4,7 @@ import com.kindlerss.domain.AppUser;
 import com.kindlerss.domain.EmailToken;
 import com.kindlerss.repository.EmailTokenRepository;
 import com.kindlerss.repository.UserRepository;
+import com.kindlerss.security.RateLimiter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DuplicateKeyException;
@@ -29,24 +30,29 @@ public class UserService {
     private static final int MAX_PASSWORD_LENGTH = 200;
     private static final Duration VERIFY_TTL = Duration.ofDays(2);
     private static final Duration RESET_TTL = Duration.ofHours(1);
+    private static final int MAX_REMINDERS_PER_ADDRESS = 3;
+    private static final Duration REMINDER_WINDOW = Duration.ofHours(1);
 
     private final UserRepository userRepository;
     private final EmailTokenRepository tokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final AccountMailService mailService;
     private final SubscriptionService subscriptionService;
+    private final RateLimiter rateLimiter;
     private final SecureRandom random = new SecureRandom();
 
     public UserService(UserRepository userRepository,
                        EmailTokenRepository tokenRepository,
                        PasswordEncoder passwordEncoder,
                        AccountMailService mailService,
-                       SubscriptionService subscriptionService) {
+                       SubscriptionService subscriptionService,
+                       RateLimiter rateLimiter) {
         this.userRepository = userRepository;
         this.tokenRepository = tokenRepository;
         this.passwordEncoder = passwordEncoder;
         this.mailService = mailService;
         this.subscriptionService = subscriptionService;
+        this.rateLimiter = rateLimiter;
     }
 
     public Optional<AppUser> findById(long id) {
@@ -54,25 +60,66 @@ public class UserService {
     }
 
     /**
-     * Creates an account and sends a verification e-mail. To avoid revealing which
-     * addresses are registered, a collision is treated as a silent success and a
-     * reminder is not sent; the caller shows the same "check your inbox" message
-     * regardless.
+     * Creates an account and sends a verification e-mail. An address that is already
+     * taken gets a reminder instead (see {@link #remindExistingAccount}); either way
+     * the caller shows the same "check your inbox" message, so the form never reveals
+     * which addresses are registered.
      */
     @Transactional
     public void register(String email, String password) {
         String normalized = validateEmail(email);
         validatePassword(password);
+        Optional<AppUser> existing = userRepository.findByEmail(normalized);
+        if (existing.isPresent()) {
+            remindExistingAccount(existing.get());
+            return;
+        }
         AppUser user;
         try {
             user = userRepository.insert(normalized, passwordEncoder.encode(password));
         } catch (DuplicateKeyException duplicate) {
+            // Lost a race with a concurrent sign-up of the same address, which sent
+            // the mail itself. Postgres has aborted this transaction anyway, so there
+            // is nothing left to do here but stop.
             log.info("Registration attempt for existing address ignored");
             return;
         }
         startAtCurrentRelease(user);
         subscriptionService.startTrial(user.id());
         issueVerification(user);
+    }
+
+    /**
+     * Answers a repeat sign-up by mailing the account's owner: a fresh confirmation
+     * link while the address is still unconfirmed, otherwise a note that the account
+     * exists. Without it, someone whose first confirmation e-mail was lost or expired
+     * is stuck — the form claims a message went out and nothing arrives.
+     *
+     * <p>The mailbox owner is the one person entitled to know, so this stays quiet
+     * towards the browser: the reply must match a fresh sign-up exactly, which also
+     * means a send failure is logged rather than reported.
+     */
+    private void remindExistingAccount(AppUser user) {
+        if (!user.enabled()) {
+            log.info("Repeat registration for a disabled account ignored");
+            return;
+        }
+        if (!rateLimiter.tryAcquire("signup-reminder|" + user.email(),
+                MAX_REMINDERS_PER_ADDRESS, REMINDER_WINDOW)) {
+            // Repeat sign-ups are unauthenticated, so an address whose owner is not
+            // even asking must not become a way to fill their inbox.
+            log.info("Repeat registration reminder throttled");
+            return;
+        }
+        try {
+            if (user.emailVerified()) {
+                mailService.sendAccountExists(user.email());
+            } else {
+                mailService.sendVerificationReminder(user.email(), newVerificationToken(user));
+            }
+        } catch (RuntimeException e) {
+            log.warn("Repeat registration e-mail failed: {}", e.getMessage());
+        }
     }
 
     /**
@@ -86,11 +133,16 @@ public class UserService {
     }
 
     private void issueVerification(AppUser user) {
+        mailService.sendVerification(user.email(), newVerificationToken(user));
+    }
+
+    /** Issues a confirmation token, retiring any earlier one so only the newest link works. */
+    private String newVerificationToken(AppUser user) {
         String token = newToken();
         tokenRepository.deleteForUser(user.id(), EmailToken.Purpose.VERIFY);
         tokenRepository.insert(token, user.id(), EmailToken.Purpose.VERIFY,
                 Instant.now().plus(VERIFY_TTL));
-        mailService.sendVerification(user.email(), token);
+        return token;
     }
 
     /** Confirms an address from a verification token. Returns true when it applied. */
