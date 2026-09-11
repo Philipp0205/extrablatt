@@ -1,6 +1,20 @@
 {
   "releases": [
     {
+      "id": "2026-09-11",
+      "date": "11 September 2026",
+      "title": "Signing up again sends mail",
+      "highlights": [
+        "If the first confirmation e-mail never arrived, signing up again sends a fresh link.",
+        "An address that already has an account gets a reminder instead of silence."
+      ],
+      "changes": [
+        "Signing up again with an unconfirmed address sends a new confirmation link instead of claiming a message went out and sending nothing.",
+        "Signing up with an address that already has a confirmed account mails a reminder with links to log in and to reset the password.",
+        "The password from the first sign-up stays in place; the new one typed on a repeat sign-up is ignored."
+      ]
+    },
+    {
       "id": "2026-09-07",
       "date": "7 September 2026",
       "title": "Pages open already styled",
