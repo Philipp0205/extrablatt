@@ -4,6 +4,7 @@ import com.kindlerss.domain.AppUser;
 import com.kindlerss.domain.EmailToken;
 import com.kindlerss.repository.EmailTokenRepository;
 import com.kindlerss.repository.UserRepository;
+import com.kindlerss.security.RateLimiter;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.dao.DuplicateKeyException;
@@ -13,6 +14,7 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Optional;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -21,6 +23,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -41,12 +44,17 @@ class UserServiceTest {
         mailService = mock(AccountMailService.class);
         subscriptionService = mock(SubscriptionService.class);
         service = new UserService(userRepository, tokenRepository, passwordEncoder, mailService,
-                subscriptionService);
+                subscriptionService, new RateLimiter());
         when(passwordEncoder.encode(anyString())).thenReturn("hashed");
     }
 
+    /** An account whose address has not been confirmed yet. */
     private AppUser user(long id, String email) {
         return new AppUser(id, email, "hashed", null, null, null, Instant.now(), Instant.now());
+    }
+
+    private AppUser verified(long id, String email) {
+        return new AppUser(id, email, "hashed", null, Instant.now(), null, Instant.now(), Instant.now());
     }
 
     @Test
@@ -73,7 +81,72 @@ class UserServiceTest {
     }
 
     @Test
-    void registrationForExistingEmailIsSilent() {
+    void signingUpAgainWithAnUnconfirmedAddressResendsTheConfirmationLink() {
+        when(userRepository.findByEmail("taken@example.com"))
+                .thenReturn(Optional.of(user(7L, "taken@example.com")));
+
+        service.register("Taken@Example.com", "supersecret");
+
+        verify(tokenRepository).deleteForUser(7L, EmailToken.Purpose.VERIFY);
+        verify(tokenRepository).insert(anyString(), eq(7L), eq(EmailToken.Purpose.VERIFY), any());
+        verify(mailService).sendVerificationReminder(eq("taken@example.com"), anyString());
+        // The account is untouched: no second account, no restarted trial, and the
+        // password stays the one the first sign-up chose.
+        verify(userRepository, never()).insert(anyString(), anyString());
+        verify(userRepository, never()).updatePasswordHash(anyLong(), anyString());
+        verify(subscriptionService, never()).startTrial(anyLong());
+    }
+
+    @Test
+    void signingUpAgainWithAConfirmedAddressSaysSoInsteadOfSendingALink() {
+        when(userRepository.findByEmail("taken@example.com"))
+                .thenReturn(Optional.of(verified(7L, "taken@example.com")));
+
+        service.register("taken@example.com", "supersecret");
+
+        verify(mailService).sendAccountExists("taken@example.com");
+        verify(mailService, never()).sendVerificationReminder(anyString(), anyString());
+        verify(tokenRepository, never()).insert(anyString(), anyLong(), anyPurpose(), any());
+        verify(userRepository, never()).insert(anyString(), anyString());
+    }
+
+    @Test
+    void repeatSignUpsForOneAddressStopMailingItAfterAFewTries() {
+        when(userRepository.findByEmail("taken@example.com"))
+                .thenReturn(Optional.of(verified(7L, "taken@example.com")));
+
+        for (int attempt = 0; attempt < 10; attempt++) {
+            service.register("taken@example.com", "supersecret");
+        }
+
+        verify(mailService, times(3)).sendAccountExists("taken@example.com");
+    }
+
+    @Test
+    void repeatSignUpForADisabledAccountSendsNothing() {
+        AppUser disabled = new AppUser(7L, "blocked@example.com", "hashed", null,
+                Instant.now(), Instant.now(), Instant.now(), Instant.now());
+        when(userRepository.findByEmail("blocked@example.com")).thenReturn(Optional.of(disabled));
+
+        service.register("blocked@example.com", "supersecret");
+
+        verify(mailService, never()).sendAccountExists(anyString());
+        verify(mailService, never()).sendVerificationReminder(anyString(), anyString());
+    }
+
+    @Test
+    void aFailedReminderStillLooksLikeASuccessfulSignUp() {
+        when(userRepository.findByEmail("taken@example.com"))
+                .thenReturn(Optional.of(verified(7L, "taken@example.com")));
+        org.mockito.Mockito.doThrow(new IllegalStateException("Could not send e-mail"))
+                .when(mailService).sendAccountExists(anyString());
+
+        // Reporting the failure would tell the browser the address is taken.
+        assertDoesNotThrow(() -> service.register("taken@example.com", "supersecret"));
+    }
+
+    @Test
+    void losingTheRaceToACompetingSignUpIsSilent() {
         when(userRepository.insert(anyString(), anyString()))
                 .thenThrow(new DuplicateKeyException("exists"));
 
@@ -168,5 +241,9 @@ class UserServiceTest {
 
     private static Instant any() {
         return org.mockito.ArgumentMatchers.any(Instant.class);
+    }
+
+    private static EmailToken.Purpose anyPurpose() {
+        return org.mockito.ArgumentMatchers.any(EmailToken.Purpose.class);
     }
 }
