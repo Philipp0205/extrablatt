@@ -62,6 +62,11 @@ Kindle address under **Settings**.
 ## Accounts and data isolation
 
 - Anyone can register with an e-mail and password; a confirmation link is e-mailed.
+  Signing up again with an address that is already taken keeps the existing
+  account and its password, and mails that address instead: a fresh confirmation
+  link while it is unconfirmed, otherwise a note that the account exists. The
+  browser sees the same "check your inbox" reply either way, so the form does not
+  reveal which addresses are registered.
 - Sending to Kindle is unlocked once the e-mail is verified and a Kindle address is
   set in **Settings**.
 - Each account only ever sees and manages its own feeds and articles; access is
