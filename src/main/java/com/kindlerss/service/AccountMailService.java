@@ -42,11 +42,56 @@ public class AccountMailService {
     }
 
     /**
+     * Sent when someone signs up again with an address whose account was never
+     * confirmed. The link is what they came for; the note about the password is
+     * because a repeat sign-up deliberately leaves the first one in place, so the
+     * new one they just typed is not the one that works.
+     */
+    public void sendVerificationReminder(String toEmail, String token) {
+        String link = accountLink("/verify", token);
+        String appUrl = appUrl();
+        String body = """
+                You signed up for Extrablatt with this address but the account was
+                never confirmed, so here is a fresh link for it:
+
+                %s
+
+                Afterwards, log in with the password you chose when you first signed
+                up. If you picked a different one just now, or no longer remember it,
+                set a new password here: %s/forgot-password
+
+                If you did not create this account, you can ignore this message.
+                """.formatted(link, appUrl);
+        send(toEmail, "Confirm your Extrablatt account", body);
+    }
+
+    /**
+     * Sent when someone signs up again with an address that already has a confirmed
+     * account. Nothing needs confirming, so the message is about getting back in —
+     * and it goes out at all because the sign-up form promises an e-mail either way.
+     */
+    public void sendAccountExists(String toEmail) {
+        String appUrl = appUrl();
+        String body = """
+                Someone just signed up for Extrablatt with this address, which already
+                has a confirmed account. There is nothing to confirm — log in as usual:
+
+                %s/login
+
+                Forgotten the password? Set a new one: %s/forgot-password
+
+                If that was not you, you can ignore this message. The sign-up changed
+                nothing and your password is unchanged.
+                """.formatted(appUrl, appUrl);
+        send(toEmail, "You already have an Extrablatt account", body);
+    }
+
+    /**
      * Sent once an account's e-mail is confirmed — a separate, friendlier message
      * than the confirmation link itself, pointing the new user at what to do next.
      */
     public void sendWelcome(String toEmail) {
-        String appUrl = properties.publicUrl().replaceFirst("/+$", "");
+        String appUrl = appUrl();
         String body = """
                 Welcome aboard — your Extrablatt account is ready.
 
@@ -83,8 +128,11 @@ public class AccountMailService {
     }
 
     private String accountLink(String path, String token) {
-        String baseUrl = properties.publicUrl().replaceFirst("/+$", "");
-        return baseUrl + path + "?token=" + token;
+        return appUrl() + path + "?token=" + token;
+    }
+
+    private String appUrl() {
+        return properties.publicUrl().replaceFirst("/+$", "");
     }
 
     /** Package-private so billing e-mail reuses the one sender and its error handling. */
