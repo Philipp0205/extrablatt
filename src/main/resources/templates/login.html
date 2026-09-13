@@ -30,6 +30,10 @@
 
     <label for="password" style="margin-top:0.75rem">Password</label>
     <input id="password" name="password" type="password" autocomplete="current-password" required/>
+    <label class="check">
+      <input type="checkbox" id="show-password" data-show-password="password"/>
+      Show password
+    </label>
 
     <label class="check" style="margin-top:0.75rem">
       <input type="checkbox" name="remember-me" value="true"/>
@@ -47,5 +51,6 @@
   </p>
   <div th:replace="~{fragments/site-footer :: siteFooter}"></div>
 </div>
+<script th:src="@{/js/show-password.js}"></script>
 </body>
 </html>

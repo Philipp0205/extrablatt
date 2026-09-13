@@ -143,7 +143,10 @@ class AppControllerSecurityTest {
                 .andExpect(status().isOk())
                 .andExpect(view().name("login"))
                 .andExpect(content().string(not(containsString("Klarblatt"))))
-                .andExpect(content().string(not(containsString("accessible reader"))));
+                .andExpect(content().string(not(containsString("accessible reader"))))
+                .andExpect(content().string(containsString("Show password")))
+                .andExpect(content().string(containsString("data-show-password=\"password\"")))
+                .andExpect(content().string(containsString("/js/show-password")));
     }
 
     @Test

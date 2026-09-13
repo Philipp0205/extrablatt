@@ -354,7 +354,7 @@ This repo's Railway project has two environments:
 | App URL | https://reader.extrablatt.app | https://staging.extrablatt.app |
 | Landing page URL | https://extrablatt.app | https://marketing-site-staging-staging.up.railway.app |
 | Database | live Postgres | **copy** of production (own instance) |
-| How it deploys | Railway GitHub trigger on `main` | Railway GitHub trigger on `staging`, plus `.github/workflows/deploy-railway.yml` |
+| How it deploys | Railway GitHub trigger on `main` | Railway GitHub trigger on `staging` |
 
 Merge (or push) to `staging` to ship a build you can try before it reaches
 readers. Merge to `main` when that build should go live. Staging has its own
@@ -366,11 +366,12 @@ Staging still uses the production SMTP sender, so Kindle sends and account
 e-mail from that host are real. `APP_PUBLIC_URL` is `https://staging.extrablatt.app`,
 so verification and reset links stay on staging.
 
-To let GitHub Actions talk to Railway, add a repository secret named
-`RAILWAY_TOKEN` (a Railway account or project token). The dashboard trigger
-keeps deploying even without that secret. Until the secret is set, both
-`deploy-railway.yml` and **Sync staging database** skip their Railway steps
-with exit 0 instead of failing the Actions run.
+To let the **Sync staging database** GitHub Action talk to Railway, add a
+repository secret named `RAILWAY_TOKEN` (a Railway account or project token).
+Deploys themselves don't need it — those go through Railway's own GitHub
+trigger on `main`/`staging` regardless. Until the secret is set, **Sync
+staging database** skips its Railway steps with exit 0 instead of failing the
+Actions run.
 
 The steps above cover the application service. `marketing/` also has its own
 `Dockerfile` (a tiny Caddy container serving the folder on `$PORT`), so it can
@@ -433,10 +434,7 @@ environment is currently linked, which is why the switch comes first. Check with
 `railway status` if you are not sure where you are.
 
 Deploys come from Railway's own GitHub trigger on the `staging` branch, the same
-mechanism that ships the production page. The `railway up` step in
-`deploy-railway.yml` is a belt-and-braces extra that does nothing today: it
-guards on a `RAILWAY_TOKEN` repository secret that is not set, so it prints a
-skip notice and exits 0 on every run.
+mechanism that ships the production page.
 
 To change `SITE_ENV` later, it is `railway variable set SITE_ENV=staging
 --service marketing-site-staging --environment staging` (`railway variables
