@@ -562,7 +562,7 @@ Never commit `.env`, private keys, or `VPS_SSH_KEY_B64`.
 The Feeds page ends with a line like:
 
 ```
-Version 1.0.0-SNAPSHOT · revision a1b2c3d · built 2026-08-10 08:45 UTC
+Version 1.0.0 · revision a1b2c3d · built 2026-08-10 08:45 UTC
 ```
 
 Compare `revision` with `git rev-parse --short HEAD` to see whether the VPS runs
