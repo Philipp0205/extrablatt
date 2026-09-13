@@ -1,6 +1,19 @@
 {
   "releases": [
     {
+      "id": "2026-09-13-licensing",
+      "date": "13 September 2026",
+      "title": "Source available, free to self-host",
+      "highlights": [
+        "Extrablatt's source is now public under the PolyForm Noncommercial License.",
+        "You can self-host it yourself for personal, noncommercial use, free of charge."
+      ],
+      "changes": [
+        "Published the source code under the PolyForm Noncommercial License 1.0.0, with a self-hosting guide in the README.",
+        "The marketing site explains self-hosting versus the hosted subscription, and links to the license."
+      ]
+    },
+    {
       "id": "2026-09-13",
       "date": "13 September 2026",
       "title": "Show password on login",

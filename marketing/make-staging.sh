@@ -27,7 +27,7 @@ sed -i "s/reader\.extrablatt\.app/$app_host/g" "$page"
 
 sed -i "s|<title>|<meta name=\"robots\" content=\"noindex, nofollow\"/><title>[staging] |" "$page"
 
-banner='<div style="background:#8a1c1c;color:#fff;padding:0.6rem 1rem;text-align:center;font:600 0.95rem/1.4 system-ui,-apple-system,sans-serif">Staging preview — not the live site. Everything here points at <code style="font:inherit">'"$app_host"'</code>.</div>'
+banner='<div style="background:#8a1c1c;color:#fff;padding:0.6rem 1rem;text-align:center;font:600 0.95rem/1.4 system-ui,-apple-system,sans-serif">Staging preview, not the live site. Everything here points at <code style="font:inherit">'"$app_host"'</code>.</div>'
 sed -i "s|<body>|<body>$banner|" "$page"
 
 printf 'User-agent: *\nDisallow: /\n' > "$root/robots.txt"
