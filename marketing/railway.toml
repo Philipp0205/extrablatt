@@ -2,8 +2,8 @@
 # so GitHub deploys do not inherit /actuator/health.
 #
 # Environments:
-#   production  — GitHub branch `main`, https://extrablatt.app
-#   staging     — GitHub branch `staging`, on its generated *.up.railway.app
+#   production: GitHub branch `main`, https://extrablatt.app
+#   staging: GitHub branch `staging`, on its generated *.up.railway.app
 #                 domain unless a custom one is added
 #
 # The staging service needs one variable the production one does not:

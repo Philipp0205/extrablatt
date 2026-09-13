@@ -2,6 +2,28 @@
 
 Multi-user RSS/Atom reader that extracts readable article HTML and emails EPUB files to each user's Kindle. Plain server-rendered UI that stays usable without JavaScript. Runs as one always-on service (single VPS or a managed platform such as Railway).
 
+## License and personal self-hosting
+
+Extrablatt is source-available under the
+[PolyForm Noncommercial License 1.0.0](LICENSE)
+(`PolyForm-Noncommercial-1.0.0`). It is not OSI-approved open-source software.
+
+- You can use, modify, and self-host it for personal, noncommercial purposes
+  without paying a software license fee. Other permitted purposes, including
+  use by the organizations listed in the license, are defined in the full terms.
+- You provide and pay for your own server, database, and e-mail delivery. Leave
+  `BILLING_ENABLED` unset or `false`; no hosted Extrablatt subscription is needed.
+- Commercial use, including selling hosted access, is not granted by this license
+  and requires separate permission from the copyright holder. For licensing
+  inquiries, contact [hello@extrablatt.app](mailto:hello@extrablatt.app).
+- The official [hosted service](https://reader.extrablatt.app) is operated
+  commercially by the project owner. Its subscriptions pay for that service;
+  they do not grant rights to resell or commercially host the software.
+
+The license terms govern; this is a summary. Third-party dependencies retain
+their own licenses. Start with [Local configuration](#local-configuration) or
+[Build / run with Docker](#build--run-with-docker) to self-host.
+
 ## Features
 
 - Email + password accounts with e-mail verification and password reset
@@ -222,6 +244,10 @@ entirely; existing RSS feeds are unaffected either way.
 
 ## Subscriptions (optional)
 
+The billing configuration below is for the project owner's hosted service or
+operators with separate commercial permission; it does not grant commercial
+hosting rights under the [license](LICENSE).
+
 Left alone, this feature does not exist: with `BILLING_ENABLED` unset there are no
 prices, no subscription menu, no cancellation page, and every account keeps the
 full `MAX_*` allowances. That is the right setting for a self-hosted copy, which is
@@ -420,7 +446,7 @@ To recreate it from scratch, or to build a second one:
 
 ```bash
 railway environment staging                                          # switch the linked environment
-railway add --service marketing-site-staging --repo Philipp0205/kindle-rss \
+railway add --service marketing-site-staging --repo Philipp0205/extrablatt \
     --branch staging --variables "SITE_ENV=staging"
 railway domain --service marketing-site-staging --environment staging
 ```
