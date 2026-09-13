@@ -1,5 +1,5 @@
 # Railway (and similar PaaS) terminate TLS at the edge and forward plain HTTP
-# to whatever port the container publishes via $PORT — so, unlike
+# to whatever port the container publishes via $PORT, so, unlike
 # deploy/Caddyfile, this listens on a bare port instead of a domain name and
 # does not request its own certificate.
 :{$PORT}
