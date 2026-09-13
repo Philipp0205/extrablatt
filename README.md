@@ -420,7 +420,7 @@ To recreate it from scratch, or to build a second one:
 
 ```bash
 railway environment staging                                          # switch the linked environment
-railway add --service marketing-site-staging --repo Philipp0205/kindle-rss \
+railway add --service marketing-site-staging --repo Philipp0205/extrablatt \
     --branch staging --variables "SITE_ENV=staging"
 railway domain --service marketing-site-staging --environment staging
 ```
