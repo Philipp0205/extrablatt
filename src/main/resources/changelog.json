@@ -1,6 +1,17 @@
 {
   "releases": [
     {
+      "id": "2026-09-13",
+      "date": "13 September 2026",
+      "title": "Show password on login",
+      "highlights": [
+        "The login form has a \"Show password\" checkbox."
+      ],
+      "changes": [
+        "Checking \"Show password\" on the login form reveals what was typed instead of dots; the box itself is never sent with the form."
+      ]
+    },
+    {
       "id": "2026-09-11",
       "date": "11 September 2026",
       "title": "Signing up again sends mail",
