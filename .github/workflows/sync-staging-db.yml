@@ -5,7 +5,7 @@
 # production instance (Flyway on staging must never run against prod).
 #
 # Required repository secret: RAILWAY_TOKEN
-# When the secret is missing the job skips (exit 0), same as deploy-railway.yml.
+# When the secret is missing the job skips (exit 0).
 
 name: Sync staging database
 
