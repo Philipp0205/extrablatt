@@ -242,6 +242,30 @@ belongs to, and names that feed the first time), `Subject`, `HtmlBody`/
 does), and `Date`. Leaving `NEWSLETTER_INBOUND_DOMAIN` unset hides the feature
 entirely; existing RSS feeds are unaffected either way.
 
+## Sync with Nextcloud News (optional)
+
+Settings → Sync keeps an account's feed list, categories and read state in step
+with [Nextcloud News](https://apps.nextcloud.com/apps/news), so they follow you
+across devices. Extrablatt still fetches and extracts every feed itself; Nextcloud
+only supplies the list and the read flags.
+
+- **Setup:** set `SYNC_ENCRYPTION_KEY` (a long random string that encrypts stored
+  app passwords; leaving it blank hides the feature). Then, in Settings → Sync,
+  enter the Nextcloud address, username and an app password (Nextcloud → Settings
+  → Security).
+- **First connection:** the two feed lists are merged, and an article read on
+  either side ends up read.
+- **Afterwards:** Nextcloud wins conflicts (feed added/removed, category, read
+  state). A category you change here is pushed once. Feeds you add or delete here
+  are added or deleted in Nextcloud. Sync runs every 30 minutes and when you open
+  Feeds or Articles.
+- **Not synced:** newsletters, pasted-URL clippings and "sent to Kindle".
+- **LAN Nextcloud:** private addresses are blocked like every outbound request.
+  Self-hosters can set `SYNC_ALLOW_PRIVATE_HOSTS=true`.
+
+The provider sits behind a `SyncProvider` interface (`com.kindlerss.sync`), so other
+services can be added alongside `NextcloudNewsProvider`.
+
 ## Subscriptions (optional)
 
 The billing configuration below is for the project owner's hosted service or

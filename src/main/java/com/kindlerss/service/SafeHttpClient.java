@@ -95,6 +95,15 @@ public class SafeHttpClient {
     }
 
     public URI validateAndResolve(String url) {
+        return validateAndResolve(url, false);
+    }
+
+    /**
+     * As {@link #validateAndResolve(String)}, optionally letting private addresses
+     * through (a self-hosted provider on a LAN). Only schemes and hostnames that
+     * cannot be real remote hosts are still rejected.
+     */
+    public URI validateAndResolve(String url, boolean allowPrivateAddresses) {
         if (url == null || url.isBlank()) {
             throw new FetchException("URL is required");
         }
@@ -112,7 +121,8 @@ public class SafeHttpClient {
             throw new FetchException("URL must include a host");
         }
         String host = uri.getHost().toLowerCase(Locale.ROOT);
-        if (BLOCKED_HOSTS.contains(host) || host.endsWith(".localhost") || host.endsWith(".local")) {
+        if (!allowPrivateAddresses
+                && (BLOCKED_HOSTS.contains(host) || host.endsWith(".localhost") || host.endsWith(".local"))) {
             throw new FetchException("Host is not allowed");
         }
         try {
@@ -121,7 +131,7 @@ public class SafeHttpClient {
                 throw new FetchException("Host could not be resolved");
             }
             for (InetAddress address : addresses) {
-                if (isBlockedAddress(address)) {
+                if (!allowPrivateAddresses && isBlockedAddress(address)) {
                     throw new FetchException("Resolved address is not allowed: " + address.getHostAddress());
                 }
             }

@@ -156,6 +156,13 @@ app:
     # re-extracted from the article's own address when next needed, so clearing it
     # costs a refetch and nothing else.
     article-cache-days: ${RETENTION_ARTICLE_CACHE_DAYS:365}
+  sync:
+    # Secret used to encrypt provider passwords (Nextcloud app passwords) at rest.
+    # Blank disables connecting a sync provider.
+    encryption-key: ${SYNC_ENCRYPTION_KEY:}
+    # Lets sync reach private/LAN addresses (self-hosted Nextcloud). Keep false on
+    # a hosted deployment: it re-opens the SSRF protection for sync requests.
+    allow-private-hosts: ${SYNC_ALLOW_PRIVATE_HOSTS:false}
   newsletters:
     # Domain newsletter inboxes live under, e.g. news.yourdomain.com (needs MX
     # records pointed at an inbound e-mail provider). Blank disables the feature.

@@ -185,7 +185,7 @@ public class FeedRepository {
 
     public boolean updateCategory(long userId, long id, String category) {
         return jdbc.update("""
-                UPDATE feeds SET category = ?, updated_at = NOW() WHERE id = ? AND user_id = ?
+                UPDATE feeds SET category = ?, category_dirty = TRUE, updated_at = NOW() WHERE id = ? AND user_id = ?
                 """, normalizeCategory(category), id, userId) > 0;
     }
 
@@ -196,7 +196,7 @@ public class FeedRepository {
      */
     public int renameCategory(long userId, String oldCategory, String newCategory) {
         return jdbc.update("""
-                UPDATE feeds SET category = ?, updated_at = NOW()
+                UPDATE feeds SET category = ?, category_dirty = TRUE, updated_at = NOW()
                 WHERE user_id = ? AND category = ?
                 """, normalizeCategory(newCategory), userId, oldCategory);
     }
@@ -215,6 +215,14 @@ public class FeedRepository {
     }
 
     public boolean deleteById(long userId, long id) {
+        // A feed the provider knows about leaves a tombstone, so the next sync can
+        // remove it there too instead of re-creating it here.
+        jdbc.update("""
+                INSERT INTO sync_feed_tombstones (user_id, remote_id)
+                SELECT user_id, remote_id FROM feeds
+                WHERE id = ? AND user_id = ? AND remote_id IS NOT NULL
+                ON CONFLICT DO NOTHING
+                """, id, userId);
         return jdbc.update("DELETE FROM feeds WHERE id = ? AND user_id = ?", id, userId) > 0;
     }
 

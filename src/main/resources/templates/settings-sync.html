@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/settings-shell :: head('Sync')}"></head>
+<body>
+<div class="wrap">
+  <th:block th:replace="~{fragments/settings-shell :: top}"></th:block>
+
+  <a class="back-link" th:href="@{/settings}">← Settings</a>
+  <h1>Sync</h1>
+
+  <p class="meta" th:unless="${syncAvailable}">
+    Sync is not set up on this server.
+  </p>
+
+  <th:block th:if="${syncAvailable}">
+    <p class="meta">
+      Keep your feed list and read articles in step with Nextcloud News, so they
+      follow you across devices. Changes made in Nextcloud win if the two disagree.
+      Sending to Kindle is not synced.
+    </p>
+
+    <th:block th:if="${syncAccount != null}">
+      <p>
+        Connected to <strong th:text="${syncAccount.baseUrl}">https://cloud.example.com</strong>
+        as <strong th:text="${syncAccount.username}">user</strong>.
+      </p>
+      <p class="meta" th:if="${lastSynced != null}">Last synced <span th:text="${lastSynced}">now</span>.</p>
+      <p class="meta" th:if="${lastSynced == null}">Not synced yet.</p>
+      <p class="flash error" th:if="${syncAccount.lastError != null}"
+         th:text="${syncAccount.lastError}"></p>
+
+      <div class="row">
+        <form th:action="@{/settings/sync/now}" method="post">
+          <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+          <button class="btn" type="submit">Sync now</button>
+        </form>
+        <form th:action="@{/settings/sync/disconnect}" method="post">
+          <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+          <button class="btn" type="submit">Disconnect</button>
+        </form>
+      </div>
+    </th:block>
+
+    <form th:if="${syncAccount == null}" th:action="@{/settings/sync/connect}" method="post">
+      <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+      <label for="baseUrl">Nextcloud address</label>
+      <input id="baseUrl" name="baseUrl" type="url" placeholder="https://cloud.example.com" required/>
+      <label for="username">Username</label>
+      <input id="username" name="username" type="text" autocomplete="off" required/>
+      <label for="password">App password</label>
+      <input id="password" name="password" type="password" autocomplete="off" required/>
+      <p class="meta">Create an app password in Nextcloud under Settings → Security.
+        The Nextcloud News app must be installed. Your existing feeds and Nextcloud's
+        are merged on the first sync.</p>
+      <div class="row" style="margin-top:1rem">
+        <button class="btn" type="submit">Connect</button>
+      </div>
+    </form>
+  </th:block>
+
+  <div th:replace="~{fragments/site-footer :: siteFooter}"></div>
+</div>
+</body>
+</html>
