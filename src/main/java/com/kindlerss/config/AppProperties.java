@@ -1,6 +1,7 @@
 package com.kindlerss.config;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.context.properties.bind.ConstructorBinding;
 
 import java.time.Duration;
 
@@ -19,8 +20,10 @@ public record AppProperties(
         Limits limits,
         Newsletters newsletters,
         Billing billing,
-        Retention retention
+        Retention retention,
+        Sync sync
 ) {
+    @ConstructorBinding
     public AppProperties {
         if (http == null) {
             // Used by SafeHttpClient for outbound feed/article fetches.
@@ -45,6 +48,9 @@ public record AppProperties(
         if (retention == null) {
             retention = new Retention(null, null, null, null);
         }
+        if (sync == null) {
+            sync = new Sync(null, false);
+        }
         if (publicUrl == null || publicUrl.isBlank()) {
             // Base URL used to build links in verification / password-reset e-mails.
             publicUrl = "http://localhost:8080";
@@ -55,6 +61,13 @@ public record AppProperties(
             // in production so tokens cannot be forged with the well-known default.
             rememberMeKey = "kindle-rss-remember-me-change-me";
         }
+    }
+
+    public AppProperties(String mailFrom, String publicUrl, String rememberMeKey, Http http,
+                         Feeds feeds, Articles articles, Limits limits, Newsletters newsletters,
+                         Billing billing, Retention retention) {
+        this(mailFrom, publicUrl, rememberMeKey, http, feeds, articles, limits, newsletters,
+                billing, retention, null);
     }
 
     /** Timeouts and response size cap for outbound HTTP (feed refresh, extraction). */
@@ -270,6 +283,23 @@ public record AppProperties(
                 return fallback;
             }
             return Math.max(value, 0);
+        }
+    }
+
+    /**
+     * Sync with an external RSS provider. {@code encryptionKey} protects the stored
+     * provider password; without it sync cannot be connected. Private hosts are
+     * blocked by default; self-hosters with a LAN Nextcloud can allow them.
+     */
+    public record Sync(String encryptionKey, boolean allowPrivateHosts) {
+        public Sync {
+            if (encryptionKey != null && encryptionKey.isBlank()) {
+                encryptionKey = null;
+            }
+        }
+
+        public boolean enabled() {
+            return encryptionKey != null;
         }
     }
 

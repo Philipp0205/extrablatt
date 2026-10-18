@@ -176,7 +176,8 @@ public class ArticleRepository {
     public void markRead(long userId, long id, boolean read) {
         jdbc.update("""
                 UPDATE articles
-                SET read = ?, read_at = CASE WHEN ? THEN NOW() ELSE NULL END, updated_at = NOW()
+                SET read = ?, read_at = CASE WHEN ? THEN NOW() ELSE NULL END, read_changed_at = NOW(),
+                    updated_at = NOW()
                 WHERE id = ? AND feed_id IN (SELECT id FROM feeds WHERE user_id = ?)
                 """, read, read, id, userId);
     }
@@ -189,7 +190,7 @@ public class ArticleRepository {
     public int markFeedRead(long userId, long feedId) {
         return jdbc.update("""
                 UPDATE articles
-                SET read = TRUE, read_at = NOW(), updated_at = NOW()
+                SET read = TRUE, read_at = NOW(), read_changed_at = NOW(), updated_at = NOW()
                 WHERE feed_id = ? AND read = FALSE
                 AND feed_id IN (SELECT id FROM feeds WHERE user_id = ?)
                 """, feedId, userId);
@@ -209,7 +210,8 @@ public class ArticleRepository {
         args.add(userId);
         return jdbc.update("""
                 UPDATE articles
-                SET read = ?, read_at = CASE WHEN ? THEN NOW() ELSE NULL END, updated_at = NOW()
+                SET read = ?, read_at = CASE WHEN ? THEN NOW() ELSE NULL END, read_changed_at = NOW(),
+                    updated_at = NOW()
                 WHERE id IN (%s) AND read <> ?
                 AND feed_id IN (SELECT id FROM feeds WHERE user_id = ?)
                 """.formatted(placeholders), args.toArray());

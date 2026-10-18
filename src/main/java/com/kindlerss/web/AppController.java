@@ -9,6 +9,8 @@ import com.kindlerss.service.EntitlementService;
 import com.kindlerss.service.FeedService;
 import com.kindlerss.service.KindleMailService;
 import com.kindlerss.service.UserService;
+import com.kindlerss.sync.SyncService;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Controller;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -57,13 +59,16 @@ public class AppController {
     private final int pageSize;
     private final String mailFrom;
 
+    private final ObjectProvider<SyncService> syncService;
+
     public AppController(FeedService feedService,
                          ArticleService articleService,
                          KindleMailService kindleMailService,
                          UserService userService,
                          CurrentUser currentUser,
                          EntitlementService entitlementService,
-                         AppProperties properties) {
+                         AppProperties properties,
+                         ObjectProvider<SyncService> syncService) {
         this.feedService = feedService;
         this.articleService = articleService;
         this.kindleMailService = kindleMailService;
@@ -71,6 +76,7 @@ public class AppController {
         this.currentUser = currentUser;
         this.entitlementService = entitlementService;
         this.properties = properties;
+        this.syncService = syncService;
         this.pageSize = properties.articles().pageSize();
         this.mailFrom = properties.mailFrom();
     }
@@ -81,6 +87,7 @@ public class AppController {
                        Model model) {
         long userId = currentUser.requireId();
         feedService.refreshForUserSoon(userId);
+        syncService.ifAvailable(sync -> sync.syncSoonThrottled(userId));
         List<Feed> feeds = feedService.listFeeds(userId);
         long totalUnread = feeds.stream().mapToLong(Feed::unreadCount).sum();
         model.addAttribute("feeds", feeds);
@@ -331,6 +338,7 @@ public class AppController {
                         Model model) {
         long userId = currentUser.requireId();
         feedService.refreshForUserSoon(userId);
+        syncService.ifAvailable(sync -> sync.syncSoonThrottled(userId));
         if (feedId != null && feedService.findById(userId, feedId).isEmpty()) {
             throw new ArticleService.NotFoundException("Feed not found");
         }

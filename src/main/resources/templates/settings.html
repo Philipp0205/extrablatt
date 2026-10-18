@@ -29,6 +29,12 @@
         <span class="meta" th:text="${account.email}">you@example.com</span>
       </a>
     </li>
+    <li>
+      <a th:href="@{/settings/sync}">
+        <strong>Sync</strong>
+        <span class="meta">Nextcloud</span>
+      </a>
+    </li>
     <li th:if="${billingEnabled}">
       <a th:href="@{/settings/subscription}">
         <strong>Subscription</strong>
