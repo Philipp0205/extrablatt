@@ -85,6 +85,31 @@ class PostgresRepositoryTest {
         assertFalse(articles.findById(userId, untouched).orElseThrow().read());
     }
 
+    /**
+     * More ids than Postgres accepts bind parameters in one statement (65,535). Ids
+     * that do not exist or are not the account's change nothing.
+     */
+    @Test
+    void marksMoreArticlesReadThanAStatementHasPlaceholders() {
+        var feed = feeds.insert(userId, "Huge", "https://huge.example.com/feed.xml",
+                "https://huge.example.com", null);
+        var theirs = feeds.insert(otherUserId, "Huge theirs", "https://huge-theirs.example.com/feed.xml",
+                "https://huge-theirs.example.com", null);
+        long mine = insertArticle(feed.id(), "huge-1");
+        long stolen = insertArticle(theirs.id(), "huge-theirs-1");
+        List<Long> ids = new java.util.ArrayList<>();
+        for (long i = 0; i < 70_000; i++) {
+            ids.add(-1 - i);
+        }
+        ids.add(mine);
+        ids.add(stolen);
+
+        assertEquals(1, articles.markRead(userId, ids, true));
+        assertTrue(articles.findById(userId, mine).orElseThrow().read());
+        assertFalse(articles.findById(otherUserId, stolen).orElseThrow().read());
+        assertEquals(1, articles.markRead(userId, ids, false));
+    }
+
     @Test
     void marksEveryUnreadArticleInAFeedAndLeavesOtherFeedsAlone() {
         var feed = feeds.insert(userId, "Mark all", "https://mark-all.example.com/feed.xml",

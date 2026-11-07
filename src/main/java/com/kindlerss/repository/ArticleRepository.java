@@ -13,7 +13,6 @@ import java.sql.PreparedStatement;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
@@ -196,24 +195,31 @@ public class ArticleRepository {
                 """, feedId, userId);
     }
 
-    /** Returns how many of the account's articles actually changed state. */
+    /**
+     * Returns how many of the account's articles actually changed state. The ids go
+     * in as one array parameter rather than one placeholder each, because Postgres
+     * takes at most 65,535 bind parameters per statement and "mark all read" on a
+     * large account can pass more ids than that.
+     */
     public int markRead(long userId, Collection<Long> ids, boolean read) {
         if (ids == null || ids.isEmpty()) {
             return 0;
         }
-        String placeholders = String.join(",", Collections.nCopies(ids.size(), "?"));
-        var args = new java.util.ArrayList<Object>(ids.size() + 4);
-        args.add(read);
-        args.add(read);
-        args.addAll(ids);
-        args.add(read);
-        args.add(userId);
-        return jdbc.update("""
-                UPDATE articles
-                SET read = ?, read_at = CASE WHEN ? THEN NOW() ELSE NULL END, updated_at = NOW()
-                WHERE id IN (%s) AND read <> ?
-                AND feed_id IN (SELECT id FROM feeds WHERE user_id = ?)
-                """.formatted(placeholders), args.toArray());
+        Long[] idArray = ids.toArray(Long[]::new);
+        return jdbc.update(con -> {
+            PreparedStatement statement = con.prepareStatement("""
+                    UPDATE articles
+                    SET read = ?, read_at = CASE WHEN ? THEN NOW() ELSE NULL END, updated_at = NOW()
+                    WHERE id = ANY(?) AND read <> ?
+                    AND feed_id IN (SELECT id FROM feeds WHERE user_id = ?)
+                    """);
+            statement.setBoolean(1, read);
+            statement.setBoolean(2, read);
+            statement.setArray(3, con.createArrayOf("bigint", idArray));
+            statement.setBoolean(4, read);
+            statement.setLong(5, userId);
+            return statement;
+        });
     }
 
     /** Records one successful delivery and updates the article's latest-send timestamp. */
