@@ -102,6 +102,12 @@ public class SubscriptionService {
             throw new IllegalStateException("Payment is not configured on this server yet");
         }
         Subscription existing = forUser(userId);
+        // Writing the PENDING order row would replace GRANDFATHERED, and a pending
+        // order with no paid period grants nothing: the permanent free plan would be
+        // gone the moment the reader clicked, whether or not they ever paid.
+        if (existing.grandfathered()) {
+            throw new AlreadySupporterException();
+        }
         subscriptions.save(new Subscription(userId, Plan.SUPPORTER, SubscriptionStatus.PENDING,
                 interval, billing.provider(), existing.providerCustomerId(),
                 existing.providerSubscriptionId(), existing.currentPeriodEnd(),
@@ -262,6 +268,20 @@ public class SubscriptionService {
                 status, subscription.interval(), subscription.provider(),
                 subscription.providerCustomerId(), subscription.providerSubscriptionId(),
                 periodEnd, cancelAtPeriodEnd, subscription.withdrawalConsentAt());
+    }
+
+    /**
+     * An order refused because the account already has the Supporter plan for good.
+     * An {@link IllegalStateException}, so callers that only show the message need
+     * nothing new.
+     */
+    public static class AlreadySupporterException extends IllegalStateException {
+        public static final String MESSAGE = "Your account already has the Supporter plan "
+                + "permanently and at no cost, so there is nothing to order.";
+
+        public AlreadySupporterException() {
+            super(MESSAGE);
+        }
     }
 
     /** A cancellation exactly as § 312k Abs. 2 BGB lets a consumer state it. */

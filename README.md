@@ -272,7 +272,9 @@ abuse guardrail rather than a plan limit. The complimentary week is
 Every account that exists when the original subscriptions migration ran is
 grandfathered permanently: it was never advertised as something with a
 subscription, and capping it afterwards would be both unfair and bad for the
-project. An administrator can also grant the plan by hand from **Settings →
+project. A grandfathered account cannot place an order: the order page sends it
+back to **Settings → Subscription** with a note, because a pending order would
+otherwise replace the permanent plan. An administrator can also grant the plan by hand from **Settings →
 Telemetry**, which is how a reader whose payment went through but whose callback
 went missing gets fixed.
 

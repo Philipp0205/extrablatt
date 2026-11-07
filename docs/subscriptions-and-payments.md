@@ -109,7 +109,9 @@ e-mail budget in an afternoon — which is why the paid plan has one at all.
 Every account that existed before charging began is **grandfathered permanently**.
 The marketing page promised "no ads, no subscriptions, nothing to sell"; that
 promise was made to those people. `V12__subscriptions.sql` writes them all in as
-`GRANDFATHERED` with no end date.
+`GRANDFATHERED` with no end date. They cannot place an order (`BillingController`
+and `SubscriptionService.placeOrder` both refuse it with a note), because the
+`PENDING` order row would otherwise replace `GRANDFATHERED` before anything was paid.
 
 ### How many subscribers cover hosting
 
