@@ -541,6 +541,14 @@ Services:
 
 Healthchecks are configured on Postgres and the app (`/actuator/health`).
 
+The `app` service loads the repo-root `.env` with `env_file`, so every setting
+from `.env.example` (`BILLING_*`, `RETENTION_*`, `NEWSLETTER_*`, ...) reaches the
+application without being listed in the compose file. The `.env` file must
+exist next to `deploy/` (Compose fails otherwise). Values under `environment:`
+in `deploy/docker-compose.yml` take precedence: `DATABASE_URL` always points at
+the bundled Postgres, and `POSTGRES_PASSWORD`, `MAIL_FROM`, `REMEMBER_ME_KEY` and
+`DOMAIN` are still required.
+
 ### Behind an existing reverse proxy
 
 If the host already terminates TLS (its own Caddy, nginx, Traefik), the bundled
