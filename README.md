@@ -301,6 +301,16 @@ Two things are deliberately manual, because the app holds no provider API key: a
 cancellation is e-mailed to `BILLING_OPERATOR_EMAIL` so the payment is stopped at
 the provider by hand, and a missed callback is fixed with the admin grant above.
 
+`/cancel` needs no login, as § 312k BGB requires, but a declaration only takes
+effect at once for the signed-in owner of the account. Anyone else's is recorded
+with the time it arrived, and a single-use link (24 hours, at most three per account
+per day, only its SHA-256 hash stored) goes to the account's own address; following
+it and pressing the button applies the cancellation. The page shown afterwards is
+the same whether or not the address has an account, and the link e-mail repeats
+nothing the requester typed. See
+[`docs/subscriptions-and-payments.md`](docs/subscriptions-and-payments.md) for the
+legal reasoning, which needs a lawyer's look before charging anyone.
+
 Before charging anyone there is work no configuration flag covers.
 [`docs/going-live.md`](docs/going-live.md) is the runbook: the tax and establishment
 question that has to be settled first because it decides the provider, then the
@@ -630,6 +640,7 @@ chmod +x deploy/backup.sh deploy/restore.sh
 - Feed/article HTML is sanitized with jsoup Safelist before `th:utext`.
 - Outbound fetches allow only `http`/`https` and refuse loopback, private, link-local, CGNAT, ULA, multicast, documentation, benchmarking and reserved ranges, plus IPv6 prefixes that embed an IPv4 address (mapped, NAT64, 6to4, Teredo). The check runs inside the resolver the connection uses, so every DNS answer is checked at connect time and a host that switches to a private address after a first lookup (DNS rebinding) is still refused. Redirects are followed by hand (at most 5, each hop re-checked); no proxy, cookies or retries. Response size is capped (`app.http.max-bytes`), each wait for data is capped (`app.http.read-timeout`), and a whole fetch, redirects included, is capped by `app.http.total-timeout` (30s).
 - Redirect targets from form posts are restricted to same-app relative paths.
+- The public `/cancel` form changes a subscription only for the signed-in owner. For anyone else it records the declaration and mails a single-use, hashed, 24-hour link to the account's own address (at most three per account per day), without the requester's text; `/cancel/confirm` acts only on a CSRF-protected POST. The response is the same whether or not an account exists.
 - Every page is served with a Content-Security-Policy: scripts only from the app's own `/js/` files, no inline script or event handlers, and no inline styles except the page's own stylesheet, allowed by its SHA-256 hash (computed at start-up from `css/app.css`). Images may come from any http(s) origin, since articles show their source's images; forms may post to the app and to the origins of the configured checkout and portal URLs. Framing is refused (`frame-ancestors 'none'`, `X-Frame-Options: DENY`). Confirmation prompts on destructive forms use a `data-confirm` attribute read by `js/confirm.js`; new templates must not add `style="..."` or `on...=` attributes (a test checks).
 - Session cookies are not marked Secure in the default profile (local HTTP). The `production` profile sets Secure cookies; use a TLS-terminating proxy with forwarded headers.
 - Rate limiting keys on the client address the servlet container reports, never on a raw `X-Forwarded-For` header. With `server.forward-headers-strategy: framework`, Spring takes that address from the first `X-Forwarded-For` entry, so the proxy in front of the app must overwrite (not append to) that header. The limiter is in memory, bounded to 10,000 keys, and per instance.

@@ -14,6 +14,7 @@ import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Objects;
+import java.util.Optional;
 
 /** Persistence for cancellation declarations received under § 312k BGB. */
 @Repository
@@ -78,5 +79,59 @@ public class CancellationRequestRepository {
 
     public void markConfirmed(long id) {
         jdbc.update("UPDATE cancellation_requests SET confirmed_at = NOW() WHERE id = ?", id);
+    }
+
+    /**
+     * Records when the contract ends, and whether the declaration changed the
+     * subscription here or was left to the operator.
+     */
+    public void recordEffect(long id, Instant effectiveAt, boolean applied) {
+        jdbc.update("""
+                UPDATE cancellation_requests
+                SET effective_at = ?, applied_at = CASE WHEN ? THEN NOW() ELSE applied_at END
+                WHERE id = ?
+                """, effectiveAt == null ? null : Timestamp.from(effectiveAt), applied, id);
+    }
+
+    /** How many confirmation links an account was sent since then, used or not. */
+    public int countTokensSince(long userId, Instant since) {
+        Integer count = jdbc.queryForObject(
+                "SELECT COUNT(*) FROM cancellation_tokens WHERE user_id = ? AND created_at > ?",
+                Integer.class, userId, Timestamp.from(since));
+        return count == null ? 0 : count;
+    }
+
+    /** Stores the hash of a confirmation link's token. */
+    public void insertToken(String tokenHash, long requestId, long userId, Instant expiresAt) {
+        jdbc.update("""
+                INSERT INTO cancellation_tokens (token_hash, request_id, user_id, expires_at)
+                VALUES (?, ?, ?, ?)
+                """, tokenHash, requestId, userId, Timestamp.from(expiresAt));
+    }
+
+    /** A token that is unused and unexpired, without spending it. */
+    public Optional<PendingToken> findUsableToken(String tokenHash) {
+        return jdbc.query("""
+                SELECT request_id, user_id FROM cancellation_tokens
+                WHERE token_hash = ? AND used_at IS NULL AND expires_at > NOW()
+                """, (rs, n) -> new PendingToken(rs.getLong("request_id"), rs.getLong("user_id")), tokenHash)
+                .stream().findFirst();
+    }
+
+    /**
+     * Spends a token. A single statement, so two clicks racing each other cannot
+     * both get a row back.
+     */
+    public Optional<PendingToken> consumeToken(String tokenHash) {
+        return jdbc.query("""
+                UPDATE cancellation_tokens SET used_at = NOW()
+                WHERE token_hash = ? AND used_at IS NULL AND expires_at > NOW()
+                RETURNING request_id, user_id
+                """, (rs, n) -> new PendingToken(rs.getLong("request_id"), rs.getLong("user_id")), tokenHash)
+                .stream().findFirst();
+    }
+
+    /** What a confirmation link points at. */
+    public record PendingToken(long requestId, long userId) {
     }
 }

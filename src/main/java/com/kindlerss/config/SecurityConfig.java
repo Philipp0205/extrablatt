@@ -60,7 +60,9 @@ public class SecurityConfig {
             // § 312k BGB requires the cancellation path to be permanently available
             // and not to sit behind account credentials, so it is public on purpose.
             // CSRF still applies; the form carries a token like every other.
-            "/cancel"
+            "/cancel",
+            // Where the e-mailed confirmation link lands; the token is the credential.
+            "/cancel/confirm"
     };
 
     /** Session attribute holding the e-mail from a failed login, so the form can keep it. */

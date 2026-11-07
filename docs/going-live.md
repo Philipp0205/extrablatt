@@ -301,8 +301,11 @@ administer later, but it is five minutes and nothing can break.
 
 Set `BILLING_OPERATOR_EMAIL=hello@extrablatt.app` (or `philippk@mailbox.org` directly,
 which is one hop fewer and never depends on the forwarding working). Send yourself a
-test cancellation through `/cancel` and confirm both messages arrive: the confirmation
-to the declarant, and the operator notice to you.
+test cancellation through `/cancel` and confirm the messages arrive. Signed in as the
+owner: the confirmation to you as the account holder, and the operator notice. Not
+signed in: the confirmation link to the account's address and an operator notice
+saying it is not yet confirmed; after pressing "Cancel now" on the link's page, the
+confirmation and a second operator notice.
 
 ## The imprint, once the above is done
 

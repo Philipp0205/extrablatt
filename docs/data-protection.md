@@ -106,6 +106,9 @@ subscription identifiers, period end, withdrawal-consent timestamp.
 `billing_events`: the provider's event id, type, and the raw webhook payload.
 `cancellation_requests`: the declaration as submitted, including the declarant's
 e-mail address, optional name and free-text reason, and the time it arrived.
+`cancellation_tokens`: the SHA-256 hash of a single-use confirmation link sent to an
+account's own address when someone cancels without signing in; deleted with the
+account, and swept once spent or expired.
 **Recipients** — the payment provider, which receives the reader's e-mail address and
 the account id passed into the checkout, and which holds the card details we never
 see. Where a merchant of record is used it is the seller and an independent

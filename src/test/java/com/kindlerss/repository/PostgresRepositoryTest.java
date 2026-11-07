@@ -417,6 +417,43 @@ class PostgresRepositoryTest {
     }
 
     /**
+     * A cancellation link is spent once and only once, looking at it does not spend
+     * it, and an expired one does nothing.
+     */
+    @Test
+    void aCancellationLinkWorksOnceAndOnlyBeforeItExpires() {
+        JdbcTemplate jdbc = new JdbcTemplate(postgres.getPostgresDatabase());
+        long owner = users.insert("link-owner@example.com", "hash").id();
+        var repository = new CancellationRequestRepository(jdbc);
+        var stored = repository.insert(owner, "link-owner@example.com", null, null,
+                com.kindlerss.domain.CancellationRequest.Kind.ORDINARY, null, null, null);
+        repository.insertToken("hash-live", stored.id(), owner, Instant.now().plusSeconds(3600));
+        repository.insertToken("hash-old", stored.id(), owner, Instant.now().minusSeconds(1));
+
+        assertTrue(repository.findUsableToken("hash-live").isPresent());
+        assertTrue(repository.findUsableToken("hash-live").isPresent(), "peeking must not spend it");
+        var spent = repository.consumeToken("hash-live").orElseThrow();
+        assertEquals(stored.id(), spent.requestId());
+        assertEquals(owner, spent.userId());
+        assertTrue(repository.consumeToken("hash-live").isEmpty());
+        assertTrue(repository.findUsableToken("hash-live").isEmpty());
+
+        assertTrue(repository.findUsableToken("hash-old").isEmpty());
+        assertTrue(repository.consumeToken("hash-old").isEmpty());
+        assertTrue(repository.consumeToken("unknown").isEmpty());
+        assertEquals(2, repository.countTokensSince(owner, Instant.now().minusSeconds(60)));
+
+        repository.recordEffect(stored.id(), Instant.parse("2027-01-31T00:00:00Z"), true);
+        assertEquals(Instant.parse("2027-01-31T00:00:00Z"), repository.findById(stored.id()).effectiveAt());
+        assertEquals(1, count(jdbc,
+                "SELECT count(*) FROM cancellation_requests WHERE id = ? AND applied_at IS NOT NULL",
+                stored.id()));
+
+        assertTrue(users.deleteById(owner));
+        assertEquals(0, count(jdbc, "SELECT count(*) FROM cancellation_tokens WHERE user_id = ?", owner));
+    }
+
+    /**
      * The guarantee behind "Delete account": everything linked to the account goes, in
      * one statement, through the cascades. Written as one test over every table that
      * holds personal data, because a migration that adds a table without a cascade
@@ -497,6 +534,11 @@ class PostgresRepositoryTest {
                 """, ancient,
                 java.sql.Timestamp.from(Instant.parse("2020-01-03T00:00:00Z")),
                 java.sql.Timestamp.from(Instant.parse("2020-01-02T00:00:00Z")));
+        var ancientRequest = new CancellationRequestRepository(jdbc).insert(ancient,
+                "ancient@example.com", null, null,
+                com.kindlerss.domain.CancellationRequest.Kind.ORDINARY, null, null, null);
+        new CancellationRequestRepository(jdbc).insertToken("ancient-hash", ancientRequest.id(),
+                ancient, Instant.parse("2020-01-03T00:00:00Z"));
         new BillingEventRepository(jdbc).claim("evt_ancient", "stripe", "invoice.paid",
                 "{\"email\":\"ancient@example.com\"}", ancient);
         jdbc.update("UPDATE billing_events SET received_at = ? WHERE provider_event_id = 'evt_ancient'",
@@ -505,7 +547,7 @@ class PostgresRepositoryTest {
         Instant cutoff = Instant.parse("2026-01-01T00:00:00Z");
         assertEquals(1, repository.deleteSendEventsBefore(cutoff));
         assertEquals(1, repository.redactBillingPayloadsBefore(cutoff));
-        assertEquals(1, repository.deleteSpentTokensBefore(cutoff));
+        assertEquals(2, repository.deleteSpentTokensBefore(cutoff));
         assertEquals(1, repository.clearStaleArticleCacheBefore(cutoff));
 
         // Redacting is not deleting: the id has to stay, so a replay is still a no-op.

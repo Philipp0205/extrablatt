@@ -23,6 +23,7 @@ import java.util.Optional;
 import static org.hamcrest.Matchers.containsString;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -148,6 +149,87 @@ class CancellationControllerTest {
 
         mockMvc.perform(post("/cancel").with(csrf()).param("email", "reader@example.com"))
                 .andExpect(content().string(containsString("Nothing you have saved is deleted")));
+    }
+
+    /**
+     * Someone who is not signed in sees the same neutral page whether or not the
+     * address has an account, with the time it arrived but no end date and none of
+     * what they typed.
+     */
+    @Test
+    void anUnconfirmedDeclarationGetsTheSameNeutralPageWhateverTheAddress() throws Exception {
+        when(currentUser.details()).thenReturn(Optional.empty());
+        for (SubscriptionService.Route route : new SubscriptionService.Route[] {
+                SubscriptionService.Route.LINK_SENT, SubscriptionService.Route.RECORDED}) {
+            CancellationRequest request = new CancellationRequest(1L, null, "x@example.com",
+                    "Typed Name", null, CancellationRequest.Kind.ORDINARY, null, "typed reason",
+                    null, Instant.parse("2026-11-07T10:00:00Z"));
+            when(subscriptionService.cancel(any(), isNull()))
+                    .thenReturn(new SubscriptionService.Outcome(request, null, false, route));
+
+            mockMvc.perform(post("/cancel").with(csrf()).param("email", "x@example.com"))
+                    .andExpect(status().isOk())
+                    .andExpect(content().string(containsString("Your cancellation is on record")))
+                    .andExpect(content().string(containsString("7 November 2026 at 11:00")))
+                    .andExpect(content().string(org.hamcrest.Matchers.not(containsString("typed reason"))))
+                    .andExpect(content().string(org.hamcrest.Matchers.not(containsString("Typed Name"))))
+                    .andExpect(content().string(org.hamcrest.Matchers.not(containsString("x@example.com"))));
+        }
+    }
+
+    /** Opening the link only shows a button; mail scanners open links. */
+    @Test
+    void openingTheLinkAsksBeforeCancelling() throws Exception {
+        when(subscriptionService.peekLink("tok")).thenReturn(Optional.of(new CancellationRequest(1L,
+                42L, "reader@example.com", null, null, CancellationRequest.Kind.IMMEDIATE, null,
+                null, null, Instant.now())));
+
+        mockMvc.perform(get("/cancel/confirm").param("token", "tok"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("Confirm your cancellation")))
+                .andExpect(content().string(containsString("Cancel now")))
+                .andExpect(content().string(containsString("value=\"tok\"")));
+        verify(subscriptionService, never()).confirmByLink(any());
+    }
+
+    @Test
+    void aSpentLinkSaysSoWithoutCancelling() throws Exception {
+        when(subscriptionService.peekLink(any())).thenReturn(Optional.empty());
+        when(subscriptionService.confirmByLink(any())).thenReturn(Optional.empty());
+
+        mockMvc.perform(get("/cancel/confirm").param("token", "old"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("This link no longer works")));
+        mockMvc.perform(post("/cancel/confirm").with(csrf()).param("token", "old"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("This link no longer works")));
+    }
+
+    /** The confirmation repeats nothing a stranger typed into the form. */
+    @Test
+    void confirmingTheLinkShowsTheConfirmationWithoutTheTypedText() throws Exception {
+        CancellationRequest request = new CancellationRequest(1L, 42L, "reader@example.com",
+                "Typed Name", "typed ref", CancellationRequest.Kind.ORDINARY, null, "typed reason",
+                Instant.now(), Instant.now());
+        when(subscriptionService.confirmByLink("tok")).thenReturn(Optional.of(
+                new SubscriptionService.Outcome(request, Instant.now(), true,
+                        SubscriptionService.Route.CONFIRMED_BY_LINK)));
+
+        mockMvc.perform(post("/cancel/confirm").with(csrf()).param("token", "tok"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("Your cancellation is confirmed")))
+                .andExpect(content().string(containsString("will not renew")))
+                .andExpect(content().string(org.hamcrest.Matchers.not(containsString("typed reason"))))
+                .andExpect(content().string(org.hamcrest.Matchers.not(containsString("Typed Name"))))
+                .andExpect(content().string(org.hamcrest.Matchers.not(containsString("typed ref"))));
+    }
+
+    /** Spending the link changes state, so it needs the CSRF token like any form. */
+    @Test
+    void confirmingTheLinkNeedsACsrfToken() throws Exception {
+        mockMvc.perform(post("/cancel/confirm").param("token", "tok"))
+                .andExpect(status().isForbidden());
+        verify(subscriptionService, never()).confirmByLink(any());
     }
 
     private static SubscriptionService.Outcome outcome(boolean applied) {
