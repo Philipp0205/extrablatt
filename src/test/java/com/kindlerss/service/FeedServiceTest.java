@@ -1,8 +1,10 @@
 package com.kindlerss.service;
 
 import com.kindlerss.config.AppProperties;
+import com.kindlerss.domain.Entitlement;
 import com.kindlerss.domain.Feed;
 import com.kindlerss.domain.FeedSource;
+import com.kindlerss.domain.Plan;
 import com.kindlerss.repository.ArticleRepository;
 import com.kindlerss.repository.FeedRepository;
 import com.kindlerss.repository.SubscriptionRepository;
@@ -49,6 +51,7 @@ class FeedServiceTest {
     private final ArticleRepository articleRepository = mock(ArticleRepository.class);
     private final UserRepository userRepository = mock(UserRepository.class);
     private final SafeHttpClient httpClient = mock(SafeHttpClient.class);
+    private final RecordingTransactions transactions = new RecordingTransactions();
 
     private static final long UID = 7L;
 
@@ -57,16 +60,28 @@ class FeedServiceTest {
     }
 
     private FeedService service(int maxEntries, Executor refreshExecutor) {
+        return service(maxEntries, refreshExecutor, null);
+    }
+
+    /** A free-plan account whose free week is over: no newsletter inbox, 50 feeds. */
+    private FeedService freePlanService() {
+        EntitlementService entitlements = mock(EntitlementService.class);
+        when(entitlements.forUser(UID)).thenReturn(new Entitlement(Plan.FREE, 0, 0, 50, false));
+        return service(100, Runnable::run, entitlements);
+    }
+
+    private FeedService service(int maxEntries, Executor refreshExecutor, EntitlementService entitlementOverride) {
         AppProperties properties = new AppProperties(
                 "from@example.com", null, "remember-me",
                 null, new AppProperties.Feeds(maxEntries), null, null, null, null, null);
         when(userRepository.findMarkReadOnNextPageByFeedId(anyLong())).thenReturn(Optional.of(true));
         // A real entitlement service, not a mock: with billing off it has to hand back
         // the configured app.limits values, which is exactly what these tests assume.
-        EntitlementService entitlements = new EntitlementService(
-                mock(SubscriptionRepository.class), mock(UserSendLimitRepository.class), properties);
+        EntitlementService entitlements = entitlementOverride != null ? entitlementOverride
+                : new EntitlementService(
+                        mock(SubscriptionRepository.class), mock(UserSendLimitRepository.class), properties);
         return new FeedService(feedRepository, articleRepository, userRepository, httpClient,
-                new HtmlSanitizer(), entitlements, properties, refreshExecutor);
+                new HtmlSanitizer(), entitlements, transactions, properties, refreshExecutor);
     }
 
     private static Feed feed(String url) {
@@ -127,6 +142,193 @@ class FeedServiceTest {
         svc.refreshFeed(feed("https://example.com/feed"));
 
         verify(articleRepository).markRead(UID, 9L, true);
+    }
+
+    /**
+     * Older German sites serve ISO-8859-1 or windows-1252 feeds as text/xml with no
+     * charset parameter, and only the XML declaration says so. Decoding as UTF-8
+     * first turned every umlaut into a replacement character.
+     */
+    @Test
+    void aFeedIsDecodedWithTheEncodingItsXmlDeclarationNames() {
+        assertEquals("Müller über Straßen", refreshedTitle(entryFeed("ISO-8859-1", "Müller über Straßen"),
+                "ISO-8859-1", "text/xml"));
+        assertEquals("Preis: 5 € – „gut“", refreshedTitle(entryFeed("windows-1252", "Preis: 5 € – „gut“"),
+                "windows-1252", "application/rss+xml"));
+    }
+
+    @Test
+    void aUtf8FeedWithAByteOrderMarkAndABareContentTypeIsReadAsUtf8() {
+        byte[] body = entryFeedWithoutDeclaration("Grüße").getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        byte[] withBom = new byte[body.length + 3];
+        withBom[0] = (byte) 0xEF;
+        withBom[1] = (byte) 0xBB;
+        withBom[2] = (byte) 0xBF;
+        System.arraycopy(body, 0, withBom, 3, body.length);
+
+        assertEquals("Grüße", refreshedTitle(withBom, "text/xml"));
+    }
+
+    /** A charset the server names still counts when the document declares none. */
+    @Test
+    void aCharsetFromTheContentTypeIsUsedWhenTheFeedDeclaresNone() {
+        byte[] body = entryFeedWithoutDeclaration("Käse").getBytes(java.nio.charset.StandardCharsets.ISO_8859_1);
+
+        assertEquals("Käse", refreshedTitle(body, "application/xml; charset=ISO-8859-1"));
+    }
+
+    private static String entryFeed(String encoding, String title) {
+        return "<?xml version=\"1.0\" encoding=\"" + encoding + "\"?>\n" + entryFeedWithoutDeclaration(title);
+    }
+
+    private static String entryFeedWithoutDeclaration(String title) {
+        return """
+                <rss version="2.0"><channel>
+                  <title>Lokales</title>
+                  <link>https://example.de/</link>
+                  <item><title>%s</title><link>https://example.de/1</link><guid>g-1</guid></item>
+                </channel></rss>
+                """.formatted(title);
+    }
+
+    private String refreshedTitle(String xml, String encoding, String contentType) {
+        return refreshedTitle(xml.getBytes(java.nio.charset.Charset.forName(encoding)), contentType);
+    }
+
+    private String refreshedTitle(byte[] bytes, String contentType) {
+        String url = "https://example.de/feed";
+        // What SafeHttpClient decodes for the HTML path: UTF-8, unless the header said otherwise.
+        String decoded = new String(bytes, java.nio.charset.StandardCharsets.UTF_8);
+        when(httpClient.get(anyString())).thenReturn(
+                new SafeHttpClient.FetchedContent(URI.create(url), decoded, contentType, bytes));
+        when(articleRepository.insert(anyLong(), anyString(), anyString(),
+                anyString(), any(), any(), anyString(), anyString())).thenReturn(9L);
+
+        service(0).refreshFeed(feed(url));
+
+        org.mockito.ArgumentCaptor<String> title = org.mockito.ArgumentCaptor.forClass(String.class);
+        verify(articleRepository).insert(anyLong(), eq("g-1"), title.capture(),
+                anyString(), any(), any(), anyString(), anyString());
+        org.mockito.Mockito.clearInvocations(articleRepository);
+        return title.getValue();
+    }
+
+    /**
+     * An entry already stored is skipped by the insert itself, so a refresh costs
+     * one statement per entry rather than two, and a known entry is neither counted
+     * nor marked read again.
+     */
+    @Test
+    void refreshLeavesKnownEntriesToTheInsertInsteadOfCheckingFirst() {
+        when(httpClient.get(anyString())).thenAnswer(respondWithFeed());
+        when(articleRepository.insert(anyLong(), anyString(), anyString(),
+                anyString(), any(), any(), anyString(), anyString())).thenReturn(-1L);
+        FeedService svc = service(100);
+        when(userRepository.findMarkReadOnNextPageByFeedId(1L)).thenReturn(Optional.of(false));
+        when(userRepository.findIdByFeedId(1L)).thenReturn(Optional.of(UID));
+
+        svc.refreshFeed(feed("https://example.com/feed"));
+
+        verify(articleRepository, never()).existsByFeedIdAndGuid(anyLong(), anyString());
+        verify(articleRepository, never()).markRead(anyLong(), anyLong(), org.mockito.ArgumentMatchers.anyBoolean());
+        verify(feedRepository).clearError(1L);
+    }
+
+    /**
+     * A popular feed followed by several accounts is fetched once per refresh, not
+     * once per follower, and every follower still gets its entries.
+     */
+    @Test
+    void aFeedFollowedByManyAccountsIsFetchedOnce() {
+        String url = "https://example.com/feed";
+        Feed mine = feed(url);
+        Feed theirs = new Feed(4L, "Example", url, "https://example.com/", null,
+                Instant.EPOCH, Instant.EPOCH);
+        when(feedRepository.findAllAcrossUsers()).thenReturn(java.util.List.of(mine, theirs));
+        when(httpClient.get(anyString())).thenAnswer(respondWithFeed());
+
+        service(0).refreshAll();
+
+        verify(httpClient, times(1)).get(url);
+        verify(articleRepository).insert(eq(1L), anyString(), anyString(), anyString(), any(), any(),
+                anyString(), anyString());
+        verify(articleRepository).insert(eq(4L), anyString(), anyString(), anyString(), any(), any(),
+                anyString(), anyString());
+        verify(feedRepository).clearError(1L);
+        verify(feedRepository).clearError(4L);
+    }
+
+    /** A failed fetch is recorded once on each follower's feed, not twice. */
+    @Test
+    void aFailedFetchIsRecordedOnceOnEveryFeedAtThatAddress() {
+        String url = "https://example.com/feed";
+        Feed theirs = new Feed(4L, "Example", url, "https://example.com/", null,
+                Instant.EPOCH, Instant.EPOCH);
+        when(feedRepository.findAllAcrossUsers()).thenReturn(java.util.List.of(feed(url), theirs));
+        when(httpClient.get(anyString())).thenThrow(new SafeHttpClient.FetchException("HTTP 503"));
+
+        service(0).refreshAll();
+
+        verify(httpClient, times(1)).get(url);
+        verify(feedRepository, times(1)).setError(1L, "HTTP 503");
+        verify(feedRepository, times(1)).setError(4L, "HTTP 503");
+    }
+
+    /** One follower's write failing leaves the others' refresh in place. */
+    @Test
+    void aFailedWriteIsRecordedOnceAndDoesNotStopTheOtherFollowers() {
+        String url = "https://example.com/feed";
+        Feed theirs = new Feed(4L, "Example", url, "https://example.com/", null,
+                Instant.EPOCH, Instant.EPOCH);
+        when(feedRepository.findAllAcrossUsers()).thenReturn(java.util.List.of(feed(url), theirs));
+        when(httpClient.get(anyString())).thenAnswer(respondWithFeed());
+        org.mockito.Mockito.doThrow(new IllegalStateException("deadlock detected"))
+                .when(feedRepository).updateTitleAndSite(eq(1L), anyString(), anyString());
+
+        service(0).refreshAll();
+
+        verify(feedRepository, times(1)).setError(1L, "deadlock detected");
+        verify(feedRepository, never()).setError(eq(4L), anyString());
+        verify(feedRepository).clearError(4L);
+    }
+
+    /** A slow publisher must not hold a database connection while it answers. */
+    @Test
+    void refreshFetchesOutsideTheTransactionAndWritesInsideOne() {
+        java.util.List<Boolean> fetchedInTransaction = new java.util.ArrayList<>();
+        when(httpClient.get(anyString())).thenAnswer(invocation -> {
+            fetchedInTransaction.add(transactions.active());
+            return respondWithFeed().answer(invocation);
+        });
+        java.util.List<Boolean> writtenInTransaction = new java.util.ArrayList<>();
+        when(articleRepository.insert(anyLong(), anyString(), anyString(),
+                anyString(), any(), any(), anyString(), anyString())).thenAnswer(invocation -> {
+                    writtenInTransaction.add(transactions.active());
+                    return 9L;
+                });
+
+        service(0).refreshFeed(feed("https://example.com/feed"));
+
+        assertEquals(java.util.List.of(false), fetchedInTransaction);
+        assertEquals(java.util.List.of(true), writtenInTransaction);
+    }
+
+    @Test
+    void addingAFeedFetchesOutsideTheTransactionAndChecksTheLimitAgainInsideIt() {
+        String url = "https://example.com/feed";
+        java.util.List<Boolean> fetchedInTransaction = new java.util.ArrayList<>();
+        when(httpClient.get(anyString())).thenAnswer(invocation -> {
+            fetchedInTransaction.add(transactions.active());
+            return respondWithFeed().answer(invocation);
+        });
+        // Room when the add starts; full by the time the fetch has finished.
+        when(feedRepository.countByUser(UID)).thenReturn(0L, (long) AppProperties.Limits.DEFAULT_MAX_FEEDS);
+
+        assertThrows(IllegalArgumentException.class, () -> service(0).addFeed(UID, url, null));
+
+        assertEquals(java.util.List.of(false), fetchedInTransaction);
+        assertEquals(1, transactions.started());
+        verify(feedRepository, never()).insert(anyLong(), anyString(), anyString(), any(), any());
     }
 
     @Test
@@ -311,6 +513,35 @@ class FeedServiceTest {
     }
 
     @Test
+    void aNewSenderIsDroppedWhenThePlanHasNoNewsletterInbox() {
+        when(feedRepository.findByUrl(UID, "newsletter:editor@example.com")).thenReturn(Optional.empty());
+        when(feedRepository.countByUser(UID)).thenReturn(0L);
+
+        long id = freePlanService().receiveNewsletterIssue(UID, "editor@example.com", "The Editor",
+                "message-1", "Issue #1", Instant.EPOCH, "<p>Hello</p>");
+
+        assertEquals(FeedService.NEWSLETTER_PLAN_REQUIRED, id);
+        verify(feedRepository, never()).findOrCreateNewsletterFeed(anyLong(), anyString(), any(), any());
+        verify(articleRepository, never()).insert(anyLong(), anyString(), anyString(), any(), any(),
+                any(), any(), anyString());
+    }
+
+    /** Losing the plan stops new senders, not the ones the account already reads. */
+    @Test
+    void aKnownSenderKeepsDeliveringAfterThePlanLapses() {
+        Feed existing = newsletterFeed("newsletter:editor@example.com");
+        when(feedRepository.findByUrl(UID, "newsletter:editor@example.com")).thenReturn(Optional.of(existing));
+        when(articleRepository.existsByFeedIdAndGuid(2L, "message-2")).thenReturn(false);
+        when(articleRepository.insert(anyLong(), anyString(), anyString(), any(), any(),
+                any(), any(), anyString())).thenReturn(43L);
+
+        long id = freePlanService().receiveNewsletterIssue(UID, "editor@example.com", "The Editor",
+                "message-2", "Issue #2", Instant.EPOCH, "<p>Hello again</p>");
+
+        assertEquals(43L, id);
+    }
+
+    @Test
     void refreshingAllFeedsSkipsNewslettersSinceTheyHaveNothingToPoll() {
         Feed newsletter = newsletterFeed("newsletter:editor@example.com");
         Feed clipping = new Feed(3L, "Pasted URLs", Feed.CLIPPING_URL, null, "Pasted", null,
@@ -326,7 +557,6 @@ class FeedServiceTest {
     void openingTheReaderPollsThatAccountOnceUntilTheCooldownPasses() {
         when(feedRepository.findAll(UID)).thenReturn(java.util.List.of(feed("https://example.com/feed")));
         when(httpClient.get(anyString())).thenAnswer(respondWithFeed());
-        when(articleRepository.existsByFeedIdAndGuid(anyLong(), anyString())).thenReturn(true);
 
         FeedService service = service(100);
         service.refreshForUserSoon(UID);

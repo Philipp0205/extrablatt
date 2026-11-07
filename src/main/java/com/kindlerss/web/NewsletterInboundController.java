@@ -92,6 +92,9 @@ public class NewsletterInboundController {
         if (articleId == FeedService.NEWSLETTER_FEED_LIMIT_REACHED) {
             return ResponseEntity.ok(Map.of("status", "dropped", "reason", "feed limit reached"));
         }
+        if (articleId == FeedService.NEWSLETTER_PLAN_REQUIRED) {
+            return ResponseEntity.ok(Map.of("status", "dropped", "reason", "new sender needs the Supporter plan"));
+        }
         if (articleId < 0) {
             return ResponseEntity.ok(Map.of("status", "duplicate"));
         }

@@ -70,6 +70,20 @@ class AppPropertiesTest {
         assertEquals(0, billing.freeMaxSendsPerMonth());
         assertEquals(0, billing.freeMaxFeeds());
         assertEquals(7, billing.trialDays());
+        assertEquals(AppProperties.Billing.DEFAULT_WEBHOOK_MAX_ATTEMPTS, billing.webhookMaxAttempts());
+        assertEquals(AppProperties.Billing.DEFAULT_WEBHOOK_RETRY_BACKOFF, billing.webhookRetryBackoff());
+    }
+
+    @Test
+    void webhookRetriesCannotBeSwitchedIntoNonsense() {
+        AppProperties.Billing billing = new AppProperties.Billing(true, null, null, null, null,
+                null, null, null, null, null, null, null, null, null, 0, java.time.Duration.ofSeconds(-5));
+        AppProperties.Billing huge = new AppProperties.Billing(true, null, null, null, null,
+                null, null, null, null, null, null, null, null, null, 10_000, null);
+
+        assertEquals(AppProperties.Billing.DEFAULT_WEBHOOK_MAX_ATTEMPTS, billing.webhookMaxAttempts());
+        assertEquals(AppProperties.Billing.DEFAULT_WEBHOOK_RETRY_BACKOFF, billing.webhookRetryBackoff());
+        assertEquals(100, huge.webhookMaxAttempts());
     }
 
     @Test

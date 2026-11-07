@@ -137,6 +137,12 @@ app:
     # confirmation goes missing. A declined card should not cut off a reader
     # mid-morning. Trials do not get this extra week.
     grace-days: ${BILLING_GRACE_DAYS:7}
+    # A webhook event that cannot be applied yet (typically a subscription event
+    # that overtook the checkout naming its account) is retried from the stored
+    # payload, waiting this long before the first retry and doubling each time up
+    # to six hours, until it has been tried this many times in total.
+    webhook-max-attempts: ${BILLING_WEBHOOK_MAX_ATTEMPTS:12}
+    webhook-retry-backoff: ${BILLING_WEBHOOK_RETRY_BACKOFF:PT1M}
   retention:
     # Art. 5(1)(e) GDPR: personal data may be kept only as long as it is needed.
     # These are the periods after which the nightly sweep clears things out. Set any

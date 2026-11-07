@@ -10,9 +10,11 @@ import com.kindlerss.repository.UserRepository;
 import com.kindlerss.security.WebhookSignature;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.util.Optional;
@@ -27,11 +29,23 @@ import java.util.Optional;
  * second period. And it is the only route by which anyone becomes a subscriber:
  * the page a reader lands on after paying grants nothing at all, so closing the
  * tab costs them nothing and forging the URL gains them nothing.
+ *
+ * <p>An event that cannot be applied is not dropped. The commonest reason is
+ * ordering: Stripe may deliver {@code customer.subscription.created} before the
+ * {@code checkout.session.completed} that tells us whose subscription it is. Such
+ * an event answers with a 5xx so the provider redelivers it, and a sweep here
+ * retries it from the stored payload too, with an exponential backoff, until
+ * {@code app.billing.webhook-max-attempts} is used up. A retry that arrives after
+ * a newer event for the same subscription was applied is skipped, since applying
+ * it would roll the subscription back.
  */
 @Service
 public class BillingWebhookService {
 
     private static final Logger log = LoggerFactory.getLogger(BillingWebhookService.class);
+
+    /** How many due events one sweep retries, so a backlog cannot hog the scheduler. */
+    static final int RETRY_BATCH = 50;
 
     public enum Result {
         /** Applied, or recognised as one we have already applied. */
@@ -40,8 +54,10 @@ public class BillingWebhookService {
         REJECTED,
         /** Authentic, but about something this app does not track. */
         IGNORED,
-        /** Authentic and about a subscription, but it could not be applied. */
-        FAILED
+        /** Authentic and about a subscription, but it could not be applied yet. A retry is scheduled. */
+        FAILED,
+        /** Could not be applied and is out of attempts; the row keeps the reason for an operator. */
+        ABANDONED
     }
 
     private final ObjectMapper mapper = new ObjectMapper();
@@ -82,40 +98,104 @@ public class BillingWebhookService {
             return Result.REJECTED;
         }
 
-        JsonNode root;
+        String payload = new String(body, StandardCharsets.UTF_8);
+        Optional<ProviderSubscriptionUpdate> parsed;
         try {
-            root = mapper.readTree(new String(body, StandardCharsets.UTF_8));
+            parsed = parse(provider, payload);
         } catch (Exception e) {
             log.warn("Rejected a {} webhook: body is not JSON", provider);
             return Result.REJECTED;
         }
-
-        Optional<ProviderSubscriptionUpdate> parsed = "stripe".equals(provider)
-                ? parseStripe(root)
-                : parsePaddle(root);
         if (parsed.isEmpty()) {
             return Result.IGNORED;
         }
         ProviderSubscriptionUpdate update = parsed.get();
 
-        // The insert is the lock: two concurrent deliveries of one event cannot both
-        // win the primary key, so only one of them goes on to apply it.
-        if (!events.claim(update.eventId(), provider, update.type(),
-                new String(body, StandardCharsets.UTF_8), update.userId())) {
+        // The claim is the lock: two concurrent deliveries of one event cannot both
+        // win it, so only one of them goes on to apply it. A delivery of an event
+        // that failed earlier claims it again, which is how a provider retry succeeds
+        // once the event it was waiting for has arrived.
+        if (!events.claim(update.eventId(), provider, update.type(), payload, update.userId(),
+                update.providerSubscriptionId(), update.occurredAt(), billing.webhookMaxAttempts())) {
             log.info("Ignoring {} {}: already seen", provider, update.eventId());
             return Result.ACCEPTED;
         }
+        return apply(provider, update);
+    }
+
+    /**
+     * Retries failed events whose backoff has run out, from the payload stored when
+     * they first arrived. Their signature was checked then; the payload has not left
+     * the database since, so it is not checked again (and could not be, since the
+     * signature header was never stored).
+     */
+    @Scheduled(fixedDelayString = "${app.billing.webhook-retry-interval:PT1M}",
+            initialDelayString = "${app.billing.webhook-retry-initial-delay:PT1M}")
+    public void retryFailedEvents() {
+        if (!configured()) {
+            return;
+        }
+        int maxAttempts = properties.billing().webhookMaxAttempts();
+        for (BillingEventRepository.DueRetry due : events.findDueRetries(maxAttempts, RETRY_BATCH)) {
+            try {
+                retry(due, maxAttempts);
+            } catch (RuntimeException e) {
+                // One broken row must not keep the rest of the batch from being tried.
+                log.error("Retry of {} {} failed unexpectedly: {}", due.provider(),
+                        due.providerEventId(), e.getMessage());
+            }
+        }
+    }
+
+    private void retry(BillingEventRepository.DueRetry due, int maxAttempts) {
+        if (!events.reclaim(due.providerEventId(), maxAttempts)) {
+            return;
+        }
+        Optional<ProviderSubscriptionUpdate> parsed;
         try {
+            parsed = parse(due.provider(), due.payload());
+        } catch (Exception e) {
+            parsed = Optional.empty();
+        }
+        if (parsed.isEmpty()) {
+            // It parsed when it arrived, so this only happens if the parser changed
+            // underneath it. Nothing a retry will fix.
+            events.markFailed(due.providerEventId(), "Stored payload no longer parses", 0, Duration.ZERO);
+            return;
+        }
+        log.info("Retrying {} {}", due.provider(), due.providerEventId());
+        apply(due.provider(), parsed.get());
+    }
+
+    private Result apply(String provider, ProviderSubscriptionUpdate update) {
+        AppProperties.Billing billing = properties.billing();
+        try {
+            if (events.supersededByNewer(update.eventId(), update.providerSubscriptionId(),
+                    update.occurredAt())) {
+                log.info("Skipping {} {}: a newer event for subscription {} was applied already",
+                        provider, update.eventId(), update.providerSubscriptionId());
+                events.markProcessed(update.eventId());
+                return Result.ACCEPTED;
+            }
             subscriptions.applyProviderUpdate(update);
             events.markProcessed(update.eventId());
             return Result.ACCEPTED;
         } catch (RuntimeException e) {
-            // Recorded rather than rethrown: a 500 makes the provider retry an event
-            // that will fail again, and the failure needs to be visible, not repeated.
-            log.error("Could not apply {} {}: {}", provider, update.eventId(), e.getMessage());
-            events.markFailed(update.eventId(), e.getMessage());
-            return Result.FAILED;
+            boolean retrying = events.markFailed(update.eventId(), e.getMessage(),
+                    billing.webhookMaxAttempts(), billing.webhookRetryBackoff());
+            if (retrying) {
+                log.warn("Could not apply {} {} yet, will retry: {}", provider, update.eventId(),
+                        e.getMessage());
+                return Result.FAILED;
+            }
+            log.error("Giving up on {} {}: {}", provider, update.eventId(), e.getMessage());
+            return Result.ABANDONED;
         }
+    }
+
+    private Optional<ProviderSubscriptionUpdate> parse(String provider, String payload) throws Exception {
+        JsonNode root = mapper.readTree(payload);
+        return "stripe".equals(provider) ? parseStripe(root) : parsePaddle(root);
     }
 
     /**
@@ -130,6 +210,8 @@ public class BillingWebhookService {
         if (eventId == null || type == null || object.isMissingNode()) {
             return Optional.empty();
         }
+        long created = root.path("created").asLong(0);
+        Instant occurredAt = created <= 0 ? null : Instant.ofEpochSecond(created);
         return switch (type) {
             case "checkout.session.completed" -> Optional.of(new ProviderSubscriptionUpdate(
                     eventId, type,
@@ -139,7 +221,7 @@ public class BillingWebhookService {
                     text(object, "customer"),
                     text(object, "subscription"),
                     SubscriptionStatus.ACTIVE,
-                    null, false, null));
+                    null, false, null, occurredAt));
             case "customer.subscription.created", "customer.subscription.updated",
                  "customer.subscription.deleted" -> Optional.of(new ProviderSubscriptionUpdate(
                     eventId, type,
@@ -149,7 +231,8 @@ public class BillingWebhookService {
                     stripeStatus(text(object, "status")),
                     stripePeriodEnd(object),
                     object.path("cancel_at_period_end").asBoolean(false),
-                    stripeInterval(object)));
+                    stripeInterval(object),
+                    occurredAt));
             default -> Optional.empty();
         };
     }
@@ -175,7 +258,8 @@ public class BillingWebhookService {
                 paddleStatus(text(data, "status"), type),
                 isoInstant(data.path("current_billing_period").path("ends_at").asText(null)),
                 cancelScheduled,
-                paddleInterval(data)));
+                paddleInterval(data),
+                isoInstant(root.path("occurred_at").asText(null))));
     }
 
     /**

@@ -40,9 +40,12 @@ public class BillingController {
 
     @GetMapping("/billing/order")
     public String order(@RequestParam(value = "interval", required = false) String intervalParam,
-                        Model model) {
+                        Model model, RedirectAttributes redirectAttributes) {
         if (!properties.billing().enabled()) {
             return "redirect:/settings";
+        }
+        if (grandfathered()) {
+            return alreadySupporter(redirectAttributes);
         }
         BillingInterval interval = BillingInterval.parse(intervalParam);
         AppProperties.Billing billing = properties.billing();
@@ -74,6 +77,9 @@ public class BillingController {
         if (!properties.billing().enabled()) {
             return "redirect:/settings";
         }
+        if (grandfathered()) {
+            return alreadySupporter(redirectAttributes);
+        }
         // Both boxes have to be ticked by hand. § 356 Abs. 4 BGB only lets the
         // withdrawal right lapse on the consumer's express consent plus their
         // acknowledgement of the consequence, and a pre-ticked box is neither.
@@ -86,10 +92,26 @@ public class BillingController {
         try {
             String checkoutUrl = subscriptions.placeOrder(currentUser.requireId(), interval);
             return "redirect:" + checkoutUrl;
+        } catch (SubscriptionService.AlreadySupporterException e) {
+            return alreadySupporter(redirectAttributes);
         } catch (IllegalStateException e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
             return "redirect:/settings/subscription";
         }
+    }
+
+    /**
+     * A grandfathered account keeps the Supporter plan for good. Ordering would put
+     * a pending order in its place, so it is turned away before it gets that far,
+     * with a note rather than an error: nothing is wrong, there is just nothing to buy.
+     */
+    private boolean grandfathered() {
+        return subscriptions.forUser(currentUser.requireId()).grandfathered();
+    }
+
+    private static String alreadySupporter(RedirectAttributes redirectAttributes) {
+        redirectAttributes.addFlashAttribute("message", SubscriptionService.AlreadySupporterException.MESSAGE);
+        return "redirect:/settings/subscription";
     }
 
     /**

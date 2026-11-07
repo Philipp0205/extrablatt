@@ -37,7 +37,9 @@ their own licenses. Start with [Local configuration](#local-configuration) or
 - Optional quick-start feed suggestions and categories for organizing subscriptions
 - Scheduled refresh of every account's feeds every 30 minutes, plus a background
   poll when someone opens Feeds or Articles, asking each feed for more than the
-  handful of entries it publishes by default
+  handful of entries it publishes by default. A feed followed by several accounts
+  is fetched once per refresh, and no database transaction is held open while a
+  publisher answers
 - Article extraction (Readability4J) with sanitized HTML caching
 - Page-at-a-time reading sized to the device screen, instead of scrolling
 - Send-to-Kindle as EPUB 3 through one shared, provider-verified sender, with the
@@ -218,6 +220,12 @@ read it, mark it read, **Send to Kindle**, recategorize, or **Delete** it.
 **New address** in Settings rotates the inbox (e.g. once it starts collecting
 spam) without losing anything already received.
 
+With billing on, the inbox belongs to the Supporter plan (and the free week).
+Once an account no longer has it, an issue from a sender it has never heard
+from is dropped instead of creating a feed (the inbound webhook answers 200
+with `"status": "dropped"`), while senders that already have a feed keep
+delivering.
+
 This needs an inbound e-mail provider in front of the app, since Extrablatt
 itself never receives mail directly:
 
@@ -272,7 +280,9 @@ abuse guardrail rather than a plan limit. The complimentary week is
 Every account that exists when the original subscriptions migration ran is
 grandfathered permanently: it was never advertised as something with a
 subscription, and capping it afterwards would be both unfair and bad for the
-project. An administrator can also grant the plan by hand from **Settings →
+project. A grandfathered account cannot place an order: the order page sends it
+back to **Settings → Subscription** with a note, because a pending order would
+otherwise replace the permanent plan. An administrator can also grant the plan by hand from **Settings →
 Telemetry**, which is how a reader whose payment went through but whose callback
 went missing gets fixed.
 
@@ -290,6 +300,14 @@ on after paying grants nothing — so a reader who closes the tab still ends up
 subscribed. Losing a subscription never deletes anything; feeds, articles and
 reading position stay. Reading in the browser continues; sending to Kindle needs
 a paid period.
+
+A callback that cannot be applied yet, usually a subscription event that overtook
+the checkout naming its account, is answered with a 503 so the provider delivers it
+again, and the app also retries it itself from the stored payload. The first retry
+waits `BILLING_WEBHOOK_RETRY_BACKOFF` (default `PT1M`), each one after that twice as
+long up to six hours, until `BILLING_WEBHOOK_MAX_ATTEMPTS` (default 12, about a day)
+is used up. A retry that arrives after a newer event for the same subscription was
+applied is skipped rather than rolling the subscription back.
 
 Two things are deliberately manual, because the app holds no provider API key: a
 cancellation is e-mailed to `BILLING_OPERATOR_EMAIL` so the payment is stopped at

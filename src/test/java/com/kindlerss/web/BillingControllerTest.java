@@ -43,6 +43,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.flash;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrlPattern;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -172,6 +173,58 @@ class BillingControllerTest {
                         .param("withdrawalAcknowledged", "yes"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("https://pay.example.com/yearly?client_reference_id=42"));
+    }
+
+    /**
+     * A grandfathered account already has the plan for good. Ordering would replace
+     * that standing with a pending order, so it is sent back with a note instead.
+     */
+    @Test
+    @WithMockUser
+    void aGrandfatheredAccountIsNotLetOrder() throws Exception {
+        when(subscriptionService.forUser(anyLong())).thenReturn(grandfathered());
+
+        mockMvc.perform(post("/billing/order").with(csrf())
+                        .param("interval", "yearly")
+                        .param("startNow", "yes")
+                        .param("withdrawalAcknowledged", "yes"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/settings/subscription"))
+                .andExpect(flash().attribute("message", containsString("already has the Supporter plan")));
+
+        verify(subscriptionService, never()).placeOrder(anyLong(), org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    @WithMockUser
+    void aGrandfatheredAccountIsNotShownTheOrderPage() throws Exception {
+        when(subscriptionService.forUser(anyLong())).thenReturn(grandfathered());
+
+        mockMvc.perform(get("/billing/order").param("interval", "yearly"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/settings/subscription"))
+                .andExpect(flash().attribute("message", containsString("permanently and at no cost")));
+    }
+
+    /** The service refuses too, in case the standing changed between the two reads. */
+    @Test
+    @WithMockUser
+    void aRefusalFromTheServiceIsTheSameFriendlyNote() throws Exception {
+        when(subscriptionService.placeOrder(UID, BillingInterval.MONTHLY))
+                .thenThrow(new SubscriptionService.AlreadySupporterException());
+
+        mockMvc.perform(post("/billing/order").with(csrf())
+                        .param("interval", "monthly")
+                        .param("startNow", "yes")
+                        .param("withdrawalAcknowledged", "yes"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/settings/subscription"))
+                .andExpect(flash().attribute("message", containsString("already has the Supporter plan")));
+    }
+
+    private static Subscription grandfathered() {
+        return new Subscription(UID, Plan.SUPPORTER, com.kindlerss.domain.SubscriptionStatus.GRANDFATHERED,
+                null, null, null, null, null, false, null);
     }
 
     /**

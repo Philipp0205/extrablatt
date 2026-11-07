@@ -15,6 +15,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -84,5 +85,47 @@ class SubscriptionServiceTest {
         service(true).startTrial(UID);
 
         verify(subscriptions, never()).save(org.mockito.ArgumentMatchers.any());
+    }
+
+    /**
+     * Saving the PENDING order row would overwrite GRANDFATHERED, and a pending order
+     * without a paid period grants nothing, so the permanent plan would be lost on
+     * the click rather than on any payment.
+     */
+    @Test
+    void aGrandfatheredAccountCannotPlaceAnOrder() {
+        when(subscriptions.findByUserId(UID)).thenReturn(Optional.of(
+                new Subscription(UID, Plan.SUPPORTER, SubscriptionStatus.GRANDFATHERED,
+                        null, null, null, null, null, false, null)));
+
+        assertThrows(SubscriptionService.AlreadySupporterException.class,
+                () -> service(true).placeOrder(UID, com.kindlerss.domain.BillingInterval.YEARLY));
+
+        verify(subscriptions, never()).save(org.mockito.ArgumentMatchers.any());
+    }
+
+    /** No row on file reads as grandfathered once charging is on, and is protected the same way. */
+    @Test
+    void anAccountWithNothingOnFileCannotPlaceAnOrderEither() {
+        when(subscriptions.findByUserId(UID)).thenReturn(Optional.empty());
+
+        assertThrows(SubscriptionService.AlreadySupporterException.class,
+                () -> service(true).placeOrder(UID, com.kindlerss.domain.BillingInterval.MONTHLY));
+
+        verify(subscriptions, never()).save(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    void anOrderAfterTheTrialIsRecordedAsPending() {
+        when(subscriptions.findByUserId(UID)).thenReturn(Optional.of(
+                new Subscription(UID, Plan.FREE, SubscriptionStatus.EXPIRED, null, null, null, null,
+                        Instant.now(), false, null)));
+
+        String url = service(true).placeOrder(UID, com.kindlerss.domain.BillingInterval.YEARLY);
+
+        assertEquals("https://pay/yearly?client_reference_id=" + UID, url);
+        ArgumentCaptor<Subscription> captor = ArgumentCaptor.forClass(Subscription.class);
+        verify(subscriptions).save(captor.capture());
+        assertEquals(SubscriptionStatus.PENDING, captor.getValue().status());
     }
 }
