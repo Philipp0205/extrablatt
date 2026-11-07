@@ -390,9 +390,9 @@ public class FeedService {
             if (entry.guid() == null || entry.guid().isBlank()) {
                 continue;
             }
-            if (articleRepository.existsByFeedIdAndGuid(feed.id(), entry.guid())) {
-                continue;
-            }
+            // No existence check first: the insert skips an entry already stored
+            // (ON CONFLICT DO NOTHING, returning -1), which saves a round trip per
+            // entry and cannot race a concurrent refresh of the same feed.
             long id = articleRepository.insert(
                     feed.id(),
                     entry.guid(),

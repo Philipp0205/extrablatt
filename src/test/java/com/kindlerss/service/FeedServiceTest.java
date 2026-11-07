@@ -198,6 +198,27 @@ class FeedServiceTest {
         return title.getValue();
     }
 
+    /**
+     * An entry already stored is skipped by the insert itself, so a refresh costs
+     * one statement per entry rather than two, and a known entry is neither counted
+     * nor marked read again.
+     */
+    @Test
+    void refreshLeavesKnownEntriesToTheInsertInsteadOfCheckingFirst() {
+        when(httpClient.get(anyString())).thenAnswer(respondWithFeed());
+        when(articleRepository.insert(anyLong(), anyString(), anyString(),
+                anyString(), any(), any(), anyString(), anyString())).thenReturn(-1L);
+        FeedService svc = service(100);
+        when(userRepository.findMarkReadOnNextPageByFeedId(1L)).thenReturn(Optional.of(false));
+        when(userRepository.findIdByFeedId(1L)).thenReturn(Optional.of(UID));
+
+        svc.refreshFeed(feed("https://example.com/feed"));
+
+        verify(articleRepository, never()).existsByFeedIdAndGuid(anyLong(), anyString());
+        verify(articleRepository, never()).markRead(anyLong(), anyLong(), org.mockito.ArgumentMatchers.anyBoolean());
+        verify(feedRepository).clearError(1L);
+    }
+
     @Test
     void refreshAsksForTheConfiguredNumberOfEntries() {
         when(httpClient.get(anyString())).thenAnswer(respondWithFeed());
@@ -395,7 +416,6 @@ class FeedServiceTest {
     void openingTheReaderPollsThatAccountOnceUntilTheCooldownPasses() {
         when(feedRepository.findAll(UID)).thenReturn(java.util.List.of(feed("https://example.com/feed")));
         when(httpClient.get(anyString())).thenAnswer(respondWithFeed());
-        when(articleRepository.existsByFeedIdAndGuid(anyLong(), anyString())).thenReturn(true);
 
         FeedService service = service(100);
         service.refreshForUserSoon(UID);
