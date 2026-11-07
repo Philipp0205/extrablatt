@@ -106,6 +106,11 @@ The daily cap stays in force for everyone, subscribers included. It is an abuse
 guardrail rather than a plan limit — the thing that stops one account emptying the
 e-mail budget in an afternoon — which is why the paid plan has one at all.
 
+Both caps are enforced by reserving the send before the mail goes out: the
+account's row is locked, the sends are counted, and the send event is written in
+one short transaction, so two sends started at the same moment cannot both take
+the last place. A delivery that fails gives its reservation back.
+
 Every account that existed before charging began is **grandfathered permanently**.
 The marketing page promised "no ads, no subscriptions, nothing to sell"; that
 promise was made to those people. `V12__subscriptions.sql` writes them all in as

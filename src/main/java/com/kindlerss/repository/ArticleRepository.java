@@ -7,6 +7,7 @@ import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.sql.PreparedStatement;
 import java.sql.Timestamp;
@@ -232,6 +233,80 @@ public class ArticleRepository {
                 SET sent_at = (SELECT sent_at FROM event), updated_at = NOW()
                 WHERE id = ? AND EXISTS (SELECT 1 FROM event)
                 """, userId, articleId, Timestamp.from(sentAt), articleId, userId, articleId);
+    }
+
+    /**
+     * The outcome of {@link #reserveSend}: the id of the send event now holding a
+     * place in the quota, or which limit was already used up. Neither means the
+     * account or the article is not theirs.
+     */
+    public record SendReservation(Long eventId, Limit limitReached) {
+        public enum Limit { DAY, MONTH }
+
+        public boolean reserved() {
+            return eventId != null;
+        }
+    }
+
+    /**
+     * Takes one send out of the account's quota before the mail goes out, so that
+     * two sends started at the same moment cannot both pass a count that only had
+     * room for one. The account's row is locked for the length of the transaction,
+     * which makes concurrent reservations for one account queue up behind each
+     * other; the count is a separate statement because under READ COMMITTED a
+     * statement's snapshot is taken before it waits for the lock, and would not see
+     * the send that was just reserved. Other accounts are not held up.
+     *
+     * <p>{@code maxPerMonth} of 0 means no monthly cap. A reservation is a send
+     * event like any other; {@link #releaseSend} takes it back if delivery fails.
+     */
+    @Transactional
+    public SendReservation reserveSend(long userId, long articleId, Instant sentAt,
+                                       int maxPerDay, Instant dayStart,
+                                       int maxPerMonth, Instant monthStart) {
+        List<Long> account = jdbc.queryForList(
+                "SELECT id FROM users WHERE id = ? FOR NO KEY UPDATE", Long.class, userId);
+        if (account.isEmpty()) {
+            return new SendReservation(null, null);
+        }
+        Instant from = maxPerMonth > 0 && monthStart.isBefore(dayStart) ? monthStart : dayStart;
+        long[] counts = jdbc.queryForObject("""
+                SELECT COUNT(*) FILTER (WHERE sent_at >= ?), COUNT(*) FILTER (WHERE sent_at >= ?)
+                FROM article_send_events
+                WHERE user_id = ? AND sent_at >= ?
+                """, (rs, rowNum) -> new long[] {rs.getLong(1), rs.getLong(2)},
+                Timestamp.from(dayStart), Timestamp.from(monthStart), userId, Timestamp.from(from));
+        if (maxPerMonth > 0 && counts[1] >= maxPerMonth) {
+            return new SendReservation(null, SendReservation.Limit.MONTH);
+        }
+        if (counts[0] >= maxPerDay) {
+            return new SendReservation(null, SendReservation.Limit.DAY);
+        }
+        List<Long> eventId = jdbc.queryForList("""
+                INSERT INTO article_send_events (user_id, article_id, sent_at)
+                SELECT ?, ?, ?
+                WHERE EXISTS (
+                    SELECT 1 FROM articles a
+                    JOIN feeds f ON f.id = a.feed_id
+                    WHERE a.id = ? AND f.user_id = ?
+                )
+                RETURNING id
+                """, Long.class, userId, articleId, Timestamp.from(sentAt), articleId, userId);
+        return new SendReservation(eventId.isEmpty() ? null : eventId.getFirst(), null);
+    }
+
+    /** Gives a reserved send back to the quota, because the delivery did not happen. */
+    public void releaseSend(long userId, long eventId) {
+        jdbc.update("DELETE FROM article_send_events WHERE id = ? AND user_id = ?", eventId, userId);
+    }
+
+    /** After a reserved send went out: the article shows when it was last sent. */
+    public void confirmSend(long userId, long articleId, Instant sentAt) {
+        jdbc.update("""
+                UPDATE articles
+                SET sent_at = ?, updated_at = NOW()
+                WHERE id = ? AND feed_id IN (SELECT id FROM feeds WHERE user_id = ?)
+                """, Timestamp.from(sentAt), articleId, userId);
     }
 
     /** How many successful deliveries an account made since a moment in time. */

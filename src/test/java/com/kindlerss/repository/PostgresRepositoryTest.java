@@ -156,6 +156,86 @@ class PostgresRepositoryTest {
         assertTrue(feeds.deleteById(userId, mine.id()));
     }
 
+    /**
+     * Two sends racing for the last place in a quota. The first holds its
+     * reservation open; the second must wait for it rather than count around it,
+     * and then find the quota used up. Without the lock the second counts zero
+     * sends, since the first is not committed yet, and goes ahead as well.
+     */
+    @Test
+    void aSendRacingForTheLastPlaceWaitsAndIsRefused() throws Exception {
+        // The repository's own DataSource: each getPostgresDatabase() is a new one, and
+        // a transaction bound to another would leave every statement auto-committed.
+        DataSource dataSource = jdbc.getDataSource();
+        var transactional = new org.springframework.transaction.support.TransactionTemplate(
+                new org.springframework.jdbc.datasource.DataSourceTransactionManager(dataSource));
+        long racer = users.insert("racer@example.com", "hash").id();
+        var feed = feeds.insert(racer, "Race", "https://race.example.com/feed.xml",
+                "https://race.example.com", null);
+        long articleId = insertArticle(feed.id(), "race-1");
+        Instant now = Instant.now();
+        Instant dayAgo = now.minus(1, ChronoUnit.DAYS);
+        var firstReserved = new java.util.concurrent.CountDownLatch(1);
+        var letFirstCommit = new java.util.concurrent.CountDownLatch(1);
+        var pool = java.util.concurrent.Executors.newFixedThreadPool(2);
+        try {
+            var first = pool.submit(() -> transactional.execute(status -> {
+                var reservation = articles.reserveSend(racer, articleId, now, 1, dayAgo, 0, now);
+                firstReserved.countDown();
+                try {
+                    letFirstCommit.await(30, java.util.concurrent.TimeUnit.SECONDS);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+                return reservation;
+            }));
+            assertTrue(firstReserved.await(30, java.util.concurrent.TimeUnit.SECONDS));
+
+            var second = pool.submit(() -> transactional.execute(status ->
+                    articles.reserveSend(racer, articleId, now, 1, dayAgo, 0, now)));
+            Thread.sleep(500);
+            assertFalse(second.isDone(), "the second reservation must wait for the first");
+
+            letFirstCommit.countDown();
+            assertTrue(first.get(30, java.util.concurrent.TimeUnit.SECONDS).reserved());
+            assertEquals(ArticleRepository.SendReservation.Limit.DAY,
+                    second.get(30, java.util.concurrent.TimeUnit.SECONDS).limitReached());
+            assertEquals(1, articles.countSentSince(racer, dayAgo));
+        } finally {
+            letFirstCommit.countDown();
+            pool.shutdownNow();
+        }
+    }
+
+    @Test
+    void aReservedSendCanBeGivenBackOrConfirmed() {
+        long reader = users.insert("reserver@example.com", "hash").id();
+        var feed = feeds.insert(reader, "Reserve", "https://reserve.example.com/feed.xml",
+                "https://reserve.example.com", null);
+        long articleId = insertArticle(feed.id(), "reserve-1");
+        Instant now = Instant.now();
+        Instant dayAgo = now.minus(1, ChronoUnit.DAYS);
+
+        var first = articles.reserveSend(reader, articleId, now, 1, dayAgo, 0, now);
+        assertTrue(first.reserved());
+        assertEquals(ArticleRepository.SendReservation.Limit.DAY,
+                articles.reserveSend(reader, articleId, now, 1, dayAgo, 0, now).limitReached());
+
+        articles.releaseSend(reader, first.eventId());
+        assertEquals(0, articles.countSentSince(reader, dayAgo));
+
+        var second = articles.reserveSend(reader, articleId, now, 1, dayAgo, 0, now);
+        assertTrue(second.reserved());
+        articles.confirmSend(reader, articleId, now);
+        assertTrue(articles.findById(reader, articleId).orElseThrow().sentAt() != null);
+
+        // A monthly cap counts from the start of the month, not the last day.
+        assertEquals(ArticleRepository.SendReservation.Limit.MONTH,
+                articles.reserveSend(reader, articleId, now, 10, now.plusSeconds(1), 1, dayAgo).limitReached());
+        // Someone else's article cannot be reserved against.
+        assertFalse(articles.reserveSend(otherUserId, articleId, now, 10, dayAgo, 0, now).reserved());
+    }
+
     @Test
     void telemetryCountsSendsAndPersistsUserLimits() {
         var feed = feeds.insert(userId, "Metrics", "https://metrics.example.com/feed.xml",
