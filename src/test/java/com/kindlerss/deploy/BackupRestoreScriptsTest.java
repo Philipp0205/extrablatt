@@ -157,6 +157,8 @@ class BackupRestoreScriptsTest {
         assertTrue(calls.contains("psql -U kindle -d kindle_rss"), calls);
         assertTrue(calls.contains("ON_ERROR_STOP=1"), calls);
         assertTrue(calls.contains("--single-transaction"), calls);
+        // --single-transaction is only honoured with -c/-f, so stdin must be read via -f -
+        assertTrue(calls.contains("-f -"), calls);
         assertEquals("SELECT 2;\n", Files.readString(psqlInput));
     }
 

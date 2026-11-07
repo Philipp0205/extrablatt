@@ -79,6 +79,6 @@ fi
 echo "Restoring $BACKUP into $DB_NAME"
 "${DECRYPT[@]}" < "$BACKUP" | gzip -dc \
   | docker compose -f "$ROOT/docker-compose.yml" exec -T postgres \
-      psql -U "$DB_USER" -d "$DB_NAME" -v ON_ERROR_STOP=1 --single-transaction --quiet
+      psql -U "$DB_USER" -d "$DB_NAME" -v ON_ERROR_STOP=1 --single-transaction --quiet -f -
 
 echo "Done."
