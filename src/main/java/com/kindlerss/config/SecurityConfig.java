@@ -79,6 +79,7 @@ public class SecurityConfig {
 
     @Bean
     RememberMeServices rememberMeServices(UserDetailsService userDetailsService) {
+        RememberMeKeyPolicy.check(appProperties.rememberMeKey(), appProperties.publicUrl(), isProduction());
         TokenBasedRememberMeServices services =
                 new TokenBasedRememberMeServices(appProperties.rememberMeKey(), userDetailsService);
         services.setTokenValiditySeconds(365 * 24 * 60 * 60);

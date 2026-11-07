@@ -69,7 +69,7 @@ their own licenses. Start with [Local configuration](#local-configuration) or
 | `APP_PUBLIC_URL` | Base URL used in verification / reset e-mails (e.g. `http://localhost:8080`) |
 | `MAIL_FROM` | Shared sender on your verified domain (`mail@yourdomain.com`) |
 | `SMTP_HOST` / `SMTP_PORT` / `SMTP_USERNAME` / `SMTP_PASSWORD` | SMTP (Resend: host `smtp.resend.com`, username `resend`, password = API key) |
-| `REMEMBER_ME_KEY` | Secret for remember-me tokens |
+| `REMEMBER_ME_KEY` | Secret for remember-me tokens. At least 32 characters and not a placeholder (`openssl rand -base64 48`); startup fails otherwise under the `production` profile or a non-localhost `APP_PUBLIC_URL` |
 | `ADMIN_EMAILS` | Comma-separated account e-mails allowed to view telemetry and manage per-user send limits |
 
 3. Export variables (or use your shell dotenv tooling) and run:
@@ -352,7 +352,7 @@ well: managed Postgres, TLS, and Dockerfile builds with low ops.
    DATABASE_USER     = ${{Postgres.PGUSER}}
    DATABASE_PASSWORD = ${{Postgres.PGPASSWORD}}
    APP_PUBLIC_URL    = https://<your-service>.up.railway.app
-   REMEMBER_ME_KEY   = <long random string>
+   REMEMBER_ME_KEY   = <output of: openssl rand -base64 48>
    ADMIN_EMAILS      = you@yourdomain.com
    MAIL_FROM         = mail@yourdomain.com
    SMTP_HOST         = smtp.resend.com

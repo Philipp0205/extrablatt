@@ -4,6 +4,13 @@ The code is finished. What remains is four decisions and about an hour of clicki
 other people's dashboards. They are listed in dependency order, because the first one
 decides the second.
 
+Before any of them: set `REMEMBER_ME_KEY` to a fresh random value
+(`openssl rand -base64 48`). It signs the year-long login cookie, so anyone who knows
+it can sign in as any account. Under the `production` profile, or with an
+`APP_PUBLIC_URL` that is not localhost, the app refuses to start while the key is
+shorter than 32 characters or still contains `change-me`. Changing it later signs
+everyone out once, which is harmless.
+
 ## 1. Settle the German establishment question
 
 This is first because it changes the answer to almost everything else. The operator is
