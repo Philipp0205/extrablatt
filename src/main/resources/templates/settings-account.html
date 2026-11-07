@@ -19,7 +19,7 @@
     <button class="btn" type="submit">Log out</button>
   </form>
 
-  <h2 style="margin-top:1.5rem">Delete account</h2>
+  <h2>Delete account</h2>
   <p class="meta">This permanently removes your account, feeds, and articles.</p>
   <p class="meta" th:if="${billingEnabled}">
     One exception, and the law requires it: if you have ever paid or cancelled, the
@@ -27,12 +27,13 @@
     law say it must be. It is unlinked from your account, and everything else goes.
   </p>
   <form th:action="@{/account/delete}" method="post"
-        onsubmit="return confirm('Delete your account and all its data? This cannot be undone.');">
+        data-confirm="Delete your account and all its data? This cannot be undone.">
     <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
     <button class="btn danger" type="submit">Delete my account</button>
   </form>
 
   <div th:replace="~{fragments/site-footer :: siteFooter}"></div>
 </div>
+<script th:src="@{/js/confirm.js}"></script>
 </body>
 </html>

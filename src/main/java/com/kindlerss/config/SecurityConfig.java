@@ -6,6 +6,7 @@ import com.kindlerss.security.LoginStatusChecker;
 import com.kindlerss.security.RateLimitingFilter;
 import com.kindlerss.security.StaleSessionFilter;
 import com.kindlerss.service.UserService;
+import com.kindlerss.web.StylesheetAdvice;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
@@ -28,6 +29,7 @@ import org.springframework.security.config.annotation.web.configurers.RequestCac
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
@@ -170,8 +172,63 @@ public class SecurityConfig {
                         // A mail provider cannot carry a CSRF token; the shared secret is its
                         // authentication instead. Nor can a payment provider, which signs the
                         // request body instead.
-                        .ignoringRequestMatchers("/inbound/newsletters", "/webhooks/billing"));
+                        .ignoringRequestMatchers("/inbound/newsletters", "/webhooks/billing"))
+                .headers(headers -> headers
+                        .contentSecurityPolicy(csp -> csp.policyDirectives(contentSecurityPolicy()))
+                        .frameOptions(HeadersConfigurer.FrameOptionsConfig::deny)
+                        .referrerPolicy(referrer -> referrer.policy(
+                                ReferrerPolicyHeaderWriter.ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN)));
         return http.build();
+    }
+
+    /**
+     * Scripts only from this app's own files, so markup that slipped past the
+     * sanitiser cannot run anything; the inline stylesheet by its hash and no other
+     * inline style. Images may come from anywhere, since articles show the images
+     * of the sites they came from. Forms may post here, and on to the payment
+     * provider's checkout and portal, which the order and portal forms redirect to.
+     */
+    String contentSecurityPolicy() {
+        StringBuilder formAction = new StringBuilder("'self'");
+        AppProperties.Billing billing = appProperties.billing();
+        for (String url : new String[] {billing.monthlyCheckoutUrl(), billing.yearlyCheckoutUrl(),
+                billing.portalUrl()}) {
+            String origin = originOf(url);
+            if (origin != null && formAction.indexOf(" " + origin) < 0) {
+                formAction.append(' ').append(origin);
+            }
+        }
+        return "default-src 'self'; "
+                + "script-src 'self'; "
+                + "style-src " + StylesheetAdvice.contentSecurityPolicyHash() + "; "
+                + "img-src 'self' data: https: http:; "
+                + "connect-src 'self'; "
+                + "font-src 'self'; "
+                + "object-src 'none'; "
+                + "base-uri 'self'; "
+                + "frame-ancestors 'none'; "
+                + "form-action " + formAction;
+    }
+
+    /** {@code https://host[:port]} of an absolute http(s) URL, or null. */
+    static String originOf(String url) {
+        if (url == null) {
+            return null;
+        }
+        try {
+            java.net.URI uri = java.net.URI.create(url.trim());
+            String scheme = uri.getScheme() == null ? "" : uri.getScheme().toLowerCase(java.util.Locale.ROOT);
+            if (!("https".equals(scheme) || "http".equals(scheme)) || uri.getHost() == null) {
+                return null;
+            }
+            String host = uri.getHost().toLowerCase(java.util.Locale.ROOT);
+            if (!host.matches("[a-z0-9.\\-\\[\\]:]+")) {
+                return null;
+            }
+            return scheme + "://" + host + (uri.getPort() >= 0 ? ":" + uri.getPort() : "");
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
     }
 
     /**

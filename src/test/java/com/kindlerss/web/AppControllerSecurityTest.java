@@ -981,7 +981,7 @@ class AppControllerSecurityTest {
         mockMvc.perform(get("/items").param("unread", "false"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("data-unread-left=\"1\"")))
-                .andExpect(content().string(containsString("width:75%")))
+                .andExpect(content().string(containsString("width=\"75%\"")))
                 .andExpect(content().string(containsString(">1 unread<")))
                 .andExpect(content().string(containsString("data-reader-mark-form=\"mark-screen\"")))
                 .andExpect(content().string(containsString("action=\"/items/read\"")))
