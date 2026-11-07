@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.Instant;
@@ -228,6 +229,22 @@ public class UserService {
     /** Whether paging past a list of articles should mark them read. Missing accounts keep the Kindle default. */
     public boolean markReadOnNextPage(long userId) {
         return userRepository.findById(userId).map(AppUser::markReadOnNextPage).orElse(true);
+    }
+
+    /**
+     * Whether a session signed in with {@code passwordHash} has gone stale: the
+     * account has been deleted or switched off, or its password has changed since
+     * (a reset, for example). Such a session must not keep working.
+     */
+    public boolean credentialsChanged(long userId, String passwordHash) {
+        Optional<AppUser> user = userRepository.findById(userId);
+        if (user.isEmpty() || !user.get().enabled() || passwordHash == null
+                || user.get().passwordHash() == null) {
+            return true;
+        }
+        return !MessageDigest.isEqual(
+                user.get().passwordHash().getBytes(StandardCharsets.UTF_8),
+                passwordHash.getBytes(StandardCharsets.UTF_8));
     }
 
     /** Writes the time of a successful form or remember-me login for admin telemetry. */

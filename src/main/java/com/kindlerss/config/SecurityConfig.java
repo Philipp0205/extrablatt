@@ -4,6 +4,7 @@ import com.kindlerss.security.AppUserDetails;
 import com.kindlerss.security.EmailNotVerifiedException;
 import com.kindlerss.security.LoginStatusChecker;
 import com.kindlerss.security.RateLimitingFilter;
+import com.kindlerss.security.StaleSessionFilter;
 import com.kindlerss.service.UserService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,6 +36,7 @@ import org.springframework.security.web.authentication.AuthenticationSuccessHand
 import org.springframework.security.web.authentication.RememberMeServices;
 import org.springframework.security.web.authentication.SavedRequestAwareAuthenticationSuccessHandler;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.authentication.rememberme.RememberMeAuthenticationFilter;
 import org.springframework.security.web.authentication.rememberme.TokenBasedRememberMeServices;
 
 /**
@@ -159,6 +161,10 @@ public class SecurityConfig {
                         .key(appProperties.rememberMeKey())
                 )
                 .addFilterBefore(rateLimitingFilter, UsernamePasswordAuthenticationFilter.class)
+                // After remember-me, so a session restored from either source is checked
+                // against the account as it is now.
+                .addFilterAfter(new StaleSessionFilter(userService, rememberMeServices),
+                        RememberMeAuthenticationFilter.class)
                 .csrf(csrf -> csrf
                         // A mail provider cannot carry a CSRF token; the shared secret is its
                         // authentication instead. Nor can a payment provider, which signs the

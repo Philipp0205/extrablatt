@@ -191,6 +191,23 @@ class UserServiceTest {
     }
 
     @Test
+    void credentialsChangedSpotsANewPasswordADeletedAndADisabledAccount() {
+        AppUser current = new AppUser(3L, "r@example.com", "hash-now", null,
+                Instant.now(), null, Instant.now(), Instant.now());
+        when(userRepository.findById(3L)).thenReturn(Optional.of(current));
+        assertFalse(service.credentialsChanged(3L, "hash-now"));
+        assertTrue(service.credentialsChanged(3L, "hash-before"));
+
+        AppUser disabled = new AppUser(4L, "d@example.com", "hash-now", null,
+                Instant.now(), Instant.now(), Instant.now(), Instant.now());
+        when(userRepository.findById(4L)).thenReturn(Optional.of(disabled));
+        assertTrue(service.credentialsChanged(4L, "hash-now"));
+
+        when(userRepository.findById(5L)).thenReturn(Optional.empty());
+        assertTrue(service.credentialsChanged(5L, "hash-now"));
+    }
+
+    @Test
     void verificationAppliesAUsableTokenAndSendsWelcome() {
         EmailToken token = new EmailToken("tok", 1L, EmailToken.Purpose.VERIFY,
                 Instant.now().plus(1, ChronoUnit.DAYS), null, Instant.now());
