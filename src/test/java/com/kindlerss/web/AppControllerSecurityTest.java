@@ -1141,14 +1141,61 @@ class AppControllerSecurityTest {
     @Test
     @WithMockUser
     void aFailedSendSaysWhyInsteadOfAnsweringWithNothing() throws Exception {
-        org.mockito.Mockito.doThrow(new IllegalStateException("Failed to send EPUB to Kindle: connection refused"))
+        org.mockito.Mockito.doThrow(new KindleMailService.DeliveryFailedException(
+                        "The article could not be e-mailed to your Kindle just now. Please try again in a few minutes.",
+                        new RuntimeException("smtp.internal.example:587 connection refused")))
                 .when(kindleMailService).sendToKindle(UID, 4L, false);
 
         mockMvc.perform(post("/articles/4/send-async").with(csrf()))
                 .andExpect(status().isInternalServerError())
                 .andExpect(content().contentTypeCompatibleWith("application/json"))
-                .andExpect(jsonPath("$.error")
-                        .value("Failed to send EPUB to Kindle: connection refused"));
+                .andExpect(jsonPath("$.error").value(
+                        "The article could not be e-mailed to your Kindle just now. Please try again in a few minutes."))
+                .andExpect(content().string(org.hamcrest.Matchers.not(containsString("smtp.internal"))));
+    }
+
+    /* Whatever an unexpected failure says about the server stays in the log. */
+    @Test
+    @WithMockUser
+    void anUnexpectedFailureDoesNotShowItsOwnMessage() throws Exception {
+        org.mockito.Mockito.doThrow(new IllegalStateException("535 5.7.8 auth failed for re_secret at smtp.resend.com"))
+                .when(kindleMailService).sendToKindle(UID, 4L, false);
+
+        mockMvc.perform(post("/articles/4/send-async").with(csrf()))
+                .andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.error").value("Could not send article"));
+
+        mockMvc.perform(post("/articles/4/send").with(csrf()))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(flash().attribute("error", "Could not send article"));
+    }
+
+    @Test
+    @WithMockUser
+    void aFailedFetchShowsTheReaderSentenceNotTheResolvedAddress() throws Exception {
+        when(articleService.importFromUrl(UID, "https://intranet.example"))
+                .thenThrow(new IllegalArgumentException("That address is not allowed",
+                        new com.kindlerss.service.SafeHttpClient.FetchException(
+                                "Resolved address is not allowed: 10.0.0.5", "That address is not allowed", null)));
+        when(feedService.addFeed(UID, "https://intranet.example", null))
+                .thenThrow(new com.kindlerss.service.SafeHttpClient.FetchException(
+                        "Resolved address is not allowed: 10.0.0.5", "That address is not allowed", null));
+
+        mockMvc.perform(post("/articles/from-url").with(csrf()).param("url", "https://intranet.example"))
+                .andExpect(flash().attribute("error", "That address is not allowed"));
+        mockMvc.perform(post("/feeds").with(csrf()).param("url", "https://intranet.example"))
+                .andExpect(flash().attribute("error", "That address is not allowed"));
+    }
+
+    @Test
+    @WithMockUser
+    void aDatabaseErrorWhileAddingAFeedIsNotShown() throws Exception {
+        when(feedService.addFeed(UID, "https://example.com", null))
+                .thenThrow(new org.springframework.dao.DataIntegrityViolationException(
+                        "ERROR: duplicate key value violates unique constraint \"feeds_user_url_key\""));
+
+        mockMvc.perform(post("/feeds").with(csrf()).param("url", "https://example.com"))
+                .andExpect(flash().attribute("error", "That site could not be added"));
     }
 
     /* A failure with no message of its own still gets a sentence to show. */
@@ -1459,7 +1506,7 @@ class AppControllerSecurityTest {
                 "https://example.com/a", null, Instant.now(), null, null, "<p>Hi</p>",
                 false, null, Instant.now(), Instant.now(), "Pasted URLs");
         when(articleService.importFromUrl(UID, "https://example.com/a")).thenReturn(imported);
-        org.mockito.Mockito.doThrow(new IllegalStateException("Add your Kindle e-mail address in Settings first"))
+        org.mockito.Mockito.doThrow(new KindleMailService.SetupRequiredException("Add your Kindle e-mail address in Settings first"))
                 .when(kindleMailService).sendToKindle(UID, 8L, false);
 
         mockMvc.perform(post("/articles/from-url").with(csrf())

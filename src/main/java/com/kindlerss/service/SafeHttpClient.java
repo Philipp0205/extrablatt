@@ -24,13 +24,31 @@ import java.util.Set;
 @Component
 public class SafeHttpClient {
 
+    /**
+     * A fetch that did not work. {@link #getMessage()} is for the log and may name
+     * hosts, addresses and low-level errors; {@link #userMessage()} is the sentence
+     * a reader may see.
+     */
     public static final class FetchException extends RuntimeException {
+        static final String GENERIC = "That address could not be loaded";
+
+        private final String userMessage;
+
         public FetchException(String message) {
-            super(message);
+            this(message, GENERIC, null);
         }
 
         public FetchException(String message, Throwable cause) {
+            this(message, GENERIC, cause);
+        }
+
+        public FetchException(String message, String userMessage, Throwable cause) {
             super(message, cause);
+            this.userMessage = userMessage == null || userMessage.isBlank() ? GENERIC : userMessage;
+        }
+
+        public String userMessage() {
+            return userMessage;
         }
     }
 
@@ -56,7 +74,7 @@ public class SafeHttpClient {
 
     private FetchedContent get(String url, int redirectCount) {
         if (redirectCount > 5) {
-            throw new FetchException("Too many redirects");
+            throw new FetchException("Too many redirects", "That address redirects too many times", null);
         }
         URI uri = validateAndResolve(url);
         HttpRequest request = HttpRequest.newBuilder(uri)
@@ -78,7 +96,8 @@ public class SafeHttpClient {
                 return get(next.toString(), redirectCount + 1);
             }
             if (status < 200 || status >= 300) {
-                throw new FetchException("HTTP " + status + " for " + uri);
+                throw new FetchException("HTTP " + status + " for " + uri,
+                        "The site answered with an error (HTTP " + status + ")", null);
             }
             String contentType = response.headers().firstValue("Content-Type").orElse("application/octet-stream");
             byte[] bytes = readLimited(response.body(), properties.http().maxBytes());
@@ -96,39 +115,41 @@ public class SafeHttpClient {
 
     public URI validateAndResolve(String url) {
         if (url == null || url.isBlank()) {
-            throw new FetchException("URL is required");
+            throw new FetchException("URL is required", "URL is required", null);
         }
         URI uri;
         try {
             uri = URI.create(url.trim());
         } catch (IllegalArgumentException e) {
-            throw new FetchException("Invalid URL", e);
+            throw new FetchException("Invalid URL", "That is not a valid web address", e);
         }
         String scheme = uri.getScheme() == null ? "" : uri.getScheme().toLowerCase(Locale.ROOT);
         if (!"http".equals(scheme) && !"https".equals(scheme)) {
-            throw new FetchException("Only http and https URLs are allowed");
+            throw new FetchException("Only http and https URLs are allowed", "Only http and https URLs are allowed", null);
         }
         if (uri.getHost() == null || uri.getHost().isBlank()) {
-            throw new FetchException("URL must include a host");
+            throw new FetchException("URL must include a host", "URL must include a host", null);
         }
         String host = uri.getHost().toLowerCase(Locale.ROOT);
         if (BLOCKED_HOSTS.contains(host) || host.endsWith(".localhost") || host.endsWith(".local")) {
-            throw new FetchException("Host is not allowed");
+            throw new FetchException("Host is not allowed", "That address is not allowed", null);
         }
         try {
             InetAddress[] addresses = InetAddress.getAllByName(host);
             if (addresses.length == 0) {
-                throw new FetchException("Host could not be resolved");
+                throw new FetchException("Host could not be resolved", "That site could not be found", null);
             }
             for (InetAddress address : addresses) {
                 if (isBlockedAddress(address)) {
-                    throw new FetchException("Resolved address is not allowed: " + address.getHostAddress());
+                    throw new FetchException("Resolved address is not allowed: " + address.getHostAddress(),
+                            "That address is not allowed", null);
                 }
             }
         } catch (FetchException e) {
             throw e;
         } catch (Exception e) {
-            throw new FetchException("DNS resolution failed for " + host + ": " + e.getMessage(), e);
+            throw new FetchException("DNS resolution failed for " + host + ": " + e.getMessage(),
+                    "That site could not be found", e);
         }
         return uri.normalize();
     }
@@ -165,7 +186,8 @@ public class SafeHttpClient {
             while ((read = in.read(buffer)) != -1) {
                 total += read;
                 if (total > maxBytes) {
-                    throw new FetchException("Response exceeds maximum allowed size (" + maxBytes + " bytes)");
+                    throw new FetchException("Response exceeds maximum allowed size (" + maxBytes + " bytes)",
+                            "That page is too large to load", null);
                 }
                 out.write(buffer, 0, read);
             }
