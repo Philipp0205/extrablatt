@@ -71,6 +71,8 @@ their own licenses. Start with [Local configuration](#local-configuration) or
 | `SMTP_HOST` / `SMTP_PORT` / `SMTP_USERNAME` / `SMTP_PASSWORD` | SMTP (Resend: host `smtp.resend.com`, username `resend`, password = API key) |
 | `REMEMBER_ME_KEY` | Secret for remember-me tokens. At least 32 characters and not a placeholder (`openssl rand -base64 48`); startup fails otherwise under the `production` profile or a non-localhost `APP_PUBLIC_URL` |
 | `ADMIN_EMAILS` | Comma-separated account e-mails allowed to view telemetry and manage per-user send limits |
+| `TRUSTED_PROXIES` | `app.trusted-proxies`: comma-separated CIDRs of proxies allowed to add to `X-Forwarded-For`. Blank (default) means `127.0.0.0/8, 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 100.64.0.0/10, 169.254.0.0/16, ::1/128, fc00::/7, fe80::/10`; a value replaces that list. See [Client address behind proxies](#client-address-behind-proxies) |
+| `TRUST_CLOUDFLARE` | `app.trust-cloudflare`, default `true`: also trust Cloudflare's published edge ranges. Set `false` when Cloudflare is not in front of the app |
 
 3. Export variables (or use your shell dotenv tooling) and run:
 
@@ -382,6 +384,11 @@ well: managed Postgres, TLS, and Dockerfile builds with low ops.
 5. Deploy, open the service URL, and register the first account. Set a billing
    alert on day one.
 
+Behind Cloudflare and Railway the defaults for `TRUSTED_PROXIES` and
+`TRUST_CLOUDFLARE` are correct; leave both unset (see
+[Client address behind proxies](#client-address-behind-proxies)). Turning off the
+`*.up.railway.app` domain once a custom domain works is optional hardening.
+
 Flyway runs the schema migrations automatically on first boot. Rely on Railway's
 managed Postgres backups. Any SMTP provider (Postmark, SES, …) works by changing
 the `SMTP_*` / `MAIL_FROM` variables — no code change.
@@ -571,7 +578,9 @@ docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.host-proxy.
 Set `APP_HTTP_PORT` in `.env` if 8090 is taken, then point the host proxy at
 `127.0.0.1:$APP_HTTP_PORT`. See `deploy/host-caddy-site.example` for a site block.
 The app already runs with `server.forward-headers-strategy=framework`, so it
-honors `X-Forwarded-Proto` and issues Secure cookies and https redirects.
+honors `X-Forwarded-Proto` and issues Secure cookies and https redirects. The
+host proxy reaches the app through Docker's port publishing, so the app sees a
+private-range peer, which the default `TRUSTED_PROXIES` already covers.
 
 ## Deploy to a VPS (self-host alternative)
 
@@ -643,7 +652,47 @@ chmod +x deploy/backup.sh deploy/restore.sh
 - The public `/cancel` form changes a subscription only for the signed-in owner. For anyone else it records the declaration and mails a single-use, hashed, 24-hour link to the account's own address (at most three per account per day), without the requester's text; `/cancel/confirm` acts only on a CSRF-protected POST. The response is the same whether or not an account exists.
 - Every page is served with a Content-Security-Policy: scripts only from the app's own `/js/` files, no inline script or event handlers, and no inline styles except the page's own stylesheet, allowed by its SHA-256 hash (computed at start-up from `css/app.css`). Images may come from any http(s) origin, since articles show their source's images; forms may post to the app and to the origins of the configured checkout and portal URLs. Framing is refused (`frame-ancestors 'none'`, `X-Frame-Options: DENY`). Confirmation prompts on destructive forms use a `data-confirm` attribute read by `js/confirm.js`; new templates must not add `style="..."` or `on...=` attributes (a test checks).
 - Session cookies are not marked Secure in the default profile (local HTTP). The `production` profile sets Secure cookies; use a TLS-terminating proxy with forwarded headers.
-- Rate limiting keys on the client address the servlet container reports, never on a raw `X-Forwarded-For` header. With `server.forward-headers-strategy: framework`, Spring takes that address from the first `X-Forwarded-For` entry, so the proxy in front of the app must overwrite (not append to) that header. The limiter is in memory, bounded to 10,000 keys, and per instance.
+- Rate limiting keys on the client address `ClientIpResolver` works out (see [Client address behind proxies](#client-address-behind-proxies)), not on `getRemoteAddr()` and not on the leftmost `X-Forwarded-For` entry, both of which the client controls behind `server.forward-headers-strategy: framework`. No proxy has to overwrite the header; appending is fine. The limiter is in memory, bounded to 10,000 keys, and per instance.
+
+### Client address behind proxies
+
+Production runs client, Cloudflare, Railway's edge, app. Each proxy appends the
+address it saw to `X-Forwarded-For`, so only the right-hand end of that header is
+trustworthy; the leftmost entry is whatever the client sent. The app therefore
+works out the client address itself, from the original socket peer and the raw
+header (it unwraps Spring's `ForwardedHeaderFilter`, which only stays on for
+`X-Forwarded-Proto` / `-Host` / `-Port`):
+
+- If the socket peer is not a trusted proxy, `X-Forwarded-For` is ignored and the
+  peer is the client.
+- Otherwise the header is walked from the right, skipping trusted proxies
+  (Railway's private hops, then Cloudflare). The first untrusted address is the
+  client. If every entry is trusted, the leftmost one is used. An entry that is
+  not an IP literal stops the walk at the nearest trusted hop.
+- `CF-Connecting-IP` is never read. The Railway origin is also reachable directly
+  at `*.up.railway.app`, bypassing Cloudflare, and a Cloudflare Worker can set
+  that header too. A request straight to the origin still resolves correctly: to
+  the caller address Railway's edge appended.
+
+Settings:
+
+- `app.trusted-proxies` (env `TRUSTED_PROXIES`): comma-separated CIDRs. Blank
+  (default) means loopback, RFC 1918, `100.64.0.0/10` (Railway's private network
+  and CGNAT), `169.254.0.0/16`, `::1/128`, `fc00::/7` and `fe80::/10`. A value
+  replaces that list. A malformed range fails start-up.
+- `app.trust-cloudflare` (env `TRUST_CLOUDFLARE`, default `true`): also trust
+  Cloudflare's published IPv4 and IPv6 ranges, hardcoded in
+  `ClientIpResolver.CLOUDFLARE_RANGES` (copied from cloudflare.com/ips-v4 and
+  ips-v6 on 2026-11-07; refresh when Cloudflare changes them). Set `false` on a
+  deployment without Cloudflare, so a Cloudflare address in the header is not
+  skipped.
+
+The bundled VPS setup works with the defaults: Caddy sits on the Docker network
+(a private-range peer) and sets `X-Forwarded-For` to the client it saw.
+
+Optional hardening: switch off the `*.up.railway.app` domain in Railway
+(service, Settings, Networking) so all traffic goes through Cloudflare. The rate
+limiter is correct either way.
 
 ## Stack
 
