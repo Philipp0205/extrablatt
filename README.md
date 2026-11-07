@@ -631,6 +631,20 @@ chmod +x deploy/backup.sh deploy/restore.sh
 ./deploy/restore.sh deploy/backups/kindle_rss_YYYYMMDD.sql.gz
 ```
 
+- Both scripts read only the keys they need (`POSTGRES_DB`, `POSTGRES_USER`,
+  `BACKUP_*`) from `.env`, as plain text; `.env` is never sourced or executed.
+  Variables already set in the environment win.
+- `backup.sh` keeps the newest `BACKUP_KEEP` backups (default 14, `0` keeps all)
+  and deletes older ones. Backups are created with mode `600`.
+- Set `BACKUP_AGE_RECIPIENT` (an age public key) or `BACKUP_GPG_RECIPIENT` (a gpg
+  key id or e-mail) to encrypt each backup; the file then ends in `.age` / `.gpg`.
+  Restoring an `.age` backup needs `BACKUP_AGE_IDENTITY` (path to the identity
+  file); `.gpg` backups use the local gpg keyring.
+- `restore.sh` replaces the whole database, so it asks you to type the database
+  name first. Pass `--yes` to skip that in scripts (it refuses to run without a
+  terminal otherwise). It restores in a single transaction with
+  `ON_ERROR_STOP=1`, so a broken dump leaves the database unchanged.
+
 ## Security notes
 
 - CSRF protection stays enabled; forms include tokens.
