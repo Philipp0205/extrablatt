@@ -114,6 +114,12 @@ Kindle address under **Settings**.
 
 Tests do not require PostgreSQL or Docker. They cover EPUB layout, HTML sanitization, SSRF address checks, and MVC/security smoke paths with mocked services.
 
+GitHub Actions run the tests on every push and pull request (`ci.yml`) and
+CodeQL analysis of the Java code (`codeql.yml`, also weekly). Third-party
+actions are pinned to commit SHAs with the release noted alongside, and
+Dependabot (`.github/dependabot.yml`) opens weekly update PRs against
+`staging` for Maven, Actions and the Docker base images.
+
 ## Using the app
 
 1. Open **Add feed** beside the Feeds heading (direct feed URL or site homepage).
