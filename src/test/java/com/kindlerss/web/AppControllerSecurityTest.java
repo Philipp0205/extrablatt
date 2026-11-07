@@ -251,6 +251,43 @@ class AppControllerSecurityTest {
     }
 
     @Test
+    void aWrongPasswordOnAnUnverifiedAccountDoesNotRevealThatTheAccountExists() throws Exception {
+        String hash = new BCryptPasswordEncoder().encode("test-password-123");
+        AppUser account = new AppUser(UID, "user@example.com", hash, null,
+                null, null, Instant.now(), Instant.now());
+        when(userDetailsService.loadUserByUsername("user@example.com"))
+                .thenReturn(new AppUserDetails(account));
+
+        mockMvc.perform(formLogin().user("user@example.com").password("not-the-password"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/login?error"));
+    }
+
+    @Test
+    void aDisabledAccountFailsLikeAWrongPassword() throws Exception {
+        String hash = new BCryptPasswordEncoder().encode("test-password-123");
+        AppUser account = new AppUser(UID, "user@example.com", hash, null,
+                Instant.now(), Instant.now(), Instant.now(), Instant.now());
+        when(userDetailsService.loadUserByUsername("user@example.com"))
+                .thenReturn(new AppUserDetails(account));
+
+        mockMvc.perform(formLogin().user("user@example.com").password("test-password-123"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/login?error"));
+        verify(userService, never()).recordLastLogin(anyLong());
+    }
+
+    @Test
+    void anUnknownAddressFailsLikeAWrongPassword() throws Exception {
+        when(userDetailsService.loadUserByUsername("nobody@example.com"))
+                .thenThrow(new org.springframework.security.core.userdetails.UsernameNotFoundException("none"));
+
+        mockMvc.perform(formLogin().user("nobody@example.com").password("whatever-123"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/login?error"));
+    }
+
+    @Test
     @WithMockUser
     void homeRequiresAuthAndRenders() throws Exception {
         when(feedService.listFeeds(UID)).thenReturn(List.of());

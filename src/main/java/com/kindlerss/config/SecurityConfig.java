@@ -1,17 +1,24 @@
 package com.kindlerss.config;
 
 import com.kindlerss.security.AppUserDetails;
+import com.kindlerss.security.EmailNotVerifiedException;
+import com.kindlerss.security.LoginStatusChecker;
 import com.kindlerss.security.RateLimitingFilter;
 import com.kindlerss.service.UserService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
 import org.springframework.core.env.Environment;
 import org.springframework.core.env.Profiles;
-import org.springframework.security.authentication.DisabledException;
+import org.springframework.security.authentication.AuthenticationEventPublisher;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.ProviderManager;
+import org.springframework.security.authentication.RememberMeAuthenticationProvider;
+import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -115,8 +122,14 @@ public class SecurityConfig {
     SecurityFilterChain securityFilterChain(HttpSecurity http,
                                             RememberMeServices rememberMeServices,
                                             RateLimitingFilter rateLimitingFilter,
-                                            UserService userService) throws Exception {
+                                            UserService userService,
+                                            UserDetailsService userDetailsService,
+                                            PasswordEncoder passwordEncoder,
+                                            ObjectProvider<AuthenticationEventPublisher> eventPublisher)
+            throws Exception {
         http
+                .authenticationManager(authenticationManager(
+                        userDetailsService, passwordEncoder, eventPublisher.getIfAvailable()))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
                         .requestMatchers(PUBLIC_PATHS).permitAll()
@@ -152,6 +165,30 @@ public class SecurityConfig {
                         // request body instead.
                         .ignoringRequestMatchers("/inbound/newsletters", "/webhooks/billing"));
         return http.build();
+    }
+
+    /**
+     * Form login and remember-me, without a fallback to Spring's global manager. That
+     * one checks account status before the password, so an unconfirmed address
+     * answered "confirm your e-mail" to any password at all, which told a stranger
+     * the address was registered. Here the password is checked first (see
+     * {@link LoginStatusChecker}). It is not a bean on purpose: an
+     * {@code AuthenticationManager} bean would switch off Boot's defaults that the
+     * slice tests rely on.
+     */
+    private AuthenticationManager authenticationManager(UserDetailsService userDetailsService,
+                                                        PasswordEncoder passwordEncoder,
+                                                        AuthenticationEventPublisher eventPublisher) {
+        DaoAuthenticationProvider form = new DaoAuthenticationProvider(passwordEncoder);
+        form.setUserDetailsService(userDetailsService);
+        form.setPreAuthenticationChecks(user -> { });
+        form.setPostAuthenticationChecks(new LoginStatusChecker());
+        ProviderManager manager = new ProviderManager(
+                form, new RememberMeAuthenticationProvider(appProperties.rememberMeKey()));
+        if (eventPublisher != null) {
+            manager.setAuthenticationEventPublisher(eventPublisher);
+        }
+        return manager;
     }
 
     /**
@@ -197,7 +234,9 @@ public class SecurityConfig {
             if (username != null && !username.isBlank()) {
                 request.getSession().setAttribute(LAST_LOGIN_USERNAME, username.trim());
             }
-            String failure = exception instanceof DisabledException ? "unverified" : "error";
+            // Only a correct password on an unconfirmed account earns the specific hint;
+            // everything else, a switched-off account included, reads as a plain failure.
+            String failure = exception instanceof EmailNotVerifiedException ? "unverified" : "error";
             response.sendRedirect(request.getContextPath() + "/login?" + failure);
         };
     }
