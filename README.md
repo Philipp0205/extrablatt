@@ -637,6 +637,7 @@ chmod +x deploy/backup.sh deploy/restore.sh
 - Feed/article HTML is sanitized with jsoup Safelist before `th:utext`.
 - Outbound fetches allow only `http`/`https`, resolve DNS, and reject loopback/private/link-local/multicast/CGNAT/ULA addresses; response size and timeouts are capped.
 - Redirect targets from form posts are restricted to same-app relative paths.
+- Errors render the error page with a fixed message: malformed or missing input is a 400, unknown paths a 404, a wrong HTTP method a 405, and anything unexpected a 500 that is logged in full but never shows the exception text.
 - Session cookies are not marked Secure in the default profile (local HTTP). The `production` profile sets Secure cookies; use a TLS-terminating proxy with forwarded headers.
 
 ## Stack
