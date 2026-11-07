@@ -99,7 +99,7 @@ public class SecurityConfig {
     @Order(0)
     SecurityFilterChain staticAssetFilterChain(HttpSecurity http) throws Exception {
         http
-                .securityMatcher("/js/**")
+                .securityMatcher("/js/**", "/css/**")
                 .authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS))

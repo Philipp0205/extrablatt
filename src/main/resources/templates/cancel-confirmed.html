@@ -2,15 +2,13 @@
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
 <head>
   <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
   <title>Cancellation confirmed — Extrablatt</title>
-  <style th:replace="~{fragments/page-styles :: inline}"></style>
+  <th:block th:replace="~{fragments/page-styles :: assets}"></th:block>
 </head>
 <body>
-<div class="wrap">
-  <header class="app">
-    <a class="brand" th:href="@{/}">Extrablatt</a>
-  </header>
+<th:block th:replace="~{fragments/app-shell :: brandBar}"></th:block>
+<main id="main" class="wrap">
 
   <h1>Your cancellation is confirmed</h1>
 
@@ -67,6 +65,6 @@
     <a class="btn" th:href="@{/}">Back to your feeds</a>
     <a class="btn" th:href="@{/settings}">Settings</a>
   </div>
-</div>
+</main>
 </body>
 </html>

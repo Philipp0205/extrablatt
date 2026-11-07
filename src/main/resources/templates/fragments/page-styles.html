@@ -2,17 +2,22 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
 <!--
-  The stylesheet, written into the page rather than linked from it.
+  What every page puts in its <head> after the viewport and title: the colour
+  scheme hints, the one stylesheet and the one shared script.
 
-  A linked stylesheet holds up the first paint until it arrives, and until this
-  fragment existed that wait happened on every navigation, on every device: the
-  file was served `no-store`, so no browser was allowed to keep it. On a phone
-  that is a visible moment of the bare document before the rules land. Carrying
-  the rules with the page removes the request, and with it the wait.
-
-  The rules are read from `css/app.css` at start-up — the stylesheet is still one
-  ordinary file, edited as one. See com.kindlerss.web.StylesheetAdvice.
+  Both files are served under a content hash (/css/app-<hash>.css,
+  /js/app-<hash>.js) with a year-long immutable cache, so after the first visit
+  neither costs a request. Nothing here is inline, which keeps the pages within a
+  `style-src 'self'; script-src 'self'` policy. app.js is deferred: every page
+  renders and works without it, it only adds load-more, async send, confirm
+  prompts and the like on top.
 -->
-<style th:fragment="inline" th:utext="${stylesheet}"></style>
+<th:block th:fragment="assets">
+  <meta name="color-scheme" content="light dark"/>
+  <meta name="theme-color" content="#faf8f4" media="(prefers-color-scheme: light)"/>
+  <meta name="theme-color" content="#141412" media="(prefers-color-scheme: dark)"/>
+  <link rel="stylesheet" th:href="@{/css/app.css}"/>
+  <script th:src="@{/js/app.js}" defer></script>
+</th:block>
 </head>
 </html>

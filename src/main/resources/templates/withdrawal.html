@@ -2,15 +2,13 @@
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
 <head>
   <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
   <title>Right of withdrawal — Extrablatt</title>
-  <style th:replace="~{fragments/page-styles :: inline}"></style>
+  <th:block th:replace="~{fragments/page-styles :: assets}"></th:block>
 </head>
 <body>
-<div class="wrap">
-  <header class="app">
-    <a class="brand" th:href="@{/}">Extrablatt</a>
-  </header>
+<th:block th:replace="~{fragments/app-shell :: brandBar}"></th:block>
+<main id="main" class="wrap">
 
   <div th:fragment="content">
   <h1>Right of withdrawal</h1>
@@ -60,7 +58,7 @@
     You may use this wording, but you do not have to.
   </p>
   <div class="receipt">
-    <p style="margin:0">
+    <p class="flush">
       To Kubri by Philipp Kurrle und Ali Abriani KLG, Wehntalerstrasse 17,
       8057 Zürich, Switzerland, <a href="mailto:hello@extrablatt.app">hello@extrablatt.app</a>:<br/><br/>
       I hereby withdraw from the contract concluded by me for the provision of the
@@ -81,7 +79,7 @@
   </p>
   </div>
 
-  <p class="meta" style="margin-top:1rem"><a th:href="@{/login}">Back</a></p>
-</div>
+  <p class="meta space-top"><a th:href="@{/login}">Back</a></p>
+</main>
 </body>
 </html>

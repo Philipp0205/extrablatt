@@ -15,6 +15,8 @@ import com.kindlerss.service.KindleMailService;
 import com.kindlerss.service.UserService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.info.BuildProperties;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -37,6 +39,7 @@ import static org.hamcrest.Matchers.matchesPattern;
 import static org.hamcrest.Matchers.not;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -71,28 +74,11 @@ class AppControllerSecurityTest {
     private static final long UID = 1L;
 
     /**
-     * The reader pages load their scripts under a name that carries a hash of the
-     * file's contents, which is what lets a browser keep them for good instead of
-     * fetching them again on every page turn. Asserted as a pattern rather than a
-     * fixed name, because the hash changes whenever the script does.
+     * Pages load the one shared script under a name that carries a hash of its
+     * contents, which is what lets a browser keep it for good. Asserted as a pattern
+     * rather than a fixed name, because the hash changes whenever the script does.
      */
-    private static final String CONTENT_ADDRESSED_READER = "(?s).*/js/reader-[0-9a-f]{32}\\.js.*";
-    private static final String CONTENT_ADDRESSED_FILTERS = "(?s).*/js/filters-[0-9a-f]{32}\\.js.*";
-
-    /**
-     * The page with the stylesheet it carries in its head taken back out. Where a
-     * test is about where something sits in the markup, the rules get in the way:
-     * they name the very classes the markup is being searched for, and they sit
-     * ahead of all of it.
-     */
-    private static String withoutStylesheet(String page) {
-        int open = page.indexOf("<style>");
-        int close = page.indexOf("</style>", open);
-        if (open < 0 || close < 0) {
-            return page;
-        }
-        return page.substring(0, open) + page.substring(close + "</style>".length());
-    }
+    private static final String CONTENT_ADDRESSED_APP = "(?s).*/js/app-[0-9a-f]{32}\\.js.*";
 
     @Autowired
     MockMvc mockMvc;
@@ -461,7 +447,7 @@ class AppControllerSecurityTest {
 
     @Test
     @WithMockUser
-    void theChipsThatLeaveALevelStayOutsideTheTurningStrip() throws Exception {
+    void theChipsThatLeaveALevelStayOutsideTheScrollingRow() throws Exception {
         when(articleService.findPage(eq(UID), eq(5L), isNull(), eq(1), eq(20))).thenReturn(List.of());
         when(articleService.count(eq(UID), eq(5L), isNull())).thenReturn(0L);
         when(feedService.findById(UID, 5L)).thenReturn(Optional.of(
@@ -470,12 +456,12 @@ class AppControllerSecurityTest {
                 new Feed(5L, "Android Police", "https://example.com/a", null, "Technology", null, null, null)));
 
         // Arriving by feed alone still opens that feed's category, and back and the
-        // unread switch sit ahead of the strip, where turning it cannot hide them.
+        // unread switch sit ahead of the row, where scrolling it cannot hide them.
         String body = mockMvc.perform(get("/items").param("feed", "5").param("unread", "false"))
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
 
-        String markup = withoutStylesheet(body);
+        String markup = body;
         int back = markup.indexOf(BACK_CONTROL);
         int unreadToggle = markup.indexOf("/items?feed=5&amp;unread=true");
         int divide = markup.indexOf("filter-divide");
@@ -499,29 +485,26 @@ class AppControllerSecurityTest {
         when(feedService.listFeeds(UID)).thenReturn(List.of(
                 new Feed(5L, "Android Police", "https://example.com/a", null, "Technology", null, null, null)));
 
-        // Off: a hollow dot, and none of the marks a feed or category carries.
+        // Off: a switch that says it is off, and none of the marks a place carries.
         mockMvc.perform(get("/items").param("category", "Technology").param("unread", "false"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("class=\"btn filter-nav filter-mode\"")))
-                .andExpect(content().string(containsString(
-                        "<span class=\"mode-dot\" aria-hidden=\"true\">○</span>")));
+                .andExpect(content().string(containsString("class=\"chip filter-mode\"")))
+                .andExpect(content().string(containsString("aria-pressed=\"false\"")));
 
-        // On: the dot fills, and the switch still does not take the active class that
-        // draws the rule under wherever the reader is.
+        // On: the switch says so, and exactly one chip in the row is where the reader is.
         String body = mockMvc.perform(get("/items")
                         .param("category", "Technology").param("unread", "true")
                         .param("snapshot", "1"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString(
-                        "<span class=\"mode-dot\" aria-hidden=\"true\">●</span>")))
+                .andExpect(content().string(containsString("aria-pressed=\"true\"")))
                 .andReturn().getResponse().getContentAsString();
 
         org.junit.jupiter.api.Assertions.assertTrue(
-                body.contains("class=\"btn filter-nav filter-mode  active\""),
+                body.contains("class=\"chip filter-mode active\""),
                 "the switch marks itself on");
         org.junit.jupiter.api.Assertions.assertEquals(1,
-                body.split("class=\"btn  active\"", -1).length - 1,
-                "exactly one chip in the strip is where the reader is");
+                body.split("aria-current=\"true\"", -1).length - 1,
+                "exactly one chip in the row is where the reader is");
     }
 
     @Test
@@ -535,9 +518,7 @@ class AppControllerSecurityTest {
 
         String body = mockMvc.perform(get("/items").param("unread", "false"))
                 .andExpect(status().isOk())
-                // The heading is left for screen readers, and the count follows the
-                // list instead of pushing it down the screen.
-                .andExpect(content().string(containsString("<h1 class=\"offscreen\">Articles</h1>")))
+                .andExpect(content().string(containsString("<h1>Articles</h1>")))
                 .andExpect(content().string(containsString("1–1 of 1 articles")))
                 .andReturn().getResponse().getContentAsString();
 
@@ -562,7 +543,7 @@ class AppControllerSecurityTest {
 
     @Test
     @WithMockUser
-    void everyFeedIsInTheRowAndTheRowCanBeTurned() throws Exception {
+    void everyFeedIsInTheRowAndTheRowScrollsNatively() throws Exception {
         List<Feed> feeds = new ArrayList<>();
         for (int i = 1; i <= 12; i++) {
             feeds.add(new Feed((long) i, "A rather long feed name " + i, "https://example.com/" + i,
@@ -573,15 +554,16 @@ class AppControllerSecurityTest {
         when(articleService.count(eq(UID), isNull(), eq("Technology"), isNull(), isNull())).thenReturn(0L);
         when(feedService.listFeeds(UID)).thenReturn(feeds);
 
-        // The whole row is rendered; how much of it fits is settled in the browser.
+        // The whole row is rendered and scrolls sideways on its own; there are no
+        // arrows to turn it and no script that measures it.
         mockMvc.perform(get("/items").param("category", "Technology").param("unread", "false"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("href=\"/items?feed=1&amp;unread=false\"")))
                 .andExpect(content().string(containsString("href=\"/items?feed=12&amp;unread=false\"")))
                 .andExpect(content().string(containsString("data-strip-track")))
-                .andExpect(content().string(containsString("data-strip-prev")))
-                .andExpect(content().string(containsString("data-strip-next")))
-                .andExpect(content().string(matchesPattern(CONTENT_ADDRESSED_FILTERS)));
+                .andExpect(content().string(not(containsString("data-strip-prev"))))
+                .andExpect(content().string(not(containsString("data-strip-next"))))
+                .andExpect(content().string(not(containsString("/js/filters"))));
     }
 
     @Test
@@ -621,27 +603,39 @@ class AppControllerSecurityTest {
 
     @Test
     @WithMockUser
-    void articlePageRendersPagedReader() throws Exception {
-        Article article = new Article(7L, 1L, "guid", "Paged article", "https://example.com/a", null,
-                null, null, null, null, true, null, null, null, "Example Feed");
+    void articlePageIsAScrollingReadingView() throws Exception {
+        Article article = new Article(7L, 1L, "guid", "A long read", "https://example.com/a", "Ada",
+                Instant.parse("2026-01-01T10:00:00Z"), null, null, null, true, null, null, null, "Example Feed");
         when(articleService.findById(UID, 7L)).thenReturn(Optional.of(article));
         when(articleService.getReaderHtml(any(Article.class), eq(false))).thenReturn("<p>Body</p>");
 
-        mockMvc.perform(get("/articles/7"))
+        String body = mockMvc.perform(get("/articles/7"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("data-reader-frame")))
-                .andExpect(content().string(containsString("data-reader-prev")))
-                .andExpect(content().string(containsString("data-reader-next")))
-                .andExpect(content().string(matchesPattern(CONTENT_ADDRESSED_READER)))
-                .andExpect(content().string(containsString("<button class=\"btn\" type=\"submit\">Send to Kindle</button>")))
-                .andExpect(content().string(containsString("<details class=\"action-menu\" data-reader-refit>")))
-                .andExpect(content().string(containsString("<summary class=\"btn\">More</summary>")))
-                .andExpect(content().string(containsString(">Mark unread</button>")));
+                .andExpect(content().string(matchesPattern(CONTENT_ADDRESSED_APP)))
+                .andExpect(content().string(not(containsString("data-reader"))))
+                .andExpect(content().string(not(containsString("/js/reader"))))
+                .andExpect(content().string(containsString("<h1>A long read</h1>")))
+                .andExpect(content().string(containsString("<time datetime=\"2026-01-01T10:00:00Z\">")))
+                .andExpect(content().string(containsString("By Ada")))
+                .andExpect(content().string(containsString("<details class=\"action-menu\" data-action-menu>")))
+                .andExpect(content().string(containsString(">More</summary>")))
+                .andExpect(content().string(containsString(">Mark unread</button>")))
+                .andExpect(content().string(containsString("<p>Body</p>")))
+                .andReturn().getResponse().getContentAsString();
+
+        // Sending is offered at the top and again where the article ends, and both
+        // work as a plain form post without the script.
+        org.junit.jupiter.api.Assertions.assertEquals(2,
+                body.split("action=\"/articles/7/send\"", -1).length - 1,
+                "a send form above the article and one below it");
+        org.junit.jupiter.api.Assertions.assertTrue(
+                body.contains("<a href=\"/items\" aria-current=\"page\">"),
+                "an article belongs to Articles in the navigation");
     }
 
     @Test
     @WithMockUser
-    void itemsPageHasNoOlderArticlesSkipHatch() throws Exception {
+    void aListWithMoreToComeEndsInALoadMoreLink() throws Exception {
         List<Article> articles = new ArrayList<>();
         for (int i = 1; i <= 20; i++) {
             articles.add(new Article((long) i, 1L, "guid-" + i, "Article " + i, null, null,
@@ -651,92 +645,105 @@ class AppControllerSecurityTest {
         when(articleService.count(eq(UID), isNull(), isNull())).thenReturn(33L);
         when(feedService.listFeeds(UID)).thenReturn(List.of());
 
+        // A plain link to the next page, which works without the script; app.js
+        // fetches the batch address instead and appends what it answers with.
         mockMvc.perform(get("/items").param("unread", "false"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("1–20 of 33 articles")))
-                .andExpect(content().string(not(containsString("Mark read &amp; continue"))))
-                .andExpect(content().string(not(containsString("Older articles"))))
-                .andExpect(content().string(containsString("data-reader-next-form=\"advance\"")))
-                .andExpect(content().string(not(containsString("data-reader-prev-url"))));
-    }
-
-    @Test
-    @WithMockUser
-    void lastScreenOfABatchOffersToMarkItReadAndLoadTheNext() throws Exception {
-        List<Article> articles = new ArrayList<>();
-        for (int i = 1; i <= 20; i++) {
-            articles.add(new Article((long) i, 1L, "guid-" + i, "Article " + i, null, null,
-                    null, null, null, null, false, null, null, null, "Example Feed"));
-        }
-        when(articleService.findPage(eq(UID), isNull(), isNull(), eq(1), eq(20))).thenReturn(articles);
-        when(articleService.count(eq(UID), isNull(), isNull())).thenReturn(33L);
-        when(feedService.listFeeds(UID)).thenReturn(List.of());
-
-        // One press does both, so the button on the last screen of the batch says so
-        // rather than leaving the reader to find out by pressing it. The pager and the
-        // button behind it carry the same label, because it is the same step.
-        mockMvc.perform(get("/items").param("unread", "false"))
-                .andExpect(status().isOk())
-                .andExpect(content().string(
-                        containsString("data-reader-next-end-label=\"Mark read and load more\"")))
+                .andExpect(content().string(containsString("rel=\"next\" data-load-more")))
+                .andExpect(content().string(containsString("href=\"/items?page=2&amp;unread=false\"")))
                 .andExpect(content().string(containsString(
-                        "<div class=\"pagination reader-hide-when-paged\">")))
-                .andExpect(content().string(containsString(
-                        "<button class=\"btn\" type=\"submit\">Mark read and load more</button>")));
+                        "data-batch-url=\"/items?page=2&amp;unread=false&amp;batch=true\"")))
+                .andExpect(content().string(containsString(">Load more articles</a>")))
+                .andExpect(content().string(not(containsString("Newer articles"))))
+                .andExpect(content().string(not(containsString("/items/advance"))))
+                .andExpect(content().string(not(containsString("data-reader"))));
     }
 
     @Test
     @WithMockUser
-    void lastScreenOfABatchOnlyOffersToLoadMoreWhenNothingIsMarkedRead() throws Exception {
-        when(userService.markReadOnNextPage(UID)).thenReturn(false);
-        List<Article> articles = new ArrayList<>();
-        for (int i = 1; i <= 20; i++) {
-            articles.add(new Article((long) i, 1L, "guid-" + i, "Article " + i, null, null,
-                    null, null, null, null, false, null, null, null, "Example Feed"));
+    void theAddressCanCarryEveryBatchThatWasLoaded() throws Exception {
+        for (int p = 1; p <= 3; p++) {
+            long id = p;
+            when(articleService.findPage(eq(UID), isNull(), isNull(), eq(p), eq(20))).thenReturn(List.of(
+                    new Article(id, 1L, "guid-" + id, "Article " + id, null, null,
+                            null, null, null, null, false, null, null, null, "Example Feed")));
         }
-        when(articleService.findPage(eq(UID), isNull(), isNull(), eq(1), eq(20))).thenReturn(articles);
-        when(articleService.count(eq(UID), isNull(), isNull())).thenReturn(33L);
+        when(articleService.count(eq(UID), isNull(), isNull())).thenReturn(80L);
         when(feedService.listFeeds(UID)).thenReturn(List.of());
 
-        mockMvc.perform(get("/items").param("unread", "false"))
+        // Load-more writes through=3 into the address, so a reload, or coming back
+        // with the browser's back button, shows all three batches in place.
+        String body = mockMvc.perform(get("/items").param("unread", "false")
+                        .param("page", "1").param("through", "3"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(
-                        containsString("data-reader-next-end-label=\"Load more articles\"")))
-                .andExpect(content().string(not(containsString("Mark read"))));
+                .andExpect(content().string(containsString("data-article-id=\"1\"")))
+                .andExpect(content().string(containsString("data-article-id=\"2\"")))
+                .andExpect(content().string(containsString("data-article-id=\"3\"")))
+                .andExpect(content().string(containsString("href=\"/items?page=4&amp;unread=false\"")))
+                .andExpect(content().string(containsString("name=\"through\" data-mark-read-through value=\"3\"")))
+                .andReturn().getResponse().getContentAsString();
+
+        org.junit.jupiter.api.Assertions.assertTrue(body.contains(
+                        "name=\"redirect\" value=\"/items?page=1&amp;through=3&amp;unread=false\""),
+                "sending from the list returns to the whole extended list");
+    }
+
+    @Test
+    void anExtendedAddressIsKeptWithinTheListAndTheCap() {
+        org.junit.jupiter.api.Assertions.assertEquals(1, AppController.lastBatch(1, null, 5));
+        org.junit.jupiter.api.Assertions.assertEquals(2, AppController.lastBatch(2, 1, 5));
+        org.junit.jupiter.api.Assertions.assertEquals(3, AppController.lastBatch(1, 3, 5));
+        org.junit.jupiter.api.Assertions.assertEquals(5, AppController.lastBatch(1, 9, 5));
+        org.junit.jupiter.api.Assertions.assertEquals(AppController.MAX_BATCHES_PER_PAGE,
+                AppController.lastBatch(1, 500, 500));
     }
 
     @Test
     @WithMockUser
-    void theListKeepsItsPageInTheAddressSoAnEntryCanBeReadAndComeBackToIt() throws Exception {
-        when(articleService.findPage(eq(UID), isNull(), isNull(), eq(1), eq(20))).thenReturn(List.of(
-                new Article(1L, 1L, "guid-1", "Article 1", null, null,
-                        null, null, null, null, false, null, null, null, "Example Feed")));
-        when(articleService.count(eq(UID), isNull(), isNull())).thenReturn(1L);
-        when(feedService.listFeeds(UID)).thenReturn(List.of());
+    void aBatchIsJustTheRowsAndTheLinkToTheNextOne() throws Exception {
+        when(articleService.findPage(eq(UID), isNull(), isNull(), eq(Boolean.TRUE), eq(Instant.ofEpochMilli(100)),
+                eq(2), eq(20)))
+                .thenReturn(List.of(new Article(21L, 1L, "guid-21", "Article 21", null, null,
+                        Instant.now().minusSeconds(3 * 3600), null, null, null, false, null, null, null,
+                        "Example Feed")));
+        when(articleService.count(eq(UID), isNull(), isNull(), eq(Boolean.TRUE), eq(Instant.ofEpochMilli(100))))
+                .thenReturn(60L);
 
-        // The reader writes the page it is on into the history entry, which is what
-        // the browser's back returns to; a stored position would instead follow a
-        // list around after it has been opened afresh with other articles in it.
-        mockMvc.perform(get("/items").param("unread", "false"))
+        String body = mockMvc.perform(get("/items").param("unread", "true").param("snapshot", "100")
+                        .param("page", "2").param("batch", "true"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("data-reader-restore=\"address\"")));
-    }
+                .andExpect(content().string(containsString("data-batch")))
+                .andExpect(content().string(containsString("data-article-id=\"21\"")))
+                .andExpect(content().string(containsString("3 hours ago</time>")))
+                .andExpect(content().string(containsString(
+                        "data-batch-url=\"/items?page=3&amp;unread=true&amp;snapshot=100&amp;batch=true\"")))
+                .andReturn().getResponse().getContentAsString();
 
-    @Test
-    void theForwardLabelNamesWhatPressingItDoes() {
-        org.junit.jupiter.api.Assertions.assertEquals("Mark read and load more",
-                AppController.forwardLabel(true, true));
-        org.junit.jupiter.api.Assertions.assertEquals("Mark read and continue",
-                AppController.forwardLabel(true, false));
-        org.junit.jupiter.api.Assertions.assertEquals("Load more articles",
-                AppController.forwardLabel(false, true));
-        org.junit.jupiter.api.Assertions.assertEquals("Next articles",
-                AppController.forwardLabel(false, false));
+        org.junit.jupiter.api.Assertions.assertFalse(body.contains("<html"), "a fragment, not a page");
+        org.junit.jupiter.api.Assertions.assertFalse(body.contains("class=\"filters\""), "no filter row");
+        // Fetched by script while reading; it is not a visit and starts no refresh.
+        verify(feedService, never()).refreshForUserSoon(UID);
+        verify(articleService, never()).markRead(eq(UID), anyList(), anyBoolean());
     }
 
     @Test
     @WithMockUser
-    void lastItemsPageOnlyLeadsBackwards() throws Exception {
+    void aBatchPastTheEndIsEmptyRatherThanTheLastPageAgain() throws Exception {
+        when(articleService.count(eq(UID), isNull(), isNull())).thenReturn(21L);
+        when(articleService.findPage(eq(UID), isNull(), isNull(), eq(5), eq(20))).thenReturn(List.of());
+
+        mockMvc.perform(get("/items").param("unread", "false").param("page", "5").param("batch", "true"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(not(containsString("data-article-id"))))
+                .andExpect(content().string(not(containsString("data-load-more"))));
+
+        verify(articleService, never()).findPage(eq(UID), isNull(), isNull(), eq(2), eq(20));
+    }
+
+    @Test
+    @WithMockUser
+    void aLaterPageLeadsBackToNewerArticlesAndEndsWhereTheListDoes() throws Exception {
         when(articleService.findPage(eq(UID), isNull(), isNull(), eq(2), eq(20)))
                 .thenReturn(List.of(new Article(21L, 1L, "guid-21", "Article 21", null, null,
                         null, null, null, null, false, null, null, null, "Example Feed")));
@@ -745,13 +752,9 @@ class AppControllerSecurityTest {
 
         mockMvc.perform(get("/items").param("page", "2").param("unread", "false"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("data-reader-prev-url")))
-                // The list ends here, so the label promises no further batch.
-                .andExpect(content().string(
-                        containsString("data-reader-next-end-label=\"Mark read and continue\"")))
-                .andExpect(content().string(not(containsString("load more"))))
-                .andExpect(content().string(not(containsString("Mark these read"))))
-                .andExpect(content().string(not(containsString("Older articles"))))
+                .andExpect(content().string(containsString("rel=\"prev\"")))
+                .andExpect(content().string(containsString(">Newer articles</a>")))
+                .andExpect(content().string(not(containsString("data-load-more"))))
                 .andExpect(content().string(containsString("21–21 of 21 articles")));
     }
 
@@ -764,226 +767,141 @@ class AppControllerSecurityTest {
 
         mockMvc.perform(get("/items").param("unread", "false"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(not(containsString("data-reader-next-form"))))
-                .andExpect(content().string(not(containsString("/items/advance"))));
+                .andExpect(content().string(containsString("No articles yet")))
+                .andExpect(content().string(not(containsString("/items/mark-read"))))
+                .andExpect(content().string(not(containsString("data-load-more"))));
     }
 
     @Test
     @WithMockUser
-    void advanceMarksThePostedArticlesReadAndMovesOn() throws Exception {
+    void markingTheListReadMarksExactlyThePostedArticlesAndStartsAFreshUnreadList() throws Exception {
         when(articleService.markRead(eq(UID), anyList(), eq(true))).thenReturn(3);
 
-        mockMvc.perform(post("/items/advance").with(csrf())
-                        .param("page", "1")
-                        .param("id", "1", "2", "3"))
+        mockMvc.perform(post("/items/mark-read").with(csrf())
+                        .param("feed", "5")
+                        .param("unread", "true")
+                        .param("snapshot", "100")
+                        .param("page", "1").param("through", "2")
+                        .param("id", "1", "2", "3", "2"))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/items?page=2&unread=false#start"));
+                .andExpect(redirectedUrl("/items?page=1&feed=5&unread=true"))
+                .andExpect(flash().attribute("message", "Marked 3 articles as read"));
 
         verify(articleService).markRead(UID, List.of(1L, 2L, 3L), true);
     }
 
     @Test
     @WithMockUser
-    void advanceDoesNotAnnounceWhatItMarkedRead() throws Exception {
-        when(articleService.markRead(eq(UID), anyList(), eq(true))).thenReturn(3);
-
-        // A notice above the list costs a strip of every screen of the page it opens,
-        // and the reader can already see the list it just paged past.
-        mockMvc.perform(post("/items/advance").with(csrf())
-                        .param("page", "1")
-                        .param("id", "1", "2", "3"))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(flash().attributeCount(0));
-    }
-
-    @Test
-    @WithMockUser
-    void advanceOnAnUnreadListWithoutASnapshotStaysOnTheSamePage() throws Exception {
-        when(articleService.markRead(eq(UID), anyList(), eq(true))).thenReturn(20);
-
-        // Without a snapshot the unread list shrinks by the articles just marked, so
-        // what comes next moves into the page that was posted from.
-        mockMvc.perform(post("/items/advance").with(csrf())
-                        .param("page", "2")
-                        .param("unread", "true")
-                        .param("feed", "5")
-                        .param("id", "11", "12"))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/items?page=2&feed=5&unread=true#start"));
-    }
-
-    @Test
-    @WithMockUser
-    void advanceOnASnapshotUnreadListMovesToTheNextPage() throws Exception {
-        when(articleService.markRead(eq(UID), anyList(), eq(true))).thenReturn(20);
-        // The list keeps the articles it just marked read — they were read after the
-        // snapshot it was taken from — so what comes next is on the next page.
-        when(articleService.count(eq(UID), isNull(), isNull(), eq(Boolean.TRUE),
-                eq(Instant.ofEpochMilli(100)))).thenReturn(60L);
-
-        mockMvc.perform(post("/items/advance").with(csrf())
-                        .param("page", "1")
-                        .param("unread", "true")
-                        .param("snapshot", "100")
-                        .param("id", "1", "2"))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/items?page=2&unread=true&snapshot=100#start"));
-
-        verify(articleService).markRead(UID, List.of(1L, 2L), true);
-    }
-
-    @Test
-    @WithMockUser
-    void advancePastTheLastPageOfAnUnreadListOpensAFreshOne() throws Exception {
-        when(articleService.markRead(eq(UID), anyList(), eq(true))).thenReturn(20);
-        when(articleService.count(eq(UID), eq(5L), isNull(), eq(Boolean.TRUE),
-                eq(Instant.ofEpochMilli(100)))).thenReturn(60L);
-
-        // Read through to the end of the snapshot: the next list is taken fresh, so
-        // that everything just marked read drops out of it.
-        mockMvc.perform(post("/items/advance").with(csrf())
-                        .param("page", "3")
-                        .param("unread", "true")
-                        .param("feed", "5")
-                        .param("snapshot", "100")
-                        .param("id", "41", "42"))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/items?page=1&feed=5&unread=true#start"));
-    }
-
-    @Test
-    @WithMockUser
-    void advancePastTheLastPageKeepsTheListWhenNothingIsMarkedRead() throws Exception {
+    void markingTheListReadIgnoresThePreferenceBecauseItWasAskedFor() throws Exception {
         when(userService.markReadOnNextPage(UID)).thenReturn(false);
+        when(articleService.markRead(eq(UID), anyList(), eq(true))).thenReturn(1);
 
-        // Nothing was read, so there is no stale list to leave behind; the last page
-        // is simply where the list ends.
-        mockMvc.perform(post("/items/advance").with(csrf())
-                        .param("page", "3")
-                        .param("unread", "true")
-                        .param("snapshot", "100")
-                        .param("id", "41", "42"))
+        mockMvc.perform(post("/items/mark-read").with(csrf())
+                        .param("unread", "false").param("page", "1").param("through", "3")
+                        .param("id", "9"))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/items?page=4&unread=true&snapshot=100#start"));
+                // A list of everything comes back where it was, extended range and all.
+                .andExpect(redirectedUrl("/items?page=1&through=3&unread=false"))
+                .andExpect(flash().attribute("message", "Marked 1 article as read"));
+
+        verify(articleService).markRead(UID, List.of(9L), true);
     }
 
     @Test
     @WithMockUser
-    void advanceLeavesArticlesUnreadWhenMarkOnNextPageIsOff() throws Exception {
-        when(userService.markReadOnNextPage(UID)).thenReturn(false);
-
-        mockMvc.perform(post("/items/advance").with(csrf())
-                        .param("page", "1")
-                        .param("id", "1", "2", "3"))
+    void markingAnEmptyListReadMarksNothingAndSaysSo() throws Exception {
+        mockMvc.perform(post("/items/mark-read").with(csrf()).param("unread", "false"))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/items?page=2&unread=false#start"));
+                .andExpect(flash().attribute("message", "Nothing left to mark as read"));
 
         verify(articleService, never()).markRead(eq(UID), anyList(), anyBoolean());
     }
 
     @Test
     @WithMockUser
-    void itemsPageDoesNotSayMarkReadWhenThePreferenceIsOff() throws Exception {
-        when(userService.markReadOnNextPage(UID)).thenReturn(false);
-        when(articleService.findPage(eq(UID), isNull(), isNull(), eq(1), eq(20)))
+    void markingTheListReadTakesNoMoreThanItsCap() throws Exception {
+        String[] ids = new String[AppController.MAX_MARK_READ + 50];
+        for (int i = 0; i < ids.length; i++) {
+            ids[i] = String.valueOf(i + 1);
+        }
+        when(articleService.markRead(eq(UID), anyList(), eq(true))).thenReturn(AppController.MAX_MARK_READ);
+
+        mockMvc.perform(post("/items/mark-read").with(csrf()).param("unread", "false").param("id", ids))
+                .andExpect(status().is3xxRedirection());
+
+        org.mockito.ArgumentCaptor<List<Long>> marked = org.mockito.ArgumentCaptor.forClass(List.class);
+        verify(articleService).markRead(eq(UID), marked.capture(), eq(true));
+        org.junit.jupiter.api.Assertions.assertEquals(AppController.MAX_MARK_READ, marked.getValue().size());
+    }
+
+    @Test
+    @WithMockUser
+    void markingTheListReadNeedsCsrf() throws Exception {
+        mockMvc.perform(post("/items/mark-read").param("id", "1"))
+                .andExpect(status().isForbidden());
+
+        verify(articleService, never()).markRead(eq(UID), anyList(), anyBoolean());
+    }
+
+    @Test
+    @WithMockUser
+    void thePagedEndpointsAreGone() throws Exception {
+        mockMvc.perform(post("/items/advance").with(csrf()).param("id", "1"))
+                .andExpect(status().is4xxClientError());
+        mockMvc.perform(post("/items/read").with(csrf()).param("id", "1"))
+                .andExpect(status().is4xxClientError());
+
+        verify(articleService, never()).markRead(eq(UID), anyList(), anyBoolean());
+    }
+
+    /*
+     * Loading and scrolling are not reading. Whatever the preference says, showing
+     * the list never marks anything, and nothing on it does so behind the reader's
+     * back: the one control that marks is the explicit button.
+     */
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    @WithMockUser
+    void showingTheListNeverMarksAnythingRead(boolean keepTrack) throws Exception {
+        when(userService.markReadOnNextPage(UID)).thenReturn(keepTrack);
+        when(articleService.findPage(eq(UID), isNull(), isNull(), anyInt(), eq(20)))
                 .thenReturn(List.of(new Article(4L, 1L, "guid-4", "Article 4", null, null,
                         null, null, null, null, false, null, null, null, "Example Feed")));
-        when(articleService.count(eq(UID), isNull(), isNull())).thenReturn(1L);
+        when(articleService.count(eq(UID), isNull(), isNull())).thenReturn(50L);
         when(feedService.listFeeds(UID)).thenReturn(List.of());
 
-        mockMvc.perform(get("/items").param("unread", "false"))
+        mockMvc.perform(get("/items").param("unread", "false").param("through", "3"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("data-reader-next-form=\"advance\"")))
-                .andExpect(content().string(
-                        containsString("data-reader-next-end-label=\"Next articles\"")))
-                .andExpect(content().string(not(containsString("Mark read"))))
-                .andExpect(content().string(not(containsString("Older articles"))));
-    }
-
-    @Test
-    @WithMockUser
-    void turningAScreenMarksThatScreensArticlesRead() throws Exception {
-        when(articleService.markRead(eq(UID), anyList(), eq(true))).thenReturn(2);
-        when(articleService.count(eq(UID), eq(5L), isNull(), eq(Boolean.TRUE), isNull())).thenReturn(38L);
-
-        // The reader turns several screens inside one loaded page; each screen is
-        // posted as it is left behind, and the list stays where it is.
-        mockMvc.perform(post("/items/read").with(csrf())
-                        .param("feed", "5")
-                        .param("id", "1", "2"))
-                .andExpect(status().isOk())
-                .andExpect(content().string(containsString("\"marked\":2")))
-                .andExpect(content().string(containsString("\"unreadLeft\":38")));
-
-        verify(articleService).markRead(UID, List.of(1L, 2L), true);
-    }
-
-    @Test
-    @WithMockUser
-    void turningAScreenMarksNothingWhenThePreferenceIsOff() throws Exception {
-        when(userService.markReadOnNextPage(UID)).thenReturn(false);
-
-        mockMvc.perform(post("/items/read").with(csrf()).param("id", "1", "2"))
-                .andExpect(status().isOk())
-                .andExpect(content().string(containsString("\"marked\":0")));
+                .andExpect(content().string(containsString(">Mark all as read</button>")));
+        mockMvc.perform(get("/items").param("unread", "false").param("page", "2").param("batch", "true"))
+                .andExpect(status().isOk());
 
         verify(articleService, never()).markRead(eq(UID), anyList(), anyBoolean());
+        verify(articleService, never()).markRead(eq(UID), anyLong(), anyBoolean());
     }
 
     @Test
     @WithMockUser
-    void itemsPageCountsWhatIsStillUnreadUnderThePage() throws Exception {
+    void itemsPageCountsWhatIsStillUnreadInWords() throws Exception {
         when(articleService.findPage(eq(UID), isNull(), isNull(), eq(1), eq(20)))
                 .thenReturn(List.of(new Article(4L, 1L, "guid-4", "Article 4", null, null,
                         null, null, null, null, false, null, null, null, "Example Feed")));
         when(articleService.count(eq(UID), isNull(), isNull())).thenReturn(4L);
-        // Counted without the snapshot: three of the four have been read through.
+        // Counted without the snapshot: three of the four have been read.
         when(articleService.count(eq(UID), isNull(), isNull(), eq(Boolean.TRUE), isNull())).thenReturn(1L);
         when(feedService.listFeeds(UID)).thenReturn(List.of());
 
         mockMvc.perform(get("/items").param("unread", "false"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("data-unread-left=\"1\"")))
-                .andExpect(content().string(containsString("width:75%")))
                 .andExpect(content().string(containsString(">1 unread<")))
-                .andExpect(content().string(containsString("data-reader-mark-form=\"mark-screen\"")))
-                .andExpect(content().string(containsString("action=\"/items/read\"")))
-                // The entry carries its id so a screen turn knows what it passed.
+                .andExpect(content().string(not(containsString("unread-meter"))))
+                .andExpect(content().string(not(containsString("width:"))))
                 .andExpect(content().string(containsString("data-article-id=\"4\"")));
     }
 
     @Test
     @WithMockUser
-    void itemsPageOffersNoScreenMarkingWhenThePreferenceIsOff() throws Exception {
-        when(userService.markReadOnNextPage(UID)).thenReturn(false);
-        when(articleService.findPage(eq(UID), isNull(), isNull(), eq(1), eq(20)))
-                .thenReturn(List.of(new Article(4L, 1L, "guid-4", "Article 4", null, null,
-                        null, null, null, null, false, null, null, null, "Example Feed")));
-        when(articleService.count(eq(UID), isNull(), isNull())).thenReturn(4L);
-        when(articleService.count(eq(UID), isNull(), isNull(), eq(Boolean.TRUE), isNull())).thenReturn(4L);
-        when(feedService.listFeeds(UID)).thenReturn(List.of());
-
-        mockMvc.perform(get("/items").param("unread", "false"))
-                .andExpect(status().isOk())
-                .andExpect(content().string(not(containsString("data-reader-mark-form"))))
-                .andExpect(content().string(not(containsString("action=\"/items/read\""))))
-                // The count is still worth showing; only the marking is switched off.
-                .andExpect(content().string(containsString(">4 unread<")));
-    }
-
-    @Test
-    @WithMockUser
-    void advanceWithoutArticlesMarksNothing() throws Exception {
-        mockMvc.perform(post("/items/advance").with(csrf()).param("page", "1"))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/items?page=2&unread=false#start"));
-
-        verify(articleService, never()).markRead(eq(UID), anyList(), anyBoolean());
-    }
-
-    @Test
-    @WithMockUser
-    void itemsPagePostsItsArticleIdsWhenPagingForward() throws Exception {
+    void theMarkReadButtonCarriesTheIdsOfTheRowsOnScreen() throws Exception {
         when(articleService.findPage(eq(UID), isNull(), isNull(), eq(1), eq(20)))
                 .thenReturn(List.of(new Article(4L, 1L, "guid-4", "Article 4", null, null,
                         null, null, null, null, false, null, null, null, "Example Feed")));
@@ -992,49 +910,32 @@ class AppControllerSecurityTest {
 
         mockMvc.perform(get("/items").param("unread", "false"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("data-reader-next-form=\"advance\"")))
-                .andExpect(content().string(containsString("action=\"/items/advance\"")))
-                .andExpect(content().string(containsString("name=\"id\" value=\"4\"")))
-                .andExpect(content().string(
-                        containsString("data-reader-next-end-label=\"Mark read and continue\"")))
-                .andExpect(content().string(not(containsString("Mark these read"))))
-                // Paging marks articles read, so entries carry no read/unread button.
+                .andExpect(content().string(containsString("action=\"/items/mark-read\"")))
+                .andExpect(content().string(containsString("name=\"id\" data-mark-read-id value=\"4\"")))
+                // Entries open through their title; there is no per-row read toggle.
                 .andExpect(content().string(not(containsString("/articles/4/read"))));
     }
 
     @Test
     @WithMockUser
-    void itemsPageCanBePagedForwardWithoutTheReaderScript() throws Exception {
+    void aRowSaysItIsUnreadInWordsAsWellAsWithTheDot() throws Exception {
         when(articleService.findPage(eq(UID), isNull(), isNull(), eq(1), eq(20)))
-                .thenReturn(List.of(new Article(4L, 1L, "guid-4", "Article 4", null, null,
-                        null, null, null, null, false, null, null, null, "Example Feed")));
-        when(articleService.count(eq(UID), isNull(), isNull())).thenReturn(1L);
+                .thenReturn(List.of(
+                        new Article(4L, 1L, "guid-4", "Fresh", null, null,
+                                null, null, null, null, false, null, null, null, "Example Feed"),
+                        new Article(5L, 1L, "guid-5", "Old", null, null,
+                                null, null, null, null, true, null, null, null, "Example Feed")));
+        when(articleService.count(eq(UID), isNull(), isNull())).thenReturn(2L);
         when(feedService.listFeeds(UID)).thenReturn(List.of());
 
-        // Its row is hidden by CSS wherever the pager runs, and the button is the
-        // only way forward where it does not.
-        mockMvc.perform(get("/items").param("unread", "false"))
+        String body = mockMvc.perform(get("/items").param("unread", "false"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString(
-                        "<div class=\"pagination reader-hide-when-paged\">")))
-                .andExpect(content().string(containsString(
-                        "<button class=\"btn\" type=\"submit\">Mark read and continue</button>")));
-    }
+                .andExpect(content().string(containsString("aria-label=\"Send to Kindle: Fresh\"")))
+                .andReturn().getResponse().getContentAsString();
 
-    @Test
-    @WithMockUser
-    void fallbackForwardControlSaysOnlyWhatItDoesWhenNothingIsMarkedRead() throws Exception {
-        when(userService.markReadOnNextPage(UID)).thenReturn(false);
-        when(articleService.findPage(eq(UID), isNull(), isNull(), eq(1), eq(20)))
-                .thenReturn(List.of(new Article(4L, 1L, "guid-4", "Article 4", null, null,
-                        null, null, null, null, false, null, null, null, "Example Feed")));
-        when(articleService.count(eq(UID), isNull(), isNull())).thenReturn(1L);
-        when(feedService.listFeeds(UID)).thenReturn(List.of());
-
-        mockMvc.perform(get("/items").param("unread", "false"))
-                .andExpect(status().isOk())
-                .andExpect(content().string(containsString(
-                        "<button class=\"btn\" type=\"submit\">Next articles</button>")));
+        org.junit.jupiter.api.Assertions.assertEquals(1,
+                body.split("<span class=\"offscreen\">Unread: </span>", -1).length - 1,
+                "only the unread row is announced as unread");
     }
 
     @Test
@@ -1156,7 +1057,7 @@ class AppControllerSecurityTest {
 
     /*
      * Signed out, the send is answered with a redirect to the login page rather
-     * than with JSON. fetch() follows it and reports a plain 200, so reader.js
+     * than with JSON. fetch() follows it and reports a plain 200, so app.js
      * checks the content type before it believes a send happened; this pins the
      * behaviour that check is there for.
      */

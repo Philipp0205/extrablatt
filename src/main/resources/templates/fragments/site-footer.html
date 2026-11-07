@@ -7,9 +7,8 @@
   pages a reader is actually on, not only on the page they would have to find
   first. Keeping it in a fragment is what stops it going missing from a page later.
 
-  It is deliberately absent from the paged reading view: the reader measures the
-  space left below the text to decide where a page break falls, and a footer under
-  it would eat a line of every article.
+  The articles list carries it under the list. Load-more is a button rather than
+  an endless scroll, so the footer is always reachable at the end of the page.
 -->
 <body>
 <footer th:fragment="siteFooter" class="site-legal">

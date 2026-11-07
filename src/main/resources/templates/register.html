@@ -2,15 +2,13 @@
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
 <head>
   <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
   <title>Create account — Extrablatt</title>
-  <style th:replace="~{fragments/page-styles :: inline}"></style>
+  <th:block th:replace="~{fragments/page-styles :: assets}"></th:block>
 </head>
 <body>
-<div class="wrap">
-  <header class="app">
-    <span class="brand">Extrablatt</span>
-  </header>
+<th:block th:replace="~{fragments/app-shell :: brandBar}"></th:block>
+<main id="main" class="wrap">
 
   <h1>Create your account</h1>
   <p class="meta">A newsreader for your Kindle.</p>
@@ -21,18 +19,18 @@
     <label for="email">E-mail</label>
     <input id="email" name="email" type="email" autocomplete="email" th:value="${email}" required/>
 
-    <label for="password" style="margin-top:0.75rem">Password</label>
+    <label for="password" class="space-top-sm">Password</label>
     <input id="password" name="password" type="password" autocomplete="new-password"
            minlength="8" required/>
     <p class="meta">At least 8 characters. You will confirm your e-mail before sending to Kindle.
       New accounts include a free week of the full plan.</p>
 
-    <div class="row" style="margin-top:1rem">
+    <div class="row space-top">
       <button class="btn" type="submit">Create account</button>
     </div>
   </form>
 
-  <p class="meta" style="margin-top:1rem">
+  <p class="meta space-top">
     Already have an account? <a th:href="@{/login}">Log in</a>
   </p>
   <p class="meta">
@@ -40,6 +38,6 @@
     <a th:href="@{/terms}">Terms</a> and <a th:href="@{/privacy}">Privacy Policy</a>.
   </p>
   <div th:replace="~{fragments/site-footer :: siteFooter}"></div>
-</div>
+</main>
 </body>
 </html>

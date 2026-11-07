@@ -61,11 +61,11 @@ class StaticAssetCachingTest {
 
     /**
      * The name carries a hash of the file, so keeping it for a year cannot serve
-     * yesterday's reader: after a change the address is a different one.
+     * yesterday's script: after a change the address is a different one.
      */
     @Test
     void aScriptIsCacheableForAYearAndNotHeldBackBySecurity() throws Exception {
-        mockMvc.perform(get("/js/reader.js"))
+        mockMvc.perform(get("/js/app.js"))
                 .andExpect(status().isOk())
                 .andExpect(header().string(HttpHeaders.CACHE_CONTROL, containsString("max-age=31536000")))
                 .andExpect(header().string(HttpHeaders.CACHE_CONTROL, containsString("public")))
@@ -80,7 +80,7 @@ class StaticAssetCachingTest {
      */
     @Test
     void fetchingAScriptStartsNoSession() throws Exception {
-        mockMvc.perform(get("/js/reader.js"))
+        mockMvc.perform(get("/js/app.js"))
                 .andExpect(status().isOk())
                 .andExpect(header().doesNotExist(HttpHeaders.SET_COOKIE));
     }
@@ -97,13 +97,17 @@ class StaticAssetCachingTest {
     }
 
     /**
-     * The stylesheet is not served as a file at all any more — it reaches the browser
-     * inside the page. A second, separately cached copy is exactly what could fall
-     * out of step with the markup it styles.
+     * The stylesheet is a file of its own, linked under a hashed name, so it is
+     * kept like the scripts and every page after the first paints at once.
      */
     @Test
-    void theStylesheetIsNotServedAsAFileOfItsOwn() throws Exception {
+    void theStylesheetIsCacheableForAYearAndStartsNoSession() throws Exception {
         mockMvc.perform(get("/css/app.css"))
-                .andExpect(status().is3xxRedirection());
+                .andExpect(status().isOk())
+                .andExpect(header().string(HttpHeaders.CACHE_CONTROL, containsString("max-age=31536000")))
+                .andExpect(header().string(HttpHeaders.CACHE_CONTROL, containsString("public")))
+                .andExpect(header().string(HttpHeaders.CACHE_CONTROL, containsString("immutable")))
+                .andExpect(header().string(HttpHeaders.CACHE_CONTROL, not(containsString("no-store"))))
+                .andExpect(header().doesNotExist(HttpHeaders.SET_COOKIE));
     }
 }

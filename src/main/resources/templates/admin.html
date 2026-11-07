@@ -2,19 +2,13 @@
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
 <head>
   <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
   <title>Telemetry — Extrablatt</title>
-  <style th:replace="~{fragments/page-styles :: inline}"></style>
+  <th:block th:replace="~{fragments/page-styles :: assets}"></th:block>
 </head>
-<body>
-<div class="wrap">
-  <header class="app">
-    <a class="brand" th:href="@{/}">Extrablatt</a>
-    <nav class="top">
-      <a th:href="@{/}">Feeds</a>
-      <a th:href="@{/settings}">Settings</a>
-    </nav>
-  </header>
+<body class="has-tabbar">
+<th:block th:replace="~{fragments/app-shell :: appBar('settings')}"></th:block>
+<main id="main" class="wrap">
 
   <div th:if="${message}" class="flash" th:text="${message}"></div>
   <div th:if="${error}" class="flash error" th:text="${error}"></div>
@@ -104,6 +98,7 @@
         </form>
     </section>
   </div>
-</div>
+</main>
+<nav th:replace="~{fragments/app-shell :: tabBar('settings')}"></nav>
 </body>
 </html>

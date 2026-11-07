@@ -8,6 +8,7 @@ import com.kindlerss.service.ArticleService;
 import com.kindlerss.service.EntitlementService;
 import com.kindlerss.service.FeedService;
 import com.kindlerss.service.KindleMailService;
+import com.kindlerss.service.ReadableTime;
 import com.kindlerss.service.UserService;
 import org.springframework.stereotype.Controller;
 import org.springframework.http.HttpStatus;
@@ -17,7 +18,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.util.ArrayList;
@@ -42,6 +42,16 @@ public class AppController {
      */
     private static final String BACK_LABEL = "All";
 
+    /**
+     * How many batches one page load renders at most. An address that load-more has
+     * extended further reopens with the first ten of them, and load-more carries on
+     * from there; a reload therefore never runs more than ten page queries.
+     */
+    static final int MAX_BATCHES_PER_PAGE = 10;
+
+    /** How many ids one press of "Mark all as read" takes. */
+    static final int MAX_MARK_READ = 1000;
+
     /** Feeds that were never put in a category are browsed last. */
     private static final Comparator<String> CATEGORY_ORDER =
             Comparator.comparing((String name) -> Feed.UNCATEGORIZED.equals(name))
@@ -56,6 +66,7 @@ public class AppController {
     private final AppProperties properties;
     private final int pageSize;
     private final String mailFrom;
+    private final ReadableTime readableTime = new ReadableTime();
 
     public AppController(FeedService feedService,
                          ArticleService articleService,
@@ -322,15 +333,31 @@ public class AppController {
         return "redirect:" + safeRedirect(redirect);
     }
 
+    /**
+     * The articles list, read as one continuous column.
+     *
+     * <p>{@code page} is the first batch on screen and {@code through} the last, so an
+     * address the load-more script has extended ({@code page=1&through=3}) reloads, or
+     * is returned to with the back button, showing the same three batches in place.
+     * Without the script the list moves on a page at a time through plain links.
+     *
+     * <p>An unread list is taken from a snapshot and keeps what was read after it was
+     * taken, so the rows already on screen do not slide away while more are loaded.
+     * Nothing here marks anything read: loading and scrolling are not reading.
+     *
+     * <p>{@code batch=true} answers with the rows of one batch alone, for load-more to
+     * append; past the end of the list that is an empty batch, not the last page again.
+     */
     @GetMapping("/items")
     public String items(@RequestParam(value = "feed", required = false) Long feedId,
                         @RequestParam(value = "category", required = false) String category,
                         @RequestParam(value = "unread", required = false) Boolean unread,
                         @RequestParam(value = "snapshot", required = false) Long snapshot,
                         @RequestParam(value = "page", defaultValue = "1") int page,
+                        @RequestParam(value = "through", required = false) Integer through,
+                        @RequestParam(value = "batch", defaultValue = "false") boolean batch,
                         Model model) {
         long userId = currentUser.requireId();
-        feedService.refreshForUserSoon(userId);
         if (feedId != null && feedService.findById(userId, feedId).isEmpty()) {
             throw new ArticleService.NotFoundException("Feed not found");
         }
@@ -340,83 +367,79 @@ public class AppController {
             return "redirect:" + itemsPath(feedId, category, true, Math.max(page, 1),
                     System.currentTimeMillis());
         }
+        if (!batch) {
+            feedService.refreshForUserSoon(userId);
+        }
         Instant unreadSnapshot = unreadByDefault && snapshot != null
                 ? Instant.ofEpochMilli(Math.min(snapshot, System.currentTimeMillis())) : null;
-        boolean markReadOnNextPage = userService.markReadOnNextPage(userId);
         long total = category == null && unreadSnapshot == null
                 ? articleService.count(userId, feedId, unreadOnly)
                 : articleService.count(userId, feedId, category, unreadOnly, unreadSnapshot);
         int totalPages = totalPages(total);
-        // A page number can point past the end — a link kept from a list that has
-        // since lost articles; show the last page rather than an empty one.
-        int safePage = Math.min(Math.max(page, 1), totalPages);
-        List<Article> articles = category == null && unreadSnapshot == null
-                ? articleService.findPage(userId, feedId, unreadOnly, safePage, pageSize)
-                : articleService.findPage(userId, feedId, category, unreadOnly, unreadSnapshot, safePage, pageSize);
+        // A full page can be a link kept from a list that has since lost articles, and
+        // shows the last page rather than nothing. A batch is asked for by load-more,
+        // which has to be told plainly that the list has ended.
+        int first = batch ? Math.max(page, 1) : Math.min(Math.max(page, 1), totalPages);
+        int last = batch ? first : lastBatch(first, through, totalPages);
+        List<Article> articles = new ArrayList<>();
+        for (int p = first; p <= last; p++) {
+            articles.addAll(category == null && unreadSnapshot == null
+                    ? articleService.findPage(userId, feedId, unreadOnly, p, pageSize)
+                    : articleService.findPage(userId, feedId, category, unreadOnly, unreadSnapshot, p, pageSize));
+        }
+        boolean hasMore = last < totalPages;
 
         model.addAttribute("articles", articles);
-        addFilterBar(model, feedService.listFeeds(userId), feedId, category, unreadByDefault);
+        model.addAttribute("readableTime", readableTime);
         model.addAttribute("feedId", feedId);
         model.addAttribute("category", category);
         model.addAttribute("unread", unreadByDefault);
         model.addAttribute("snapshot", snapshot);
-        model.addAttribute("page", safePage);
+        model.addAttribute("page", first);
+        model.addAttribute("through", last);
         model.addAttribute("totalPages", totalPages);
         model.addAttribute("total", total);
+        model.addAttribute("hasMore", hasMore);
+        model.addAttribute("nextPage", last + 1);
+        // Built here rather than with @{...}, which writes an empty feed=&category= for
+        // every filter that is not set; these read like every other list address.
+        String nextPath = itemsPath(feedId, category, unreadByDefault, last + 1, snapshot);
+        model.addAttribute("nextPath", nextPath);
+        model.addAttribute("nextBatchPath", nextPath + "&batch=true");
+        model.addAttribute("prevPath", itemsPath(feedId, category, unreadByDefault, Math.max(first - 1, 1), snapshot));
         // Where an action started from, so that it can return to this exact list.
-        model.addAttribute("listPath",
-                itemsPath(feedId, category, unreadByDefault, safePage, snapshot));
-        model.addAttribute("firstIndex", articles.isEmpty() ? 0 : (long) (safePage - 1) * pageSize + 1);
-        model.addAttribute("lastIndex", (long) (safePage - 1) * pageSize + articles.size());
-        model.addAttribute("markReadOnNextPage", markReadOnNextPage);
-        model.addAttribute("forwardLabel", articles.isEmpty()
-                ? null : forwardLabel(markReadOnNextPage, safePage < totalPages));
+        model.addAttribute("listPath", itemsPath(feedId, category, unreadByDefault, first, last, snapshot));
+        if (batch) {
+            return "fragments/article-rows :: batch";
+        }
+        addFilterBar(model, feedService.listFeeds(userId), feedId, category, unreadByDefault);
+        model.addAttribute("firstIndex", articles.isEmpty() ? 0 : (long) (first - 1) * pageSize + 1);
+        model.addAttribute("lastIndex", (long) (first - 1) * pageSize + articles.size());
         // Counted without the snapshot: the snapshot deliberately holds on to the
         // articles this sitting has already read, and what is left to read is the
         // one number the reader cannot work out from the list in front of them.
-        long unreadLeft = articleService.count(userId, feedId, category, Boolean.TRUE, null);
-        model.addAttribute("unreadLeft", unreadLeft);
-        model.addAttribute("readThroughPercent", readThroughPercent(total, unreadLeft));
+        model.addAttribute("unreadLeft", articleService.count(userId, feedId, category, Boolean.TRUE, null));
         return "items";
     }
 
-    /** How much of the list on screen is behind the reader, as a whole percentage. */
-    static int readThroughPercent(long total, long unreadLeft) {
-        if (total <= 0) {
-            return 0;
+    /** The last batch a full page renders: {@code through}, kept within the list and the cap. */
+    static int lastBatch(int first, Integer through, int totalPages) {
+        if (through == null || through <= first) {
+            return first;
         }
-        long done = Math.max(0, Math.min(total, total - unreadLeft));
-        return (int) (done * 100 / total);
+        return Math.min(Math.min(through, totalPages), first + MAX_BATCHES_PER_PAGE - 1);
     }
 
     /**
-     * What leaving the loaded page does, in the reader's own words.
-     *
-     * <p>One label for both the pager's last page and the button that stands in for it
-     * without the reader script, because it is one action: it can mark the articles
-     * that were paged past read, and it fetches the next batch when the list has one.
-     * Saying both is what makes the last page of a batch worth pressing — the reader
-     * would otherwise have to guess whether "Mark read" also loads what follows.
-     */
-    static String forwardLabel(boolean marksRead, boolean hasMore) {
-        if (marksRead) {
-            return hasMore ? "Mark read and load more" : "Mark read and continue";
-        }
-        return hasMore ? "Load more articles" : "Next articles";
-    }
-
-    /**
-     * The filter bar is one row on either level: the categories, or — once one of them
-     * is open — the feeds inside it. A second row costs a list that is read a screen
-     * at a time two lines of every page, and a row holding every feed of every
-     * category is longer than the screen is wide anyway.
+     * The filter bar is one row on either level: the categories or, once one of them
+     * is open, the feeds inside it. A row holding every feed of every category would
+     * be far longer than a phone is wide.
      *
      * <p>The row holds three kinds of thing, and the view draws each differently
      * because they answer different questions. {@code filterChips} is the level
-     * itself — where the reader is — rendered whole and clipped to one line in the
-     * browser, where the buttons can actually be measured. {@code backChip} leaves
-     * the level, and {@code modeChip} turns unread-only on and off; both stay outside
-     * that clipping, so turning the row cannot carry them off the screen.
+     * itself, where the reader is, and scrolls sideways on a phone. {@code backChip}
+     * leaves the level, and {@code modeChip} turns unread-only on and off; both stay
+     * outside that scroller, so scrolling the row cannot carry them off the screen.
      */
     private void addFilterBar(Model model, List<Feed> feeds, Long feedId, String category,
                               boolean unread) {
@@ -492,75 +515,36 @@ public class AppController {
     public record FilterChip(String label, String href, boolean active) {}
 
     /**
-     * Posts the current list page and moves on. When the account marks articles
-     * read on the next page, the posted ids are marked first; either way the list
-     * then moves forward by one page.
+     * Marks the articles on screen read, because the reader said so.
      *
-     * <p>An unread list is taken from a snapshot, and keeps the articles that were
-     * read after that snapshot was taken — including the ones just marked. It
-     * therefore does not shrink under the reader, and moving on means the next
-     * page. Reading past its last page means the whole list has been read through:
-     * a fresh unread list is opened, which leaves those articles behind and shows
-     * only what is still unread.
-     *
-     * <p>Marking is not announced. The count would land above the list on every
-     * page turn, where it takes a strip off every screen of the page it opens,
-     * and the meter under the list already says what is left to read.
+     * <p>The only way a list marks anything read: the button under it posts the ids of
+     * every row that was loaded, and nothing else, so an article the reader never saw
+     * stays unread. Afterwards an unread list starts afresh from a new snapshot, which
+     * leaves what was just marked behind; any other list comes back where it was.
      */
-    @PostMapping("/items/advance")
-    public String advance(@RequestParam(value = "feed", required = false) Long feedId,
-                          @RequestParam(value = "category", required = false) String category,
-                          @RequestParam(value = "unread", required = false) Boolean unread,
-                          @RequestParam(value = "snapshot", required = false) Long snapshot,
-                          @RequestParam(value = "page", defaultValue = "1") int page,
-                          @RequestParam(value = "id", required = false) List<Long> ids) {
+    @PostMapping("/items/mark-read")
+    public String markListRead(@RequestParam(value = "feed", required = false) Long feedId,
+                               @RequestParam(value = "category", required = false) String category,
+                               @RequestParam(value = "unread", required = false) Boolean unread,
+                               @RequestParam(value = "snapshot", required = false) Long snapshot,
+                               @RequestParam(value = "page", defaultValue = "1") int page,
+                               @RequestParam(value = "through", required = false) Integer through,
+                               @RequestParam(value = "id", required = false) List<Long> ids,
+                               RedirectAttributes redirectAttributes) {
         long userId = currentUser.requireId();
-        boolean markReadOnNextPage = userService.markReadOnNextPage(userId);
-        if (markReadOnNextPage && ids != null && !ids.isEmpty()) {
-            articleService.markRead(userId, ids, true);
+        List<Long> distinct = ids == null ? List.of()
+                : ids.stream().filter(java.util.Objects::nonNull).distinct().limit(MAX_MARK_READ).toList();
+        int marked = distinct.isEmpty() ? 0 : articleService.markRead(userId, distinct, true);
+        redirectAttributes.addFlashAttribute("message", marked == 0
+                ? "Nothing left to mark as read"
+                : marked == 1 ? "Marked 1 article as read" : "Marked " + marked + " articles as read");
+        boolean unreadOnly = unread == null || Boolean.TRUE.equals(unread);
+        if (unreadOnly) {
+            return "redirect:" + itemsPath(feedId, category, true, 1, null);
         }
-
-        boolean unreadOnly = Boolean.TRUE.equals(unread);
-        boolean readThrough = unreadOnly && markReadOnNextPage;
-        int current = Math.max(page, 1);
-        // An unread list with no snapshot to hold the articles just marked read is
-        // the one list that does shrink, and what comes next moves into the page
-        // that was posted from.
-        if (readThrough && snapshot == null) {
-            return "redirect:" + itemsPath(feedId, category, true, current, null) + "#start";
-        }
-        int next = current + 1;
-        if (readThrough && next > unreadPages(userId, feedId, category, snapshot)) {
-            return "redirect:" + itemsPath(feedId, category, true, 1, null) + "#start";
-        }
-        return "redirect:" + itemsPath(feedId, category, unreadOnly, next, snapshot) + "#start";
-    }
-
-    /**
-     * Marks the articles of one screen read without leaving the list.
-     *
-     * <p>The reader turns several screens inside a single loaded page, and a screen
-     * that has been turned past has been read through just as much as a whole page
-     * has. Posting it here keeps that promise while the reader stays put, and
-     * answers with what is still unread so the meter under the page can follow.
-     */
-    @PostMapping("/items/read")
-    @ResponseBody
-    public Map<String, Object> markScreenRead(@RequestParam(value = "feed", required = false) Long feedId,
-                                              @RequestParam(value = "category", required = false) String category,
-                                              @RequestParam(value = "id", required = false) List<Long> ids) {
-        long userId = currentUser.requireId();
-        int marked = userService.markReadOnNextPage(userId) && ids != null && !ids.isEmpty()
-                ? articleService.markRead(userId, ids, true)
-                : 0;
-        return Map.of("marked", marked,
-                "unreadLeft", articleService.count(userId, feedId, category, Boolean.TRUE, null));
-    }
-
-    /** Pages the unread list of this snapshot holds, so paging can tell where it ends. */
-    private int unreadPages(long userId, Long feedId, String category, long snapshot) {
-        Instant taken = Instant.ofEpochMilli(Math.min(snapshot, System.currentTimeMillis()));
-        return totalPages(articleService.count(userId, feedId, category, Boolean.TRUE, taken));
+        int first = Math.max(page, 1);
+        return "redirect:" + itemsPath(feedId, category, false, first,
+                through == null ? first : Math.max(first, through), null);
     }
 
     private int totalPages(long total) {
@@ -572,7 +556,15 @@ public class AppController {
     }
 
     static String itemsPath(Long feedId, String category, boolean unread, int page, Long snapshot) {
+        return itemsPath(feedId, category, unread, page, page, snapshot);
+    }
+
+    static String itemsPath(Long feedId, String category, boolean unread, int page, int through,
+                            Long snapshot) {
         StringBuilder path = new StringBuilder("/items?page=").append(Math.max(page, 1));
+        if (through > Math.max(page, 1)) {
+            path.append("&through=").append(through);
+        }
         if (feedId != null) {
             path.append("&feed=").append(feedId);
         }
@@ -601,6 +593,7 @@ public class AppController {
         }
         String contentHtml = articleService.getReaderHtml(article, images);
         model.addAttribute("article", article);
+        model.addAttribute("readableTime", readableTime);
         model.addAttribute("contentHtml", contentHtml);
         model.addAttribute("images", images);
         model.addAttribute("originalUrl", safeHttpUrl(article.url()));

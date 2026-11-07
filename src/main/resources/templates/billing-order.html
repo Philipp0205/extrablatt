@@ -2,20 +2,13 @@
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
 <head>
   <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
   <title>Order the Supporter plan — Extrablatt</title>
-  <style th:replace="~{fragments/page-styles :: inline}"></style>
+  <th:block th:replace="~{fragments/page-styles :: assets}"></th:block>
 </head>
-<body>
-<div class="wrap">
-  <header class="app">
-    <a class="brand" th:href="@{/}">Extrablatt</a>
-    <nav class="top">
-      <a th:href="@{/}">Feeds</a>
-      <a th:href="@{/items}">Articles</a>
-      <a th:href="@{/settings/subscription}">Settings</a>
-    </nav>
-  </header>
+<body class="has-tabbar">
+<th:block th:replace="~{fragments/app-shell :: appBar('settings')}"></th:block>
+<main id="main" class="wrap">
 
   <div th:if="${error}" class="flash error" th:text="${error}"></div>
 
@@ -98,6 +91,7 @@
       <a class="btn" th:href="@{/settings/subscription}">Cancel</a>
     </div>
   </form>
-</div>
+</main>
+<nav th:replace="~{fragments/app-shell :: tabBar('settings')}"></nav>
 </body>
 </html>
