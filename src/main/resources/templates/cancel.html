@@ -2,15 +2,13 @@
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
 <head>
   <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
   <title>Cancel your contract — Extrablatt</title>
-  <style th:replace="~{fragments/page-styles :: inline}"></style>
+  <th:block th:replace="~{fragments/page-styles :: assets}"></th:block>
 </head>
 <body>
-<div class="wrap">
-  <header class="app">
-    <a class="brand" th:href="@{/}">Extrablatt</a>
-  </header>
+<th:block th:replace="~{fragments/app-shell :: brandBar}"></th:block>
+<main id="main" class="wrap">
 
   <div th:if="${error}" class="flash error" th:text="${error}"></div>
 
@@ -54,7 +52,7 @@
     <input id="contractRef" name="contractRef" type="text"
            placeholder="Extrablatt Supporter"/>
 
-    <fieldset class="choice-box">
+    <fieldset class="boxed-fieldset">
       <legend>Type of cancellation</legend>
       <div class="check">
         <input type="radio" id="kindOrdinary" name="kind" value="ordinary" checked/>
@@ -85,6 +83,6 @@
     This server does not charge for anything, so there is probably nothing here to
     cancel. Your declaration is still recorded and confirmed if you send it.
   </p>
-</div>
+</main>
 </body>
 </html>

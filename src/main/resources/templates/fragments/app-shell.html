@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<!--
+  The app's frame: a skip link, the top bar and, on a phone, the tab bar.
+
+  appBar(active) is for signed-in pages. On a wide screen it carries the three
+  destinations itself; on a phone it shows only the name and the destinations
+  move to the tab bar at the bottom, where a thumb reaches them. `active` is
+  'articles', 'feeds' or 'settings', and marks that destination aria-current.
+  Pages that use it put class="has-tabbar" on <body> and tabBar(active) last in
+  it, so the last line of the page is never hidden under the bar.
+
+  brandBar is for pages a signed-out visitor sees: the name, nothing to navigate.
+-->
+<body>
+<th:block th:fragment="appBar(active)">
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="appbar">
+    <div class="appbar-inner">
+      <a class="brand" th:href="@{/items}">Extrablatt</a>
+      <nav class="appnav" aria-label="Main">
+        <a th:href="@{/items}" th:attr="aria-current=${active == 'articles'} ? 'page' : null">Articles</a>
+        <a th:href="@{/}" th:attr="aria-current=${active == 'feeds'} ? 'page' : null">Feeds</a>
+        <a th:href="@{/settings}" th:attr="aria-current=${active == 'settings'} ? 'page' : null">Settings</a>
+      </nav>
+    </div>
+  </header>
+</th:block>
+
+<th:block th:fragment="brandBar">
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="appbar">
+    <div class="appbar-inner">
+      <a class="brand" th:href="@{/}">Extrablatt</a>
+    </div>
+  </header>
+</th:block>
+
+<nav th:fragment="tabBar(active)" class="tabbar" aria-label="Main">
+  <a th:href="@{/items}" th:attr="aria-current=${active == 'articles'} ? 'page' : null">
+    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M5 4h11a2 2 0 0 1 2 2v13a1 1 0 0 0 2 0V8"/>
+      <path d="M4 4v14a2 2 0 0 0 2 2h13"/>
+      <path d="M8 8h6M8 12h6M8 16h4"/>
+    </svg>
+    <span>Articles</span>
+  </a>
+  <a th:href="@{/}" th:attr="aria-current=${active == 'feeds'} ? 'page' : null">
+    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M5 11a8 8 0 0 1 8 8"/>
+      <path d="M5 5a14 14 0 0 1 14 14"/>
+      <circle cx="6" cy="18" r="1.4"/>
+    </svg>
+    <span>Feeds</span>
+  </a>
+  <a th:href="@{/settings}" th:attr="aria-current=${active == 'settings'} ? 'page' : null">
+    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M4 7h10M18 7h2M4 17h2M10 17h10"/>
+      <circle cx="16" cy="7" r="2"/>
+      <circle cx="8" cy="17" r="2"/>
+    </svg>
+    <span>Settings</span>
+  </a>
+</nav>
+</body>
+</html>

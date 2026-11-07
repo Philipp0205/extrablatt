@@ -1,8 +1,9 @@
 <!DOCTYPE html>
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
 <head th:replace="~{fragments/settings-shell :: head('Account')}"></head>
-<body>
-<div class="wrap">
+<body class="has-tabbar">
+<th:block th:replace="~{fragments/app-shell :: appBar('settings')}"></th:block>
+<main id="main" class="wrap">
   <th:block th:replace="~{fragments/settings-shell :: top}"></th:block>
 
   <a class="back-link" th:href="@{/settings}">← Settings</a>
@@ -19,7 +20,7 @@
     <button class="btn" type="submit">Log out</button>
   </form>
 
-  <h2>Delete account</h2>
+  <h2 class="space-top-lg">Delete account</h2>
   <p class="meta">This permanently removes your account, feeds, and articles.</p>
   <p class="meta" th:if="${billingEnabled}">
     One exception, and the law requires it: if you have ever paid or cancelled, the
@@ -33,7 +34,7 @@
   </form>
 
   <div th:replace="~{fragments/site-footer :: siteFooter}"></div>
-</div>
-<script th:src="@{/js/confirm.js}"></script>
+</main>
+<nav th:replace="~{fragments/app-shell :: tabBar('settings')}"></nav>
 </body>
 </html>

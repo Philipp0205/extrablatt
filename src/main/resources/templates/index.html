@@ -2,20 +2,13 @@
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
 <head>
   <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
   <title>Extrablatt</title>
-  <style th:replace="~{fragments/page-styles :: inline}"></style>
+  <th:block th:replace="~{fragments/page-styles :: assets}"></th:block>
 </head>
-<body>
-<div class="wrap">
-  <header class="app">
-    <a class="brand" th:href="@{/}">Extrablatt</a>
-    <nav class="top">
-      <a class="active" aria-current="page" th:href="@{/}">Feeds</a>
-      <a th:href="@{/items}">Articles</a>
-      <a th:href="@{/settings}">Settings</a>
-    </nav>
-  </header>
+<body class="has-tabbar">
+<th:block th:replace="~{fragments/app-shell :: appBar('feeds')}"></th:block>
+<main id="main" class="wrap">
 
   <div th:if="${!emailVerified}" class="flash error">
     Confirm your e-mail to send articles to Kindle. Check your inbox, or
@@ -233,8 +226,8 @@
   </div>
   </section>
   <div th:replace="~{fragments/site-footer :: siteFooter}"></div>
-</div>
+</main>
+<nav th:replace="~{fragments/app-shell :: tabBar('feeds')}"></nav>
 <script th:src="@{/js/categories.js}"></script>
-<script th:src="@{/js/confirm.js}"></script>
 </body>
 </html>

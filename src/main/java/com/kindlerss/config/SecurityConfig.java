@@ -6,7 +6,6 @@ import com.kindlerss.security.LoginStatusChecker;
 import com.kindlerss.security.RateLimitingFilter;
 import com.kindlerss.security.StaleSessionFilter;
 import com.kindlerss.service.UserService;
-import com.kindlerss.web.StylesheetAdvice;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
@@ -113,7 +112,7 @@ public class SecurityConfig {
     @Order(0)
     SecurityFilterChain staticAssetFilterChain(HttpSecurity http) throws Exception {
         http
-                .securityMatcher("/js/**")
+                .securityMatcher("/js/**", "/css/**")
                 .authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -185,9 +184,9 @@ public class SecurityConfig {
 
     /**
      * Scripts only from this app's own files, so markup that slipped past the
-     * sanitiser cannot run anything; the inline stylesheet by its hash and no other
-     * inline style. Images may come from anywhere, since articles show the images
-     * of the sites they came from. Forms may post here, and on to the payment
+     * sanitiser cannot run anything; styles likewise only from the app's own
+     * stylesheet, with no inline style at all. Images may come from anywhere, since
+     * articles show the images of the sites they came from. Forms may post here, and on to the payment
      * provider's checkout and portal, which the order and portal forms redirect to.
      */
     String contentSecurityPolicy() {
@@ -202,7 +201,7 @@ public class SecurityConfig {
         }
         return "default-src 'self'; "
                 + "script-src 'self'; "
-                + "style-src " + StylesheetAdvice.contentSecurityPolicyHash() + "; "
+                + "style-src 'self'; "
                 + "img-src 'self' data: https: http:; "
                 + "connect-src 'self'; "
                 + "font-src 'self'; "

@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<!--
+  The rows of the articles list, and the link that loads more of them.
+
+  `rows` and `loadMore` are used by items.html. `batch` is what /items?batch=true
+  answers with: the rows of one more page and the link to the page after it,
+  which app.js appends under the list. Sharing them means a row reads the same
+  whether it came with the page or was appended later.
+
+  A row's unread state is said twice on purpose: a dot for the eye, and a word
+  for a screen reader, since the dot is decoration to one.
+-->
+<body>
+<div th:fragment="batch" data-batch>
+  <ul data-batch-rows>
+    <li th:replace="~{fragments/article-rows :: rows}"></li>
+  </ul>
+  <th:block th:replace="~{fragments/article-rows :: loadMore}"></th:block>
+</div>
+
+<th:block th:fragment="rows">
+  <li th:each="a : ${articles}"
+      th:attr="data-article-id=${a.id}, data-read=${a.read} ? 'true' : 'false'">
+    <div class="item-main">
+      <p class="item-meta">
+        <span class="source" th:text="${a.feedTitle}">Feed</span>
+        <th:block th:if="${a.publishedAt != null}">
+          <span class="sep" aria-hidden="true">·</span>
+          <time th:datetime="${a.publishedAt.toString()}"
+                th:text="${readableTime.describe(a.publishedAt)}">3 hours ago</time>
+        </th:block>
+        <th:block th:if="${a.sentAt != null}">
+          <span class="sep" aria-hidden="true">·</span>
+          <span>Sent</span>
+        </th:block>
+      </p>
+      <a class="item-title" th:href="@{/articles/{id}(id=${a.id})}">
+        <span class="unread-mark" th:classappend="${a.read} ? 'read'" aria-hidden="true"></span>
+        <span class="offscreen" th:unless="${a.read}">Unread: </span>
+        <span th:text="${a.title}">Title</span>
+      </a>
+    </div>
+    <form class="inline" data-send-form
+          th:action="@{/articles/{id}/send(id=${a.id})}"
+          th:attr="data-send-url=@{/articles/{id}/send-async(id=${a.id})}" method="post">
+      <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+      <!-- Sending from the list comes back to the list instead of opening the article. -->
+      <input type="hidden" name="redirect" th:value="${listPath}"/>
+      <button class="btn send-btn" type="submit"
+              th:attr="aria-label='Send to Kindle: ' + ${a.title}">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path d="M4 12l16-8-6 16-2.5-6.5z"/>
+          <path d="M11.5 13.5L20 4"/>
+        </svg>
+        <span class="send-word" data-send-label>Send</span>
+      </button>
+    </form>
+  </li>
+</th:block>
+
+<th:block th:fragment="loadMore">
+  <a class="btn primary load-more" th:if="${hasMore}" rel="next" data-load-more
+     th:href="@{${nextPath}}"
+     th:attr="data-batch-url=@{${nextBatchPath}}, data-batch-page=${nextPage}">Load more articles</a>
+</th:block>
+</body>
+</html>

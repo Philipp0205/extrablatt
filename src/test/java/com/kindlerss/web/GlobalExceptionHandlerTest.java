@@ -89,7 +89,7 @@ class GlobalExceptionHandlerTest {
     @BeforeEach
     void setUp() {
         mockMvc = MockMvcBuilders.standaloneSetup(new FailingController())
-                .setControllerAdvice(new GlobalExceptionHandler(new StylesheetAdvice()))
+                .setControllerAdvice(new GlobalExceptionHandler())
                 .build();
     }
 
@@ -100,12 +100,6 @@ class GlobalExceptionHandlerTest {
                 .andExpect(view().name("error"))
                 .andExpect(model().attribute("message", GlobalExceptionHandler.SERVER_ERROR_MESSAGE))
                 .andExpect(model().attribute("message", not(containsString("hunter2"))));
-    }
-
-    @Test
-    void theErrorPageGetsTheStylesheetEvenFromAnExceptionHandler() throws Exception {
-        mockMvc.perform(get("/boom"))
-                .andExpect(model().attribute("stylesheet", containsString("box-sizing")));
     }
 
     @Test

@@ -2,15 +2,13 @@
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
 <head>
   <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
   <title>Check your inbox — Extrablatt</title>
-  <style th:replace="~{fragments/page-styles :: inline}"></style>
+  <th:block th:replace="~{fragments/page-styles :: assets}"></th:block>
 </head>
 <body>
-<div class="wrap">
-  <header class="app">
-    <span class="brand">Extrablatt</span>
-  </header>
+<th:block th:replace="~{fragments/app-shell :: brandBar}"></th:block>
+<main id="main" class="wrap">
 
   <h1>Check your inbox</h1>
 
@@ -30,6 +28,6 @@
   <p class="meta">
     <a th:href="@{/login}">Back to log in</a>
   </p>
-</div>
+</main>
 </body>
 </html>

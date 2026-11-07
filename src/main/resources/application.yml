@@ -36,10 +36,9 @@ spring:
       # buffer and commits the response part-way through rendering. Nothing can
       # touch the session after that, and a first-time visitor's login form needs
       # to: its CSRF token is created on demand, and creating one starts a session.
-      # Since the stylesheet moved into the <head>, that 8 KB is spent before the
-      # <body> begins, so every page would have hit this. Buffering also means an
-      # error part-way through rendering still produces the error page rather than
-      # half a document.
+      # A long page can spend that 8 KB before the session is touched. Buffering
+      # also means an error part-way through rendering still produces the error
+      # page rather than half a document.
       produce-partial-output-while-processing: false
   servlet:
     multipart:
@@ -47,8 +46,8 @@ spring:
   web:
     resources:
       chain:
-        # Turns on the filter that rewrites @{/js/reader.js} in a template into the
-        # content-addressed name WebConfig serves it under. Without it the templates
+        # Turns on the filter that rewrites @{/js/app.js} and @{/css/app.css} in a
+        # template into the content-addressed name WebConfig serves it under. Without it the templates
         # would keep asking for the plain name, which cannot be cached for long.
         enabled: true
 

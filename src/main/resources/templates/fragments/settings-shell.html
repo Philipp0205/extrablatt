@@ -1,22 +1,17 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
+<!--
+  Shared by the Settings pages: their <head>, and the notices and dialogs at the
+  top of <main>. The app bar and tab bar come from fragments/app-shell.
+-->
 <head th:fragment="head(title)">
   <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
   <title th:text="${title} + ' — Extrablatt'">Settings — Extrablatt</title>
-  <style th:replace="~{fragments/page-styles :: inline}"></style>
+  <th:block th:replace="~{fragments/page-styles :: assets}"></th:block>
 </head>
 <body>
 <th:block th:fragment="top">
-  <header class="app">
-    <a class="brand" th:href="@{/}">Extrablatt</a>
-    <nav class="top">
-      <a th:href="@{/}">Feeds</a>
-      <a th:href="@{/items}">Articles</a>
-      <a class="active" aria-current="page" th:href="@{/settings}">Settings</a>
-    </nav>
-  </header>
-
   <div th:if="${message}" class="flash" th:text="${message}"></div>
   <div th:if="${error}" class="flash error" th:text="${error}"></div>
   <div th:replace="~{fragments/trial-ended-dialog :: trialEndedDialog}"></div>

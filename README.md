@@ -41,7 +41,8 @@ their own licenses. Start with [Local configuration](#local-configuration) or
   is fetched once per refresh, and no database transaction is held open while a
   publisher answers
 - Article extraction (Readability4J) with sanitized HTML caching
-- Page-at-a-time reading sized to the device screen, instead of scrolling
+- A continuously scrolling, mobile-first article list that grows with **Load more
+  articles**, and marks articles read only when you open them or ask it to
 - Send-to-Kindle as EPUB 3 through one shared, provider-verified sender, with the
   article's own address printed under the title so the page can be found again
 - Per-account limits and IP-based rate limiting on auth endpoints
@@ -141,7 +142,9 @@ Dependabot (`.github/dependabot.yml`) opens weekly update PRs against
    your Kindle as an EPUB.
 3. Open **Articles** and filter by feed, category, or the **Unread** toggle in the
    filter bar.
-4. Page through the list; articles you page past are marked read.
+4. Scroll through the list and press **Load more articles** at its end for the next
+   batch. Scrolling and loading never mark anything read; **Mark all as read**
+   under the list marks the articles you have loaded.
 5. Tap an article's title to mark it read and view extracted content (images off by default).
    An unread list keeps articles opened during that visit in place, so returning
    to the list does not make the entries jump. A feed-provided discussion link
@@ -149,9 +152,9 @@ Dependabot (`.github/dependabot.yml`) opens weekly update PRs against
 6. **Send to Kindle** builds an EPUB and emails it; `sent_at` is recorded only after SMTP succeeds.
    With JavaScript available it sends in place, without reloading or moving the
    current page; the normal form submission remains as a no-JavaScript fallback.
-   Less common article actions — opening the original, comments, image controls,
-   and marking unread — are available under **More** so the reading toolbar stays
-   on one row on small e-readers.
+   **Send to Kindle** sits both above the article and where it ends. Less common
+   article actions (opening the original, comments, image controls, and marking
+   unread) are under **More**, so the toolbar stays on one row on a phone.
 
 ### How much gets loaded
 
@@ -166,44 +169,39 @@ already says how many it wants (`?count=`, `?limit=`, `?n=`) is left alone, and
 
 Nothing is thrown away afterwards, so a feed keeps growing past what it
 publishes at any one moment. `ARTICLE_PAGE_SIZE` (50, at most 100) sets how many
-of those articles one page of the list holds; **Mark read and load more** at the
-end of the last Kindle screen of a batch loads the next ones.
+of those articles one batch of the list holds; **Load more articles** at the end
+of the list loads the next batch.
 
-## Reading a page at a time
+## Reading the list
 
-E-ink panels redraw slowly, so scrolling on a Kindle feels laggy. Articles and the
-article list are therefore laid out as whole pages:
+The article list is one continuous, scrolling column, laid out for a phone first:
 
-- The text area is sized to what is left of the device screen, so one page turn
-  replaces exactly one screenful and never scrolls.
-- **Previous page** / **Next page** sit under the text. Tapping the left quarter of
-  the page goes back, tapping anywhere else goes forward, and the arrow, space and
-  page keys work on a keyboard.
-- In the article list, the last page of a loaded batch names both halves of what
-  pressing it does: **Mark read and load more** with **Mark articles as read when
-  I go to the next page** on in Settings (the default), or **Load more articles**
-  with it off. One press is enough — the next batch arrives straight away, and the
-  page it lands on reports how many articles were marked. So a list can be cleared
-  by reading through it instead of marking every article by hand. On the last batch
-  of the list there is nothing further to fetch, and the label reads **Mark read
-  and continue**. Turn the setting off and new feed articles arrive already read,
-  so a refresh does not fill Unread with a backlog. An article that was opened by
-  mistake takes **Mark unread** on its own page.
-- Opening a list or an article shows the finished page: the reader stays blank
-  until the columns have been measured, rather than painting the whole batch in
-  normal flow and then collapsing it to one screen once the script has run.
-- Your position is remembered per article, so sending to Kindle or marking an
-  article unread returns you to the page you were on.
-- The list remembers which of its pages you are on for as long as it is that list:
-  reading an entry and going back with the browser returns to the page the entry
-  was picked from, not to the first one. A list opened afresh from **Articles** or
-  a filter holds other articles and still starts at its beginning.
-- Rotating the device or changing the browser font re-splits the pages and keeps
-  your place.
+- Each row shows the feed, how long ago the article was published, and its title,
+  with a dot (and, for screen readers, the word "Unread") on unread articles and a
+  **Send** button beside it.
+- **Load more articles** at the end of the list appends the next batch. It is a
+  button you press, never triggered by scrolling, so the site footer and its legal
+  links stay reachable. The address keeps track of how much was loaded, so
+  reloading the page, or reading an entry and going back with the browser, shows
+  the same articles in the same place.
+- Loading and scrolling never mark anything read. An article is marked read when
+  you open it, or when you press **Mark all as read** under the list, which marks
+  exactly the articles you have loaded and no others. An unread list then starts
+  afresh. An article opened by mistake takes **Mark unread** under **More** on its
+  own page.
+- An unread list keeps the articles read during that visit in place, so the rows
+  on screen do not jump while you read and load more.
+- On a phone, **Articles**, **Feeds** and **Settings** sit in a tab bar at the
+  bottom of the screen; on a wider screen they move into the top bar.
+- **Settings → Reading → Keep track of unread articles** is on by default. Turn it
+  off and new feed articles arrive already read, so a refresh does not fill Unread
+  with a backlog and the list simply shows everything, newest first.
 
-This is the one place the UI uses JavaScript (`static/js/reader.js`). With
-JavaScript disabled, or in a browser that cannot lay out the columns, pages fall
-back to a normally scrolling document with the same content and links.
+JavaScript (`static/js/app.js`) only adds conveniences: load-more appends in
+place, Send to Kindle sends without reloading, and **Mark all as read** includes
+the batches that were appended. With JavaScript disabled, **Load more articles**
+is an ordinary link to the next batch, **Newer articles** leads back, and every
+form still works as a normal page submission.
 
 ## Send-to-Kindle (Amazon)
 
@@ -599,7 +597,7 @@ including this folder, and Caddy serves whatever is on disk with no rebuild.
 The screenshots in `marketing/assets/img/` are the running app captured at
 1236 × 1648, a Kindle Paperwhite's panel. Take them from a browser window of
 618 × 824 CSS pixels at twice the device pixel ratio, signed in to an account
-holding a few feeds, so the reader lays a page out exactly as it would on the
+holding a few feeds, so the app lays out exactly as it would on the
 device. Keep that 3:4: the hero's device frame crops anything taller.
 
 The committed files are the *production* page: they name `reader.extrablatt.app`
@@ -739,7 +737,7 @@ chmod +x deploy/backup.sh deploy/restore.sh
 - Outbound fetches allow only `http`/`https` and refuse loopback, private, link-local, CGNAT, ULA, multicast, documentation, benchmarking and reserved ranges, plus IPv6 prefixes that embed an IPv4 address (mapped, NAT64, 6to4, Teredo). The check runs inside the resolver the connection uses, so every DNS answer is checked at connect time and a host that switches to a private address after a first lookup (DNS rebinding) is still refused. Redirects are followed by hand (at most 5, each hop re-checked); no proxy, cookies or retries. Response size is capped (`app.http.max-bytes`), each wait for data is capped (`app.http.read-timeout`), and a whole fetch, redirects included, is capped by `app.http.total-timeout` (30s).
 - Redirect targets from form posts are restricted to same-app relative paths.
 - The public `/cancel` form changes a subscription only for the signed-in owner. For anyone else it records the declaration and mails a single-use, hashed, 24-hour link to the account's own address (at most three per account per day), without the requester's text; `/cancel/confirm` acts only on a CSRF-protected POST. The response is the same whether or not an account exists.
-- Every page is served with a Content-Security-Policy: scripts only from the app's own `/js/` files, no inline script or event handlers, and no inline styles except the page's own stylesheet, allowed by its SHA-256 hash (computed at start-up from `css/app.css`). Images may come from any http(s) origin, since articles show their source's images; forms may post to the app and to the origins of the configured checkout and portal URLs. Framing is refused (`frame-ancestors 'none'`, `X-Frame-Options: DENY`). Confirmation prompts on destructive forms use a `data-confirm` attribute read by `js/confirm.js`; new templates must not add `style="..."` or `on...=` attributes (a test checks).
+- Every page is served with a Content-Security-Policy: scripts only from the app's own `/js/` files and styles only from its own `/css/app.css` (`script-src 'self'; style-src 'self'`), with no inline script, style or event handler. Images may come from any http(s) origin, since articles show their source's images; forms may post to the app and to the origins of the configured checkout and portal URLs. Framing is refused (`frame-ancestors 'none'`, `X-Frame-Options: DENY`). Confirmation prompts on destructive forms use a `data-confirm` attribute read by `js/app.js`; new templates must not add `style="..."` or `on...=` attributes (a test checks).
 - Errors render the error page with a fixed message: malformed or missing input is a 400, unknown paths a 404, a wrong HTTP method a 405, and anything unexpected a 500 that is logged in full but never shows the exception text.
 - Session cookies are not marked Secure in the default profile (local HTTP). The `production` profile sets Secure cookies; use a TLS-terminating proxy with forwarded headers.
 - Rate limiting keys on the client address `ClientIpResolver` works out (see [Client address behind proxies](#client-address-behind-proxies)), not on `getRemoteAddr()` and not on the leftmost `X-Forwarded-For` entry, both of which the client controls behind `server.forward-headers-strategy: framework`. No proxy has to overwrite the header; appending is fine. The limiter is in memory, bounded to 10,000 keys, and per instance.

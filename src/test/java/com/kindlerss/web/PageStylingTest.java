@@ -28,21 +28,15 @@ import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
 import java.time.Instant;
-import java.util.Base64;
 import java.util.List;
 import java.util.Optional;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.matchesPattern;
 import static org.hamcrest.Matchers.not;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
@@ -54,14 +48,15 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
- * A page has to be styled the instant it is drawn.
+ * Every page is styled by the one linked, content-addressed stylesheet and nothing
+ * else.
  *
- * <p>A stylesheet linked from the {@code <head>} stops the browser painting until
- * it arrives, so on a phone the page could be seen with no styling at all while
- * that request was in flight — and the request happened on every navigation,
- * because static files were served {@code no-store}. The rules now travel inside
- * the page, which is what these tests hold in place: a page that goes back to
- * linking its stylesheet goes back to flashing.
+ * <p>The stylesheet used to travel inside every page, because a linked one was
+ * served {@code no-store} and refetched on each navigation. It is now served as
+ * {@code /css/app-<hash>.css} with a year-long immutable cache, so after the first
+ * visit it costs no request at all, and the pages carry no inline styling: that is
+ * what keeps them within a {@code style-src 'self'} policy. These tests hold both in
+ * place, along with the frame every page shares.
  */
 @WebMvcTest(controllers = {AppController.class, AuthController.class, SettingsController.class})
 @Import({com.kindlerss.config.SecurityConfig.class, GlobalExceptionHandler.class,
@@ -123,97 +118,109 @@ class PageStylingTest {
         when(articleService.count(eq(UID), isNull(), isNull(), isNull(), isNull())).thenReturn(0L);
     }
 
+    private static final String HASHED_STYLESHEET =
+            "(?s).*<link rel=\"stylesheet\" href=\"/css/app-[0-9a-f]{32}\\.css\"/?>.*";
+    private static final String HASHED_SCRIPT =
+            "(?s).*<script src=\"/js/app-[0-9a-f]{32}\\.js\" defer(=\"defer\")?></script>.*";
+
     @ParameterizedTest
     @ValueSource(strings = {"/", "/items?unread=false", "/settings", "/settings/kindle",
             "/settings/reading", "/settings/account", "/settings/data", "/login", "/register",
             "/forgot-password", "/privacy", "/terms", "/imprint", "/withdrawal"})
     @WithMockUser
-    void everyPageCarriesItsStylingRatherThanPointingAtIt(String path) throws Exception {
-        mockMvc.perform(get(path))
+    void everyPageLinksTheHashedStylesheetAndCarriesNoInlineStyling(String path) throws Exception {
+        String page = mockMvc.perform(get(path))
                 .andExpect(status().isOk())
-                // The first rule in the stylesheet, so an empty <style> element or a
-                // stylesheet that failed to load fails this rather than passing quietly.
-                .andExpect(content().string(containsString("box-sizing: border-box")))
-                .andExpect(content().string(matchesPattern("(?s).*<head>.*<style>.*</style>.*</head>.*")))
-                .andExpect(content().string(not(containsString("rel=\"stylesheet\""))));
+                .andExpect(content().string(matchesPattern(HASHED_STYLESHEET)))
+                .andExpect(content().string(matchesPattern(HASHED_SCRIPT)))
+                .andExpect(content().string(containsString("<meta name=\"color-scheme\" content=\"light dark\"")))
+                .andExpect(content().string(containsString("viewport-fit=cover")))
+                .andReturn().getResponse().getContentAsString();
+
+        assertFalse(page.contains("<style"), "no <style> element");
+        assertFalse(page.matches("(?s).*\\sstyle=\".*"), "no style attribute");
+        assertFalse(page.matches("(?s).*\\son[a-z]+=\".*"), "no inline event handler");
+        assertFalse(page.matches("(?s).*<script(?![^>]*\\ssrc=)[^>]*>.*"), "no inline script");
     }
 
-    /** The page a reader spends the most time on, and the one that pages as it goes. */
+    /** A skip link and one main landmark on every page, signed in or not. */
+    @ParameterizedTest
+    @ValueSource(strings = {"/", "/items?unread=false", "/settings", "/login", "/privacy"})
+    @WithMockUser
+    void everyPageHasASkipLinkToItsMainLandmark(String path) throws Exception {
+        String page = mockMvc.perform(get(path))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("<a class=\"skip-link\" href=\"#main\">Skip to content</a>")))
+                .andReturn().getResponse().getContentAsString();
+
+        assertEquals(1, page.split("<main id=\"main\"", -1).length - 1, "exactly one <main id=\"main\">");
+    }
+
+    /** Signed-in pages carry the three destinations, with the open one marked. */
     @Test
     @WithMockUser
-    void anArticleIsStyledFromTheFirstPaintToo() throws Exception {
-        Article article = new Article(7L, 1L, "guid", "Paged article", "https://example.com/a", null,
+    void signedInPagesMarkTheDestinationThatIsOpen() throws Exception {
+        mockMvc.perform(get("/items?unread=false"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("class=\"tabbar\"")))
+                .andExpect(content().string(matchesPattern(
+                        "(?s).*<a href=\"/items\" aria-current=\"page\">.*<span>Articles</span>.*")));
+        mockMvc.perform(get("/settings"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(matchesPattern(
+                        "(?s).*<a href=\"/settings\" aria-current=\"page\">.*<span>Settings</span>.*")));
+        mockMvc.perform(get("/"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(matchesPattern(
+                        "(?s).*<a href=\"/\" aria-current=\"page\">.*<span>Feeds</span>.*")));
+    }
+
+    /** A signed-out page has nowhere to send its reader but the form in front of them. */
+    @Test
+    void signedOutPagesCarryNoAppNavigation() throws Exception {
+        mockMvc.perform(get("/login"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(not(containsString("class=\"tabbar\""))))
+                .andExpect(content().string(not(containsString("class=\"appnav\""))));
+    }
+
+    /** The page a reader spends the most time on scrolls; nothing pages it any more. */
+    @Test
+    @WithMockUser
+    void anArticleIsAPlainScrollingPage() throws Exception {
+        Article article = new Article(7L, 1L, "guid", "Scrolling article", "https://example.com/a", null,
                 null, null, null, null, true, null, null, null, "Example Feed");
         when(articleService.findById(UID, 7L)).thenReturn(Optional.of(article));
         when(articleService.getReaderHtml(any(Article.class), eq(false))).thenReturn("<p>Body</p>");
 
         mockMvc.perform(get("/articles/7"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("box-sizing: border-box")))
-                .andExpect(content().string(not(containsString("rel=\"stylesheet\""))));
+                .andExpect(content().string(matchesPattern(HASHED_STYLESHEET)))
+                .andExpect(content().string(not(containsString("<style"))))
+                .andExpect(content().string(not(containsString("data-reader"))))
+                .andExpect(content().string(not(containsString("/js/reader"))));
     }
 
     /**
-     * The prose in the stylesheet is written for whoever edits it next. Sending it to
-     * every reader on every page would more than double what carrying the rules costs.
-     */
-    @Test
-    void theRulesReachThePageWithoutTheProseThatExplainsThem() throws Exception {
-        String page = mockMvc.perform(get("/login"))
-                .andExpect(status().isOk())
-                .andReturn().getResponse().getContentAsString();
-
-        assertFalse(page.contains("/*"), "no comment survives into the page");
-        assertTrue(page.contains("box-sizing: border-box"), "the rules themselves do");
-    }
-
-    @Test
-    void aCommentIsDroppedButAQuotedValueThatLooksLikeOneIsNot() {
-        assertEquals("a { color: red }", StylesheetAdvice.withoutComments(
-                "/* the brand colour */\na { color: red }"));
-        assertEquals("a { color: red }", StylesheetAdvice.withoutComments(
-                "a { color: red } /* an unclosed trailing note"));
-        assertEquals("a::after { content: \"/* not a comment */\" }",
-                StylesheetAdvice.withoutComments("a::after { content: \"/* not a comment */\" }"));
-        assertEquals("a { b: c }\nd { e: f }", StylesheetAdvice.withoutComments(
-                "a { b: c }\n\n/* why d is like this,\n   at length */\n\nd { e: f }"));
-    }
-
-    /**
-     * The Content-Security-Policy refuses every inline style but the stylesheet, by
-     * its hash. If the hash and the rendered element drift apart, every page loses
-     * its styling at once, so the hash is checked against what the page carries.
+     * The Content-Security-Policy allows styles and scripts from the app's own files
+     * only, which is what the pages above are kept within; nothing inline is let in.
      */
     @ParameterizedTest
     @ValueSource(strings = {"/", "/items?unread=false", "/settings/kindle", "/settings/account", "/login",
             "/register", "/withdrawal"})
     @WithMockUser
-    void thePolicyAllowsTheStylesheetThePageCarriesAndNoOtherInlineCode(String path) throws Exception {
-        var response = mockMvc.perform(get(path))
+    void thePolicyAllowsOnlyTheAppsOwnStylesAndScripts(String path) throws Exception {
+        String policy = mockMvc.perform(get(path))
                 .andExpect(status().isOk())
                 .andExpect(header().string("Content-Security-Policy", containsString("script-src 'self';")))
+                .andExpect(header().string("Content-Security-Policy", containsString("style-src 'self';")))
                 .andExpect(header().string("Content-Security-Policy", containsString("frame-ancestors 'none'")))
                 .andExpect(header().string("Content-Security-Policy", containsString("object-src 'none'")))
-                .andReturn().getResponse();
-        String page = response.getContentAsString();
-        String policy = response.getHeader("Content-Security-Policy");
-
-        Matcher style = Pattern.compile("(?s)<style>(.*?)</style>").matcher(page);
-        assertTrue(style.find(), "the page carries its stylesheet");
-        String hash = Base64.getEncoder().encodeToString(MessageDigest.getInstance("SHA-256")
-                .digest(style.group(1).getBytes(StandardCharsets.UTF_8)));
-        assertTrue(policy.contains("style-src 'sha256-" + hash + "';"), policy);
+                .andReturn().getResponse().getHeader("Content-Security-Policy");
         assertFalse(policy.contains("unsafe-inline"), policy);
-
-        assertFalse(Pattern.compile("(?i)\\sstyle=").matcher(page).find(), "no style attribute");
-        assertFalse(Pattern.compile("(?i)\\son[a-z]+=").matcher(page).find(), "no inline event handler");
-        Matcher script = Pattern.compile("(?i)<script\\b([^>]*)>").matcher(page);
-        while (script.find()) {
-            assertTrue(script.group(1).contains("src="), "no inline script: " + script.group());
-        }
     }
 
-    /** The confirmation prompts survive the move out of inline handlers. */
+    /** The confirmation prompts survive the move out of inline handlers (app.js asks). */
     @Test
     @WithMockUser
     void destructiveFormsStillAskFirst() throws Exception {
@@ -221,6 +228,6 @@ class PageStylingTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString(
                         "data-confirm=\"Delete your account and all its data? This cannot be undone.\"")))
-                .andExpect(content().string(matchesPattern("(?s).*<script src=\"/js/confirm[^\"]*\\.js\"></script>.*")));
+                .andExpect(content().string(matchesPattern(HASHED_SCRIPT)));
     }
 }

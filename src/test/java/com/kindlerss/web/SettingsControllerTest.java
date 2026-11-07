@@ -232,7 +232,7 @@ class SettingsControllerTest {
     void readingSettingsCanTurnMarkOnNextPageOff() throws Exception {
         mockMvc.perform(get("/settings/reading"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("Mark articles as read when I go to the next page")))
+                .andExpect(content().string(containsString("Keep track of unread articles")))
                 .andExpect(content().string(containsString("action=\"/settings/reading\"")));
 
         mockMvc.perform(post("/settings/reading").with(csrf()))

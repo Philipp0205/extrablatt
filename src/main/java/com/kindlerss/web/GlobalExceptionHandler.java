@@ -46,12 +46,6 @@ public class GlobalExceptionHandler {
     static final String METHOD_NOT_ALLOWED_MESSAGE = "That page cannot be used this way.";
     static final String SERVER_ERROR_MESSAGE = "Something went wrong on our side. Please try again.";
 
-    private final StylesheetAdvice stylesheet;
-
-    public GlobalExceptionHandler(StylesheetAdvice stylesheet) {
-        this.stylesheet = stylesheet;
-    }
-
     @ExceptionHandler(ArticleService.NotFoundException.class)
     @ResponseStatus(HttpStatus.NOT_FOUND)
     public String notFound(ArticleService.NotFoundException ex, Model model) {
@@ -123,12 +117,7 @@ public class GlobalExceptionHandler {
         return error(model, SERVER_ERROR_MESSAGE);
     }
 
-    /**
-     * An exception handler gets a fresh model, without the attributes the advice
-     * classes add to normal pages, so the stylesheet is supplied here.
-     */
     private String error(Model model, String message) {
-        model.addAttribute("stylesheet", stylesheet.stylesheet());
         model.addAttribute("message", message);
         return "error";
     }

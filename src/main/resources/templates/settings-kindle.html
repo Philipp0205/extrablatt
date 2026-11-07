@@ -1,8 +1,9 @@
 <!DOCTYPE html>
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
 <head th:replace="~{fragments/settings-shell :: head('Kindle')}"></head>
-<body>
-<div class="wrap">
+<body class="has-tabbar">
+<th:block th:replace="~{fragments/app-shell :: appBar('settings')}"></th:block>
+<main id="main" class="wrap">
   <th:block th:replace="~{fragments/settings-shell :: top}"></th:block>
 
   <a class="back-link" th:href="@{/settings}">← Settings</a>
@@ -13,7 +14,7 @@
     <label for="kindleEmail">Your Kindle e-mail</label>
     <input id="kindleEmail" name="kindleEmail" type="email"
            th:value="${account.kindleEmail}" placeholder="yourname@kindle.com"/>
-    <div class="row mt-1">
+    <div class="row space-top">
       <button class="btn" type="submit">Save</button>
     </div>
   </form>
@@ -24,7 +25,7 @@
 
   <!-- Setup instructions matter exactly once: expanded until a Kindle address is
        saved, folded away afterwards so the page stays short. -->
-  <details class="tools mt-1"
+  <details class="tools space-top"
            th:open="${#strings.isEmpty(account.kindleEmail)}">
     <summary>Allow Extrablatt to send books to this Kindle</summary>
     <div class="tools-body meta">
@@ -46,13 +47,13 @@
     </div>
   </details>
 
-  <div th:if="${newslettersEnabled}" class="mt-15">
+  <div th:if="${newslettersEnabled}" class="space-top-lg">
     <h2>Newsletters</h2>
     <p class="meta">Forward any newsletter to this address. Issues show up under
       <a th:href="@{/}">Feeds</a> — the first issue from a sender creates a feed
       named after them — and send to Kindle like any other article.</p>
     <code class="address-box" th:text="${newsletterAddress}">news@example.com</code>
-    <details class="tools mt-1">
+    <details class="tools space-top">
       <summary>Having trouble with spam?</summary>
       <div class="tools-body">
         <p class="meta">Get a new address. Anything still sent to the old one
@@ -67,7 +68,7 @@
   </div>
 
   <div th:replace="~{fragments/site-footer :: siteFooter}"></div>
-</div>
-<script th:src="@{/js/confirm.js}"></script>
+</main>
+<nav th:replace="~{fragments/app-shell :: tabBar('settings')}"></nav>
 </body>
 </html>
