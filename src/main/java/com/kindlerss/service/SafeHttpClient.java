@@ -80,7 +80,18 @@ public class SafeHttpClient {
         }
     }
 
-    public record FetchedContent(URI finalUri, String body, String contentType) {}
+    /**
+     * A response, decoded and raw. {@code body} is decoded with the charset from the
+     * Content-Type header (UTF-8 when there is none), which suits HTML. XML says its
+     * own encoding in its prolog, and only the raw {@code bytes} still carry it, so
+     * a feed is parsed from those.
+     */
+    public record FetchedContent(URI finalUri, String body, String contentType, byte[] bytes) {
+        /** For content that only exists as text: the bytes are its UTF-8 encoding. */
+        public FetchedContent(URI finalUri, String body, String contentType) {
+            this(finalUri, body, contentType, body == null ? new byte[0] : body.getBytes(StandardCharsets.UTF_8));
+        }
+    }
 
     /** A DNS answer that points somewhere a fetch must not go. */
     static final class BlockedAddressException extends UnknownHostException {
@@ -257,7 +268,7 @@ public class SafeHttpClient {
             }
             byte[] bytes = entity == null ? new byte[0] : readLimited(entity.getContent(), maxBytes, deadline, uri);
             return new Hop(new FetchedContent(uri, new String(bytes, charsetFromContentType(contentType)),
-                    contentType), null);
+                    contentType, bytes), null);
         } catch (FetchException e) {
             throw e;
         } catch (IOException | RuntimeException e) {

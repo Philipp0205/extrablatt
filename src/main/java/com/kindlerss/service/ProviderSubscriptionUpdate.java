@@ -12,6 +12,10 @@ import java.time.Instant;
  *
  * <p>{@code userId} is present when the provider echoed back the reference sent at
  * checkout. When it is not, the subscription is found by provider id instead.
+ *
+ * <p>{@code occurredAt} is when the provider says the event happened, which is not
+ * when it arrived: deliveries are retried and can overtake each other. It may be
+ * null when the provider did not say.
  */
 public record ProviderSubscriptionUpdate(
         String eventId,
@@ -22,6 +26,7 @@ public record ProviderSubscriptionUpdate(
         SubscriptionStatus status,
         Instant currentPeriodEnd,
         boolean cancelAtPeriodEnd,
-        BillingInterval interval
+        BillingInterval interval,
+        Instant occurredAt
 ) {
 }

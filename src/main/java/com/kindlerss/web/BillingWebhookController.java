@@ -67,9 +67,14 @@ public class BillingWebhookController {
             case IGNORED -> ResponseEntity.ok(Map.of("status", "ignored"));
             case REJECTED -> ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(Map.of("error", "Invalid signature"));
-            // Recorded, and deliberately not a 5xx: the provider retrying will not
-            // make it succeed, and the row carries the reason it failed.
-            case FAILED -> ResponseEntity.ok(Map.of("status", "recorded", "applied", false));
+            // Not applicable yet, usually because it overtook the event that links the
+            // subscription to an account. A 5xx makes the provider redeliver it, on
+            // top of the app's own retry from the stored payload.
+            case FAILED -> ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                    .body(Map.of("status", "retrying", "applied", false));
+            // Out of attempts. A 200 stops the provider retrying; the row carries the
+            // reason it failed, for an operator.
+            case ABANDONED -> ResponseEntity.ok(Map.of("status", "recorded", "applied", false));
         };
     }
 }

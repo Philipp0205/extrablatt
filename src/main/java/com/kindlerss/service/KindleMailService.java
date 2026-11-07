@@ -82,6 +82,10 @@ public class KindleMailService {
         byte[] epub = epubService.createEpub(article.title(), author, article.url(), html);
         String filename = documentName(article.title()) + ".epub";
 
+        // The checks above give the reader the right message cheaply; this is what
+        // actually holds the line when two sends race for the last place in a quota.
+        Instant sentAt = Instant.now();
+        long reservation = reserve(userId, articleId, entitlement, sentAt);
         try {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
@@ -97,6 +101,7 @@ public class KindleMailService {
             }, "application/epub+zip");
             mailSender.send(message);
         } catch (Exception e) {
+            articleRepository.releaseSend(userId, reservation);
             // Nothing else records a refused delivery, so an operator asked why
             // sending stopped working has only the reader's word to go on. The
             // account id stands in for the addresses, which stay out of the log.
@@ -108,8 +113,26 @@ public class KindleMailService {
                     e);
         }
 
-        articleRepository.recordSend(userId, articleId, Instant.now());
+        articleRepository.confirmSend(userId, articleId, sentAt);
         articleRepository.markRead(userId, articleId, true);
+    }
+
+    private long reserve(long userId, long articleId, Entitlement entitlement, Instant now) {
+        ArticleRepository.SendReservation reservation = articleRepository.reserveSend(
+                userId, articleId, now,
+                entitlement.maxSendsPerDay(), now.minus(1, ChronoUnit.DAYS),
+                entitlement.hasMonthlyCap() ? entitlement.maxSendsPerMonth() : 0,
+                entitlements.startOfCurrentMonth());
+        if (reservation.reserved()) {
+            return reservation.eventId();
+        }
+        if (reservation.limitReached() == ArticleRepository.SendReservation.Limit.MONTH) {
+            throw monthlyLimitReached(entitlement);
+        }
+        if (reservation.limitReached() == ArticleRepository.SendReservation.Limit.DAY) {
+            throw dailyLimitReached(entitlement);
+        }
+        throw new ArticleService.NotFoundException("Article not found");
     }
 
     private void requireSenderConfig() {
@@ -188,20 +211,27 @@ public class KindleMailService {
             long usedThisMonth = articleRepository.countSentSince(
                     userId, entitlements.startOfCurrentMonth());
             if (usedThisMonth >= entitlement.maxSendsPerMonth()) {
-                throw new SendRefusedException(
-                        "You have used all " + entitlement.maxSendsPerMonth()
-                                + " of this month's included articles. The Supporter plan has no "
-                                + "monthly limit — see Settings → Subscription. Otherwise they come "
-                                + "back on " + RESET_DATE.format(entitlements.nextResetDate()) + ".");
+                throw monthlyLimitReached(entitlement);
             }
         }
 
-        int dailyLimit = entitlement.maxSendsPerDay();
         Instant dayAgo = Instant.now().minus(1, ChronoUnit.DAYS);
-        if (articleRepository.countSentSince(userId, dayAgo) >= dailyLimit) {
-            throw new SendRefusedException(
-                    "Daily send limit reached (" + dailyLimit + "). Try again later.");
+        if (articleRepository.countSentSince(userId, dayAgo) >= entitlement.maxSendsPerDay()) {
+            throw dailyLimitReached(entitlement);
         }
+    }
+
+    private SendRefusedException monthlyLimitReached(Entitlement entitlement) {
+        return new SendRefusedException(
+                "You have used all " + entitlement.maxSendsPerMonth()
+                        + " of this month's included articles. The Supporter plan has no "
+                        + "monthly limit — see Settings → Subscription. Otherwise they come "
+                        + "back on " + RESET_DATE.format(entitlements.nextResetDate()) + ".");
+    }
+
+    private static SendRefusedException dailyLimitReached(Entitlement entitlement) {
+        return new SendRefusedException(
+                "Daily send limit reached (" + entitlement.maxSendsPerDay() + "). Try again later.");
     }
 
     /**

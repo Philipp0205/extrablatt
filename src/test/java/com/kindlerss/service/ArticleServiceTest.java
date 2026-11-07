@@ -56,12 +56,41 @@ class ArticleServiceTest {
     private final ArticleRepository articleRepository = mock(ArticleRepository.class);
     private final FeedRepository feedRepository = mock(FeedRepository.class);
     private final SafeHttpClient httpClient = mock(SafeHttpClient.class);
+    private final RecordingTransactions transactions = new RecordingTransactions();
     private ArticleService service;
 
     @BeforeEach
     void setUp() {
         service = new ArticleService(articleRepository, feedRepository, httpClient, new HtmlSanitizer(),
-                new DiscussionParser(httpClient));
+                new DiscussionParser(httpClient), transactions);
+    }
+
+    /** A slow page must not pin a database connection while it loads. */
+    @Test
+    void aPastedUrlIsFetchedBeforeTheTransactionThatStoresItBegins() {
+        java.util.List<Boolean> fetchedInTransaction = new java.util.ArrayList<>();
+        when(httpClient.get(PAGE_URL)).thenAnswer(invocation -> {
+            fetchedInTransaction.add(transactions.active());
+            return new SafeHttpClient.FetchedContent(URI.create(PAGE_URL), PAGE_HTML, "text/html");
+        });
+        Feed clipping = new Feed(5L, "Pasted URLs", Feed.CLIPPING_URL, null, "Pasted", null,
+                Instant.EPOCH, Instant.EPOCH, 0, FeedSource.CLIPPING);
+        java.util.List<Boolean> storedInTransaction = new java.util.ArrayList<>();
+        when(feedRepository.findOrCreateClippingFeed(UID)).thenAnswer(invocation -> {
+            storedInTransaction.add(transactions.active());
+            return clipping;
+        });
+        when(articleRepository.findByFeedIdAndGuid(eq(UID), eq(5L), anyString())).thenReturn(Optional.empty());
+        when(articleRepository.insert(anyLong(), anyString(), anyString(), anyString(), any(), any(), isNull(), isNull()))
+                .thenReturn(11L);
+        when(articleRepository.findById(UID, 11L)).thenReturn(Optional.of(new Article(11L, 5L, PAGE_URL,
+                "Why paper still wins", PAGE_URL, null, Instant.now(), null, null, "<p>x</p>", false, null,
+                Instant.now(), Instant.now(), "Pasted URLs")));
+
+        service.importFromUrl(UID, PAGE_URL);
+
+        assertEquals(java.util.List.of(false), fetchedInTransaction);
+        assertEquals(java.util.List.of(true), storedInTransaction);
     }
 
     @Test

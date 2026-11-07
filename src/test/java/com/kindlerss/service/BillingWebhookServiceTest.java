@@ -12,9 +12,11 @@ import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.HexFormat;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -41,7 +43,7 @@ class BillingWebhookServiceTest {
 
     @Test
     void aStripeCheckoutTiesTheProviderIdsToTheAccountThatOrdered() {
-        when(events.claim(anyString(), anyString(), anyString(), anyString(), any())).thenReturn(true);
+        when(events.claim(anyString(), anyString(), anyString(), anyString(), any(), any(), any(), anyInt())).thenReturn(true);
         String body = """
                 {"id":"evt_1","type":"checkout.session.completed","data":{"object":{
                   "id":"cs_1","client_reference_id":"42","customer":"cus_9","subscription":"sub_7"}}}
@@ -58,7 +60,7 @@ class BillingWebhookServiceTest {
 
     @Test
     void aStripeSubscriptionUpdateCarriesTheStatusAndPeriodEnd() {
-        when(events.claim(anyString(), anyString(), anyString(), anyString(), any())).thenReturn(true);
+        when(events.claim(anyString(), anyString(), anyString(), anyString(), any(), any(), any(), anyInt())).thenReturn(true);
         String body = """
                 {"id":"evt_2","type":"customer.subscription.updated","data":{"object":{
                   "id":"sub_7","customer":"cus_9","status":"past_due",
@@ -77,7 +79,7 @@ class BillingWebhookServiceTest {
 
     @Test
     void aPaddleSubscriptionUpdateIsUnderstoodToo() {
-        when(events.claim(anyString(), anyString(), anyString(), anyString(), any())).thenReturn(true);
+        when(events.claim(anyString(), anyString(), anyString(), anyString(), any(), any(), any(), anyInt())).thenReturn(true);
         String body = """
                 {"event_id":"evt_p1","event_type":"subscription.updated","data":{
                   "id":"sub_abc","status":"active","customer_id":"ctm_1",
@@ -103,7 +105,7 @@ class BillingWebhookServiceTest {
      */
     @Test
     void aReplayedEventIsAcceptedWithoutBeingAppliedAgain() {
-        when(events.claim(anyString(), anyString(), anyString(), anyString(), any())).thenReturn(false);
+        when(events.claim(anyString(), anyString(), anyString(), anyString(), any(), any(), any(), anyInt())).thenReturn(false);
         String body = """
                 {"id":"evt_1","type":"customer.subscription.updated","data":{"object":{
                   "id":"sub_7","status":"active","current_period_end":1799999999}}}
@@ -126,7 +128,7 @@ class BillingWebhookServiceTest {
                         body.getBytes(StandardCharsets.UTF_8));
 
         assertEquals(BillingWebhookService.Result.REJECTED, result);
-        verify(events, never()).claim(anyString(), anyString(), anyString(), anyString(), any());
+        verify(events, never()).claim(anyString(), anyString(), anyString(), anyString(), any(), any(), any(), anyInt());
         verify(subscriptions, never()).applyProviderUpdate(any());
     }
 
@@ -139,25 +141,147 @@ class BillingWebhookServiceTest {
 
         assertEquals(BillingWebhookService.Result.IGNORED, handle("stripe", body));
 
-        verify(events, never()).claim(anyString(), anyString(), anyString(), anyString(), any());
+        verify(events, never()).claim(anyString(), anyString(), anyString(), anyString(), any(), any(), any(), anyInt());
     }
 
     /**
-     * A failure is recorded with its reason rather than thrown: a 500 would make the
-     * provider retry something that will fail the same way again.
+     * The usual reason an event cannot be applied is that it overtook the checkout
+     * that names its account. It is recorded with its reason and a retry is
+     * scheduled, so it is applied once the checkout has arrived.
      */
     @Test
-    void anEventThatCannotBeAppliedIsRecordedWithItsReason() {
-        when(events.claim(anyString(), anyString(), anyString(), anyString(), any())).thenReturn(true);
+    void anEventThatCannotBeAppliedYetIsScheduledForARetry() {
+        when(events.claim(anyString(), anyString(), anyString(), anyString(), any(), any(), any(), anyInt())).thenReturn(true);
+        when(events.markFailed(anyString(), anyString(), anyInt(), any())).thenReturn(true);
+        doThrowOnApply();
+        String body = """
+                {"id":"evt_3","type":"customer.subscription.updated","created":1790000000,"data":{"object":{
+                  "id":"sub_unknown","status":"active"}}}
+                """;
+
+        assertEquals(BillingWebhookService.Result.FAILED, handle("stripe", body));
+
+        verify(events).markFailed(eq("evt_3"), anyString(),
+                eq(AppProperties.Billing.DEFAULT_WEBHOOK_MAX_ATTEMPTS),
+                eq(AppProperties.Billing.DEFAULT_WEBHOOK_RETRY_BACKOFF));
+        verify(events, never()).markProcessed(anyString());
+    }
+
+    @Test
+    void anEventOutOfAttemptsIsGivenUpOn() {
+        when(events.claim(anyString(), anyString(), anyString(), anyString(), any(), any(), any(), anyInt())).thenReturn(true);
+        when(events.markFailed(anyString(), anyString(), anyInt(), any())).thenReturn(false);
         doThrowOnApply();
         String body = """
                 {"id":"evt_3","type":"customer.subscription.updated","data":{"object":{
                   "id":"sub_unknown","status":"active"}}}
                 """;
 
-        assertEquals(BillingWebhookService.Result.FAILED, handle("stripe", body));
+        assertEquals(BillingWebhookService.Result.ABANDONED, handle("stripe", body));
+    }
 
-        verify(events).markFailed(eq("evt_3"), anyString());
+    /** The claim carries what the superseded check later needs. */
+    @Test
+    void theClaimRecordsTheSubscriptionAndWhenTheEventHappened() {
+        when(events.claim(anyString(), anyString(), anyString(), anyString(), any(), any(), any(), anyInt())).thenReturn(true);
+        String body = """
+                {"id":"evt_4","type":"customer.subscription.updated","created":1790000000,"data":{"object":{
+                  "id":"sub_7","status":"active"}}}
+                """;
+
+        handle("stripe", body);
+
+        verify(events).claim(eq("evt_4"), eq("stripe"), eq("customer.subscription.updated"), anyString(),
+                any(), eq("sub_7"), eq(Instant.ofEpochSecond(1790000000L)),
+                eq(AppProperties.Billing.DEFAULT_WEBHOOK_MAX_ATTEMPTS));
+        assertEquals(Instant.ofEpochSecond(1790000000L), captureUpdate().occurredAt());
+    }
+
+    @Test
+    void paddleSaysWhenAnEventHappenedAtTheTopLevel() {
+        when(events.claim(anyString(), anyString(), anyString(), anyString(), any(), any(), any(), anyInt())).thenReturn(true);
+        String body = """
+                {"event_id":"evt_p2","event_type":"subscription.updated",
+                 "occurred_at":"2026-11-01T10:00:00.123Z","data":{
+                  "id":"sub_abc","status":"active","custom_data":{"user_id":"7"}}}
+                """;
+
+        handle("paddle", body);
+
+        assertEquals(Instant.parse("2026-11-01T10:00:00.123Z"), captureUpdate().occurredAt());
+    }
+
+    /**
+     * A retry that arrives after a newer event for the same subscription was applied
+     * would roll the subscription back to an older state, so it is skipped.
+     */
+    @Test
+    void anEventOvertakenByANewerOneIsNotApplied() {
+        when(events.claim(anyString(), anyString(), anyString(), anyString(), any(), any(), any(), anyInt())).thenReturn(true);
+        when(events.supersededByNewer(eq("evt_old"), eq("sub_7"), any())).thenReturn(true);
+        String body = """
+                {"id":"evt_old","type":"customer.subscription.updated","created":1790000000,"data":{"object":{
+                  "id":"sub_7","status":"past_due"}}}
+                """;
+
+        assertEquals(BillingWebhookService.Result.ACCEPTED, handle("stripe", body));
+
+        verify(subscriptions, never()).applyProviderUpdate(any());
+        verify(events).markProcessed("evt_old");
+    }
+
+    @Test
+    void theSweepRetriesADueEventFromItsStoredPayload() {
+        String payload = """
+                {"id":"evt_5","type":"customer.subscription.created","data":{"object":{
+                  "id":"sub_7","customer":"cus_9","status":"active"}}}
+                """;
+        when(events.findDueRetries(anyInt(), anyInt())).thenReturn(List.of(
+                new BillingEventRepository.DueRetry("evt_5", "stripe", payload)));
+        when(events.reclaim(eq("evt_5"), anyInt())).thenReturn(true);
+
+        service("stripe").retryFailedEvents();
+
+        assertEquals("sub_7", captureUpdate().providerSubscriptionId());
+        verify(events).markProcessed("evt_5");
+    }
+
+    @Test
+    void theSweepLeavesAnEventAloneThatSomeoneElseClaimedFirst() {
+        when(events.findDueRetries(anyInt(), anyInt())).thenReturn(List.of(
+                new BillingEventRepository.DueRetry("evt_5", "stripe", "{}")));
+        when(events.reclaim(eq("evt_5"), anyInt())).thenReturn(false);
+
+        service("stripe").retryFailedEvents();
+
+        verify(subscriptions, never()).applyProviderUpdate(any());
+        verify(events, never()).markProcessed(anyString());
+    }
+
+    @Test
+    void theSweepSchedulesAnotherRetryWhenItFailsAgain() {
+        String payload = """
+                {"id":"evt_6","type":"customer.subscription.created","data":{"object":{
+                  "id":"sub_unknown","status":"active"}}}
+                """;
+        when(events.findDueRetries(anyInt(), anyInt())).thenReturn(List.of(
+                new BillingEventRepository.DueRetry("evt_6", "stripe", payload)));
+        when(events.reclaim(eq("evt_6"), anyInt())).thenReturn(true);
+        doThrowOnApply();
+
+        service("stripe").retryFailedEvents();
+
+        verify(events).markFailed(eq("evt_6"), anyString(), anyInt(), any());
+    }
+
+    @Test
+    void theSweepDoesNothingWithoutAConfiguredWebhook() {
+        AppProperties properties = new AppProperties("from@example.com", null, null, null, null,
+                null, null, null, null, null);
+
+        new BillingWebhookService(events, subscriptions, users, properties).retryFailedEvents();
+
+        verify(events, never()).findDueRetries(anyInt(), anyInt());
     }
 
     private void doThrowOnApply() {

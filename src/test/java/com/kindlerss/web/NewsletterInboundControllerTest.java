@@ -219,4 +219,17 @@ class NewsletterInboundControllerTest {
                         .contentType("application/json"))
                 .andExpect(status().isBadRequest());
     }
+
+    @Test
+    void aNewSenderDroppedForWantOfThePaidPlanIsReportedWithoutErroring() throws Exception {
+        when(userService.findUserIdByNewsletterInboundToken("abc123")).thenReturn(Optional.of(UID));
+        when(feedService.receiveNewsletterIssue(eq(UID), any(), any(), eq("msg-1"), any(), any(), any()))
+                .thenReturn(FeedService.NEWSLETTER_PLAN_REQUIRED);
+
+        mockMvc.perform(post("/inbound/newsletters").param("secret", "correct-secret")
+                        .contentType("application/json").content(PAYLOAD))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("dropped"))
+                .andExpect(jsonPath("$.reason").value("new sender needs the Supporter plan"));
+    }
 }

@@ -57,6 +57,16 @@ class ApplicationContextSmokeTest {
     void contextLoads() {
     }
 
+    @Autowired
+    org.springframework.mail.javamail.JavaMailSender mailSender;
+
+    /** Every mail service gets the sender that refuses scrubbed staging addresses. */
+    @Test
+    void theMailSenderRefusesInvalidRecipients() {
+        assertTrue(mailSender instanceof com.kindlerss.config.RecipientGuardMailSender,
+                mailSender.getClass().getName());
+    }
+
     /**
      * A first-time visitor has to receive the whole login page.
      *
@@ -132,5 +142,21 @@ class ApplicationContextSmokeTest {
                         .param("username", "nobody@example.com")
                         .param("password", "wrong"))
                 .andReturn().getResponse().getStatus();
+    }
+
+    /**
+     * An address nothing serves reaches the static resource handler, which throws
+     * NoResourceFoundException. That has to come out as a 404 on the styled error
+     * page, not as a 500 from the catch-all handler.
+     */
+    @Test
+    @WithMockUser
+    void anUnknownAddressIsAStyled404() throws Exception {
+        String page = mockMvc.perform(get("/no-such-page").accept(MediaType.TEXT_HTML))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isNotFound())
+                .andReturn().getResponse().getContentAsString();
+
+        assertTrue(page.contains("box-sizing: border-box"), "the stylesheet rides in the 404 page");
+        assertTrue(page.contains("Not found"), page);
     }
 }

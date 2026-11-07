@@ -7,11 +7,12 @@ spring:
     password: ${DATABASE_PASSWORD:kindle}
   flyway:
     enabled: true
-    # Staging applied V11 (accessibility leftovers) from a branch that did not
-    # yet contain V10 (changelog column). Flyway then refuses to boot when V10
-    # reappears, because a higher version is already applied. out-of-order lets
-    # the missing V10 run, then V12+. Production already has V10; it is a no-op.
-    out-of-order: true
+    # Off by default: migrations must apply in version order, so a version
+    # gap (a branch that skipped one) fails the boot instead of silently
+    # running an older script on top of newer schema. Set FLYWAY_OUT_OF_ORDER=true
+    # for one deploy to repair a database that is genuinely missing a lower
+    # version (staging once applied V11 from a branch without V10), then unset it.
+    out-of-order: ${FLYWAY_OUT_OF_ORDER:false}
   mail:
     # Defaults target Resend's SMTP endpoint. Username is the literal word "resend"
     # and the password is a Resend API key (starts with re_). A verified sending
@@ -85,6 +86,10 @@ app:
   # Shared, provider-verified sender used for account e-mail and Kindle delivery.
   # Hosted Extrablatt uses mail@extrablatt.app (not a Kindle-branded local part).
   mail-from: ${MAIL_FROM:}
+  # Comma-separated recipient domains mail may go to (subdomains included).
+  # Blank allows any. Addresses under .invalid are refused either way; the
+  # staging sync rewrites accounts to those. Staging example: kindle.com,example.org
+  mail-allowed-recipient-domains: ${MAIL_ALLOWED_RECIPIENT_DOMAINS:}
   # Public base URL used to build links in verification / password-reset e-mails.
   public-url: ${APP_PUBLIC_URL:http://localhost:8080}
   # Comma-separated account e-mails granted access to /admin telemetry and
@@ -153,6 +158,12 @@ app:
     # confirmation goes missing. A declined card should not cut off a reader
     # mid-morning. Trials do not get this extra week.
     grace-days: ${BILLING_GRACE_DAYS:7}
+    # A webhook event that cannot be applied yet (typically a subscription event
+    # that overtook the checkout naming its account) is retried from the stored
+    # payload, waiting this long before the first retry and doubling each time up
+    # to six hours, until it has been tried this many times in total.
+    webhook-max-attempts: ${BILLING_WEBHOOK_MAX_ATTEMPTS:12}
+    webhook-retry-backoff: ${BILLING_WEBHOOK_RETRY_BACKOFF:PT1M}
   retention:
     # Art. 5(1)(e) GDPR: personal data may be kept only as long as it is needed.
     # These are the periods after which the nightly sweep clears things out. Set any
