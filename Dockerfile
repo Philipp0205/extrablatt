@@ -1,5 +1,5 @@
 # Multi-stage build for Extrablatt
-FROM eclipse-temurin:21-jdk-alpine AS build
+FROM eclipse-temurin:24-jdk-alpine AS build
 WORKDIR /workspace
 
 COPY mvnw pom.xml ./
@@ -23,7 +23,7 @@ RUN chmod +x mvnw \
      fi \
   && ./mvnw -q -DskipTests -Dgit.revision="$GIT_REVISION" package
 
-FROM eclipse-temurin:21-jre-alpine AS runtime
+FROM eclipse-temurin:24-jre-alpine AS runtime
 WORKDIR /app
 
 RUN apk add --no-cache wget \
