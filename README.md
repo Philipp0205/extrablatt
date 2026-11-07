@@ -220,6 +220,12 @@ read it, mark it read, **Send to Kindle**, recategorize, or **Delete** it.
 **New address** in Settings rotates the inbox (e.g. once it starts collecting
 spam) without losing anything already received.
 
+With billing on, the inbox belongs to the Supporter plan (and the free week).
+Once an account no longer has it, an issue from a sender it has never heard
+from is dropped instead of creating a feed (the inbound webhook answers 200
+with `"status": "dropped"`), while senders that already have a feed keep
+delivering.
+
 This needs an inbound e-mail provider in front of the app, since Extrablatt
 itself never receives mail directly:
 

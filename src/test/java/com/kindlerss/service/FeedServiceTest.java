@@ -1,8 +1,10 @@
 package com.kindlerss.service;
 
 import com.kindlerss.config.AppProperties;
+import com.kindlerss.domain.Entitlement;
 import com.kindlerss.domain.Feed;
 import com.kindlerss.domain.FeedSource;
+import com.kindlerss.domain.Plan;
 import com.kindlerss.repository.ArticleRepository;
 import com.kindlerss.repository.FeedRepository;
 import com.kindlerss.repository.SubscriptionRepository;
@@ -58,14 +60,26 @@ class FeedServiceTest {
     }
 
     private FeedService service(int maxEntries, Executor refreshExecutor) {
+        return service(maxEntries, refreshExecutor, null);
+    }
+
+    /** A free-plan account whose free week is over: no newsletter inbox, 50 feeds. */
+    private FeedService freePlanService() {
+        EntitlementService entitlements = mock(EntitlementService.class);
+        when(entitlements.forUser(UID)).thenReturn(new Entitlement(Plan.FREE, 0, 0, 50, false));
+        return service(100, Runnable::run, entitlements);
+    }
+
+    private FeedService service(int maxEntries, Executor refreshExecutor, EntitlementService entitlementOverride) {
         AppProperties properties = new AppProperties(
                 "from@example.com", null, "remember-me",
                 null, new AppProperties.Feeds(maxEntries), null, null, null, null, null);
         when(userRepository.findMarkReadOnNextPageByFeedId(anyLong())).thenReturn(Optional.of(true));
         // A real entitlement service, not a mock: with billing off it has to hand back
         // the configured app.limits values, which is exactly what these tests assume.
-        EntitlementService entitlements = new EntitlementService(
-                mock(SubscriptionRepository.class), mock(UserSendLimitRepository.class), properties);
+        EntitlementService entitlements = entitlementOverride != null ? entitlementOverride
+                : new EntitlementService(
+                        mock(SubscriptionRepository.class), mock(UserSendLimitRepository.class), properties);
         return new FeedService(feedRepository, articleRepository, userRepository, httpClient,
                 new HtmlSanitizer(), entitlements, transactions, properties, refreshExecutor);
     }
@@ -496,6 +510,35 @@ class FeedServiceTest {
 
         assertEquals(FeedService.NEWSLETTER_FEED_LIMIT_REACHED, id);
         verify(feedRepository, never()).findOrCreateNewsletterFeed(anyLong(), anyString(), any(), any());
+    }
+
+    @Test
+    void aNewSenderIsDroppedWhenThePlanHasNoNewsletterInbox() {
+        when(feedRepository.findByUrl(UID, "newsletter:editor@example.com")).thenReturn(Optional.empty());
+        when(feedRepository.countByUser(UID)).thenReturn(0L);
+
+        long id = freePlanService().receiveNewsletterIssue(UID, "editor@example.com", "The Editor",
+                "message-1", "Issue #1", Instant.EPOCH, "<p>Hello</p>");
+
+        assertEquals(FeedService.NEWSLETTER_PLAN_REQUIRED, id);
+        verify(feedRepository, never()).findOrCreateNewsletterFeed(anyLong(), anyString(), any(), any());
+        verify(articleRepository, never()).insert(anyLong(), anyString(), anyString(), any(), any(),
+                any(), any(), anyString());
+    }
+
+    /** Losing the plan stops new senders, not the ones the account already reads. */
+    @Test
+    void aKnownSenderKeepsDeliveringAfterThePlanLapses() {
+        Feed existing = newsletterFeed("newsletter:editor@example.com");
+        when(feedRepository.findByUrl(UID, "newsletter:editor@example.com")).thenReturn(Optional.of(existing));
+        when(articleRepository.existsByFeedIdAndGuid(2L, "message-2")).thenReturn(false);
+        when(articleRepository.insert(anyLong(), anyString(), anyString(), any(), any(),
+                any(), any(), anyString())).thenReturn(43L);
+
+        long id = freePlanService().receiveNewsletterIssue(UID, "editor@example.com", "The Editor",
+                "message-2", "Issue #2", Instant.EPOCH, "<p>Hello again</p>");
+
+        assertEquals(43L, id);
     }
 
     @Test

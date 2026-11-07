@@ -251,6 +251,8 @@ public class FeedService {
 
     /** Returned by {@link #receiveNewsletterIssue} when the account's feed limit blocked a new sender. */
     public static final long NEWSLETTER_FEED_LIMIT_REACHED = -2;
+    /** Returned by {@link #receiveNewsletterIssue} when a new sender needs the Supporter plan. */
+    public static final long NEWSLETTER_PLAN_REQUIRED = -3;
     /** Returned by {@link #receiveNewsletterIssue} for a message already stored (repeat delivery). */
     public static final long NEWSLETTER_DUPLICATE = -1;
 
@@ -261,6 +263,11 @@ public class FeedService {
      * sender that mails it becomes its own entry in the feed list. Deduped by
      * {@code guid} (ideally the message's {@code Message-ID}) like a polled feed's
      * entries.
+     *
+     * <p>A new sender only gets a feed while the account's plan includes the
+     * newsletter inbox. Senders that already have one keep delivering after the
+     * plan lapses: losing a subscription changes allowances, it does not take
+     * things away.
      */
     @Transactional
     public long receiveNewsletterIssue(long userId, String senderAddress, String senderName, String guid,
@@ -273,6 +280,10 @@ public class FeedService {
         Feed feed = feedRepository.findByUrl(userId, senderUrl).orElse(null);
         if (feed == null) {
             Entitlement entitlement = entitlements.forUser(userId);
+            if (!entitlement.newsletters()) {
+                log.info("Dropping newsletter issue for user {}: new sender needs the Supporter plan", userId);
+                return NEWSLETTER_PLAN_REQUIRED;
+            }
             if (feedRepository.countByUser(userId) >= entitlement.maxFeeds()) {
                 // The sender's address is deliberately not logged: it is a third party's
                 // e-mail address, and the account id is enough to work out what happened.

@@ -102,6 +102,10 @@ no monthly ration unless an operator configures one:
 | Newsletter inbox | yes | — | yes |
 | Reading, categories, paged reader | yes | yes | yes |
 
+No newsletter inbox after the week means a sender the account has never
+received from is dropped rather than given a feed. Senders that already have a
+feed keep delivering; an inbox address already handed out keeps working.
+
 The daily cap stays in force for everyone, subscribers included. It is an abuse
 guardrail rather than a plan limit — the thing that stops one account emptying the
 e-mail budget in an afternoon — which is why the paid plan has one at all.
