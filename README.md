@@ -622,7 +622,7 @@ chmod +x deploy/backup.sh deploy/restore.sh
 
 - CSRF protection stays enabled; forms include tokens.
 - Feed/article HTML is sanitized with jsoup Safelist before `th:utext`.
-- Outbound fetches allow only `http`/`https`, resolve DNS, and reject loopback/private/link-local/multicast/CGNAT/ULA addresses; response size and timeouts are capped.
+- Outbound fetches allow only `http`/`https` and refuse loopback, private, link-local, CGNAT, ULA, multicast, documentation, benchmarking and reserved ranges, plus IPv6 prefixes that embed an IPv4 address (mapped, NAT64, 6to4, Teredo). The check runs inside the resolver the connection uses, so every DNS answer is checked at connect time and a host that switches to a private address after a first lookup (DNS rebinding) is still refused. Redirects are followed by hand (at most 5, each hop re-checked); no proxy, cookies or retries. Response size is capped (`app.http.max-bytes`), each wait for data is capped (`app.http.read-timeout`), and a whole fetch, redirects included, is capped by `app.http.total-timeout` (30s).
 - Redirect targets from form posts are restricted to same-app relative paths.
 - Session cookies are not marked Secure in the default profile (local HTTP). The `production` profile sets Secure cookies; use a TLS-terminating proxy with forwarded headers.
 - Rate limiting keys on the client address the servlet container reports, never on a raw `X-Forwarded-For` header. With `server.forward-headers-strategy: framework`, Spring takes that address from the first `X-Forwarded-For` entry, so the proxy in front of the app must overwrite (not append to) that header. The limiter is in memory, bounded to 10,000 keys, and per instance.
@@ -632,3 +632,4 @@ chmod +x deploy/backup.sh deploy/restore.sh
 - Spring Boot 3.5.3, Java 21, Maven Wrapper
 - Thymeleaf, Spring Security, JDBC, Mail, Flyway, Actuator
 - ROME 2.1.0, Readability4J 1.0.8, jsoup 1.22.2 (explicit override; Readability4J otherwise pulls 1.11.2)
+- Apache HttpClient 5 for outbound fetches (version from the Spring Boot BOM)

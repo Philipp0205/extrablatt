@@ -154,8 +154,9 @@ so that the most common request needs no answering at all.
 Passwords are bcrypt-hashed and never logged. Sessions are HttpOnly and Secure in
 production, behind TLS terminated by Caddy. CSRF protection is on for every form. All
 feed and article HTML is sanitised with a jsoup safelist before rendering. Outbound
-fetches allow only HTTP and HTTPS, resolve DNS and reject loopback, private,
-link-local, CGNAT and ULA addresses, with response size and timeouts capped — an SSRF
+fetches allow only HTTP and HTTPS and reject loopback, private, link-local, CGNAT,
+ULA and other reserved addresses, checked on every DNS answer at the moment of
+connecting, with response size, each wait and the whole fetch capped. This is an SSRF
 guard, because the app fetches URLs a stranger chose. The payment webhook is
 authenticated by HMAC-SHA256 over the raw body with a timestamp freshness check.
 Backups are taken with `pg_dump` (`deploy/backup.sh`); they contain personal data and

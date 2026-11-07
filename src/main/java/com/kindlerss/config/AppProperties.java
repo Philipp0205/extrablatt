@@ -24,7 +24,7 @@ public record AppProperties(
     public AppProperties {
         if (http == null) {
             // Used by SafeHttpClient for outbound feed/article fetches.
-            http = new Http(Duration.ofSeconds(10), Duration.ofSeconds(20), 2_097_152);
+            http = new Http(Duration.ofSeconds(10), Duration.ofSeconds(20), 2_097_152, Duration.ofSeconds(30));
         }
         if (feeds == null) {
             feeds = new Feeds(null);
@@ -57,8 +57,13 @@ public record AppProperties(
         }
     }
 
-    /** Timeouts and response size cap for outbound HTTP (feed refresh, extraction). */
-    public record Http(Duration connectTimeout, Duration readTimeout, int maxBytes) {
+    /**
+     * Timeouts and response size cap for outbound HTTP (feed refresh, extraction).
+     * {@code readTimeout} bounds each wait for data; {@code totalTimeout} bounds a
+     * whole fetch, redirects included, so a server that trickles a byte at a time
+     * cannot hold a request open for ever.
+     */
+    public record Http(Duration connectTimeout, Duration readTimeout, int maxBytes, Duration totalTimeout) {
         public Http {
             if (connectTimeout == null) {
                 connectTimeout = Duration.ofSeconds(10);
@@ -69,6 +74,13 @@ public record AppProperties(
             if (maxBytes <= 0) {
                 maxBytes = 2_097_152;
             }
+            if (totalTimeout == null || totalTimeout.isZero() || totalTimeout.isNegative()) {
+                totalTimeout = Duration.ofSeconds(30);
+            }
+        }
+
+        public Http(Duration connectTimeout, Duration readTimeout, int maxBytes) {
+            this(connectTimeout, readTimeout, maxBytes, null);
         }
     }
 

@@ -91,6 +91,8 @@ app:
     connect-timeout: 10s
     read-timeout: 20s
     max-bytes: 2097152
+    # Upper bound for one whole fetch, redirects included.
+    total-timeout: 30s
   feeds:
     # Entries a refresh asks a feed for; 0 fetches feed URLs exactly as entered.
     max-entries: ${FEED_MAX_ENTRIES:100}
