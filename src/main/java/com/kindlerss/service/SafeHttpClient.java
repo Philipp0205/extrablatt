@@ -34,7 +34,18 @@ public class SafeHttpClient {
         }
     }
 
-    public record FetchedContent(URI finalUri, String body, String contentType) {}
+    /**
+     * A response, decoded and raw. {@code body} is decoded with the charset from the
+     * Content-Type header (UTF-8 when there is none), which suits HTML. XML says its
+     * own encoding in its prolog, and only the raw {@code bytes} still carry it, so
+     * a feed is parsed from those.
+     */
+    public record FetchedContent(URI finalUri, String body, String contentType, byte[] bytes) {
+        /** For content that only exists as text: the bytes are its UTF-8 encoding. */
+        public FetchedContent(URI finalUri, String body, String contentType) {
+            this(finalUri, body, contentType, body == null ? new byte[0] : body.getBytes(StandardCharsets.UTF_8));
+        }
+    }
 
     /** Hostnames rejected before DNS (SSRF). Not used as request targets. */
     private static final Set<String> BLOCKED_HOSTS = Set.of("localhost", "metadata.google.internal");
@@ -83,7 +94,7 @@ public class SafeHttpClient {
             String contentType = response.headers().firstValue("Content-Type").orElse("application/octet-stream");
             byte[] bytes = readLimited(response.body(), properties.http().maxBytes());
             Charset charset = charsetFromContentType(contentType);
-            return new FetchedContent(uri, new String(bytes, charset), contentType);
+            return new FetchedContent(uri, new String(bytes, charset), contentType, bytes);
         } catch (FetchException e) {
             throw e;
         } catch (IOException e) {

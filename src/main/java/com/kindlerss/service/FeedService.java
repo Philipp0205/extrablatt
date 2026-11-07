@@ -169,7 +169,7 @@ public class FeedService {
 
         ParsedFeed parsed;
         try {
-            parsed = parseFeed(body, feedUrl);
+            parsed = parseFeed(fetched, feedUrl);
         } catch (Exception directParseError) {
             // The address was a web page, not a feed: try to find the feed it points
             // to (its <link> tags and feed-like anchors) and, failing that, the
@@ -368,7 +368,7 @@ public class FeedService {
     public void refreshFeed(Feed feed) {
         try {
             SafeHttpClient.FetchedContent fetched = fetchEntries(feed.url());
-            ParsedFeed parsed = parseFeed(fetched.body(), feed.url());
+            ParsedFeed parsed = parseFeed(fetched, feed.url());
             String title = parsed.title() == null || parsed.title().isBlank() ? feed.title() : parsed.title().trim();
             feedRepository.updateTitleAndSite(feed.id(), title, parsed.siteUrl());
             int inserted = storeEntries(feed, parsed);
@@ -505,7 +505,7 @@ public class FeedService {
             try {
                 SafeHttpClient.FetchedContent fetched = httpClient.get(url);
                 String finalUrl = fetched.finalUri().toString();
-                ParsedFeed parsed = parseFeed(fetched.body(), finalUrl);
+                ParsedFeed parsed = parseFeed(fetched, finalUrl);
                 return new Discovered(finalUrl, parsed);
             } catch (Exception notAFeed) {
                 log.debug("Feed candidate {} did not parse: {}", url, notAFeed.getMessage());
@@ -565,10 +565,27 @@ public class FeedService {
         return WELL_KNOWN_FEED_PATHS.stream().map(path -> origin + path).toList();
     }
 
-    private ParsedFeed parseFeed(String body, String feedUrl) throws Exception {
+    /**
+     * Parses the raw bytes rather than the decoded body, so the encoding is decided
+     * the way XML decides it: byte-order mark, then the {@code <?xml encoding?>}
+     * declaration, then UTF-8. Decoding first with the HTTP charset, or UTF-8 when
+     * the server sent none, garbles every feed served as ISO-8859-1 or windows-1252
+     * without a charset parameter, which is common on older German sites.
+     *
+     * <p>A charset the server did name is passed on, and ROME weighs it against the
+     * prolog as RFC 3023 describes. Without one, the Content-Type is left out on
+     * purpose: ROME would otherwise read a bare {@code text/xml} as US-ASCII.
+     */
+    private ParsedFeed parseFeed(SafeHttpClient.FetchedContent fetched, String feedUrl) throws Exception {
         SyndFeedInput input = new SyndFeedInput();
         input.setPreserveWireFeed(false);
-        try (XmlReader reader = new XmlReader(new ByteArrayInputStream(body.getBytes(StandardCharsets.UTF_8)))) {
+        String contentType = fetched.contentType();
+        boolean namesCharset = contentType != null
+                && contentType.toLowerCase(Locale.ROOT).contains("charset=");
+        ByteArrayInputStream raw = new ByteArrayInputStream(fetched.bytes());
+        try (XmlReader reader = namesCharset
+                ? new XmlReader(raw, contentType, true, StandardCharsets.UTF_8.name())
+                : new XmlReader(raw, true, StandardCharsets.UTF_8.name())) {
             SyndFeed syndFeed = input.build(reader);
             String title = syndFeed.getTitle();
             String siteUrl = syndFeed.getLink();

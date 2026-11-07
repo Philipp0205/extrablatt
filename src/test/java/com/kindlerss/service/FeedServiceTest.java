@@ -129,6 +129,75 @@ class FeedServiceTest {
         verify(articleRepository).markRead(UID, 9L, true);
     }
 
+    /**
+     * Older German sites serve ISO-8859-1 or windows-1252 feeds as text/xml with no
+     * charset parameter, and only the XML declaration says so. Decoding as UTF-8
+     * first turned every umlaut into a replacement character.
+     */
+    @Test
+    void aFeedIsDecodedWithTheEncodingItsXmlDeclarationNames() {
+        assertEquals("Müller über Straßen", refreshedTitle(entryFeed("ISO-8859-1", "Müller über Straßen"),
+                "ISO-8859-1", "text/xml"));
+        assertEquals("Preis: 5 € – „gut“", refreshedTitle(entryFeed("windows-1252", "Preis: 5 € – „gut“"),
+                "windows-1252", "application/rss+xml"));
+    }
+
+    @Test
+    void aUtf8FeedWithAByteOrderMarkAndABareContentTypeIsReadAsUtf8() {
+        byte[] body = entryFeedWithoutDeclaration("Grüße").getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        byte[] withBom = new byte[body.length + 3];
+        withBom[0] = (byte) 0xEF;
+        withBom[1] = (byte) 0xBB;
+        withBom[2] = (byte) 0xBF;
+        System.arraycopy(body, 0, withBom, 3, body.length);
+
+        assertEquals("Grüße", refreshedTitle(withBom, "text/xml"));
+    }
+
+    /** A charset the server names still counts when the document declares none. */
+    @Test
+    void aCharsetFromTheContentTypeIsUsedWhenTheFeedDeclaresNone() {
+        byte[] body = entryFeedWithoutDeclaration("Käse").getBytes(java.nio.charset.StandardCharsets.ISO_8859_1);
+
+        assertEquals("Käse", refreshedTitle(body, "application/xml; charset=ISO-8859-1"));
+    }
+
+    private static String entryFeed(String encoding, String title) {
+        return "<?xml version=\"1.0\" encoding=\"" + encoding + "\"?>\n" + entryFeedWithoutDeclaration(title);
+    }
+
+    private static String entryFeedWithoutDeclaration(String title) {
+        return """
+                <rss version="2.0"><channel>
+                  <title>Lokales</title>
+                  <link>https://example.de/</link>
+                  <item><title>%s</title><link>https://example.de/1</link><guid>g-1</guid></item>
+                </channel></rss>
+                """.formatted(title);
+    }
+
+    private String refreshedTitle(String xml, String encoding, String contentType) {
+        return refreshedTitle(xml.getBytes(java.nio.charset.Charset.forName(encoding)), contentType);
+    }
+
+    private String refreshedTitle(byte[] bytes, String contentType) {
+        String url = "https://example.de/feed";
+        // What SafeHttpClient decodes for the HTML path: UTF-8, unless the header said otherwise.
+        String decoded = new String(bytes, java.nio.charset.StandardCharsets.UTF_8);
+        when(httpClient.get(anyString())).thenReturn(
+                new SafeHttpClient.FetchedContent(URI.create(url), decoded, contentType, bytes));
+        when(articleRepository.insert(anyLong(), anyString(), anyString(),
+                anyString(), any(), any(), anyString(), anyString())).thenReturn(9L);
+
+        service(0).refreshFeed(feed(url));
+
+        org.mockito.ArgumentCaptor<String> title = org.mockito.ArgumentCaptor.forClass(String.class);
+        verify(articleRepository).insert(anyLong(), eq("g-1"), title.capture(),
+                anyString(), any(), any(), anyString(), anyString());
+        org.mockito.Mockito.clearInvocations(articleRepository);
+        return title.getValue();
+    }
+
     @Test
     void refreshAsksForTheConfiguredNumberOfEntries() {
         when(httpClient.get(anyString())).thenAnswer(respondWithFeed());
