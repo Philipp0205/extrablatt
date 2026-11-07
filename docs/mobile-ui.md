@@ -30,7 +30,8 @@ The patterns were taken from these screens:
   https://mobbin.com/screens/0de79387-016a-4861-809f-5901323f066a
 - Particle, a source and time line above the headline, quiet row actions:
   https://mobbin.com/screens/547456ac-562e-448f-86ce-b0a63e44257e
-- Perplexity, a sideways-scrolling chip row for filters:
+- Perplexity, a continuous article body with generous paragraph spacing and
+  restrained controls, used for the article reading column:
   https://mobbin.com/screens/4fd04116-d956-4372-8016-c12e0c2c7960
 - Bloomberg, grouped settings rows:
   https://mobbin.com/screens/2c81192d-5454-4619-af69-7676d3043117
@@ -47,7 +48,7 @@ The patterns were taken from these screens:
 | `category` | One category. |
 | `unread`   | Unread only. On by default. |
 | `snapshot` | Time the unread list was taken, so rows read during a visit do not slide away. Added by a redirect when missing. |
-| `page`     | First batch on screen (20 articles per batch). |
+| `page`     | First batch on screen. A batch is `ARTICLE_PAGE_SIZE` articles (50 by default). |
 | `through`  | Last batch on screen. Load-more writes it into the address with `history.replaceState`, so a reload or the back button shows every loaded batch in place. Capped at 10 batches per address. |
 | `batch`    | `true` answers with the rows of one batch only (`fragments/article-rows :: batch`), which `app.js` appends. Past the end it answers with an empty batch, not the last page again. A batch request does not start a feed refresh. |
 
