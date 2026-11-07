@@ -20,12 +20,15 @@ public record AppProperties(
         Limits limits,
         Newsletters newsletters,
         Billing billing,
-        Retention retention
+        Retention retention,
+        String trustedProxies,
+        Boolean trustCloudflare
 ) {
+    @ConstructorBinding
     public AppProperties {
         if (http == null) {
             // Used by SafeHttpClient for outbound feed/article fetches.
-            http = new Http(Duration.ofSeconds(10), Duration.ofSeconds(20), 2_097_152);
+            http = new Http(Duration.ofSeconds(10), Duration.ofSeconds(20), 2_097_152, Duration.ofSeconds(30));
         }
         if (feeds == null) {
             feeds = new Feeds(null);
@@ -56,10 +59,31 @@ public record AppProperties(
             // in production so tokens cannot be forged with the well-known default.
             rememberMeKey = "kindle-rss-remember-me-change-me";
         }
+        if (trustedProxies != null && trustedProxies.isBlank()) {
+            // Blank means ClientIpResolver.PRIVATE_RANGES.
+            trustedProxies = null;
+        }
+        if (trustCloudflare == null) {
+            trustCloudflare = true;
+        }
     }
 
-    /** Timeouts and response size cap for outbound HTTP (feed refresh, extraction). */
-    public record Http(Duration connectTimeout, Duration readTimeout, int maxBytes) {
+    public AppProperties(String mailFrom, String publicUrl, String rememberMeKey, Http http,
+                         Feeds feeds, Articles articles, Limits limits, Newsletters newsletters,
+                         Billing billing, Retention retention) {
+        this(mailFrom, publicUrl, rememberMeKey, http, feeds, articles, limits, newsletters,
+                billing, retention, null, null);
+    }
+
+    /**
+     * Timeouts and response size cap for outbound HTTP (feed refresh, extraction).
+     * {@code readTimeout} bounds each wait for data; {@code totalTimeout} bounds a
+     * whole fetch, redirects included, so a server that trickles a byte at a time
+     * cannot hold a request open for ever.
+     */
+    public record Http(Duration connectTimeout, Duration readTimeout, int maxBytes, Duration totalTimeout) {
+        // Two constructors: tell Boot which one binds, or it picks the short one.
+        @ConstructorBinding
         public Http {
             if (connectTimeout == null) {
                 connectTimeout = Duration.ofSeconds(10);
@@ -70,6 +94,13 @@ public record AppProperties(
             if (maxBytes <= 0) {
                 maxBytes = 2_097_152;
             }
+            if (totalTimeout == null || totalTimeout.isZero() || totalTimeout.isNegative()) {
+                totalTimeout = Duration.ofSeconds(30);
+            }
+        }
+
+        public Http(Duration connectTimeout, Duration readTimeout, int maxBytes) {
+            this(connectTimeout, readTimeout, maxBytes, null);
         }
     }
 
@@ -104,12 +135,25 @@ public record AppProperties(
      * Newsletters arrive by e-mail rather than by polling a URL: each newsletter
      * feed gets an address {@code <token>@inboundDomain}, and an inbound mail
      * provider (Postmark, Mailgun routes, …) is configured to POST received
-     * messages to {@code /inbound/newsletters?secret=inboundSecret}. Leaving
-     * {@code inboundDomain} blank disables adding new newsletters; the shared
-     * secret guards the webhook since it cannot itself require a login.
+     * messages to {@code /inbound/newsletters} with {@code inboundSecret} in the
+     * {@code X-Newsletter-Secret} header or as the URL's Basic auth password.
+     * Leaving {@code inboundDomain} blank disables adding new newsletters; the
+     * shared secret guards the webhook since it cannot itself require a login.
+     * {@code maxBodyBytes} caps one message (HTML, text and headers together);
+     * default 10 MiB.
      */
-    public record Newsletters(String inboundDomain, String inboundSecret) {
+    public record Newsletters(String inboundDomain, String inboundSecret, int maxBodyBytes) {
+        public static final int DEFAULT_MAX_BODY_BYTES = 10 * 1024 * 1024;
+
+        public Newsletters(String inboundDomain, String inboundSecret) {
+            this(inboundDomain, inboundSecret, 0);
+        }
+
+        @ConstructorBinding
         public Newsletters {
+            if (maxBodyBytes <= 0) {
+                maxBodyBytes = DEFAULT_MAX_BODY_BYTES;
+            }
             if (inboundDomain != null) {
                 inboundDomain = inboundDomain.trim().toLowerCase();
                 if (inboundDomain.isBlank()) {

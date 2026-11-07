@@ -32,8 +32,10 @@ SET email = 'user-' || id || '@staging.invalid',
     newsletter_inbound_token = NULL
 WHERE id NOT IN (SELECT id FROM pg_temp.staging_kept_users);
 
--- Verification and reset links are bearer credentials.
+-- Verification and reset links are bearer credentials, and so are the
+-- cancellation confirmation links (only hashed, but still single-use keys).
 DELETE FROM email_tokens;
+DELETE FROM cancellation_tokens;
 
 -- Newsletter feeds are named after, and keyed by, the sender's address.
 UPDATE feeds
@@ -76,9 +78,13 @@ SET provider_customer_id = CASE WHEN provider_customer_id IS NULL THEN NULL
     provider_subscription_id = CASE WHEN provider_subscription_id IS NULL THEN NULL
                                     ELSE 'staging-sub-' || user_id END;
 
+-- subscription_ref is the provider's subscription id. It is replaced by a hash
+-- so events for the same subscription still share a value.
 UPDATE billing_events
 SET payload = '{}',
-    error = CASE WHEN error IS NULL THEN NULL ELSE 'scrubbed for staging' END;
+    error = CASE WHEN error IS NULL THEN NULL ELSE 'scrubbed for staging' END,
+    subscription_ref = CASE WHEN subscription_ref IS NULL THEN NULL
+                            ELSE 'staging-sub-' || md5(subscription_ref) END;
 
 -- Cancellation declarations can be filed without an account.
 UPDATE cancellation_requests

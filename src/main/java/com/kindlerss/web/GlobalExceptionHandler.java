@@ -61,7 +61,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(IllegalArgumentException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public String badRequest(IllegalArgumentException ex, Model model) {
-        return error(model, ex.getMessage());
+        return error(model, UserMessages.of(ex, "That request could not be handled"));
     }
 
     /** Missing, malformed or invalid input. The framework's own wording stays in the log. */

@@ -31,6 +31,7 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -202,7 +203,11 @@ class KindleMailServiceTest {
         doThrow(new IllegalStateException("SMTP unavailable"))
                 .when(mailSender).send(any(MimeMessage.class));
 
-        assertThrows(IllegalStateException.class, () -> service.sendToKindle(UID, 7L, false));
+        KindleMailService.DeliveryFailedException error = assertThrows(
+                KindleMailService.DeliveryFailedException.class, () -> service.sendToKindle(UID, 7L, false));
+        // What the mail server said is kept for the log, not shown to the reader.
+        assertFalse(error.getMessage().contains("SMTP unavailable"), error.getMessage());
+        assertEquals("SMTP unavailable", error.getCause().getMessage());
 
         verify(articleRepository).releaseSend(UID, 99L);
         verify(articleRepository, never()).confirmSend(anyLong(), anyLong(), any(Instant.class));

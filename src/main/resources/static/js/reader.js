@@ -635,7 +635,7 @@
     }
     var fill = meter.querySelector('[data-unread-fill]');
     if (fill && total > 0) {
-      fill.style.width = Math.round((total - remaining) * 100 / total) + '%';
+      fill.setAttribute('width', Math.round((total - remaining) * 100 / total) + '%');
     }
   }
 

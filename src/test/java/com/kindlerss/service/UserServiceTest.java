@@ -164,6 +164,50 @@ class UserServiceTest {
     }
 
     @Test
+    void passwordsAreLimitedToWhatBcryptActuallyReads() {
+        // 72 ASCII characters are 72 bytes: accepted.
+        when(userRepository.insert(eq("a@example.com"), eq("hashed"))).thenReturn(user(1L, "a@example.com"));
+        assertDoesNotThrow(() -> service.register("a@example.com", "a".repeat(72)));
+        // 73 bytes would be silently cut by BCrypt, so they are refused.
+        IllegalArgumentException tooLong = assertThrows(IllegalArgumentException.class,
+                () -> service.register("b@example.com", "a".repeat(73)));
+        assertTrue(tooLong.getMessage().contains("72"));
+        // 37 accented letters are only 37 characters but 74 bytes.
+        assertThrows(IllegalArgumentException.class,
+                () -> service.register("c@example.com", "\u00e9".repeat(37)));
+        // 19 emoji are 76 bytes.
+        assertThrows(IllegalArgumentException.class,
+                () -> service.register("d@example.com", "\uD83D\uDE00".repeat(19)));
+    }
+
+    @Test
+    void passwordResetAppliesTheSameByteLimit() {
+        EmailToken token = new EmailToken("rst", 2L, EmailToken.Purpose.RESET,
+                Instant.now().plus(1, ChronoUnit.HOURS), null, Instant.now());
+        when(tokenRepository.find("rst", EmailToken.Purpose.RESET)).thenReturn(Optional.of(token));
+
+        assertThrows(IllegalArgumentException.class, () -> service.resetPassword("rst", "x".repeat(73)));
+        verify(userRepository, never()).updatePasswordHash(anyLong(), anyString());
+    }
+
+    @Test
+    void credentialsChangedSpotsANewPasswordADeletedAndADisabledAccount() {
+        AppUser current = new AppUser(3L, "r@example.com", "hash-now", null,
+                Instant.now(), null, Instant.now(), Instant.now());
+        when(userRepository.findById(3L)).thenReturn(Optional.of(current));
+        assertFalse(service.credentialsChanged(3L, "hash-now"));
+        assertTrue(service.credentialsChanged(3L, "hash-before"));
+
+        AppUser disabled = new AppUser(4L, "d@example.com", "hash-now", null,
+                Instant.now(), Instant.now(), Instant.now(), Instant.now());
+        when(userRepository.findById(4L)).thenReturn(Optional.of(disabled));
+        assertTrue(service.credentialsChanged(4L, "hash-now"));
+
+        when(userRepository.findById(5L)).thenReturn(Optional.empty());
+        assertTrue(service.credentialsChanged(5L, "hash-now"));
+    }
+
+    @Test
     void verificationAppliesAUsableTokenAndSendsWelcome() {
         EmailToken token = new EmailToken("tok", 1L, EmailToken.Purpose.VERIFY,
                 Instant.now().plus(1, ChronoUnit.DAYS), null, Instant.now());

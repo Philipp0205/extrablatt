@@ -71,8 +71,10 @@ their own licenses. Start with [Local configuration](#local-configuration) or
 | `APP_PUBLIC_URL` | Base URL used in verification / reset e-mails (e.g. `http://localhost:8080`) |
 | `MAIL_FROM` | Shared sender on your verified domain (`mail@yourdomain.com`) |
 | `SMTP_HOST` / `SMTP_PORT` / `SMTP_USERNAME` / `SMTP_PASSWORD` | SMTP (Resend: host `smtp.resend.com`, username `resend`, password = API key) |
-| `REMEMBER_ME_KEY` | Secret for remember-me tokens |
+| `REMEMBER_ME_KEY` | Secret for remember-me tokens. At least 32 characters and not a placeholder (`openssl rand -base64 48`); startup fails otherwise under the `production` profile or a non-localhost `APP_PUBLIC_URL` |
 | `ADMIN_EMAILS` | Comma-separated account e-mails allowed to view telemetry and manage per-user send limits |
+| `TRUSTED_PROXIES` | `app.trusted-proxies`: comma-separated CIDRs of proxies allowed to add to `X-Forwarded-For`. Blank (default) means `127.0.0.0/8, 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 100.64.0.0/10, 169.254.0.0/16, ::1/128, fc00::/7, fe80::/10`; a value replaces that list. See [Client address behind proxies](#client-address-behind-proxies) |
+| `TRUST_CLOUDFLARE` | `app.trust-cloudflare`, default `true`: also trust Cloudflare's published edge ranges. Set `false` when Cloudflare is not in front of the app |
 
 Flyway applies migrations strictly in version order (`out-of-order` is off). If a
 database is missing a lower version (for example a branch that skipped one was
@@ -247,10 +249,16 @@ itself never receives mail directly:
    out of the box. Mailgun Routes, SendGrid Inbound Parse, or a Cloudflare Email
    Routing worker all work too with a small JSON reshape in front of the webhook.
 2. Configure that provider's inbound webhook to `POST` to
-   `https://<your-app>/inbound/newsletters?secret=<NEWSLETTER_INBOUND_SECRET>`
-   (`NEWSLETTER_INBOUND_SECRET` is a long random value you choose; the query
-   parameter is the only thing standing in for a login on this endpoint, since
-   the provider cannot authenticate like a browser).
+   `https://<your-app>/inbound/newsletters` with `NEWSLETTER_INBOUND_SECRET` (a
+   long random value you choose) sent in an `X-Newsletter-Secret` header or as
+   `Authorization: Bearer <secret>`. Postmark cannot set custom headers, so give it
+   `https://inbound:<NEWSLETTER_INBOUND_SECRET>@<your-app>/inbound/newsletters`;
+   it sends that as HTTP Basic auth and the app reads the password. The secret is
+   the only thing standing in for a login on this endpoint, since the provider
+   cannot authenticate like a browser. The older
+   `?secret=<NEWSLETTER_INBOUND_SECRET>` form still works but logs a deprecation
+   warning, because URLs end up in proxy and access logs. A message larger than
+   `NEWSLETTER_MAX_BODY_BYTES` (default 10 MiB) is refused with 413.
 3. Set both variables in `.env` (or your platform's env vars) and redeploy.
 
 The webhook expects Postmark's inbound JSON shape: `To`/`ToFull`/
@@ -324,6 +332,16 @@ Two things are deliberately manual, because the app holds no provider API key: a
 cancellation is e-mailed to `BILLING_OPERATOR_EMAIL` so the payment is stopped at
 the provider by hand, and a missed callback is fixed with the admin grant above.
 
+`/cancel` needs no login, as § 312k BGB requires, but a declaration only takes
+effect at once for the signed-in owner of the account. Anyone else's is recorded
+with the time it arrived, and a single-use link (24 hours, at most three per account
+per day, only its SHA-256 hash stored) goes to the account's own address; following
+it and pressing the button applies the cancellation. The page shown afterwards is
+the same whether or not the address has an account, and the link e-mail repeats
+nothing the requester typed. See
+[`docs/subscriptions-and-payments.md`](docs/subscriptions-and-payments.md) for the
+legal reasoning, which needs a lawyer's look before charging anyone.
+
 Before charging anyone there is work no configuration flag covers.
 [`docs/going-live.md`](docs/going-live.md) is the runbook: the tax and establishment
 question that has to be settled first because it decides the provider, then the
@@ -381,7 +399,7 @@ well: managed Postgres, TLS, and Dockerfile builds with low ops.
    DATABASE_USER     = ${{Postgres.PGUSER}}
    DATABASE_PASSWORD = ${{Postgres.PGPASSWORD}}
    APP_PUBLIC_URL    = https://<your-service>.up.railway.app
-   REMEMBER_ME_KEY   = <long random string>
+   REMEMBER_ME_KEY   = <output of: openssl rand -base64 48>
    ADMIN_EMAILS      = you@yourdomain.com
    MAIL_FROM         = mail@yourdomain.com
    SMTP_HOST         = smtp.resend.com
@@ -394,6 +412,11 @@ well: managed Postgres, TLS, and Dockerfile builds with low ops.
    create an API key; move out of the sandbox to e-mail arbitrary recipients.
 5. Deploy, open the service URL, and register the first account. Set a billing
    alert on day one.
+
+Behind Cloudflare and Railway the defaults for `TRUSTED_PROXIES` and
+`TRUST_CLOUDFLARE` are correct; leave both unset (see
+[Client address behind proxies](#client-address-behind-proxies)). Turning off the
+`*.up.railway.app` domain once a custom domain works is optional hardening.
 
 Flyway runs the schema migrations automatically on first boot. Rely on Railway's
 managed Postgres backups. Any SMTP provider (Postmark, SES, …) works by changing
@@ -630,7 +653,9 @@ docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.host-proxy.
 Set `APP_HTTP_PORT` in `.env` if 8090 is taken, then point the host proxy at
 `127.0.0.1:$APP_HTTP_PORT`. See `deploy/host-caddy-site.example` for a site block.
 The app already runs with `server.forward-headers-strategy=framework`, so it
-honors `X-Forwarded-Proto` and issues Secure cookies and https redirects.
+honors `X-Forwarded-Proto` and issues Secure cookies and https redirects. The
+host proxy reaches the app through Docker's port publishing, so the app sees a
+private-range peer, which the default `TRUSTED_PROXIES` already covers.
 
 ## Deploy to a VPS (self-host alternative)
 
@@ -711,13 +736,57 @@ chmod +x deploy/backup.sh deploy/restore.sh
 
 - CSRF protection stays enabled; forms include tokens.
 - Feed/article HTML is sanitized with jsoup Safelist before `th:utext`.
-- Outbound fetches allow only `http`/`https`, resolve DNS, and reject loopback/private/link-local/multicast/CGNAT/ULA addresses; response size and timeouts are capped.
+- Outbound fetches allow only `http`/`https` and refuse loopback, private, link-local, CGNAT, ULA, multicast, documentation, benchmarking and reserved ranges, plus IPv6 prefixes that embed an IPv4 address (mapped, NAT64, 6to4, Teredo). The check runs inside the resolver the connection uses, so every DNS answer is checked at connect time and a host that switches to a private address after a first lookup (DNS rebinding) is still refused. Redirects are followed by hand (at most 5, each hop re-checked); no proxy, cookies or retries. Response size is capped (`app.http.max-bytes`), each wait for data is capped (`app.http.read-timeout`), and a whole fetch, redirects included, is capped by `app.http.total-timeout` (30s).
 - Redirect targets from form posts are restricted to same-app relative paths.
+- The public `/cancel` form changes a subscription only for the signed-in owner. For anyone else it records the declaration and mails a single-use, hashed, 24-hour link to the account's own address (at most three per account per day), without the requester's text; `/cancel/confirm` acts only on a CSRF-protected POST. The response is the same whether or not an account exists.
+- Every page is served with a Content-Security-Policy: scripts only from the app's own `/js/` files, no inline script or event handlers, and no inline styles except the page's own stylesheet, allowed by its SHA-256 hash (computed at start-up from `css/app.css`). Images may come from any http(s) origin, since articles show their source's images; forms may post to the app and to the origins of the configured checkout and portal URLs. Framing is refused (`frame-ancestors 'none'`, `X-Frame-Options: DENY`). Confirmation prompts on destructive forms use a `data-confirm` attribute read by `js/confirm.js`; new templates must not add `style="..."` or `on...=` attributes (a test checks).
 - Errors render the error page with a fixed message: malformed or missing input is a 400, unknown paths a 404, a wrong HTTP method a 405, and anything unexpected a 500 that is logged in full but never shows the exception text.
 - Session cookies are not marked Secure in the default profile (local HTTP). The `production` profile sets Secure cookies; use a TLS-terminating proxy with forwarded headers.
+- Rate limiting keys on the client address `ClientIpResolver` works out (see [Client address behind proxies](#client-address-behind-proxies)), not on `getRemoteAddr()` and not on the leftmost `X-Forwarded-For` entry, both of which the client controls behind `server.forward-headers-strategy: framework`. No proxy has to overwrite the header; appending is fine. The limiter is in memory, bounded to 10,000 keys, and per instance.
+
+### Client address behind proxies
+
+Production runs client, Cloudflare, Railway's edge, app. Each proxy appends the
+address it saw to `X-Forwarded-For`, so only the right-hand end of that header is
+trustworthy; the leftmost entry is whatever the client sent. The app therefore
+works out the client address itself, from the original socket peer and the raw
+header (it unwraps Spring's `ForwardedHeaderFilter`, which only stays on for
+`X-Forwarded-Proto` / `-Host` / `-Port`):
+
+- If the socket peer is not a trusted proxy, `X-Forwarded-For` is ignored and the
+  peer is the client.
+- Otherwise the header is walked from the right, skipping trusted proxies
+  (Railway's private hops, then Cloudflare). The first untrusted address is the
+  client. If every entry is trusted, the leftmost one is used. An entry that is
+  not an IP literal stops the walk at the nearest trusted hop.
+- `CF-Connecting-IP` is never read. The Railway origin is also reachable directly
+  at `*.up.railway.app`, bypassing Cloudflare, and a Cloudflare Worker can set
+  that header too. A request straight to the origin still resolves correctly: to
+  the caller address Railway's edge appended.
+
+Settings:
+
+- `app.trusted-proxies` (env `TRUSTED_PROXIES`): comma-separated CIDRs. Blank
+  (default) means loopback, RFC 1918, `100.64.0.0/10` (Railway's private network
+  and CGNAT), `169.254.0.0/16`, `::1/128`, `fc00::/7` and `fe80::/10`. A value
+  replaces that list. A malformed range fails start-up.
+- `app.trust-cloudflare` (env `TRUST_CLOUDFLARE`, default `true`): also trust
+  Cloudflare's published IPv4 and IPv6 ranges, hardcoded in
+  `ClientIpResolver.CLOUDFLARE_RANGES` (copied from cloudflare.com/ips-v4 and
+  ips-v6 on 2026-11-07; refresh when Cloudflare changes them). Set `false` on a
+  deployment without Cloudflare, so a Cloudflare address in the header is not
+  skipped.
+
+The bundled VPS setup works with the defaults: Caddy sits on the Docker network
+(a private-range peer) and sets `X-Forwarded-For` to the client it saw.
+
+Optional hardening: switch off the `*.up.railway.app` domain in Railway
+(service, Settings, Networking) so all traffic goes through Cloudflare. The rate
+limiter is correct either way.
 
 ## Stack
 
 - Spring Boot 3.5.16, Java 21, Maven Wrapper
 - Thymeleaf, Spring Security, JDBC, Mail, Flyway, Actuator
 - ROME 2.1.0, Readability4J 1.0.8, jsoup 1.22.2 (explicit override; Readability4J otherwise pulls 1.11.2)
+- Apache HttpClient 5 for outbound fetches (version from the Spring Boot BOM)

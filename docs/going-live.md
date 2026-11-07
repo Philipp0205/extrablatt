@@ -4,6 +4,13 @@ The code is finished. What remains is four decisions and about an hour of clicki
 other people's dashboards. They are listed in dependency order, because the first one
 decides the second.
 
+Before any of them: set `REMEMBER_ME_KEY` to a fresh random value
+(`openssl rand -base64 48`). It signs the year-long login cookie, so anyone who knows
+it can sign in as any account. Under the `production` profile, or with an
+`APP_PUBLIC_URL` that is not localhost, the app refuses to start while the key is
+shorter than 32 characters or still contains `change-me`. Changing it later signs
+everyone out once, which is harmless.
+
 ## 1. Settle the German establishment question
 
 This is first because it changes the answer to almost everything else. The operator is
@@ -294,8 +301,11 @@ administer later, but it is five minutes and nothing can break.
 
 Set `BILLING_OPERATOR_EMAIL=hello@extrablatt.app` (or `philippk@mailbox.org` directly,
 which is one hop fewer and never depends on the forwarding working). Send yourself a
-test cancellation through `/cancel` and confirm both messages arrive: the confirmation
-to the declarant, and the operator notice to you.
+test cancellation through `/cancel` and confirm the messages arrive. Signed in as the
+owner: the confirmation to you as the account holder, and the operator notice. Not
+signed in: the confirmation link to the account's address and an operator notice
+saying it is not yet confirmed; after pressing "Cancel now" on the link's page, the
+confirmation and a second operator notice.
 
 ## The imprint, once the above is done
 

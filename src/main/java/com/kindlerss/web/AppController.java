@@ -161,7 +161,7 @@ public class AppController {
             Feed feed = feedService.addFeed(currentUser.requireId(), url, resolveCategory(category, newCategory));
             redirectAttributes.addFlashAttribute("message", "Added feed: " + feed.title());
         } catch (Exception e) {
-            redirectAttributes.addFlashAttribute("error", e.getMessage());
+            redirectAttributes.addFlashAttribute("error", UserMessages.of(e, "That site could not be added"));
         }
         return "redirect:/";
     }
@@ -187,7 +187,7 @@ public class AppController {
                 feedService.addFeed(userId, feed.url(), feed.category());
                 added++;
             } catch (Exception e) {
-                errors.add(suggestion.get().title() + ": " + e.getMessage());
+                errors.add(suggestion.get().title() + ": " + UserMessages.of(e, "could not be added"));
             }
         }
         if (added > 0) {
@@ -213,8 +213,7 @@ public class AppController {
         try {
             article = articleService.importFromUrl(currentUser.requireId(), url);
         } catch (Exception e) {
-            redirectAttributes.addFlashAttribute("error",
-                    e.getMessage() == null ? "That page could not be sent" : e.getMessage());
+            redirectAttributes.addFlashAttribute("error", UserMessages.of(e, "That page could not be sent"));
             return "redirect:/";
         }
         String successTarget = "/articles/" + article.id() + (images ? "?images=true" : "");
@@ -222,7 +221,7 @@ public class AppController {
             kindleMailService.sendToKindle(currentUser.requireId(), article.id(), images);
             redirectAttributes.addFlashAttribute("message", "Sent to Kindle");
         } catch (Exception e) {
-            redirectAttributes.addFlashAttribute("error", e.getMessage());
+            redirectAttributes.addFlashAttribute("error", UserMessages.of(e, "Could not send article"));
         }
         return "redirect:" + successTarget;
     }
@@ -317,7 +316,8 @@ public class AppController {
             feedService.refreshForUser(currentUser.requireId());
             redirectAttributes.addFlashAttribute("message", "Feeds refreshed");
         } catch (Exception e) {
-            redirectAttributes.addFlashAttribute("error", "Refresh failed: " + e.getMessage());
+            redirectAttributes.addFlashAttribute("error",
+                    "Refresh failed: " + UserMessages.of(e, "please try again in a moment"));
         }
         return "redirect:" + safeRedirect(redirect);
     }
@@ -644,7 +644,7 @@ public class AppController {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
             return "redirect:/items";
         } catch (Exception e) {
-            redirectAttributes.addFlashAttribute("error", e.getMessage());
+            redirectAttributes.addFlashAttribute("error", UserMessages.of(e, "Could not send article"));
         }
         return "redirect:" + target;
     }
@@ -675,21 +675,32 @@ public class AppController {
     }
 
     private static String message(Exception e) {
-        return e.getMessage() == null || e.getMessage().isBlank()
-                ? "Could not send article"
-                : e.getMessage();
+        return UserMessages.of(e, "Could not send article");
     }
 
     /**
-     * Prevent open redirects: only allow relative in-app paths.
+     * Prevent open redirects: only allow relative in-app paths. Browsers forgive a lot
+     * when reading a Location header (they turn a backslash into a slash and drop tabs
+     * and newlines), so anything other than a plain path that starts with a single
+     * slash is refused outright rather than cleaned up. A value that starts with one
+     * slash and contains neither a backslash nor whitespace/control characters cannot
+     * carry a scheme or a host.
      */
     static String safeRedirect(String redirect) {
+        String fallback = "/items";
         if (redirect == null || redirect.isBlank()) {
-            return "/items";
+            return fallback;
         }
         String value = redirect.trim();
-        if (!value.startsWith("/") || value.startsWith("//") || value.contains("://")) {
-            return "/items";
+        if (!value.startsWith("/") || value.startsWith("//")) {
+            return fallback;
+        }
+        for (int i = 0; i < value.length(); i++) {
+            char c = value.charAt(i);
+            if (c == '\\' || c <= 0x20 || Character.isISOControl(c)
+                    || Character.isWhitespace(c) || Character.isSpaceChar(c)) {
+                return fallback;
+            }
         }
         return value;
     }

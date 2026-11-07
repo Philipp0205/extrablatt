@@ -68,11 +68,13 @@ class StagingScrubTest {
             Map.entry("billing_events.type", "event type"),
             Map.entry("billing_events.payload", "scrubbed"),
             Map.entry("billing_events.error", "scrubbed"),
+            Map.entry("billing_events.subscription_ref", "scrubbed"),
             Map.entry("cancellation_requests.email", "scrubbed"),
             Map.entry("cancellation_requests.name", "scrubbed"),
             Map.entry("cancellation_requests.contract_ref", "scrubbed"),
             Map.entry("cancellation_requests.kind", "enum"),
-            Map.entry("cancellation_requests.reason", "scrubbed"));
+            Map.entry("cancellation_requests.reason", "scrubbed"),
+            Map.entry("cancellation_tokens.token_hash", "rows deleted"));
 
     private static EmbeddedPostgres postgres;
     private static DataSource dataSource;
@@ -127,13 +129,17 @@ class StagingScrubTest {
                        (3, 'FREE', 'FREE', NULL, NULL, NULL)
                 """);
         jdbc.update("""
-                INSERT INTO billing_events (provider_event_id, provider, type, payload, error, user_id)
-                VALUES ('evt_1', 'paddle', 'subscription.created', '{"email":"reader@example.com"}', 'failed for reader@example.com', 1)
+                INSERT INTO billing_events (provider_event_id, provider, type, payload, error, user_id, subscription_ref)
+                VALUES ('evt_1', 'paddle', 'subscription.created', '{"email":"reader@example.com"}', 'failed for reader@example.com', 1, 'sub_real')
                 """);
         jdbc.update("""
                 INSERT INTO cancellation_requests (user_id, email, name, contract_ref, kind, reason)
                 VALUES (NULL, 'anon@example.com', 'Anna Nym', 'sub_real', 'ORDINARY', 'moving away'),
                        (2, 'tester@example.org', 'Tess Ter', 'sub_t', 'ORDINARY', 'testing')
+                """);
+        jdbc.update("""
+                INSERT INTO cancellation_tokens (token_hash, request_id, user_id, expires_at)
+                VALUES ('hash-of-link', 2, 2, NOW() + INTERVAL '1 day')
                 """);
     }
 
@@ -213,6 +219,8 @@ class StagingScrubTest {
         Map<String, Object> event = jdbc.queryForMap("SELECT * FROM billing_events");
         assertEquals("{}", event.get("payload"));
         assertFalse(event.get("error").toString().contains("@"));
+        assertFalse(event.get("subscription_ref").toString().contains("sub_real"));
+        assertEquals(0, count("SELECT COUNT(*) FROM cancellation_tokens"));
 
         Map<String, Object> cancel = jdbc.queryForMap("SELECT * FROM cancellation_requests WHERE id = 1");
         assertEquals("cancel-1@staging.invalid", cancel.get("email"));

@@ -14,6 +14,8 @@ import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -40,7 +42,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         "app.mail-from=from@example.com",
         "app.remember-me-key=test-remember-key",
         "app.newsletters.inbound-domain=news.example.com",
-        "app.newsletters.inbound-secret=correct-secret"
+        "app.newsletters.inbound-secret=correct-secret",
+        "app.newsletters.max-body-bytes=4096"
 })
 class NewsletterInboundControllerTest {
 
@@ -145,6 +148,76 @@ class NewsletterInboundControllerTest {
                         .contentType("application/json").content(PAYLOAD))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("dropped"));
+    }
+
+    @Test
+    void theSecretCanComeInAHeader() throws Exception {
+        when(userService.findUserIdByNewsletterInboundToken("abc123")).thenReturn(Optional.of(UID));
+        when(feedService.receiveNewsletterIssue(eq(UID), any(), any(), any(), any(), any(), any())).thenReturn(42L);
+
+        mockMvc.perform(post("/inbound/newsletters").header("X-Newsletter-Secret", "correct-secret")
+                        .contentType("application/json").content(PAYLOAD))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("stored"));
+    }
+
+    @Test
+    void theSecretCanComeAsABearerTokenOrABasicPassword() throws Exception {
+        when(userService.findUserIdByNewsletterInboundToken("abc123")).thenReturn(Optional.of(UID));
+        when(feedService.receiveNewsletterIssue(eq(UID), any(), any(), any(), any(), any(), any())).thenReturn(42L);
+        String basic = Base64.getEncoder().encodeToString("postmark:correct-secret".getBytes(StandardCharsets.UTF_8));
+
+        mockMvc.perform(post("/inbound/newsletters").header("Authorization", "Bearer correct-secret")
+                        .contentType("application/json").content(PAYLOAD))
+                .andExpect(status().isOk());
+        mockMvc.perform(post("/inbound/newsletters").header("Authorization", "Basic " + basic)
+                        .contentType("application/json").content(PAYLOAD))
+                .andExpect(status().isOk());
+        mockMvc.perform(post("/inbound/newsletters").header("Authorization", "Bearer wrong")
+                        .contentType("application/json").content(PAYLOAD))
+                .andExpect(status().isUnauthorized());
+    }
+
+    /** A header, when present, decides; a right secret in the URL does not rescue a wrong header. */
+    @Test
+    void aWrongHeaderIsNotOverriddenByTheQueryParameter() throws Exception {
+        mockMvc.perform(post("/inbound/newsletters").header("X-Newsletter-Secret", "wrong")
+                        .param("secret", "correct-secret")
+                        .contentType("application/json").content(PAYLOAD))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void anOversizedMessageIsRefusedWithoutBeingStored() throws Exception {
+        when(userService.findUserIdByNewsletterInboundToken(anyString())).thenReturn(Optional.of(UID));
+        String big = PAYLOAD.replace("<p>Hello subscriber</p>", "<p>" + "x".repeat(8192) + "</p>");
+
+        mockMvc.perform(post("/inbound/newsletters").header("X-Newsletter-Secret", "correct-secret")
+                        .contentType("application/json").content(big))
+                .andExpect(status().isPayloadTooLarge());
+
+        verify(feedService, never()).receiveNewsletterIssue(
+                anyLong(), anyString(), any(), anyString(), any(), any(), anyString());
+    }
+
+    /** Without the secret nobody learns anything about the size limit. */
+    @Test
+    void anOversizedMessageWithoutTheSecretIsUnauthorized() throws Exception {
+        String big = PAYLOAD.replace("<p>Hello subscriber</p>", "<p>" + "x".repeat(8192) + "</p>");
+
+        mockMvc.perform(post("/inbound/newsletters")
+                        .contentType("application/json").content(big))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void malformedJsonIsABadRequest() throws Exception {
+        mockMvc.perform(post("/inbound/newsletters").header("X-Newsletter-Secret", "correct-secret")
+                        .contentType("application/json").content("{not json"))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(post("/inbound/newsletters").header("X-Newsletter-Secret", "correct-secret")
+                        .contentType("application/json"))
+                .andExpect(status().isBadRequest());
     }
 
     @Test

@@ -8,6 +8,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.Base64;
 import java.util.regex.Pattern;
 
 /**
@@ -29,6 +32,10 @@ import java.util.regex.Pattern;
  * compressed markup per page, well under the ten the stylesheet cost when it was
  * refetched every time anyway, and the scripts now cache properly on top of that
  * (see {@link com.kindlerss.config.WebConfig}).
+ *
+ * <p>The Content-Security-Policy allows exactly this one inline stylesheet by its
+ * SHA-256 hash ({@link #contentSecurityPolicyHash()}), so the page is styled while
+ * any other inline style, injected or not, is refused.
  */
 @ControllerAdvice
 public class StylesheetAdvice {
@@ -40,20 +47,39 @@ public class StylesheetAdvice {
      */
     private static final String PATH = "css/app.css";
 
-    private final String css;
+    // Before CSS below: static fields initialise in order, and reading uses this.
+    private static final Pattern BLANK_LINES = Pattern.compile("[ \\t]*\\n(?:[ \\t]*\\n)+[ \\t]*");
 
-    public StylesheetAdvice() {
-        this.css = read(PATH);
-    }
+    /** Read once per class load; the CSP hash and the page must see the same text. */
+    private static final String CSS = read(PATH);
+
+    private static final String CSP_HASH = "'sha256-" + sha256(CSS) + "'";
 
     @ModelAttribute("stylesheet")
     public String stylesheet() {
-        return css;
+        return CSS;
+    }
+
+    /** The {@code style-src} source that allows the inline stylesheet, quotes included. */
+    public static String contentSecurityPolicyHash() {
+        return CSP_HASH;
+    }
+
+    private static String sha256(String text) {
+        try {
+            byte[] digest = MessageDigest.getInstance("SHA-256").digest(text.getBytes(StandardCharsets.UTF_8));
+            return Base64.getEncoder().encodeToString(digest);
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
+        }
     }
 
     private static String read(String path) {
         try (InputStream in = new ClassPathResource(path).getInputStream()) {
-            String text = withoutComments(new String(in.readAllBytes(), StandardCharsets.UTF_8));
+            // The HTML parser turns CR LF into LF before the browser hashes the element,
+            // so the hash has to be taken over the same.
+            String text = withoutComments(new String(in.readAllBytes(), StandardCharsets.UTF_8)
+                    .replace("\r\n", "\n").replace('\r', '\n'));
             // The rules go into the page unescaped, because HTML escaping would
             // corrupt them. Inside a <style> element the only sequence that can end
             // the element early — and so spill the rest of the stylesheet onto the
@@ -108,6 +134,4 @@ public class StylesheetAdvice {
         // Every removed comment leaves the line it sat on behind, empty.
         return BLANK_LINES.matcher(out.toString()).replaceAll("\n").strip();
     }
-
-    private static final Pattern BLANK_LINES = Pattern.compile("[ \\t]*\\n(?:[ \\t]*\\n)+[ \\t]*");
 }

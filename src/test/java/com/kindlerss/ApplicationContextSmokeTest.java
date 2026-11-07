@@ -19,7 +19,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 
 /**
  * Boots the whole application context (security, filters, scheduler, mail, and
@@ -108,6 +110,38 @@ class ApplicationContextSmokeTest {
 
         assertTrue(page.contains("box-sizing: border-box"), "the stylesheet rides in the error page");
         assertFalse(page.contains("rel=\"stylesheet\""), "and is not linked from it");
+    }
+
+    /**
+     * The rate limiter keys on the address ClientIpResolver works out, with the
+     * whole filter chain in place, ForwardedHeaderFilter included. That filter
+     * hands everything after it the leftmost X-Forwarded-For entry as the remote
+     * address, so a client that changed it on every attempt used to get a fresh
+     * allowance each time.
+     */
+    @Test
+    void loginAttemptsAreLimitedPerResolvedClientNotPerForgedHeader() throws Exception {
+        String chain = ", 203.0.113.77, 172.68.10.20";
+        for (int i = 0; i < 10; i++) {
+            assertTrue(loginFrom("100.64.0.2", "198.51.100." + i + chain) != 429, "attempt " + i);
+        }
+        assertEquals(429, loginFrom("100.64.0.2", "198.51.100.99" + chain));
+        assertTrue(loginFrom("100.64.0.2", "203.0.113.78, 172.68.10.20") != 429,
+                "another reader behind the same proxies is not affected");
+    }
+
+    private int loginFrom(String peer, String forwardedFor) throws Exception {
+        // MockMvc leaves the servlet path empty; Tomcat sets it to the path.
+        return mockMvc.perform(post("/login").servletPath("/login")
+                        .with(csrf())
+                        .with(request -> {
+                            request.setRemoteAddr(peer);
+                            return request;
+                        })
+                        .header("X-Forwarded-For", forwardedFor)
+                        .param("username", "nobody@example.com")
+                        .param("password", "wrong"))
+                .andReturn().getResponse().getStatus();
     }
 
     /**

@@ -236,8 +236,8 @@ public class ArticleService {
         try {
             fetched = httpClient.get(url);
         } catch (SafeHttpClient.FetchException e) {
-            throw new IllegalArgumentException(e.getMessage() == null
-                    ? "That page could not be fetched" : e.getMessage(), e);
+            log.debug("Fetching {} failed: {}", url, e.getMessage());
+            throw new IllegalArgumentException(e.userMessage(), e);
         }
         String finalUrl = fetched.finalUri().toString();
         if (looksLikeFeed(fetched)) {

@@ -28,24 +28,24 @@
     <input id="username" name="username" type="email" autocomplete="username"
            th:value="${email}" required/>
 
-    <label for="password" style="margin-top:0.75rem">Password</label>
+    <label for="password" class="mt-075">Password</label>
     <input id="password" name="password" type="password" autocomplete="current-password" required/>
     <label class="check">
       <input type="checkbox" id="show-password" data-show-password="password"/>
       Show password
     </label>
 
-    <label class="check" style="margin-top:0.75rem">
+    <label class="check mt-075">
       <input type="checkbox" name="remember-me" value="true"/>
       Remember me for 1 year
     </label>
 
-    <div class="row" style="margin-top:1rem">
+    <div class="row mt-1">
       <button class="btn" type="submit">Log in</button>
     </div>
   </form>
 
-  <p class="meta" style="margin-top:1rem">
+  <p class="meta mt-1">
     <a th:href="@{/register}">Create an account</a> ·
     <a th:href="@{/forgot-password}">Forgot password?</a>
   </p>

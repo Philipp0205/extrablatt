@@ -72,27 +72,63 @@ public class BillingMailService {
     }
 
     /**
+     * Asks the account's owner to confirm a cancellation someone declared without
+     * signing in. Goes only to the account's own address, and says nothing the
+     * requester typed apart from the type of cancellation, so the public form cannot
+     * be used to put someone else's words in front of a stranger.
+     */
+    public void sendCancellationLink(String toEmail, CancellationRequest request, String token) {
+        boolean immediate = request.kind() == CancellationRequest.Kind.IMMEDIATE;
+        String body = """
+                Someone asked to cancel the Extrablatt subscription of this account,
+                using the public cancellation form without signing in.
+
+                Received:  %s (Central European Time)
+                Type:      %s
+
+                If that was you, confirm it here and the cancellation takes effect:
+
+                %s
+
+                The link works once, for the next 24 hours. If you did not ask for this,
+                ignore this message: nothing changes, and your subscription carries on.
+                """.formatted(
+                STAMP.format(request.receivedAt().atZone(ZONE)),
+                immediate ? "Immediate (extraordinary) cancellation" : "Ordinary cancellation",
+                publicUrl() + "/cancel/confirm?token=" + token);
+        accountMailService.send(toEmail, "Confirm your Extrablatt cancellation", body);
+    }
+
+    /**
      * Confirms a cancellation with everything § 312k Abs. 4 BGB asks for, and gives
-     * the reader a copy they can keep, which is what Abs. 3 is about.
+     * the reader a copy they can keep, which is what Abs. 3 is about. What was typed
+     * into the form is only repeated when the signed-in owner typed it.
      */
     public void sendCancellationConfirmation(String toEmail, SubscriptionService.Outcome outcome) {
         CancellationRequest request = outcome.request();
         boolean immediate = request.kind() == CancellationRequest.Kind.IMMEDIATE;
         String ends = outcome.applied()
-                ? DAY.format(outcome.effectiveAt().atZone(ZONE))
-                : DAY.format(outcome.effectiveAt().atZone(ZONE)) + " (being processed — see below)";
+                ? day(outcome.effectiveAt())
+                : day(outcome.effectiveAt()) + " (being processed, see below)";
+        String declared = outcome.echoDeclaration()
+                ? """
+                Declared by:     %s
+                Contract:        %s
+                """.formatted(blankAs(request.name(), "not given"),
+                        blankAs(request.contractRef(), "Extrablatt Supporter"))
+                : "Contract:        Extrablatt Supporter\n";
+        String reason = outcome.echoDeclaration()
+                ? "Reason given:    " + blankAs(request.reason(), "none") + "\n"
+                : "";
         String body = """
                 We have received your cancellation. This message is your confirmation;
                 keep it for your records.
 
                 Received:        %s (Central European Time)
-                Declared by:     %s
                 Account:         %s
-                Contract:        %s
-                Type:            %s
+                %sType:            %s
                 Contract ends:   %s
-                Reason given:    %s
-
+                %s
                 %s
 
                 Nothing you have saved is deleted. Your feeds, articles and reading
@@ -102,18 +138,17 @@ public class BillingMailService {
                 If any of the above is wrong, reply to this message and we will correct it.
                 """.formatted(
                 STAMP.format(request.receivedAt().atZone(ZONE)),
-                blankAs(request.name(), "not given"),
                 request.email(),
-                blankAs(request.contractRef(), "Extrablatt Supporter"),
+                declared,
                 immediate ? "Immediate (extraordinary) cancellation" : "Ordinary cancellation",
                 ends,
-                blankAs(request.reason(), "none"),
+                reason,
                 outcome.applied()
                         ? "Your subscription will not renew. No further payment will be taken."
                         : "Your declaration is on record and has been passed to the operator, "
                                 + "who will stop any further payment and contact you if a refund "
                                 + "is due.");
-        accountMailService.send(toEmail, "Your Extrablatt cancellation — confirmation", body);
+        accountMailService.send(toEmail, "Your Extrablatt cancellation: confirmation", body);
     }
 
     /**
@@ -125,7 +160,7 @@ public class BillingMailService {
         String operator = properties.billing().operatorEmail();
         if (operator == null) {
             log.warn("Cancellation {} recorded but app.billing.operator-email is unset, "
-                    + "so nobody was told to stop the payment", outcome.request().id());
+                    + "so nobody was told about it", outcome.request().id());
             return;
         }
         CancellationRequest request = outcome.request();
@@ -137,25 +172,58 @@ public class BillingMailService {
                 E-mail:        %s
                 Account found: %s
                 Type:          %s
+                Handled as:    %s
                 Applied here:  %s
                 Contract ends: %s
                 Reason:        %s
 
-                Cancel the subscription at the payment provider so no further payment is
-                taken. The app has already %s.
+                %s
                 """.formatted(
                 request.id(),
                 STAMP.format(request.receivedAt().atZone(ZONE)),
                 request.email(),
                 request.userId() == null ? "no" : "yes (account " + request.userId() + ")",
                 request.kind(),
-                outcome.applied() ? "yes" : "NO — needs manual handling",
-                DAY.format(outcome.effectiveAt().atZone(ZONE)),
+                routeLabel(outcome.route()),
+                outcome.applied() ? "yes" : "no",
+                outcome.effectiveAt() == null ? "not yet known" : day(outcome.effectiveAt()),
                 blankAs(request.reason(), "none"),
-                outcome.applied()
-                        ? "recorded the cancellation and stopped granting the paid plan past that date"
-                        : "recorded the declaration only");
-        accountMailService.send(operator, "Extrablatt: cancellation received", body);
+                operatorAction(outcome));
+        String subject = outcome.awaitingOwner()
+                ? "Extrablatt: cancellation declared, not yet confirmed"
+                : "Extrablatt: cancellation received";
+        accountMailService.send(operator, subject, body);
+    }
+
+    private static String routeLabel(SubscriptionService.Route route) {
+        return switch (route) {
+            case OWNER -> "declared by the signed-in owner";
+            case CONFIRMED_BY_LINK -> "confirmed by the owner through the e-mailed link";
+            case LINK_SENT -> "declared without signing in; confirmation link sent to the account";
+            case RECORDED -> "declared without signing in; no link sent (no paid account "
+                    + "for this address, or the daily link limit was reached)";
+        };
+    }
+
+    private static String operatorAction(SubscriptionService.Outcome outcome) {
+        if (outcome.route() == SubscriptionService.Route.LINK_SENT) {
+            return "Nothing to do yet. If the owner confirms, you get a second notice.";
+        }
+        if (outcome.route() == SubscriptionService.Route.RECORDED) {
+            return "The app changed nothing. If this is a genuine declaration for a paying "
+                    + "customer, handle it by hand and confirm it to them in text form.";
+        }
+        return outcome.applied()
+                ? "Cancel the subscription at the payment provider so no further payment is "
+                        + "taken. The app has already recorded the cancellation and stopped "
+                        + "granting the paid plan past that date."
+                : "Cancel the subscription at the payment provider so no further payment is "
+                        + "taken. The app has recorded the declaration only; it needs manual "
+                        + "handling.";
+    }
+
+    private static String day(Instant instant) {
+        return DAY.format(instant.atZone(ZONE));
     }
 
     private String publicUrl() {

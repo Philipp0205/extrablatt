@@ -315,6 +315,8 @@ itself a defect, which is why there is no password box), confirms with a second
 button that says it cancels now, records the declaration in
 `cancellation_requests`, shows it back for printing and e-mails the same
 confirmation. Linked from the footer of both editions and from the marketing page.
+Declarations from anyone but the signed-in owner are confirmed by e-mailed link
+before they take effect; see "Who can make a cancellation take effect" below.
 
 ### 2. The order button (§ 312j BGB) — done, and it is why the order page is ours
 
@@ -470,6 +472,10 @@ self-hosted copy is unaffected, because it is not the one collecting the money.
   "The payment path".
 - `cancellation_requests` — the declaration itself, with the time it arrived,
   because § 312k Abs. 3 and 4 require it to be keepable and confirmable.
+  `applied_at` says when it changed the subscription, if it did.
+- `cancellation_tokens` (V17): SHA-256 hashes of the single-use links that let
+  the account's owner confirm a declaration made without signing in. Deleted with
+  the account; spent and expired ones are swept by the retention job.
 
 ### Entitlements
 
@@ -560,12 +566,44 @@ silently and permanently, in either direction.
    "Grant Supporter" control so a reader who paid and was not credited can be fixed
    without a database client, and so a complimentary subscription can be given out.
 
-An anonymous cancellation is accepted and confirmed — that is what the statute
-requires — and applied when it only stops a future renewal. An *immediate*
-cancellation is applied on the spot only for the signed-in owner, because it can
-involve refunding a period already paid for; anyone else's is recorded and passed to
-the operator. The worst an abused form can do is stop a renewal the owner can start
-again, and the owner is e-mailed either way.
+### Who can make a cancellation take effect
+
+The form is public and asks for no credential, as the statute and the OLG Köln
+require. It used to apply an ordinary cancellation for whoever typed an address, and
+to e-mail a confirmation containing their free text to that address. That let anyone
+stop a stranger's renewal, and let anyone send a message of their choosing from this
+server's domain to any address with an account.
+
+Now:
+
+- **Signed in as the owner of the address given:** applied at once, ordinary or
+  immediate, with the full confirmation on screen and by e-mail. Unchanged.
+- **Anyone else** (not signed in, or signed in as another account): the declaration
+  is recorded with the time it arrived and the operator is told. If the address
+  belongs to an account with something to cancel, a single-use link goes to that
+  account's own address, at most three per account per day. The link is valid for
+  24 hours; only its SHA-256 hash is stored. Opening it shows a "Cancel now" button
+  and changes nothing, because mail scanners open links; pressing the button (a
+  CSRF-protected POST) spends the token in one statement and applies the
+  cancellation exactly as for the signed-in owner. The confirmation that follows
+  goes to the account's address and does not repeat the name, reference or reason
+  the requester typed.
+- The page after submitting is the same whether or not an account was found: it
+  shows the time the declaration arrived and its type, says a link was sent if the
+  address has a subscription, and shows no end date. The form does not reveal who
+  has an account.
+
+The legal nuance, for review before charging anyone: § 312k Abs. 2 and Abs. 4 ask
+for a confirmation page and an immediate confirmation of receipt, and the BGH and OLG
+Köln decisions are about not putting the path behind a login. The receipt (time and
+type) is given on screen at once, and the declaration is stored. What waits for the
+owner is the effect on the contract. The argument is that a declaration only binds
+when it comes from the contracting party, and a typed address does not show that,
+while an e-mailed link to the address on the contract does without requiring a
+credential. A court could still read the extra step as a hurdle. If a lawyer
+disagrees, the narrower fallback is to apply ordinary cancellations at once again
+(they only stop a renewal) and keep the link only for immediate ones, while keeping
+the requester's free text out of the e-mail.
 
 ## Appendix: reproducing the numbers
 

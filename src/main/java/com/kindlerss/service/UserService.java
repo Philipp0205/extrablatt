@@ -12,6 +12,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.Instant;
@@ -27,7 +29,12 @@ public class UserService {
 
     private static final Pattern EMAIL = Pattern.compile("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$");
     private static final int MIN_PASSWORD_LENGTH = 8;
-    private static final int MAX_PASSWORD_LENGTH = 200;
+    /**
+     * BCrypt only reads the first 72 bytes of a password and silently ignores the
+     * rest, so a longer one would look stronger than it is. Measured in UTF-8 bytes,
+     * not characters: an accented letter takes two bytes and an emoji four.
+     */
+    static final int MAX_PASSWORD_BYTES = 72;
     private static final Duration VERIFY_TTL = Duration.ofDays(2);
     private static final Duration RESET_TTL = Duration.ofHours(1);
     private static final int MAX_REMINDERS_PER_ADDRESS = 3;
@@ -224,6 +231,22 @@ public class UserService {
         return userRepository.findById(userId).map(AppUser::markReadOnNextPage).orElse(true);
     }
 
+    /**
+     * Whether a session signed in with {@code passwordHash} has gone stale: the
+     * account has been deleted or switched off, or its password has changed since
+     * (a reset, for example). Such a session must not keep working.
+     */
+    public boolean credentialsChanged(long userId, String passwordHash) {
+        Optional<AppUser> user = userRepository.findById(userId);
+        if (user.isEmpty() || !user.get().enabled() || passwordHash == null
+                || user.get().passwordHash() == null) {
+            return true;
+        }
+        return !MessageDigest.isEqual(
+                user.get().passwordHash().getBytes(StandardCharsets.UTF_8),
+                passwordHash.getBytes(StandardCharsets.UTF_8));
+    }
+
     /** Writes the time of a successful form or remember-me login for admin telemetry. */
     public void recordLastLogin(long userId) {
         userRepository.updateLastLoginAt(userId, Instant.now());
@@ -306,8 +329,10 @@ public class UserService {
             throw new IllegalArgumentException(
                     "Password must be at least " + MIN_PASSWORD_LENGTH + " characters");
         }
-        if (password.length() > MAX_PASSWORD_LENGTH) {
-            throw new IllegalArgumentException("Password is too long");
+        if (password.getBytes(StandardCharsets.UTF_8).length > MAX_PASSWORD_BYTES) {
+            throw new IllegalArgumentException("Password is too long: use at most "
+                    + MAX_PASSWORD_BYTES + " bytes, which is " + MAX_PASSWORD_BYTES
+                    + " plain letters and digits. Accented letters count as two and emoji as four.");
         }
     }
 

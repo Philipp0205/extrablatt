@@ -28,9 +28,14 @@ import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.time.Instant;
+import java.util.Base64;
 import java.util.List;
 import java.util.Optional;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.matchesPattern;
@@ -45,6 +50,7 @@ import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
@@ -171,5 +177,50 @@ class PageStylingTest {
                 StylesheetAdvice.withoutComments("a::after { content: \"/* not a comment */\" }"));
         assertEquals("a { b: c }\nd { e: f }", StylesheetAdvice.withoutComments(
                 "a { b: c }\n\n/* why d is like this,\n   at length */\n\nd { e: f }"));
+    }
+
+    /**
+     * The Content-Security-Policy refuses every inline style but the stylesheet, by
+     * its hash. If the hash and the rendered element drift apart, every page loses
+     * its styling at once, so the hash is checked against what the page carries.
+     */
+    @ParameterizedTest
+    @ValueSource(strings = {"/", "/items?unread=false", "/settings/kindle", "/settings/account", "/login",
+            "/register", "/withdrawal"})
+    @WithMockUser
+    void thePolicyAllowsTheStylesheetThePageCarriesAndNoOtherInlineCode(String path) throws Exception {
+        var response = mockMvc.perform(get(path))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Security-Policy", containsString("script-src 'self';")))
+                .andExpect(header().string("Content-Security-Policy", containsString("frame-ancestors 'none'")))
+                .andExpect(header().string("Content-Security-Policy", containsString("object-src 'none'")))
+                .andReturn().getResponse();
+        String page = response.getContentAsString();
+        String policy = response.getHeader("Content-Security-Policy");
+
+        Matcher style = Pattern.compile("(?s)<style>(.*?)</style>").matcher(page);
+        assertTrue(style.find(), "the page carries its stylesheet");
+        String hash = Base64.getEncoder().encodeToString(MessageDigest.getInstance("SHA-256")
+                .digest(style.group(1).getBytes(StandardCharsets.UTF_8)));
+        assertTrue(policy.contains("style-src 'sha256-" + hash + "';"), policy);
+        assertFalse(policy.contains("unsafe-inline"), policy);
+
+        assertFalse(Pattern.compile("(?i)\\sstyle=").matcher(page).find(), "no style attribute");
+        assertFalse(Pattern.compile("(?i)\\son[a-z]+=").matcher(page).find(), "no inline event handler");
+        Matcher script = Pattern.compile("(?i)<script\\b([^>]*)>").matcher(page);
+        while (script.find()) {
+            assertTrue(script.group(1).contains("src="), "no inline script: " + script.group());
+        }
+    }
+
+    /** The confirmation prompts survive the move out of inline handlers. */
+    @Test
+    @WithMockUser
+    void destructiveFormsStillAskFirst() throws Exception {
+        mockMvc.perform(get("/settings/account"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString(
+                        "data-confirm=\"Delete your account and all its data? This cannot be undone.\"")))
+                .andExpect(content().string(matchesPattern("(?s).*<script src=\"/js/confirm[^\"]*\\.js\"></script>.*")));
     }
 }
