@@ -628,6 +628,6 @@ chmod +x deploy/backup.sh deploy/restore.sh
 
 ## Stack
 
-- Spring Boot 3.5.3, Java 21, Maven Wrapper
+- Spring Boot 3.5.16, Java 21, Maven Wrapper
 - Thymeleaf, Spring Security, JDBC, Mail, Flyway, Actuator
 - ROME 2.1.0, Readability4J 1.0.8, jsoup 1.22.2 (explicit override; Readability4J otherwise pulls 1.11.2)
