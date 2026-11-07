@@ -14,14 +14,19 @@ import java.util.Set;
 
 /**
  * Throttles the unauthenticated POST endpoints that are attractive to abuse:
- * login, registration, and password reset. Keyed by client IP.
+ * login, registration, password reset, and the public cancellation form. Keyed by
+ * client IP as the servlet container reports it. A raw X-Forwarded-For header is
+ * never read here: the client controls it, so trusting it would let anyone pick a
+ * fresh key per request. Behind a proxy, {@code server.forward-headers-strategy}
+ * decides what {@link HttpServletRequest#getRemoteAddr()} returns.
  */
 @Component
 @Order(1)
 public class RateLimitingFilter extends OncePerRequestFilter {
 
     private static final Set<String> LIMITED_PATHS = Set.of(
-            "/login", "/register", "/forgot-password", "/reset-password");
+            "/login", "/register", "/forgot-password", "/reset-password",
+            "/cancel", "/cancel/confirm");
     private static final int MAX_HITS = 10;
     private static final Duration WINDOW = Duration.ofMinutes(5);
 
@@ -35,7 +40,7 @@ public class RateLimitingFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
         if ("POST".equalsIgnoreCase(request.getMethod()) && LIMITED_PATHS.contains(request.getServletPath())) {
-            String key = request.getServletPath() + "|" + clientIp(request);
+            String key = request.getServletPath() + "|" + request.getRemoteAddr();
             if (!rateLimiter.tryAcquire(key, MAX_HITS, WINDOW)) {
                 response.setStatus(429);
                 response.setContentType("text/plain;charset=UTF-8");
@@ -44,13 +49,5 @@ public class RateLimitingFilter extends OncePerRequestFilter {
             }
         }
         filterChain.doFilter(request, response);
-    }
-
-    private static String clientIp(HttpServletRequest request) {
-        String forwarded = request.getHeader("X-Forwarded-For");
-        if (forwarded != null && !forwarded.isBlank()) {
-            return forwarded.split(",")[0].trim();
-        }
-        return request.getRemoteAddr();
     }
 }

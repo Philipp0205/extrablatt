@@ -625,6 +625,7 @@ chmod +x deploy/backup.sh deploy/restore.sh
 - Outbound fetches allow only `http`/`https`, resolve DNS, and reject loopback/private/link-local/multicast/CGNAT/ULA addresses; response size and timeouts are capped.
 - Redirect targets from form posts are restricted to same-app relative paths.
 - Session cookies are not marked Secure in the default profile (local HTTP). The `production` profile sets Secure cookies; use a TLS-terminating proxy with forwarded headers.
+- Rate limiting keys on the client address the servlet container reports, never on a raw `X-Forwarded-For` header. With `server.forward-headers-strategy: framework`, Spring takes that address from the first `X-Forwarded-For` entry, so the proxy in front of the app must overwrite (not append to) that header. The limiter is in memory, bounded to 10,000 keys, and per instance.
 
 ## Stack
 
