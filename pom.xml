@@ -31,7 +31,7 @@
              instance can report which commit it was built from. -->
         <git.revision>unknown</git.revision>
         <!-- Pin explicit jsoup: Readability4J 1.0.8 otherwise pulls the obsolete 1.11.2. -->
-        <jsoup.version>1.22.2</jsoup.version>
+        <jsoup.version>1.24.1</jsoup.version>
         <rome.version>2.1.0</rome.version>
         <readability4j.version>1.0.8</readability4j.version>
         <epub4j.version>4.2.3</epub4j.version>
