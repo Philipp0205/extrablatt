@@ -22,15 +22,19 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionOperations;
 
 import java.io.ByteArrayInputStream;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -44,6 +48,11 @@ import java.util.regex.Pattern;
 /**
  * Subscribes to RSS/Atom feeds, discovers feed URLs from HTML pages, and
  * periodically refreshes entries into the article store.
+ *
+ * <p>Nothing here holds a database transaction open across a network fetch. A
+ * slow publisher can take the whole read timeout to answer, and a transaction
+ * waiting on it holds a pooled connection, plus any row locks, for that long.
+ * Fetching and parsing happen first; the writes follow in short transactions.
  */
 @Service
 public class FeedService {
@@ -79,6 +88,7 @@ public class FeedService {
     private final SafeHttpClient httpClient;
     private final HtmlSanitizer sanitizer;
     private final EntitlementService entitlements;
+    private final TransactionOperations transactions;
     private final int maxEntries;
     private final Executor refreshExecutor;
     private final ConcurrentHashMap<Long, Instant> lastBackgroundRefresh = new ConcurrentHashMap<>();
@@ -94,9 +104,10 @@ public class FeedService {
                        SafeHttpClient httpClient,
                        HtmlSanitizer sanitizer,
                        EntitlementService entitlements,
+                       TransactionOperations transactions,
                        AppProperties properties) {
         this(feedRepository, articleRepository, userRepository, httpClient, sanitizer,
-                entitlements, properties, defaultRefreshExecutor());
+                entitlements, transactions, properties, defaultRefreshExecutor());
     }
 
     FeedService(FeedRepository feedRepository,
@@ -105,6 +116,7 @@ public class FeedService {
                 SafeHttpClient httpClient,
                 HtmlSanitizer sanitizer,
                 EntitlementService entitlements,
+                TransactionOperations transactions,
                 AppProperties properties,
                 Executor refreshExecutor) {
         this.feedRepository = feedRepository;
@@ -113,6 +125,7 @@ public class FeedService {
         this.httpClient = httpClient;
         this.sanitizer = sanitizer;
         this.entitlements = entitlements;
+        this.transactions = transactions;
         this.maxEntries = properties.feeds().maxEntries();
         this.refreshExecutor = refreshExecutor;
     }
@@ -152,7 +165,6 @@ public class FeedService {
         return DEFAULT_FEEDS.stream().filter(feed -> feed.key().equals(key)).findFirst();
     }
 
-    @Transactional
     public Feed addFeed(long userId, String rawUrl, String category) {
         String trimmed = rawUrl == null ? "" : rawUrl.trim();
         if (trimmed.isEmpty()) {
@@ -179,13 +191,22 @@ public class FeedService {
             parsed = discovered.feed();
         }
 
-        if (feedRepository.findByUrl(userId, feedUrl).isPresent()) {
-            throw new IllegalArgumentException("You're already following that site");
-        }
-
-        String title = parsed.title() == null || parsed.title().isBlank() ? feedUrl : parsed.title().trim();
-        Feed feed = feedRepository.insert(userId, title, feedUrl, parsed.siteUrl(), category);
-        storeEntries(feed, parsed);
+        // Everything above was network and parsing. The checks are repeated here,
+        // inside the transaction, since the fetch may have taken a while.
+        String url = feedUrl;
+        ParsedFeed found = parsed;
+        Feed feed = transactions.execute(status -> {
+            if (feedRepository.countByUser(userId) >= maxFeeds) {
+                throw new IllegalArgumentException(feedLimitMessage(entitlement, maxFeeds));
+            }
+            if (feedRepository.findByUrl(userId, url).isPresent()) {
+                throw new IllegalArgumentException("You're already following that site");
+            }
+            String title = found.title() == null || found.title().isBlank() ? url : found.title().trim();
+            Feed inserted = feedRepository.insert(userId, title, url, found.siteUrl(), category);
+            storeEntries(inserted, found);
+            return inserted;
+        });
         return feedRepository.findById(userId, feed.id()).orElse(feed);
     }
 
@@ -349,34 +370,74 @@ public class FeedService {
         refreshFeeds(feedRepository.findAll(userId));
     }
 
+    /**
+     * Popular feeds are followed by many accounts, so they are grouped by address
+     * and each address is fetched and parsed once, however many accounts follow
+     * it. Each follower's feed is then written in its own short transaction, so one
+     * failing does not undo the others.
+     */
     private void refreshFeeds(List<Feed> feeds) {
+        Map<String, List<Feed>> byUrl = new LinkedHashMap<>();
         for (Feed feed : feeds) {
             // Newsletters arrive by e-mail; pasted URLs are fetched once on send.
             if (feed.source() != FeedSource.RSS) {
                 continue;
             }
+            byUrl.computeIfAbsent(feed.url(), url -> new ArrayList<>()).add(feed);
+        }
+        for (Map.Entry<String, List<Feed>> group : byUrl.entrySet()) {
+            ParsedFeed parsed;
             try {
-                refreshFeed(feed);
-            } catch (Exception e) {
-                log.warn("Failed to refresh feed {}: {}", feed.id(), e.getMessage());
-                feedRepository.setError(feed.id(), e.getMessage());
+                parsed = fetchAndParse(group.getKey(), group.getValue());
+            } catch (RuntimeException e) {
+                continue;
+            }
+            for (Feed feed : group.getValue()) {
+                try {
+                    store(feed, parsed);
+                } catch (RuntimeException e) {
+                    // Already recorded on the feed by store(); only the log is left.
+                }
             }
         }
     }
 
-    @Transactional
     public void refreshFeed(Feed feed) {
+        store(feed, fetchAndParse(feed.url(), List.of(feed)));
+    }
+
+    /**
+     * Fetches and parses one address, outside any transaction. A failure is
+     * recorded once on every feed at that address and then rethrown.
+     */
+    private ParsedFeed fetchAndParse(String url, List<Feed> feeds) {
         try {
-            SafeHttpClient.FetchedContent fetched = fetchEntries(feed.url());
-            ParsedFeed parsed = parseFeed(fetched, feed.url());
-            String title = parsed.title() == null || parsed.title().isBlank() ? feed.title() : parsed.title().trim();
-            feedRepository.updateTitleAndSite(feed.id(), title, parsed.siteUrl());
-            int inserted = storeEntries(feed, parsed);
-            feedRepository.clearError(feed.id());
-            log.info("Refreshed feed {} ({} new articles)", feed.id(), inserted);
+            return parseFeed(fetchEntries(url), url);
         } catch (Exception e) {
-            feedRepository.setError(feed.id(), e.getMessage());
+            for (Feed feed : feeds) {
+                log.warn("Failed to refresh feed {}: {}", feed.id(), e.getMessage());
+                feedRepository.setError(feed.id(), e.getMessage());
+            }
             throw e instanceof RuntimeException re ? re : new RuntimeException(e);
+        }
+    }
+
+    /** Writes one feed's refresh in a short transaction; a failure is recorded on the feed once. */
+    private void store(Feed feed, ParsedFeed parsed) {
+        try {
+            int inserted = transactions.execute(status -> {
+                String title = parsed.title() == null || parsed.title().isBlank()
+                        ? feed.title() : parsed.title().trim();
+                feedRepository.updateTitleAndSite(feed.id(), title, parsed.siteUrl());
+                int stored = storeEntries(feed, parsed);
+                feedRepository.clearError(feed.id());
+                return stored;
+            });
+            log.info("Refreshed feed {} ({} new articles)", feed.id(), inserted);
+        } catch (RuntimeException e) {
+            log.warn("Failed to refresh feed {}: {}", feed.id(), e.getMessage());
+            feedRepository.setError(feed.id(), e.getMessage());
+            throw e;
         }
     }
 
@@ -400,8 +461,8 @@ public class FeedService {
                     entry.url(),
                     entry.author(),
                     entry.publishedAt(),
-                    sanitizer.sanitizeWithImages(entry.summaryHtml()),
-                    sanitizer.sanitizeWithImages(entry.contentHtml())
+                    entry.summaryHtml(),
+                    entry.contentHtml()
             );
             if (id > 0) {
                 inserted++;
@@ -612,11 +673,14 @@ public class FeedService {
         if (published == null) {
             published = toInstant(entry.getUpdatedDate());
         }
-        String summary = contentValue(entry.getDescription());
+        // Sanitized here, once per fetch, rather than once per account that follows
+        // the feed: a parsed feed never carries markup that has not been cleaned.
+        String summary = sanitizer.sanitizeWithImages(contentValue(entry.getDescription()));
         String content = "";
         if (entry.getContents() != null && !entry.getContents().isEmpty()) {
             content = contentValue(entry.getContents().getFirst());
         }
+        content = sanitizer.sanitizeWithImages(content);
         return new ParsedEntry(guid, title, url, author, published, summary, content);
     }
 
@@ -628,6 +692,7 @@ public class FeedService {
         return date == null ? null : date.toInstant();
     }
 
+    /** A parsed feed whose entry markup has already been sanitized. */
     private record ParsedFeed(String title, String siteUrl, List<ParsedEntry> entries) {}
 
     public record DefaultFeed(String key, String title, String url, String category) {}

@@ -37,7 +37,9 @@ their own licenses. Start with [Local configuration](#local-configuration) or
 - Optional quick-start feed suggestions and categories for organizing subscriptions
 - Scheduled refresh of every account's feeds every 30 minutes, plus a background
   poll when someone opens Feeds or Articles, asking each feed for more than the
-  handful of entries it publishes by default
+  handful of entries it publishes by default. A feed followed by several accounts
+  is fetched once per refresh, and no database transaction is held open while a
+  publisher answers
 - Article extraction (Readability4J) with sanitized HTML caching
 - Page-at-a-time reading sized to the device screen, instead of scrolling
 - Send-to-Kindle as EPUB 3 through one shared, provider-verified sender, with the

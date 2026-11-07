@@ -49,6 +49,7 @@ class FeedServiceTest {
     private final ArticleRepository articleRepository = mock(ArticleRepository.class);
     private final UserRepository userRepository = mock(UserRepository.class);
     private final SafeHttpClient httpClient = mock(SafeHttpClient.class);
+    private final RecordingTransactions transactions = new RecordingTransactions();
 
     private static final long UID = 7L;
 
@@ -66,7 +67,7 @@ class FeedServiceTest {
         EntitlementService entitlements = new EntitlementService(
                 mock(SubscriptionRepository.class), mock(UserSendLimitRepository.class), properties);
         return new FeedService(feedRepository, articleRepository, userRepository, httpClient,
-                new HtmlSanitizer(), entitlements, properties, refreshExecutor);
+                new HtmlSanitizer(), entitlements, transactions, properties, refreshExecutor);
     }
 
     private static Feed feed(String url) {
@@ -217,6 +218,103 @@ class FeedServiceTest {
         verify(articleRepository, never()).existsByFeedIdAndGuid(anyLong(), anyString());
         verify(articleRepository, never()).markRead(anyLong(), anyLong(), org.mockito.ArgumentMatchers.anyBoolean());
         verify(feedRepository).clearError(1L);
+    }
+
+    /**
+     * A popular feed followed by several accounts is fetched once per refresh, not
+     * once per follower, and every follower still gets its entries.
+     */
+    @Test
+    void aFeedFollowedByManyAccountsIsFetchedOnce() {
+        String url = "https://example.com/feed";
+        Feed mine = feed(url);
+        Feed theirs = new Feed(4L, "Example", url, "https://example.com/", null,
+                Instant.EPOCH, Instant.EPOCH);
+        when(feedRepository.findAllAcrossUsers()).thenReturn(java.util.List.of(mine, theirs));
+        when(httpClient.get(anyString())).thenAnswer(respondWithFeed());
+
+        service(0).refreshAll();
+
+        verify(httpClient, times(1)).get(url);
+        verify(articleRepository).insert(eq(1L), anyString(), anyString(), anyString(), any(), any(),
+                anyString(), anyString());
+        verify(articleRepository).insert(eq(4L), anyString(), anyString(), anyString(), any(), any(),
+                anyString(), anyString());
+        verify(feedRepository).clearError(1L);
+        verify(feedRepository).clearError(4L);
+    }
+
+    /** A failed fetch is recorded once on each follower's feed, not twice. */
+    @Test
+    void aFailedFetchIsRecordedOnceOnEveryFeedAtThatAddress() {
+        String url = "https://example.com/feed";
+        Feed theirs = new Feed(4L, "Example", url, "https://example.com/", null,
+                Instant.EPOCH, Instant.EPOCH);
+        when(feedRepository.findAllAcrossUsers()).thenReturn(java.util.List.of(feed(url), theirs));
+        when(httpClient.get(anyString())).thenThrow(new SafeHttpClient.FetchException("HTTP 503"));
+
+        service(0).refreshAll();
+
+        verify(httpClient, times(1)).get(url);
+        verify(feedRepository, times(1)).setError(1L, "HTTP 503");
+        verify(feedRepository, times(1)).setError(4L, "HTTP 503");
+    }
+
+    /** One follower's write failing leaves the others' refresh in place. */
+    @Test
+    void aFailedWriteIsRecordedOnceAndDoesNotStopTheOtherFollowers() {
+        String url = "https://example.com/feed";
+        Feed theirs = new Feed(4L, "Example", url, "https://example.com/", null,
+                Instant.EPOCH, Instant.EPOCH);
+        when(feedRepository.findAllAcrossUsers()).thenReturn(java.util.List.of(feed(url), theirs));
+        when(httpClient.get(anyString())).thenAnswer(respondWithFeed());
+        org.mockito.Mockito.doThrow(new IllegalStateException("deadlock detected"))
+                .when(feedRepository).updateTitleAndSite(eq(1L), anyString(), anyString());
+
+        service(0).refreshAll();
+
+        verify(feedRepository, times(1)).setError(1L, "deadlock detected");
+        verify(feedRepository, never()).setError(eq(4L), anyString());
+        verify(feedRepository).clearError(4L);
+    }
+
+    /** A slow publisher must not hold a database connection while it answers. */
+    @Test
+    void refreshFetchesOutsideTheTransactionAndWritesInsideOne() {
+        java.util.List<Boolean> fetchedInTransaction = new java.util.ArrayList<>();
+        when(httpClient.get(anyString())).thenAnswer(invocation -> {
+            fetchedInTransaction.add(transactions.active());
+            return respondWithFeed().answer(invocation);
+        });
+        java.util.List<Boolean> writtenInTransaction = new java.util.ArrayList<>();
+        when(articleRepository.insert(anyLong(), anyString(), anyString(),
+                anyString(), any(), any(), anyString(), anyString())).thenAnswer(invocation -> {
+                    writtenInTransaction.add(transactions.active());
+                    return 9L;
+                });
+
+        service(0).refreshFeed(feed("https://example.com/feed"));
+
+        assertEquals(java.util.List.of(false), fetchedInTransaction);
+        assertEquals(java.util.List.of(true), writtenInTransaction);
+    }
+
+    @Test
+    void addingAFeedFetchesOutsideTheTransactionAndChecksTheLimitAgainInsideIt() {
+        String url = "https://example.com/feed";
+        java.util.List<Boolean> fetchedInTransaction = new java.util.ArrayList<>();
+        when(httpClient.get(anyString())).thenAnswer(invocation -> {
+            fetchedInTransaction.add(transactions.active());
+            return respondWithFeed().answer(invocation);
+        });
+        // Room when the add starts; full by the time the fetch has finished.
+        when(feedRepository.countByUser(UID)).thenReturn(0L, (long) AppProperties.Limits.DEFAULT_MAX_FEEDS);
+
+        assertThrows(IllegalArgumentException.class, () -> service(0).addFeed(UID, url, null));
+
+        assertEquals(java.util.List.of(false), fetchedInTransaction);
+        assertEquals(1, transactions.started());
+        verify(feedRepository, never()).insert(anyLong(), anyString(), anyString(), any(), any());
     }
 
     @Test
