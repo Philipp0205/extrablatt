@@ -1,9 +1,14 @@
 package com.kindlerss.security;
 
+import jakarta.servlet.ServletRequest;
+import jakarta.servlet.ServletRequestWrapper;
+import jakarta.servlet.http.HttpServletRequest;
+
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Enumeration;
 import java.util.List;
 import java.util.regex.Pattern;
 
@@ -95,6 +100,29 @@ public final class ClientIpResolver {
             ranges.addAll(CLOUDFLARE_RANGES);
         }
         return new ClientIpResolver(ranges);
+    }
+
+    /** The defaults: private ranges plus Cloudflare. */
+    public static ClientIpResolver defaults() {
+        return fromSettings(null, true);
+    }
+
+    /**
+     * Resolves from the container's own request, unwrapping any wrappers first.
+     * Spring's {@code ForwardedHeaderFilter} (from
+     * {@code server.forward-headers-strategy: framework}) wraps the request so that
+     * {@code getRemoteAddr()} returns the leftmost, client-chosen entry and hides
+     * the header; the container's request underneath still has the socket peer
+     * and the header as received.
+     */
+    public String resolve(HttpServletRequest request) {
+        ServletRequest inner = request;
+        while (inner instanceof ServletRequestWrapper wrapper) {
+            inner = wrapper.getRequest();
+        }
+        HttpServletRequest original = inner instanceof HttpServletRequest http ? http : request;
+        Enumeration<String> values = original.getHeaders(FORWARDED_FOR);
+        return resolve(original.getRemoteAddr(), values == null ? List.of() : Collections.list(values));
     }
 
     /**

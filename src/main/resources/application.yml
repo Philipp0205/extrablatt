@@ -53,6 +53,10 @@ spring:
 
 server:
   port: ${PORT:8080}
+  # Honors X-Forwarded-Proto / -Host / -Port for redirects and absolute URLs. It
+  # also makes getRemoteAddr() return the leftmost X-Forwarded-For entry, which the
+  # client controls, so nothing that needs the client's address may use that:
+  # ClientIpResolver reads the original socket peer and header instead.
   forward-headers-strategy: framework
   servlet:
     session:
@@ -87,6 +91,16 @@ app:
   # per-user send controls. Keep this in deployment secrets.
   admin-emails: ${ADMIN_EMAILS:}
   remember-me-key: ${REMEMBER_ME_KEY:kindle-rss-remember-me-change-me}
+  # Proxies allowed to add to X-Forwarded-For, as comma-separated CIDRs. The rate
+  # limiter walks that header from the right, skipping these, and keys on the first
+  # address that is not one of them; a request whose socket peer is not one of
+  # them is keyed on the peer and its header is ignored. Blank means loopback,
+  # RFC 1918, 100.64.0.0/10 (Railway's private network), 169.254.0.0/16, ::1,
+  # fc00::/7 and fe80::/10. Setting it replaces that list.
+  trusted-proxies: ${TRUSTED_PROXIES:}
+  # Also trust Cloudflare's published edge ranges (hardcoded in ClientIpResolver).
+  # Turn off when Cloudflare is not in front of the app.
+  trust-cloudflare: ${TRUST_CLOUDFLARE:true}
   http:
     connect-timeout: 10s
     read-timeout: 20s

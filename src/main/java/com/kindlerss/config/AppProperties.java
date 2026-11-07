@@ -20,8 +20,11 @@ public record AppProperties(
         Limits limits,
         Newsletters newsletters,
         Billing billing,
-        Retention retention
+        Retention retention,
+        String trustedProxies,
+        Boolean trustCloudflare
 ) {
+    @ConstructorBinding
     public AppProperties {
         if (http == null) {
             // Used by SafeHttpClient for outbound feed/article fetches.
@@ -56,6 +59,20 @@ public record AppProperties(
             // in production so tokens cannot be forged with the well-known default.
             rememberMeKey = "kindle-rss-remember-me-change-me";
         }
+        if (trustedProxies != null && trustedProxies.isBlank()) {
+            // Blank means ClientIpResolver.PRIVATE_RANGES.
+            trustedProxies = null;
+        }
+        if (trustCloudflare == null) {
+            trustCloudflare = true;
+        }
+    }
+
+    public AppProperties(String mailFrom, String publicUrl, String rememberMeKey, Http http,
+                         Feeds feeds, Articles articles, Limits limits, Newsletters newsletters,
+                         Billing billing, Retention retention) {
+        this(mailFrom, publicUrl, rememberMeKey, http, feeds, articles, limits, newsletters,
+                billing, retention, null, null);
     }
 
     /**
