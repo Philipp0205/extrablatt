@@ -72,6 +72,11 @@ their own licenses. Start with [Local configuration](#local-configuration) or
 | `REMEMBER_ME_KEY` | Secret for remember-me tokens |
 | `ADMIN_EMAILS` | Comma-separated account e-mails allowed to view telemetry and manage per-user send limits |
 
+Flyway applies migrations strictly in version order (`out-of-order` is off). If a
+database is missing a lower version (for example a branch that skipped one was
+deployed first), Flyway refuses to start. Set `FLYWAY_OUT_OF_ORDER=true` for a
+single repair deploy so the missing script runs, then remove it again.
+
 3. Export variables (or use your shell dotenv tooling) and run:
 
 ```bash
