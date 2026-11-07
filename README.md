@@ -390,16 +390,54 @@ This repo's Railway project has two environments:
 Merge (or push) to `staging` to ship a build you can try before it reaches
 readers. Merge to `main` when that build should go live. Staging has its own
 Postgres so Flyway and feed refresh cannot touch production; `deploy/sync-staging-db.sh`
-(and the **Sync staging database** GitHub Action, daily plus manual) dumps
-production and restores it onto staging.
+(and the **Sync staging database** GitHub Action, daily plus manual) copies
+production onto staging with personal data scrubbed.
 
-Staging still uses the production SMTP sender, so Kindle sends and account
-e-mail from that host are real. `APP_PUBLIC_URL` is `https://staging.extrablatt.app`,
-so verification and reset links stay on staging.
+The copy is streamed into staging as one transaction: the production dump,
+then `deploy/staging-scrub.sql`. Either the scrubbed copy is committed or
+staging keeps what it had, so unscrubbed production data is never committed
+there. The scrub:
+
+- rewrites every account's e-mail and Kindle address to `...@staging.invalid`,
+  replaces its password hash with one that matches nothing and drops its
+  newsletter inbox address;
+- deletes all verification and reset tokens;
+- renames newsletter feeds and blanks their issues (sender, reader, content);
+- strips credentials and query strings from feed URLs and clears feed errors;
+- replaces payment provider ids, webhook payloads and cancellation details;
+- refuses to commit if any non-kept account still has a real address.
+
+`StagingScrubTest` fails when a migration adds a text column the scrub does
+not know about, so new personal data has to be classified before it ships.
+
+Accounts listed in `STAGING_KEEP_EMAILS` are left as they are so testers and
+admins (`ADMIN_EMAILS`) can still sign in; everyone else has to register anew
+on staging. Remember-me cookies are signed with `REMEMBER_ME_KEY` and the
+password hash, so after a sync only kept accounts stay signed in, and only if
+staging shares the key: give staging its own `REMEMBER_ME_KEY`.
+
+Staging must not send with the production SMTP account. Give it its own
+sender or a mail sink (for example Mailpit, or a Resend key restricted to a
+test domain), and optionally set `MAIL_ALLOWED_RECIPIENT_DOMAINS`. The sync
+compares the SMTP settings of both environments (hashes only, nothing is
+printed) and stops if they are the same or cannot be read; `ALLOW_SHARED_SMTP=1`
+overrides that. Independently, the app refuses to send to any `.invalid`
+address, so scrubbed accounts cannot receive mail even with shared SMTP.
+`APP_PUBLIC_URL` is `https://staging.extrablatt.app`, so verification and
+reset links stay on staging.
+
+The script registers a throwaway SSH key with Railway (held in a private
+`ssh-agent`, never written to `~/.ssh`), uses a private ssh config and
+known_hosts in a temp directory, and removes the key again on exit. It does
+not read or change `~/.ssh/config`. Pass `SSH_KEY_PATH` to use a key that is
+already registered, and `RAILWAY_SSH_KNOWN_HOSTS` to pin the relay host key
+instead of trusting it on first use.
 
 To let the **Sync staging database** GitHub Action talk to Railway, add a
-repository secret named `RAILWAY_TOKEN` (a Railway account or project token).
-Deploys themselves don't need it — those go through Railway's own GitHub
+repository secret named `RAILWAY_API_TOKEN` (a Railway account or workspace
+token; the Railway CLI refuses to manage SSH keys with a project token) and,
+optionally, a secret `STAGING_KEEP_EMAILS` and a variable `RAILWAY_PROJECT_ID`.
+Deploys themselves don't need it: those go through Railway's own GitHub
 trigger on `main`/`staging` regardless. Until the secret is set, **Sync
 staging database** skips its Railway steps with exit 0 instead of failing the
 Actions run.

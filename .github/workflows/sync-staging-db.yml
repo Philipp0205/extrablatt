@@ -1,20 +1,29 @@
-# Copy production Postgres into the staging environment.
+# Copy production Postgres into the staging environment, scrubbed.
 #
-# Staging has its own database. This job dumps production and restores it
-# onto staging so testers see live-shaped data without sharing the
-# production instance (Flyway on staging must never run against prod).
+# Staging has its own database. This job dumps production and loads it onto
+# staging in one transaction together with deploy/staging-scrub.sql, so
+# testers see live-shaped data without real addresses, credentials or
+# newsletter mail (Flyway on staging must never run against prod either).
 #
-# Required repository secret: RAILWAY_TOKEN
-# When the secret is missing the job skips (exit 0).
+# Repository secrets:
+#   RAILWAY_API_TOKEN    Railway account or workspace token. A project token
+#                        cannot register the temporary SSH key the job needs.
+#   STAGING_KEEP_EMAILS  optional; accounts left unscrubbed (testers, admins)
+# Repository variables (optional):
+#   RAILWAY_PROJECT_ID   defaults to the hosted Extrablatt project
+# When RAILWAY_API_TOKEN is missing the job skips (exit 0).
 
 name: Sync staging database
 
 on:
   workflow_dispatch:
   schedule:
-    # Daily 05:15 UTC — enough to stay close to production without
-    # wiping staging on every code deploy.
+    # Daily 05:15 UTC: close enough to production without wiping staging on
+    # every code deploy.
     - cron: '15 5 * * *'
+
+permissions:
+  contents: read
 
 concurrency:
   group: sync-staging-db
@@ -26,31 +35,30 @@ jobs:
     steps:
       - name: Check out
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Check Railway token
         id: auth
         env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          RAILWAY_API_TOKEN: ${{ secrets.RAILWAY_API_TOKEN }}
         run: |
-          if [ -z "$RAILWAY_TOKEN" ]; then
+          if [ -z "$RAILWAY_API_TOKEN" ]; then
             echo "skip=true" >> "$GITHUB_OUTPUT"
-            echo "RAILWAY_TOKEN is not set; skipping staging database sync."
-            echo "Add a repository secret named RAILWAY_TOKEN (a Railway project token) to enable this job."
+            echo "RAILWAY_API_TOKEN is not set; skipping staging database sync."
+            echo "Add a repository secret named RAILWAY_API_TOKEN (a Railway account or workspace token) to enable this job."
           else
             echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Install Railway CLI
         if: steps.auth.outputs.skip != 'true'
-        run: npm install -g @railway/cli
+        run: npm install -g @railway/cli@5.71.0
 
-      - name: Install PostgreSQL client
-        if: steps.auth.outputs.skip != 'true'
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client
-
-      - name: Dump production and restore onto staging
+      - name: Dump production, restore and scrub onto staging
         if: steps.auth.outputs.skip != 'true'
         env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-          RAILWAY_PROJECT_ID: ${{ vars.RAILWAY_PROJECT_ID || '5acb693d-239d-4354-9146-ded20c78a027' }}
+          RAILWAY_API_TOKEN: ${{ secrets.RAILWAY_API_TOKEN }}
+          RAILWAY_PROJECT_ID: ${{ vars.RAILWAY_PROJECT_ID }}
+          STAGING_KEEP_EMAILS: ${{ secrets.STAGING_KEEP_EMAILS }}
         run: bash deploy/sync-staging-db.sh
