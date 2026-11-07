@@ -102,7 +102,11 @@ class SyncStagingDbScriptTest {
         Result result = run(Map.of());
 
         assertEquals(0, result.exit(), result.output());
-        assertFalse(Files.exists(home.resolve(".ssh")), "~/.ssh must not be touched");
+        // Some OpenSSH builds create an empty ~/.ssh on their own; what matters is
+        // that the script writes no config, keys or known_hosts there.
+        for (String f : new String[] {"config", "known_hosts", "id_ed25519", "id_ed25519.pub"}) {
+            assertFalse(Files.exists(home.resolve(".ssh").resolve(f)), "~/.ssh/" + f + " must not be written");
+        }
         String calls = Files.readString(log);
         assertTrue(calls.contains("extrablatt-staging-sync"), "key was not in the private agent: " + calls);
         assertTrue(calls.matches("(?s).*ssh keys remove extrablatt-staging-sync-\\S+.*"), calls);
