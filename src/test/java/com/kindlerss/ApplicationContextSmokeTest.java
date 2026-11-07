@@ -55,6 +55,16 @@ class ApplicationContextSmokeTest {
     void contextLoads() {
     }
 
+    @Autowired
+    org.springframework.mail.javamail.JavaMailSender mailSender;
+
+    /** Every mail service gets the sender that refuses scrubbed staging addresses. */
+    @Test
+    void theMailSenderRefusesInvalidRecipients() {
+        assertTrue(mailSender instanceof com.kindlerss.config.RecipientGuardMailSender,
+                mailSender.getClass().getName());
+    }
+
     /**
      * A first-time visitor has to receive the whole login page.
      *
