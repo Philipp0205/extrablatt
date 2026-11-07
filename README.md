@@ -293,6 +293,14 @@ subscribed. Losing a subscription never deletes anything; feeds, articles and
 reading position stay. Reading in the browser continues; sending to Kindle needs
 a paid period.
 
+A callback that cannot be applied yet, usually a subscription event that overtook
+the checkout naming its account, is answered with a 503 so the provider delivers it
+again, and the app also retries it itself from the stored payload. The first retry
+waits `BILLING_WEBHOOK_RETRY_BACKOFF` (default `PT1M`), each one after that twice as
+long up to six hours, until `BILLING_WEBHOOK_MAX_ATTEMPTS` (default 12, about a day)
+is used up. A retry that arrives after a newer event for the same subscription was
+applied is skipped rather than rolling the subscription back.
+
 Two things are deliberately manual, because the app holds no provider API key: a
 cancellation is e-mailed to `BILLING_OPERATOR_EMAIL` so the payment is stopped at
 the provider by hand, and a missed callback is fixed with the admin grant above.

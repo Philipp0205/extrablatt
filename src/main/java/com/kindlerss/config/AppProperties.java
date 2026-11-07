@@ -1,6 +1,7 @@
 package com.kindlerss.config;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.context.properties.bind.ConstructorBinding;
 
 import java.time.Duration;
 
@@ -152,7 +153,9 @@ public record AppProperties(
             Integer freeMaxSendsPerMonth,
             Integer freeMaxFeeds,
             Integer graceDays,
-            Integer trialDays
+            Integer trialDays,
+            Integer webhookMaxAttempts,
+            Duration webhookRetryBackoff
     ) {
         public static final int DEFAULT_MONTHLY_PRICE_CENTS = 399;
         public static final int DEFAULT_YEARLY_PRICE_CENTS = 3_588;
@@ -160,6 +163,15 @@ public record AppProperties(
         public static final int DEFAULT_FREE_MAX_FEEDS = 0;
         public static final int DEFAULT_GRACE_DAYS = 7;
         public static final int DEFAULT_TRIAL_DAYS = 7;
+        /**
+         * How often a webhook event that could not be applied is tried in total,
+         * counting the first delivery. With the default backoff the last attempt
+         * lands about a day after the first, which outlasts any ordinary out-of-order
+         * delivery and most short outages.
+         */
+        public static final int DEFAULT_WEBHOOK_MAX_ATTEMPTS = 12;
+        /** Wait before the first retry; it doubles on each attempt, up to six hours. */
+        public static final Duration DEFAULT_WEBHOOK_RETRY_BACKOFF = Duration.ofMinutes(1);
 
         /**
          * Query parameter carrying the account id into a hosted checkout, so the
@@ -169,6 +181,18 @@ public record AppProperties(
          */
         public static final String DEFAULT_REFERENCE_PARAM = "client_reference_id";
 
+        /** Without the webhook retry settings, which then take their defaults. */
+        public Billing(boolean enabled, String provider, String webhookSecret,
+                       String monthlyCheckoutUrl, String yearlyCheckoutUrl, String portalUrl,
+                       String operatorEmail, String referenceParam, Integer monthlyPriceCents,
+                       Integer yearlyPriceCents, Integer freeMaxSendsPerMonth, Integer freeMaxFeeds,
+                       Integer graceDays, Integer trialDays) {
+            this(enabled, provider, webhookSecret, monthlyCheckoutUrl, yearlyCheckoutUrl, portalUrl,
+                    operatorEmail, referenceParam, monthlyPriceCents, yearlyPriceCents,
+                    freeMaxSendsPerMonth, freeMaxFeeds, graceDays, trialDays, null, null);
+        }
+
+        @ConstructorBinding
         public Billing {
             provider = blankToNull(provider);
             if (provider != null) {
@@ -204,6 +228,14 @@ public record AppProperties(
                 trialDays = DEFAULT_TRIAL_DAYS;
             }
             trialDays = Math.min(trialDays, 90);
+            if (webhookMaxAttempts == null || webhookMaxAttempts < 1) {
+                webhookMaxAttempts = DEFAULT_WEBHOOK_MAX_ATTEMPTS;
+            }
+            webhookMaxAttempts = Math.min(webhookMaxAttempts, 100);
+            if (webhookRetryBackoff == null || webhookRetryBackoff.isNegative()
+                    || webhookRetryBackoff.isZero()) {
+                webhookRetryBackoff = DEFAULT_WEBHOOK_RETRY_BACKOFF;
+            }
         }
 
         /**

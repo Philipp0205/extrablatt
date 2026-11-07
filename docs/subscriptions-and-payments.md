@@ -457,7 +457,8 @@ self-hosted copy is unaffected, because it is not the one collecting the money.
   row means the free plan. Existing accounts are inserted as `GRANDFATHERED`.
 - `billing_events` — the provider's own event id as the primary key. Both providers
   retry and occasionally deliver twice; the insert is the lock, so a replay is a
-  no-op instead of a second period.
+  no-op instead of a second period. `V16` adds the retry bookkeeping described under
+  "The payment path".
 - `cancellation_requests` — the declaration itself, with the time it arrived,
   because § 312k Abs. 3 and 4 require it to be keepable and confirmable.
 
@@ -507,6 +508,33 @@ Three rules hold this together:
   Feeds, articles and reading position stay. A reader who lapses and returns a year
   later finds things where they left them, which is the only thing that makes
   someone resubscribe.
+
+An event that cannot be applied is retried rather than parked. The commonest cause
+is ordering: Stripe can deliver `customer.subscription.created` before the
+`checkout.session.completed` that ties the subscription to an account, and the
+first one then finds no account. `V16__billing_event_retries.sql` adds what the
+retry needs to `billing_events`: an attempt counter, when the current attempt was
+claimed, when the next one is due, and the subscription id and provider timestamp
+of the event.
+
+- The webhook answers such an event with a 503, so the provider redelivers it. A
+  redelivery of a failed event claims it again; one that is processed or in
+  progress is still a no-op.
+- `BillingWebhookService.retryFailedEvents` runs every minute and retries due events
+  from their stored payload. The signature was checked when the event arrived and
+  is not checked again. Waits start at `app.billing.webhook-retry-backoff` and
+  double, capped at six hours.
+- After `app.billing.webhook-max-attempts` attempts the event stays failed with its
+  reason on the row, the webhook answers 200 so the provider stops, and the admin
+  grant is the fix.
+- Before applying, an event is checked against the newest applied event for the
+  same subscription. Subscription events carry the whole state, so an older one
+  applied late would roll the subscription back; it is marked processed and
+  skipped instead. A checkout event carries no state and never supersedes anything.
+- A claim older than ten minutes without a result (the process died mid-apply) is
+  taken over by the next delivery or sweep.
+- Payloads redacted by the retention sweep cannot be retried from, so those are
+  left to the provider's own redelivery.
 
 `SubscriptionService.expireLapsed` runs nightly and expires subscriptions whose paid
 period passed and whose provider never said so. Without it a lost webhook fails

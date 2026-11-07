@@ -85,13 +85,26 @@ class BillingWebhookControllerTest {
     }
 
     /**
-     * An event that cannot be applied still gets a 200: retrying will not change the
-     * outcome, and the reason is on the stored row instead.
+     * An event that cannot be applied yet (typically one that overtook the checkout
+     * naming its account) asks the provider to deliver it again.
      */
     @Test
-    void anUnapplicableEventIsNotTurnedIntoARetryLoop() throws Exception {
+    void anEventThatCannotBeAppliedYetAsksForARedelivery() throws Exception {
         when(webhookService.configured()).thenReturn(true);
         when(webhookService.handle(any(), any())).thenReturn(BillingWebhookService.Result.FAILED);
+
+        mockMvc.perform(post("/webhooks/billing")
+                        .header("Stripe-Signature", "t=1,v1=abc")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"id\":\"evt_1\"}"))
+                .andExpect(status().isServiceUnavailable());
+    }
+
+    /** Out of attempts: a 200 stops the provider retrying for ever. */
+    @Test
+    void anEventOutOfAttemptsIsNotTurnedIntoARetryLoop() throws Exception {
+        when(webhookService.configured()).thenReturn(true);
+        when(webhookService.handle(any(), any())).thenReturn(BillingWebhookService.Result.ABANDONED);
 
         mockMvc.perform(post("/webhooks/billing")
                         .header("Stripe-Signature", "t=1,v1=abc")

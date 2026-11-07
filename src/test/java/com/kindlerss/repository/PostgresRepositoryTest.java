@@ -379,11 +379,131 @@ class PostgresRepositoryTest {
     void aBillingEventCanOnlyBeClaimedOnce() {
         var repository = new BillingEventRepository(new JdbcTemplate(postgres.getPostgresDatabase()));
 
-        assertTrue(repository.claim("evt_once", "stripe", "invoice.paid", "{}", userId));
-        assertFalse(repository.claim("evt_once", "stripe", "invoice.paid", "{}", userId));
-
+        assertTrue(claim(repository, "evt_once", "sub_once", null, 5));
+        // Still in progress, and later processed: neither may be claimed again.
+        assertFalse(claim(repository, "evt_once", "sub_once", null, 5));
         repository.markProcessed("evt_once");
-        repository.markFailed("evt_once", "something went wrong");
+        assertFalse(claim(repository, "evt_once", "sub_once", null, 5));
+    }
+
+    /**
+     * A failed event is claimed again by the provider's redelivery, and scheduled for
+     * the sweep with a backoff, until it is out of attempts.
+     */
+    @Test
+    void aFailedBillingEventIsRetriedUntilItIsOutOfAttempts() {
+        JdbcTemplate jdbc = new JdbcTemplate(postgres.getPostgresDatabase());
+        var repository = new BillingEventRepository(jdbc);
+
+        assertTrue(claim(repository, "evt_retry", "sub_retry", null, 3));
+        assertTrue(repository.markFailed("evt_retry", "No account matches", 3, java.time.Duration.ofMinutes(1)));
+        // Not due yet: the backoff has not run out.
+        assertFalse(dueIds(repository, 3).contains("evt_retry"));
+        assertFalse(repository.reclaim("evt_retry", 3));
+
+        jdbc.update("UPDATE billing_events SET next_attempt_at = NOW() - INTERVAL '1 second'"
+                + " WHERE provider_event_id = 'evt_retry'");
+        assertTrue(dueIds(repository, 3).contains("evt_retry"));
+        assertTrue(repository.reclaim("evt_retry", 3));
+        // Claimed by the sweep: a concurrent redelivery must not apply it as well.
+        assertFalse(claim(repository, "evt_retry", "sub_retry", null, 3));
+        assertTrue(repository.markFailed("evt_retry", "still nothing", 3, java.time.Duration.ofMinutes(1)));
+
+        // A redelivery claims it straight away; that is the third and last attempt.
+        assertTrue(claim(repository, "evt_retry", "sub_retry", null, 3));
+        assertFalse(repository.markFailed("evt_retry", "gave up", 3, java.time.Duration.ofMinutes(1)));
+        assertFalse(claim(repository, "evt_retry", "sub_retry", null, 3));
+        assertFalse(dueIds(repository, 3).contains("evt_retry"));
+        assertEquals(1, count(jdbc, "SELECT count(*) FROM billing_events WHERE provider_event_id = 'evt_retry'"
+                + " AND attempts = 3 AND error = 'gave up' AND next_attempt_at IS NULL"));
+    }
+
+    /** The backoff doubles with every attempt, and never beyond six hours. */
+    @Test
+    void theRetryBackoffDoublesAndIsCapped() {
+        JdbcTemplate jdbc = new JdbcTemplate(postgres.getPostgresDatabase());
+        var repository = new BillingEventRepository(jdbc);
+        claim(repository, "evt_backoff", "sub_backoff", null, 50);
+
+        jdbc.update("UPDATE billing_events SET attempts = 3 WHERE provider_event_id = 'evt_backoff'");
+        repository.markFailed("evt_backoff", "x", 50, java.time.Duration.ofMinutes(1));
+        assertEquals(4 * 60, waitSeconds(jdbc, "evt_backoff"), 5);
+
+        jdbc.update("UPDATE billing_events SET attempts = 20 WHERE provider_event_id = 'evt_backoff'");
+        repository.markFailed("evt_backoff", "x", 50, java.time.Duration.ofMinutes(1));
+        assertEquals(6 * 3600, waitSeconds(jdbc, "evt_backoff"), 5);
+    }
+
+    /** A process that died mid-apply leaves a claim that is taken over once stale. */
+    @Test
+    void aStaleBillingClaimIsTakenOver() {
+        JdbcTemplate jdbc = new JdbcTemplate(postgres.getPostgresDatabase());
+        var repository = new BillingEventRepository(jdbc);
+        claim(repository, "evt_stale", "sub_stale", null, 5);
+
+        jdbc.update("UPDATE billing_events SET claimed_at = NOW() - INTERVAL '11 minutes'"
+                + " WHERE provider_event_id = 'evt_stale'");
+
+        assertTrue(dueIds(repository, 5).contains("evt_stale"));
+        assertTrue(repository.reclaim("evt_stale", 5));
+    }
+
+    /** Redacted payloads cannot be re-read, so the sweep leaves them to the provider. */
+    @Test
+    void aRedactedBillingEventIsNotRetriedFromItsPayload() {
+        JdbcTemplate jdbc = new JdbcTemplate(postgres.getPostgresDatabase());
+        var repository = new BillingEventRepository(jdbc);
+        claim(repository, "evt_redacted", "sub_redacted", null, 5);
+        repository.markFailed("evt_redacted", "x", 5, java.time.Duration.ofMinutes(1));
+        jdbc.update("UPDATE billing_events SET payload = '', next_attempt_at = NOW() - INTERVAL '1 second'"
+                + " WHERE provider_event_id = 'evt_redacted'");
+
+        assertFalse(dueIds(repository, 5).contains("evt_redacted"));
+    }
+
+    @Test
+    void anOlderBillingEventIsSupersededByANewerAppliedOne() {
+        var repository = new BillingEventRepository(new JdbcTemplate(postgres.getPostgresDatabase()));
+        Instant older = Instant.parse("2026-11-01T10:00:00Z");
+        Instant newer = Instant.parse("2026-11-01T11:00:00Z");
+        claim(repository, "evt_sup_new", "sub_sup", newer, 5);
+
+        // Not applied yet, so it supersedes nothing.
+        assertFalse(repository.supersededByNewer("evt_sup_old", "sub_sup", older));
+        repository.markProcessed("evt_sup_new");
+
+        assertTrue(repository.supersededByNewer("evt_sup_old", "sub_sup", older));
+        assertFalse(repository.supersededByNewer("evt_sup_newest", "sub_sup", newer.plusSeconds(1)));
+        assertFalse(repository.supersededByNewer("evt_sup_old", "sub_other", older));
+        assertFalse(repository.supersededByNewer("evt_sup_old", "sub_sup", null));
+    }
+
+    /** A checkout carries no subscription state, so it cannot make a later update stale. */
+    @Test
+    void aCheckoutNeverSupersedesASubscriptionEvent() {
+        var repository = new BillingEventRepository(new JdbcTemplate(postgres.getPostgresDatabase()));
+        Instant created = Instant.parse("2026-11-01T10:00:00Z");
+        repository.claim("evt_checkout", "stripe", "checkout.session.completed", "{}", userId,
+                "sub_checkout", created.plusSeconds(5), 5);
+        repository.markProcessed("evt_checkout");
+
+        assertFalse(repository.supersededByNewer("evt_created", "sub_checkout", created));
+    }
+
+    private static boolean claim(BillingEventRepository repository, String eventId, String subscriptionRef,
+                                 Instant occurredAt, int maxAttempts) {
+        return repository.claim(eventId, "stripe", "customer.subscription.updated", "{}", userId,
+                subscriptionRef, occurredAt, maxAttempts);
+    }
+
+    private static List<String> dueIds(BillingEventRepository repository, int maxAttempts) {
+        return repository.findDueRetries(maxAttempts, 1_000).stream()
+                .map(BillingEventRepository.DueRetry::providerEventId).toList();
+    }
+
+    private static double waitSeconds(JdbcTemplate jdbc, String eventId) {
+        return jdbc.queryForObject("SELECT EXTRACT(EPOCH FROM next_attempt_at - NOW()) FROM billing_events"
+                + " WHERE provider_event_id = ?", Double.class, eventId);
     }
 
     @Test
@@ -439,7 +559,8 @@ class PostgresRepositoryTest {
                 com.kindlerss.domain.BillingInterval.YEARLY, "stripe", "cus_doomed", "sub_doomed",
                 Instant.parse("2027-01-01T00:00:00Z"), false, Instant.now()));
         new BillingEventRepository(jdbc)
-                .claim("evt_doomed", "stripe", "invoice.paid", "{\"email\":\"doomed@example.com\"}", doomed);
+                .claim("evt_doomed", "stripe", "invoice.paid", "{\"email\":\"doomed@example.com\"}", doomed,
+                        null, null, 5);
 
         assertTrue(users.deleteById(doomed));
 
@@ -498,7 +619,7 @@ class PostgresRepositoryTest {
                 java.sql.Timestamp.from(Instant.parse("2020-01-03T00:00:00Z")),
                 java.sql.Timestamp.from(Instant.parse("2020-01-02T00:00:00Z")));
         new BillingEventRepository(jdbc).claim("evt_ancient", "stripe", "invoice.paid",
-                "{\"email\":\"ancient@example.com\"}", ancient);
+                "{\"email\":\"ancient@example.com\"}", ancient, null, null, 5);
         jdbc.update("UPDATE billing_events SET received_at = ? WHERE provider_event_id = 'evt_ancient'",
                 java.sql.Timestamp.from(Instant.parse("2020-01-01T00:00:00Z")));
 
