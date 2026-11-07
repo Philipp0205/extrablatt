@@ -74,6 +74,11 @@ their own licenses. Start with [Local configuration](#local-configuration) or
 | `REMEMBER_ME_KEY` | Secret for remember-me tokens |
 | `ADMIN_EMAILS` | Comma-separated account e-mails allowed to view telemetry and manage per-user send limits |
 
+Flyway applies migrations strictly in version order (`out-of-order` is off). If a
+database is missing a lower version (for example a branch that skipped one was
+deployed first), Flyway refuses to start. Set `FLYWAY_OUT_OF_ORDER=true` for a
+single repair deploy so the missing script runs, then remove it again.
+
 3. Export variables (or use your shell dotenv tooling) and run:
 
 ```bash
@@ -110,6 +115,12 @@ Kindle address under **Settings**.
 ```
 
 Tests do not require PostgreSQL or Docker. They cover EPUB layout, HTML sanitization, SSRF address checks, and MVC/security smoke paths with mocked services.
+
+GitHub Actions run the tests on every push and pull request (`ci.yml`) and
+CodeQL analysis of the Java code (`codeql.yml`, also weekly). Third-party
+actions are pinned to commit SHAs with the release noted alongside, and
+Dependabot (`.github/dependabot.yml`) opens weekly update PRs against
+`staging` for Maven, Actions and the Docker base images.
 
 ## Using the app
 
@@ -403,16 +414,54 @@ This repo's Railway project has two environments:
 Merge (or push) to `staging` to ship a build you can try before it reaches
 readers. Merge to `main` when that build should go live. Staging has its own
 Postgres so Flyway and feed refresh cannot touch production; `deploy/sync-staging-db.sh`
-(and the **Sync staging database** GitHub Action, daily plus manual) dumps
-production and restores it onto staging.
+(and the **Sync staging database** GitHub Action, daily plus manual) copies
+production onto staging with personal data scrubbed.
 
-Staging still uses the production SMTP sender, so Kindle sends and account
-e-mail from that host are real. `APP_PUBLIC_URL` is `https://staging.extrablatt.app`,
-so verification and reset links stay on staging.
+The copy is streamed into staging as one transaction: the production dump,
+then `deploy/staging-scrub.sql`. Either the scrubbed copy is committed or
+staging keeps what it had, so unscrubbed production data is never committed
+there. The scrub:
+
+- rewrites every account's e-mail and Kindle address to `...@staging.invalid`,
+  replaces its password hash with one that matches nothing and drops its
+  newsletter inbox address;
+- deletes all verification and reset tokens;
+- renames newsletter feeds and blanks their issues (sender, reader, content);
+- strips credentials and query strings from feed URLs and clears feed errors;
+- replaces payment provider ids, webhook payloads and cancellation details;
+- refuses to commit if any non-kept account still has a real address.
+
+`StagingScrubTest` fails when a migration adds a text column the scrub does
+not know about, so new personal data has to be classified before it ships.
+
+Accounts listed in `STAGING_KEEP_EMAILS` are left as they are so testers and
+admins (`ADMIN_EMAILS`) can still sign in; everyone else has to register anew
+on staging. Remember-me cookies are signed with `REMEMBER_ME_KEY` and the
+password hash, so after a sync only kept accounts stay signed in, and only if
+staging shares the key: give staging its own `REMEMBER_ME_KEY`.
+
+Staging must not send with the production SMTP account. Give it its own
+sender or a mail sink (for example Mailpit, or a Resend key restricted to a
+test domain), and optionally set `MAIL_ALLOWED_RECIPIENT_DOMAINS`. The sync
+compares the SMTP settings of both environments (hashes only, nothing is
+printed) and stops if they are the same or cannot be read; `ALLOW_SHARED_SMTP=1`
+overrides that. Independently, the app refuses to send to any `.invalid`
+address, so scrubbed accounts cannot receive mail even with shared SMTP.
+`APP_PUBLIC_URL` is `https://staging.extrablatt.app`, so verification and
+reset links stay on staging.
+
+The script registers a throwaway SSH key with Railway (held in a private
+`ssh-agent`, never written to `~/.ssh`), uses a private ssh config and
+known_hosts in a temp directory, and removes the key again on exit. It does
+not read or change `~/.ssh/config`. Pass `SSH_KEY_PATH` to use a key that is
+already registered, and `RAILWAY_SSH_KNOWN_HOSTS` to pin the relay host key
+instead of trusting it on first use.
 
 To let the **Sync staging database** GitHub Action talk to Railway, add a
-repository secret named `RAILWAY_TOKEN` (a Railway account or project token).
-Deploys themselves don't need it — those go through Railway's own GitHub
+repository secret named `RAILWAY_API_TOKEN` (a Railway account or workspace
+token; the Railway CLI refuses to manage SSH keys with a project token) and,
+optionally, a secret `STAGING_KEEP_EMAILS` and a variable `RAILWAY_PROJECT_ID`.
+Deploys themselves don't need it: those go through Railway's own GitHub
 trigger on `main`/`staging` regardless. Until the secret is set, **Sync
 staging database** skips its Railway steps with exit 0 instead of failing the
 Actions run.
@@ -559,6 +608,14 @@ Services:
 
 Healthchecks are configured on Postgres and the app (`/actuator/health`).
 
+The `app` service loads the repo-root `.env` with `env_file`, so every setting
+from `.env.example` (`BILLING_*`, `RETENTION_*`, `NEWSLETTER_*`, ...) reaches the
+application without being listed in the compose file. The `.env` file must
+exist next to `deploy/` (Compose fails otherwise). Values under `environment:`
+in `deploy/docker-compose.yml` take precedence: `DATABASE_URL` always points at
+the bundled Postgres, and `POSTGRES_PASSWORD`, `MAIL_FROM`, `REMEMBER_ME_KEY` and
+`DOMAIN` are still required.
+
 ### Behind an existing reverse proxy
 
 If the host already terminates TLS (its own Caddy, nginx, Traefik), the bundled
@@ -636,16 +693,31 @@ chmod +x deploy/backup.sh deploy/restore.sh
 ./deploy/restore.sh deploy/backups/kindle_rss_YYYYMMDD.sql.gz
 ```
 
+- Both scripts read only the keys they need (`POSTGRES_DB`, `POSTGRES_USER`,
+  `BACKUP_*`) from `.env`, as plain text; `.env` is never sourced or executed.
+  Variables already set in the environment win.
+- `backup.sh` keeps the newest `BACKUP_KEEP` backups (default 14, `0` keeps all)
+  and deletes older ones. Backups are created with mode `600`.
+- Set `BACKUP_AGE_RECIPIENT` (an age public key) or `BACKUP_GPG_RECIPIENT` (a gpg
+  key id or e-mail) to encrypt each backup; the file then ends in `.age` / `.gpg`.
+  Restoring an `.age` backup needs `BACKUP_AGE_IDENTITY` (path to the identity
+  file); `.gpg` backups use the local gpg keyring.
+- `restore.sh` replaces the whole database, so it asks you to type the database
+  name first. Pass `--yes` to skip that in scripts (it refuses to run without a
+  terminal otherwise). It restores in a single transaction with
+  `ON_ERROR_STOP=1`, so a broken dump leaves the database unchanged.
+
 ## Security notes
 
 - CSRF protection stays enabled; forms include tokens.
 - Feed/article HTML is sanitized with jsoup Safelist before `th:utext`.
 - Outbound fetches allow only `http`/`https`, resolve DNS, and reject loopback/private/link-local/multicast/CGNAT/ULA addresses; response size and timeouts are capped.
 - Redirect targets from form posts are restricted to same-app relative paths.
+- Errors render the error page with a fixed message: malformed or missing input is a 400, unknown paths a 404, a wrong HTTP method a 405, and anything unexpected a 500 that is logged in full but never shows the exception text.
 - Session cookies are not marked Secure in the default profile (local HTTP). The `production` profile sets Secure cookies; use a TLS-terminating proxy with forwarded headers.
 
 ## Stack
 
-- Spring Boot 3.5.3, Java 21, Maven Wrapper
+- Spring Boot 3.5.16, Java 21, Maven Wrapper
 - Thymeleaf, Spring Security, JDBC, Mail, Flyway, Actuator
 - ROME 2.1.0, Readability4J 1.0.8, jsoup 1.22.2 (explicit override; Readability4J otherwise pulls 1.11.2)

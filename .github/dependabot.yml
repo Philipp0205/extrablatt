@@ -1,0 +1,36 @@
+# Weekly update PRs. Merge them into staging first, like any other change.
+version: 2
+updates:
+  - package-ecosystem: maven
+    directory: /
+    target-branch: staging
+    schedule:
+      interval: weekly
+    groups:
+      spring-boot:
+        patterns:
+          - "org.springframework.boot*"
+
+  - package-ecosystem: github-actions
+    directory: /
+    target-branch: staging
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: docker
+    directory: /
+    target-branch: staging
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: docker
+    directory: /marketing
+    target-branch: staging
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: docker-compose
+    directory: /deploy
+    target-branch: staging
+    schedule:
+      interval: weekly
