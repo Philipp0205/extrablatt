@@ -228,10 +228,16 @@ itself never receives mail directly:
    out of the box. Mailgun Routes, SendGrid Inbound Parse, or a Cloudflare Email
    Routing worker all work too with a small JSON reshape in front of the webhook.
 2. Configure that provider's inbound webhook to `POST` to
-   `https://<your-app>/inbound/newsletters?secret=<NEWSLETTER_INBOUND_SECRET>`
-   (`NEWSLETTER_INBOUND_SECRET` is a long random value you choose; the query
-   parameter is the only thing standing in for a login on this endpoint, since
-   the provider cannot authenticate like a browser).
+   `https://<your-app>/inbound/newsletters` with `NEWSLETTER_INBOUND_SECRET` (a
+   long random value you choose) sent in an `X-Newsletter-Secret` header or as
+   `Authorization: Bearer <secret>`. Postmark cannot set custom headers, so give it
+   `https://inbound:<NEWSLETTER_INBOUND_SECRET>@<your-app>/inbound/newsletters`;
+   it sends that as HTTP Basic auth and the app reads the password. The secret is
+   the only thing standing in for a login on this endpoint, since the provider
+   cannot authenticate like a browser. The older
+   `?secret=<NEWSLETTER_INBOUND_SECRET>` form still works but logs a deprecation
+   warning, because URLs end up in proxy and access logs. A message larger than
+   `NEWSLETTER_MAX_BODY_BYTES` (default 10 MiB) is refused with 413.
 3. Set both variables in `.env` (or your platform's env vars) and redeploy.
 
 The webhook expects Postmark's inbound JSON shape: `To`/`ToFull`/

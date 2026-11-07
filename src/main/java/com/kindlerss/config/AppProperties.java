@@ -1,6 +1,7 @@
 package com.kindlerss.config;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.context.properties.bind.ConstructorBinding;
 
 import java.time.Duration;
 
@@ -64,6 +65,8 @@ public record AppProperties(
      * cannot hold a request open for ever.
      */
     public record Http(Duration connectTimeout, Duration readTimeout, int maxBytes, Duration totalTimeout) {
+        // Two constructors: tell Boot which one binds, or it picks the short one.
+        @ConstructorBinding
         public Http {
             if (connectTimeout == null) {
                 connectTimeout = Duration.ofSeconds(10);
@@ -115,12 +118,25 @@ public record AppProperties(
      * Newsletters arrive by e-mail rather than by polling a URL: each newsletter
      * feed gets an address {@code <token>@inboundDomain}, and an inbound mail
      * provider (Postmark, Mailgun routes, …) is configured to POST received
-     * messages to {@code /inbound/newsletters?secret=inboundSecret}. Leaving
-     * {@code inboundDomain} blank disables adding new newsletters; the shared
-     * secret guards the webhook since it cannot itself require a login.
+     * messages to {@code /inbound/newsletters} with {@code inboundSecret} in the
+     * {@code X-Newsletter-Secret} header or as the URL's Basic auth password.
+     * Leaving {@code inboundDomain} blank disables adding new newsletters; the
+     * shared secret guards the webhook since it cannot itself require a login.
+     * {@code maxBodyBytes} caps one message (HTML, text and headers together);
+     * default 10 MiB.
      */
-    public record Newsletters(String inboundDomain, String inboundSecret) {
+    public record Newsletters(String inboundDomain, String inboundSecret, int maxBodyBytes) {
+        public static final int DEFAULT_MAX_BODY_BYTES = 10 * 1024 * 1024;
+
+        public Newsletters(String inboundDomain, String inboundSecret) {
+            this(inboundDomain, inboundSecret, 0);
+        }
+
+        @ConstructorBinding
         public Newsletters {
+            if (maxBodyBytes <= 0) {
+                maxBodyBytes = DEFAULT_MAX_BODY_BYTES;
+            }
             if (inboundDomain != null) {
                 inboundDomain = inboundDomain.trim().toLowerCase();
                 if (inboundDomain.isBlank()) {

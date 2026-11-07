@@ -1,6 +1,11 @@
 package com.kindlerss.config;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.context.properties.bind.Binder;
+import org.springframework.boot.context.properties.source.MapConfigurationPropertySource;
+
+import java.time.Duration;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -92,5 +97,25 @@ class AppPropertiesTest {
         // The repository refuses to hand out more than 100 articles at a time.
         assertEquals(100, new AppProperties.Articles(1_000).pageSize());
         assertEquals(5, new AppProperties.Articles(1).pageSize());
+    }
+
+    /**
+     * Http and Newsletters have a convenience constructor next to the canonical one;
+     * binding must still go through the canonical one, or new settings are ignored.
+     */
+    @Test
+    void recordsWithAConvenienceConstructorStillBindEveryField() {
+        Binder binder = new Binder(new MapConfigurationPropertySource(Map.of(
+                "app.mail-from", "from@example.com",
+                "app.http.total-timeout", "7s",
+                "app.newsletters.inbound-domain", "news.example.com",
+                "app.newsletters.max-body-bytes", "4096")));
+
+        AppProperties properties = binder.bind("app", AppProperties.class).get();
+
+        assertEquals(Duration.ofSeconds(7), properties.http().totalTimeout());
+        assertEquals(4096, properties.newsletters().maxBodyBytes());
+        assertEquals(AppProperties.Newsletters.DEFAULT_MAX_BODY_BYTES,
+                new AppProperties.Newsletters("news.example.com", "s").maxBodyBytes());
     }
 }

@@ -18,6 +18,9 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -122,5 +125,47 @@ class BillingWebhookControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"event_id\":\"evt_1\"}"))
                 .andExpect(status().isOk());
+    }
+
+    /** Payment events are a few kilobytes; a megabyte and more is not one. */
+    @Test
+    void anOversizedBodyIsRefusedBeforeTheSignatureIsChecked() throws Exception {
+        when(webhookService.configured()).thenReturn(true);
+        byte[] big = new byte[BillingWebhookController.MAX_BODY_BYTES + 1];
+
+        mockMvc.perform(post("/webhooks/billing")
+                        .header("Stripe-Signature", "t=1,v1=abc")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(big))
+                .andExpect(status().isPayloadTooLarge());
+
+        verify(webhookService, never()).handle(anyString(), any());
+    }
+
+    /** No signature header, nothing worth reading: the body is not buffered at all. */
+    @Test
+    void aMissingSignatureIsRejectedWithoutReadingTheBody() throws Exception {
+        when(webhookService.configured()).thenReturn(true);
+
+        mockMvc.perform(post("/webhooks/billing")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(new byte[BillingWebhookController.MAX_BODY_BYTES + 1]))
+                .andExpect(status().isBadRequest());
+
+        verify(webhookService, never()).handle(any(), any());
+    }
+
+    @Test
+    void aBodyAtTheLimitIsStillPassedOn() throws Exception {
+        when(webhookService.configured()).thenReturn(true);
+        when(webhookService.handle(eq("t=1,v1=abc"), any())).thenReturn(BillingWebhookService.Result.REJECTED);
+
+        mockMvc.perform(post("/webhooks/billing")
+                        .header("Stripe-Signature", "t=1,v1=abc")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(new byte[BillingWebhookController.MAX_BODY_BYTES]))
+                .andExpect(status().isBadRequest());
+
+        verify(webhookService).handle(eq("t=1,v1=abc"), any());
     }
 }

@@ -162,8 +162,11 @@ app:
     # Domain newsletter inboxes live under, e.g. news.yourdomain.com (needs MX
     # records pointed at an inbound e-mail provider). Blank disables the feature.
     inbound-domain: ${NEWSLETTER_INBOUND_DOMAIN:}
-    # Shared secret required as ?secret= on the inbound webhook URL given to that provider.
+    # Shared secret the provider sends in the X-Newsletter-Secret header (or as the
+    # webhook URL's Basic auth password). ?secret= in the URL still works, deprecated.
     inbound-secret: ${NEWSLETTER_INBOUND_SECRET:}
+    # Largest inbound message accepted, in bytes (default 10 MiB).
+    max-body-bytes: ${NEWSLETTER_MAX_BODY_BYTES:10485760}
 
 logging:
   level:
