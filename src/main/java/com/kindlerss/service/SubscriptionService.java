@@ -18,9 +18,14 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.Base64;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Optional;
 
@@ -38,11 +43,23 @@ public class SubscriptionService {
 
     private static final Logger log = LoggerFactory.getLogger(SubscriptionService.class);
 
+    /** How long a cancellation confirmation link works. */
+    static final Duration LINK_VALIDITY = Duration.ofHours(24);
+
+    /**
+     * At most this many confirmation links per account per {@link #LINK_WINDOW}, so
+     * the public form cannot be used to flood someone's inbox. Declarations past the
+     * limit are still recorded and reach the operator.
+     */
+    static final int MAX_LINKS_PER_WINDOW = 3;
+    static final Duration LINK_WINDOW = Duration.ofDays(1);
+
     private final SubscriptionRepository subscriptions;
     private final CancellationRequestRepository cancellations;
     private final UserRepository users;
     private final BillingMailService mailService;
     private final AppProperties properties;
+    private final SecureRandom random = new SecureRandom();
 
     public SubscriptionService(SubscriptionRepository subscriptions,
                                CancellationRequestRepository cancellations,
@@ -102,6 +119,12 @@ public class SubscriptionService {
             throw new IllegalStateException("Payment is not configured on this server yet");
         }
         Subscription existing = forUser(userId);
+        // Writing the PENDING order row would replace GRANDFATHERED, and a pending
+        // order with no paid period grants nothing: the permanent free plan would be
+        // gone the moment the reader clicked, whether or not they ever paid.
+        if (existing.grandfathered()) {
+            throw new AlreadySupporterException();
+        }
         subscriptions.save(new Subscription(userId, Plan.SUPPORTER, SubscriptionStatus.PENDING,
                 interval, billing.provider(), existing.providerCustomerId(),
                 existing.providerSubscriptionId(), existing.currentPeriodEnd(),
@@ -167,19 +190,22 @@ public class SubscriptionService {
 
     /**
      * Accepts a cancellation declaration under § 312k BGB and returns it, with the
-     * moment the contract ends, so the confirmation page and e-mail can state both.
+     * moment the contract ends when that is already known.
      *
-     * <p>The declaration is always recorded and always confirmed, even when nothing
-     * matches the address given: the law entitles a consumer to declare a
+     * <p>The declaration is always recorded, with the time it arrived, even when
+     * nothing matches the address given: the law entitles a consumer to declare a
      * cancellation without signing in, and a page that argues about whether they
      * really have a contract does not satisfy it.
      *
-     * <p>What differs is how far it is acted on. An ordinary cancellation only stops
-     * the next renewal, so it is applied whoever submitted it — the worst an abused
-     * form can do is stop a renewal that the owner can start again, and the owner is
-     * told by e-mail either way. An immediate cancellation can involve a refund of a
-     * period already paid for, so it is applied straight away only for the signed-in
-     * owner; anyone else's is recorded, confirmed and passed to the operator.
+     * <p>What differs is who can make it take effect. The signed-in owner of the
+     * account the address belongs to gets it applied on the spot, ordinary or
+     * immediate, with the full confirmation. Anyone else has only typed an address,
+     * which proves nothing, so the subscription is left alone and a single-use link
+     * goes to the account's own address instead (see {@link #confirmByLink}). That
+     * e-mail carries none of the text the requester typed, so the form cannot be
+     * used to send arbitrary messages from this server to arbitrary people. The
+     * answer on screen is the same whether or not an account was found, so the form
+     * does not tell anyone who has one.
      */
     @Transactional
     public Outcome cancel(Declaration declaration, Long signedInUserId) {
@@ -187,46 +213,152 @@ public class SubscriptionService {
         Long userId = owner.map(AppUser::id).orElse(null);
         boolean bySignedInOwner = signedInUserId != null && signedInUserId.equals(userId);
 
-        Subscription subscription = userId == null ? null : forUser(userId);
-        Instant now = Instant.now();
-        Instant effectiveAt = now;
-        boolean applied = false;
-
-        if (subscription != null && subscription.everOrdered() && !subscription.grandfathered()) {
-            boolean immediate = declaration.kind() == CancellationRequest.Kind.IMMEDIATE;
-            if (immediate && bySignedInOwner) {
-                subscriptions.save(withStatus(subscription, SubscriptionStatus.EXPIRED, now, true));
-                applied = true;
-            } else if (!immediate) {
-                effectiveAt = subscription.currentPeriodEnd() != null
-                        ? subscription.currentPeriodEnd() : now;
-                subscriptions.save(withStatus(subscription, SubscriptionStatus.CANCELED,
-                        subscription.currentPeriodEnd(), true));
-                applied = true;
-            }
+        if (!bySignedInOwner) {
+            return recordForOwnerToConfirm(declaration, owner.orElse(null));
         }
 
+        Instant now = Instant.now();
+        Effect effect = apply(forUser(userId), declaration.kind(), now);
         CancellationRequest recorded = cancellations.insert(userId, declaration.email(),
                 declaration.name(), declaration.contractRef(), declaration.kind(),
-                declaration.requestedEnd(), declaration.reason(), effectiveAt);
+                declaration.requestedEnd(), declaration.reason(), effect.effectiveAt());
+        if (effect.applied()) {
+            cancellations.recordEffect(recorded.id(), effect.effectiveAt(), true);
+        }
+        Outcome outcome = new Outcome(recorded, effect.effectiveAt(), effect.applied(), Route.OWNER);
+        confirmAndNotify(declaration.email(), outcome);
+        return outcome;
+    }
 
-        Outcome outcome = new Outcome(recorded, effectiveAt, applied);
+    /**
+     * The declaration behind a confirmation link, if the link can still be used.
+     * Looking does not spend it: mail scanners open links, and the owner should still
+     * be able to confirm after theirs has.
+     */
+    public Optional<CancellationRequest> peekLink(String token) {
+        if (token == null || token.isBlank()) {
+            return Optional.empty();
+        }
+        return cancellations.findUsableToken(hashToken(token))
+                .map(pending -> cancellations.findById(pending.requestId()));
+    }
+
+    /**
+     * Applies a declaration once the account's owner has followed the link sent to
+     * their address. That proves the same thing being signed in does, so ordinary
+     * and immediate cancellations both take effect, exactly as for the signed-in
+     * owner. Empty when the link is unknown, used or expired.
+     */
+    @Transactional
+    public Optional<Outcome> confirmByLink(String token) {
+        if (token == null || token.isBlank()) {
+            return Optional.empty();
+        }
+        Optional<CancellationRequestRepository.PendingToken> spent =
+                cancellations.consumeToken(hashToken(token));
+        if (spent.isEmpty()) {
+            return Optional.empty();
+        }
+        long userId = spent.get().userId();
+        CancellationRequest request = cancellations.findById(spent.get().requestId());
+        Effect effect = apply(forUser(userId), request.kind(), Instant.now());
+        cancellations.recordEffect(request.id(), effect.effectiveAt(), effect.applied());
+        Outcome outcome = new Outcome(request, effect.effectiveAt(), effect.applied(),
+                Route.CONFIRMED_BY_LINK);
+        String accountEmail = users.findById(userId).map(AppUser::email).orElse(request.email());
+        confirmAndNotify(accountEmail, outcome);
+        return Optional.of(outcome);
+    }
+
+    private Outcome recordForOwnerToConfirm(Declaration declaration, AppUser owner) {
+        CancellationRequest recorded = cancellations.insert(owner == null ? null : owner.id(),
+                declaration.email(), declaration.name(), declaration.contractRef(),
+                declaration.kind(), declaration.requestedEnd(), declaration.reason(), null);
+        Route route = Route.RECORDED;
+        if (owner != null && hasSomethingToCancel(forUser(owner.id()))) {
+            Instant now = Instant.now();
+            if (cancellations.countTokensSince(owner.id(), now.minus(LINK_WINDOW)) < MAX_LINKS_PER_WINDOW) {
+                String token = newToken();
+                cancellations.insertToken(hashToken(token), recorded.id(), owner.id(),
+                        now.plus(LINK_VALIDITY));
+                try {
+                    mailService.sendCancellationLink(owner.email(), recorded, token);
+                    route = Route.LINK_SENT;
+                } catch (RuntimeException e) {
+                    log.warn("Cancellation link e-mail failed for request {}: {}",
+                            recorded.id(), e.getMessage());
+                }
+            } else {
+                log.info("Cancellation request {} recorded without a link: account {} was sent "
+                        + "{} already in the last {}", recorded.id(), owner.id(),
+                        MAX_LINKS_PER_WINDOW, LINK_WINDOW);
+            }
+        }
+        Outcome outcome = new Outcome(recorded, null, false, route);
+        notifyOperator(outcome);
+        return outcome;
+    }
+
+    /** Changes the subscription as the owner asked. */
+    private Effect apply(Subscription subscription, CancellationRequest.Kind kind, Instant now) {
+        if (!hasSomethingToCancel(subscription)) {
+            return new Effect(now, false);
+        }
+        if (kind == CancellationRequest.Kind.IMMEDIATE) {
+            subscriptions.save(withStatus(subscription, SubscriptionStatus.EXPIRED, now, true));
+            return new Effect(now, true);
+        }
+        Instant effectiveAt = subscription.currentPeriodEnd() != null
+                ? subscription.currentPeriodEnd() : now;
+        subscriptions.save(withStatus(subscription, SubscriptionStatus.CANCELED,
+                subscription.currentPeriodEnd(), true));
+        return new Effect(effectiveAt, true);
+    }
+
+    private static boolean hasSomethingToCancel(Subscription subscription) {
+        return subscription != null && subscription.everOrdered() && !subscription.grandfathered();
+    }
+
+    private void confirmAndNotify(String toEmail, Outcome outcome) {
         // A failed e-mail must not undo an accepted cancellation; the declaration is
         // on record either way, and the operator notice is the backstop.
         try {
-            mailService.sendCancellationConfirmation(declaration.email(), outcome);
-            cancellations.markConfirmed(recorded.id());
+            mailService.sendCancellationConfirmation(toEmail, outcome);
+            cancellations.markConfirmed(outcome.request().id());
         } catch (RuntimeException e) {
             log.warn("Cancellation confirmation e-mail failed for request {}: {}",
-                    recorded.id(), e.getMessage());
+                    outcome.request().id(), e.getMessage());
         }
+        notifyOperator(outcome);
+    }
+
+    private void notifyOperator(Outcome outcome) {
         try {
             mailService.notifyOperatorOfCancellation(outcome);
         } catch (RuntimeException e) {
             log.warn("Operator cancellation notice failed for request {}: {}",
-                    recorded.id(), e.getMessage());
+                    outcome.request().id(), e.getMessage());
         }
-        return outcome;
+    }
+
+    private String newToken() {
+        byte[] bytes = new byte[32];
+        random.nextBytes(bytes);
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+    }
+
+    /** Only this is stored, so the table cannot be used to confirm anything. */
+    static String hashToken(String token) {
+        try {
+            byte[] digest = MessageDigest.getInstance("SHA-256")
+                    .digest(token.getBytes(StandardCharsets.UTF_8));
+            return HexFormat.of().formatHex(digest);
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 is always available", e);
+        }
+    }
+
+    private record Effect(Instant effectiveAt, boolean applied) {
     }
 
     /**
@@ -264,6 +396,20 @@ public class SubscriptionService {
                 periodEnd, cancelAtPeriodEnd, subscription.withdrawalConsentAt());
     }
 
+    /**
+     * An order refused because the account already has the Supporter plan for good.
+     * An {@link IllegalStateException}, so callers that only show the message need
+     * nothing new.
+     */
+    public static class AlreadySupporterException extends IllegalStateException {
+        public static final String MESSAGE = "Your account already has the Supporter plan "
+                + "permanently and at no cost, so there is nothing to order.";
+
+        public AlreadySupporterException() {
+            super(MESSAGE);
+        }
+    }
+
     /** A cancellation exactly as § 312k Abs. 2 BGB lets a consumer state it. */
     public record Declaration(
             String email,
@@ -279,6 +425,46 @@ public class SubscriptionService {
      * What came of a declaration: the record itself, when the contract ends, and
      * whether the subscription was changed on the spot or handed to the operator.
      */
-    public record Outcome(CancellationRequest request, Instant effectiveAt, boolean applied) {
+    public record Outcome(CancellationRequest request, Instant effectiveAt, boolean applied,
+                          Route route) {
+
+        /** Declared and acted on by the signed-in owner. */
+        public Outcome(CancellationRequest request, Instant effectiveAt, boolean applied) {
+            this(request, effectiveAt, applied, Route.OWNER);
+        }
+
+        /** Recorded, but nothing changes until the account's owner confirms it. */
+        public boolean awaitingOwner() {
+            return route == Route.LINK_SENT || route == Route.RECORDED;
+        }
+
+        /**
+         * Whether what was typed into the form may be repeated back. Not once the
+         * declaration came from someone who was not signed in: the owner confirming
+         * it by link did not necessarily write it.
+         */
+        public boolean echoDeclaration() {
+            return route == Route.OWNER;
+        }
+    }
+
+    /** How a declaration was handled. */
+    public enum Route {
+
+        /** From the signed-in owner of the account, and acted on straight away. */
+        OWNER,
+
+        /** From someone else; a confirmation link went to the account's address. */
+        LINK_SENT,
+
+        /**
+         * From someone else, and no link was sent: no account with anything to
+         * cancel, or that account was sent enough links already. On record for the
+         * operator.
+         */
+        RECORDED,
+
+        /** The account's owner followed the link, and it was acted on. */
+        CONFIRMED_BY_LINK
     }
 }

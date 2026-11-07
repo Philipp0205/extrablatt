@@ -44,6 +44,7 @@ import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
@@ -198,5 +199,35 @@ class PageStylingTest {
                 .andExpect(content().string(not(containsString("<style"))))
                 .andExpect(content().string(not(containsString("data-reader"))))
                 .andExpect(content().string(not(containsString("/js/reader"))));
+    }
+
+    /**
+     * The Content-Security-Policy allows styles and scripts from the app's own files
+     * only, which is what the pages above are kept within; nothing inline is let in.
+     */
+    @ParameterizedTest
+    @ValueSource(strings = {"/", "/items?unread=false", "/settings/kindle", "/settings/account", "/login",
+            "/register", "/withdrawal"})
+    @WithMockUser
+    void thePolicyAllowsOnlyTheAppsOwnStylesAndScripts(String path) throws Exception {
+        String policy = mockMvc.perform(get(path))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Security-Policy", containsString("script-src 'self';")))
+                .andExpect(header().string("Content-Security-Policy", containsString("style-src 'self';")))
+                .andExpect(header().string("Content-Security-Policy", containsString("frame-ancestors 'none'")))
+                .andExpect(header().string("Content-Security-Policy", containsString("object-src 'none'")))
+                .andReturn().getResponse().getHeader("Content-Security-Policy");
+        assertFalse(policy.contains("unsafe-inline"), policy);
+    }
+
+    /** The confirmation prompts survive the move out of inline handlers (app.js asks). */
+    @Test
+    @WithMockUser
+    void destructiveFormsStillAskFirst() throws Exception {
+        mockMvc.perform(get("/settings/account"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString(
+                        "data-confirm=\"Delete your account and all its data? This cannot be undone.\"")))
+                .andExpect(content().string(matchesPattern(HASHED_SCRIPT)));
     }
 }

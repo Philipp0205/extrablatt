@@ -2,6 +2,9 @@
 # Point this at your app subdomain, e.g. reader.extrablatt.app.
 {$DOMAIN:localhost} {
 	encode gzip
+	# Caddy sets X-Forwarded-For to the client it saw. The app trusts it because
+	# Caddy's address is in a private range (default TRUSTED_PROXIES); nothing
+	# here needs to strip or overwrite the header.
 	reverse_proxy app:8080
 	header {
 		Strict-Transport-Security "max-age=31536000; includeSubDomains"

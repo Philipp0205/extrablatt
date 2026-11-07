@@ -106,6 +106,9 @@ subscription identifiers, period end, withdrawal-consent timestamp.
 `billing_events`: the provider's event id, type, and the raw webhook payload.
 `cancellation_requests`: the declaration as submitted, including the declarant's
 e-mail address, optional name and free-text reason, and the time it arrived.
+`cancellation_tokens`: the SHA-256 hash of a single-use confirmation link sent to an
+account's own address when someone cancels without signing in; deleted with the
+account, and swept once spent or expired.
 **Recipients** — the payment provider, which receives the reader's e-mail address and
 the account id passed into the checkout, and which holds the card details we never
 see. Where a merchant of record is used it is the seller and an independent
@@ -154,8 +157,9 @@ so that the most common request needs no answering at all.
 Passwords are bcrypt-hashed and never logged. Sessions are HttpOnly and Secure in
 production, behind TLS terminated by Caddy. CSRF protection is on for every form. All
 feed and article HTML is sanitised with a jsoup safelist before rendering. Outbound
-fetches allow only HTTP and HTTPS, resolve DNS and reject loopback, private,
-link-local, CGNAT and ULA addresses, with response size and timeouts capped — an SSRF
+fetches allow only HTTP and HTTPS and reject loopback, private, link-local, CGNAT,
+ULA and other reserved addresses, checked on every DNS answer at the moment of
+connecting, with response size, each wait and the whole fetch capped. This is an SSRF
 guard, because the app fetches URLs a stranger chose. The payment webhook is
 authenticated by HMAC-SHA256 over the raw body with a timestamp freshness check.
 Backups are taken with `pg_dump` (`deploy/backup.sh`); they contain personal data and

@@ -7,11 +7,12 @@ spring:
     password: ${DATABASE_PASSWORD:kindle}
   flyway:
     enabled: true
-    # Staging applied V11 (accessibility leftovers) from a branch that did not
-    # yet contain V10 (changelog column). Flyway then refuses to boot when V10
-    # reappears, because a higher version is already applied. out-of-order lets
-    # the missing V10 run, then V12+. Production already has V10; it is a no-op.
-    out-of-order: true
+    # Off by default: migrations must apply in version order, so a version
+    # gap (a branch that skipped one) fails the boot instead of silently
+    # running an older script on top of newer schema. Set FLYWAY_OUT_OF_ORDER=true
+    # for one deploy to repair a database that is genuinely missing a lower
+    # version (staging once applied V11 from a branch without V10), then unset it.
+    out-of-order: ${FLYWAY_OUT_OF_ORDER:false}
   mail:
     # Defaults target Resend's SMTP endpoint. Username is the literal word "resend"
     # and the password is a Resend API key (starts with re_). A verified sending
@@ -52,6 +53,10 @@ spring:
 
 server:
   port: ${PORT:8080}
+  # Honors X-Forwarded-Proto / -Host / -Port for redirects and absolute URLs. It
+  # also makes getRemoteAddr() return the leftmost X-Forwarded-For entry, which the
+  # client controls, so nothing that needs the client's address may use that:
+  # ClientIpResolver reads the original socket peer and header instead.
   forward-headers-strategy: framework
   servlet:
     session:
@@ -80,16 +85,32 @@ app:
   # Shared, provider-verified sender used for account e-mail and Kindle delivery.
   # Hosted Extrablatt uses mail@extrablatt.app (not a Kindle-branded local part).
   mail-from: ${MAIL_FROM:}
+  # Comma-separated recipient domains mail may go to (subdomains included).
+  # Blank allows any. Addresses under .invalid are refused either way; the
+  # staging sync rewrites accounts to those. Staging example: kindle.com,example.org
+  mail-allowed-recipient-domains: ${MAIL_ALLOWED_RECIPIENT_DOMAINS:}
   # Public base URL used to build links in verification / password-reset e-mails.
   public-url: ${APP_PUBLIC_URL:http://localhost:8080}
   # Comma-separated account e-mails granted access to /admin telemetry and
   # per-user send controls. Keep this in deployment secrets.
   admin-emails: ${ADMIN_EMAILS:}
   remember-me-key: ${REMEMBER_ME_KEY:kindle-rss-remember-me-change-me}
+  # Proxies allowed to add to X-Forwarded-For, as comma-separated CIDRs. The rate
+  # limiter walks that header from the right, skipping these, and keys on the first
+  # address that is not one of them; a request whose socket peer is not one of
+  # them is keyed on the peer and its header is ignored. Blank means loopback,
+  # RFC 1918, 100.64.0.0/10 (Railway's private network), 169.254.0.0/16, ::1,
+  # fc00::/7 and fe80::/10. Setting it replaces that list.
+  trusted-proxies: ${TRUSTED_PROXIES:}
+  # Also trust Cloudflare's published edge ranges (hardcoded in ClientIpResolver).
+  # Turn off when Cloudflare is not in front of the app.
+  trust-cloudflare: ${TRUST_CLOUDFLARE:true}
   http:
     connect-timeout: 10s
     read-timeout: 20s
     max-bytes: 2097152
+    # Upper bound for one whole fetch, redirects included.
+    total-timeout: 30s
   feeds:
     # Entries a refresh asks a feed for; 0 fetches feed URLs exactly as entered.
     max-entries: ${FEED_MAX_ENTRIES:100}
@@ -136,6 +157,12 @@ app:
     # confirmation goes missing. A declined card should not cut off a reader
     # mid-morning. Trials do not get this extra week.
     grace-days: ${BILLING_GRACE_DAYS:7}
+    # A webhook event that cannot be applied yet (typically a subscription event
+    # that overtook the checkout naming its account) is retried from the stored
+    # payload, waiting this long before the first retry and doubling each time up
+    # to six hours, until it has been tried this many times in total.
+    webhook-max-attempts: ${BILLING_WEBHOOK_MAX_ATTEMPTS:12}
+    webhook-retry-backoff: ${BILLING_WEBHOOK_RETRY_BACKOFF:PT1M}
   retention:
     # Art. 5(1)(e) GDPR: personal data may be kept only as long as it is needed.
     # These are the periods after which the nightly sweep clears things out. Set any
@@ -159,8 +186,11 @@ app:
     # Domain newsletter inboxes live under, e.g. news.yourdomain.com (needs MX
     # records pointed at an inbound e-mail provider). Blank disables the feature.
     inbound-domain: ${NEWSLETTER_INBOUND_DOMAIN:}
-    # Shared secret required as ?secret= on the inbound webhook URL given to that provider.
+    # Shared secret the provider sends in the X-Newsletter-Secret header (or as the
+    # webhook URL's Basic auth password). ?secret= in the URL still works, deprecated.
     inbound-secret: ${NEWSLETTER_INBOUND_SECRET:}
+    # Largest inbound message accepted, in bytes (default 10 MiB).
+    max-body-bytes: ${NEWSLETTER_MAX_BODY_BYTES:10485760}
 
 logging:
   level:

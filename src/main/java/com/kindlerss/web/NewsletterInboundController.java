@@ -1,24 +1,29 @@
 package com.kindlerss.web;
 
+import com.fasterxml.jackson.core.JacksonException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kindlerss.config.AppProperties;
 import com.kindlerss.service.FeedService;
 import com.kindlerss.service.UserService;
 import jakarta.mail.internet.MailDateFormat;
+import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.util.HtmlUtils;
 
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -33,6 +38,13 @@ import java.util.regex.Pattern;
  * its first delivery (see {@link FeedService#receiveNewsletterIssue}). Not part
  * of the authenticated app: it is guarded by a shared secret instead, since the
  * provider cannot log in.
+ *
+ * <p>The secret is taken from the {@code X-Newsletter-Secret} header, from
+ * {@code Authorization: Bearer}, or from the password of {@code Authorization: Basic}
+ * (what Postmark sends for a webhook URL of the form {@code https://user:secret@host/...}).
+ * The old {@code ?secret=} query parameter still works but is logged as deprecated:
+ * URLs end up in proxy and access logs. The body is read only after the secret
+ * checks out, and never past {@code app.newsletters.max-body-bytes}.
  */
 @RestController
 public class NewsletterInboundController {
@@ -44,23 +56,50 @@ public class NewsletterInboundController {
     private final UserService userService;
     private final FeedService feedService;
     private final AppProperties.Newsletters properties;
+    private final ObjectMapper objectMapper;
 
-    public NewsletterInboundController(UserService userService, FeedService feedService, AppProperties properties) {
+    public NewsletterInboundController(UserService userService, FeedService feedService, AppProperties properties,
+                                       ObjectMapper objectMapper) {
         this.userService = userService;
         this.feedService = feedService;
         this.properties = properties.newsletters();
+        this.objectMapper = objectMapper;
     }
 
     @PostMapping("/inbound/newsletters")
     public ResponseEntity<Map<String, Object>> receive(
-            @RequestParam(value = "secret", required = false) String secret,
-            @RequestBody(required = false) InboundEmailPayload payload) {
+            @RequestHeader(value = "X-Newsletter-Secret", required = false) String headerSecret,
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @RequestParam(value = "secret", required = false) String querySecret,
+            HttpServletRequest request) {
         if (!properties.enabled() || properties.inboundSecret() == null) {
             return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
                     .body(Map.of("error", "Newsletters are not configured on this server"));
         }
+        String secret = headerSecret != null ? headerSecret : secretFromAuthorization(authorization);
+        if (secret == null && querySecret != null) {
+            secret = querySecret;
+            log.warn("Inbound newsletter secret was sent as ?secret= in the URL; this is deprecated, "
+                    + "send it in the X-Newsletter-Secret header or as the webhook URL's password instead");
+        }
         if (!validSecret(secret)) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Invalid secret"));
+        }
+        InboundEmailPayload payload;
+        try {
+            byte[] body = BoundedBody.read(request, properties.maxBodyBytes());
+            if (body.length == 0) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Missing message body"));
+            }
+            payload = objectMapper.readValue(body, InboundEmailPayload.class);
+        } catch (BoundedBody.TooLargeException e) {
+            log.info("Inbound newsletter message refused: body over {} bytes", properties.maxBodyBytes());
+            return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE)
+                    .body(Map.of("error", "Message is larger than this server accepts"));
+        } catch (JacksonException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Message body is not valid JSON"));
+        } catch (IOException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Could not read the request body"));
         }
         if (payload == null) {
             return ResponseEntity.badRequest().body(Map.of("error", "Missing message body"));
@@ -92,10 +131,36 @@ public class NewsletterInboundController {
         if (articleId == FeedService.NEWSLETTER_FEED_LIMIT_REACHED) {
             return ResponseEntity.ok(Map.of("status", "dropped", "reason", "feed limit reached"));
         }
+        if (articleId == FeedService.NEWSLETTER_PLAN_REQUIRED) {
+            return ResponseEntity.ok(Map.of("status", "dropped", "reason", "new sender needs the Supporter plan"));
+        }
         if (articleId < 0) {
             return ResponseEntity.ok(Map.of("status", "duplicate"));
         }
         return ResponseEntity.ok(Map.of("status", "stored", "articleId", articleId));
+    }
+
+    /** Bearer token, or the password half of Basic credentials. */
+    private static String secretFromAuthorization(String authorization) {
+        if (authorization == null) {
+            return null;
+        }
+        String value = authorization.trim();
+        if (value.regionMatches(true, 0, "Bearer ", 0, 7)) {
+            String token = value.substring(7).trim();
+            return token.isEmpty() ? null : token;
+        }
+        if (value.regionMatches(true, 0, "Basic ", 0, 6)) {
+            try {
+                String decoded = new String(Base64.getDecoder().decode(value.substring(6).trim()),
+                        StandardCharsets.UTF_8);
+                int colon = decoded.indexOf(':');
+                return colon < 0 ? null : decoded.substring(colon + 1);
+            } catch (IllegalArgumentException e) {
+                return null;
+            }
+        }
+        return null;
     }
 
     private boolean validSecret(String secret) {

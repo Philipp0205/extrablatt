@@ -1,6 +1,11 @@
 package com.kindlerss.config;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.context.properties.bind.Binder;
+import org.springframework.boot.context.properties.source.MapConfigurationPropertySource;
+
+import java.time.Duration;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -70,6 +75,20 @@ class AppPropertiesTest {
         assertEquals(0, billing.freeMaxSendsPerMonth());
         assertEquals(0, billing.freeMaxFeeds());
         assertEquals(7, billing.trialDays());
+        assertEquals(AppProperties.Billing.DEFAULT_WEBHOOK_MAX_ATTEMPTS, billing.webhookMaxAttempts());
+        assertEquals(AppProperties.Billing.DEFAULT_WEBHOOK_RETRY_BACKOFF, billing.webhookRetryBackoff());
+    }
+
+    @Test
+    void webhookRetriesCannotBeSwitchedIntoNonsense() {
+        AppProperties.Billing billing = new AppProperties.Billing(true, null, null, null, null,
+                null, null, null, null, null, null, null, null, null, 0, java.time.Duration.ofSeconds(-5));
+        AppProperties.Billing huge = new AppProperties.Billing(true, null, null, null, null,
+                null, null, null, null, null, null, null, null, null, 10_000, null);
+
+        assertEquals(AppProperties.Billing.DEFAULT_WEBHOOK_MAX_ATTEMPTS, billing.webhookMaxAttempts());
+        assertEquals(AppProperties.Billing.DEFAULT_WEBHOOK_RETRY_BACKOFF, billing.webhookRetryBackoff());
+        assertEquals(100, huge.webhookMaxAttempts());
     }
 
     @Test
@@ -92,5 +111,25 @@ class AppPropertiesTest {
         // The repository refuses to hand out more than 100 articles at a time.
         assertEquals(100, new AppProperties.Articles(1_000).pageSize());
         assertEquals(5, new AppProperties.Articles(1).pageSize());
+    }
+
+    /**
+     * Http and Newsletters have a convenience constructor next to the canonical one;
+     * binding must still go through the canonical one, or new settings are ignored.
+     */
+    @Test
+    void recordsWithAConvenienceConstructorStillBindEveryField() {
+        Binder binder = new Binder(new MapConfigurationPropertySource(Map.of(
+                "app.mail-from", "from@example.com",
+                "app.http.total-timeout", "7s",
+                "app.newsletters.inbound-domain", "news.example.com",
+                "app.newsletters.max-body-bytes", "4096")));
+
+        AppProperties properties = binder.bind("app", AppProperties.class).get();
+
+        assertEquals(Duration.ofSeconds(7), properties.http().totalTimeout());
+        assertEquals(4096, properties.newsletters().maxBodyBytes());
+        assertEquals(AppProperties.Newsletters.DEFAULT_MAX_BODY_BYTES,
+                new AppProperties.Newsletters("news.example.com", "s").maxBodyBytes());
     }
 }

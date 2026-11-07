@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+  <title>Cancellation received - Extrablatt</title>
+  <th:block th:replace="~{fragments/page-styles :: assets}"></th:block>
+</head>
+<body>
+<th:block th:replace="~{fragments/app-shell :: brandBar}"></th:block>
+<main id="main" class="wrap">
+
+  <h1>Your cancellation is on record</h1>
+
+  <!-- The same page whether or not the address belongs to an account, so the form
+       cannot be used to find out who has one. Nothing here repeats what was typed
+       apart from the type, for the same reason. -->
+  <div class="receipt">
+    <dl>
+      <dt>Received</dt>
+      <dd><span th:text="${receivedAt}">1 September 2026 at 09:14</span> (Central European Time)</dd>
+
+      <dt>Type</dt>
+      <dd th:if="${immediate}">Immediate (extraordinary) cancellation</dd>
+      <dd th:unless="${immediate}">Ordinary cancellation</dd>
+    </dl>
+  </div>
+
+  <p>
+    If the address you gave belongs to an Extrablatt subscription, we have sent a
+    link to it. Open that link and confirm, and the cancellation takes effect; you
+    then get written confirmation with the date the contract ends. The link works
+    once, for 24 hours.
+  </p>
+
+  <p class="meta">
+    Nothing in your inbox after a few minutes? Check your spam folder. You can also
+    <a th:href="@{/login}">sign in</a> and cancel from there, which takes effect at
+    once. Your declaration is kept either way.
+  </p>
+
+  <p class="meta">
+    Nothing you have saved is deleted. Your feeds, articles and reading position stay
+    exactly as they are.
+  </p>
+</main>
+</body>
+</html>

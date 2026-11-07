@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+  <title>Link no longer valid - Extrablatt</title>
+  <th:block th:replace="~{fragments/page-styles :: assets}"></th:block>
+</head>
+<body>
+<th:block th:replace="~{fragments/app-shell :: brandBar}"></th:block>
+<main id="main" class="wrap">
+
+  <h1>This link no longer works</h1>
+
+  <p>
+    Confirmation links work once, for 24 hours. If you already confirmed, your
+    cancellation is in effect and the confirmation is in your inbox.
+  </p>
+
+  <p class="meta">
+    Otherwise, <a th:href="@{/cancel}">declare the cancellation again</a>, or
+    <a th:href="@{/login}">sign in</a> and cancel from there, which takes effect at once.
+  </p>
+</main>
+</body>
+</html>

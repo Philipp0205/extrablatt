@@ -12,6 +12,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionOperations;
 
 import java.time.Instant;
 import java.util.Collection;
@@ -30,17 +31,20 @@ public class ArticleService {
     private final SafeHttpClient httpClient;
     private final HtmlSanitizer sanitizer;
     private final DiscussionParser discussionParser;
+    private final TransactionOperations transactions;
 
     public ArticleService(ArticleRepository articleRepository,
                           FeedRepository feedRepository,
                           SafeHttpClient httpClient,
                           HtmlSanitizer sanitizer,
-                          DiscussionParser discussionParser) {
+                          DiscussionParser discussionParser,
+                          TransactionOperations transactions) {
         this.articleRepository = articleRepository;
         this.feedRepository = feedRepository;
         this.httpClient = httpClient;
         this.sanitizer = sanitizer;
         this.discussionParser = discussionParser;
+        this.transactions = transactions;
     }
 
     public Optional<Article> findById(long userId, long id) {
@@ -106,8 +110,12 @@ public class ArticleService {
     /**
      * Returns sanitized HTML for display/EPUB. Images are stripped by default.
      * Caches extracted content when Readability succeeds.
+     *
+     * <p>Deliberately not transactional: it may fetch the article's page, and the
+     * only write is one UPDATE caching the result, which needs no transaction of
+     * its own. Holding one across the fetch would pin a pooled connection to a
+     * slow publisher.
      */
-    @Transactional
     public String getContentHtml(Article article, boolean includeImages) {
         String raw = resolveRawContent(article);
         return sanitizer.sanitize(raw, includeImages);
@@ -117,8 +125,8 @@ public class ArticleService {
      * The same content for the browser, where hidden images leave a marker behind:
      * on screen "Show images" is one tap away, so it is worth saying that there is
      * something to load. A Kindle has no such choice, so the EPUB stays clean.
+     * Not transactional, for the same reason as {@link #getContentHtml}.
      */
-    @Transactional
     public String getReaderHtml(Article article, boolean includeImages) {
         String raw = resolveRawContent(article);
         return includeImages
@@ -178,12 +186,16 @@ public class ArticleService {
     /**
      * Fetches a web page, extracts the readable article, and stores it on the
      * account's pasted-URL feed. Pasting the same address again refreshes that
-     * row rather than creating a duplicate.
+     * row rather than creating a duplicate. The page is fetched and extracted
+     * before the transaction that stores it begins.
      */
-    @Transactional
     public Article importFromUrl(long userId, String rawUrl) {
         String url = normalizeHttpUrl(rawUrl);
         ExtractedPage page = extractPage(url);
+        return transactions.execute(status -> storeImported(userId, page));
+    }
+
+    private Article storeImported(long userId, ExtractedPage page) {
         Feed feed = feedRepository.findOrCreateClippingFeed(userId);
         String guid = page.url();
         Optional<Article> existing = articleRepository.findByFeedIdAndGuid(userId, feed.id(), guid);
@@ -224,8 +236,8 @@ public class ArticleService {
         try {
             fetched = httpClient.get(url);
         } catch (SafeHttpClient.FetchException e) {
-            throw new IllegalArgumentException(e.getMessage() == null
-                    ? "That page could not be fetched" : e.getMessage(), e);
+            log.debug("Fetching {} failed: {}", url, e.getMessage());
+            throw new IllegalArgumentException(e.userMessage(), e);
         }
         String finalUrl = fetched.finalUri().toString();
         if (looksLikeFeed(fetched)) {

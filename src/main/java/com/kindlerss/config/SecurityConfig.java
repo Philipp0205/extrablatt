@@ -1,17 +1,25 @@
 package com.kindlerss.config;
 
 import com.kindlerss.security.AppUserDetails;
+import com.kindlerss.security.EmailNotVerifiedException;
+import com.kindlerss.security.LoginStatusChecker;
 import com.kindlerss.security.RateLimitingFilter;
+import com.kindlerss.security.StaleSessionFilter;
 import com.kindlerss.service.UserService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
 import org.springframework.core.env.Environment;
 import org.springframework.core.env.Profiles;
-import org.springframework.security.authentication.DisabledException;
+import org.springframework.security.authentication.AuthenticationEventPublisher;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.ProviderManager;
+import org.springframework.security.authentication.RememberMeAuthenticationProvider;
+import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -20,6 +28,7 @@ import org.springframework.security.config.annotation.web.configurers.RequestCac
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
@@ -28,6 +37,7 @@ import org.springframework.security.web.authentication.AuthenticationSuccessHand
 import org.springframework.security.web.authentication.RememberMeServices;
 import org.springframework.security.web.authentication.SavedRequestAwareAuthenticationSuccessHandler;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.authentication.rememberme.RememberMeAuthenticationFilter;
 import org.springframework.security.web.authentication.rememberme.TokenBasedRememberMeServices;
 
 /**
@@ -49,7 +59,9 @@ public class SecurityConfig {
             // § 312k BGB requires the cancellation path to be permanently available
             // and not to sit behind account credentials, so it is public on purpose.
             // CSRF still applies; the form carries a token like every other.
-            "/cancel"
+            "/cancel",
+            // Where the e-mailed confirmation link lands; the token is the credential.
+            "/cancel/confirm"
     };
 
     /** Session attribute holding the e-mail from a failed login, so the form can keep it. */
@@ -70,6 +82,7 @@ public class SecurityConfig {
 
     @Bean
     RememberMeServices rememberMeServices(UserDetailsService userDetailsService) {
+        RememberMeKeyPolicy.check(appProperties.rememberMeKey(), appProperties.publicUrl(), isProduction());
         TokenBasedRememberMeServices services =
                 new TokenBasedRememberMeServices(appProperties.rememberMeKey(), userDetailsService);
         services.setTokenValiditySeconds(365 * 24 * 60 * 60);
@@ -115,8 +128,14 @@ public class SecurityConfig {
     SecurityFilterChain securityFilterChain(HttpSecurity http,
                                             RememberMeServices rememberMeServices,
                                             RateLimitingFilter rateLimitingFilter,
-                                            UserService userService) throws Exception {
+                                            UserService userService,
+                                            UserDetailsService userDetailsService,
+                                            PasswordEncoder passwordEncoder,
+                                            ObjectProvider<AuthenticationEventPublisher> eventPublisher)
+            throws Exception {
         http
+                .authenticationManager(authenticationManager(
+                        userDetailsService, passwordEncoder, eventPublisher.getIfAvailable()))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
                         .requestMatchers(PUBLIC_PATHS).permitAll()
@@ -146,12 +165,95 @@ public class SecurityConfig {
                         .key(appProperties.rememberMeKey())
                 )
                 .addFilterBefore(rateLimitingFilter, UsernamePasswordAuthenticationFilter.class)
+                // After remember-me, so a session restored from either source is checked
+                // against the account as it is now.
+                .addFilterAfter(new StaleSessionFilter(userService, rememberMeServices),
+                        RememberMeAuthenticationFilter.class)
                 .csrf(csrf -> csrf
                         // A mail provider cannot carry a CSRF token; the shared secret is its
                         // authentication instead. Nor can a payment provider, which signs the
                         // request body instead.
-                        .ignoringRequestMatchers("/inbound/newsletters", "/webhooks/billing"));
+                        .ignoringRequestMatchers("/inbound/newsletters", "/webhooks/billing"))
+                .headers(headers -> headers
+                        .contentSecurityPolicy(csp -> csp.policyDirectives(contentSecurityPolicy()))
+                        .frameOptions(HeadersConfigurer.FrameOptionsConfig::deny)
+                        .referrerPolicy(referrer -> referrer.policy(
+                                ReferrerPolicyHeaderWriter.ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN)));
         return http.build();
+    }
+
+    /**
+     * Scripts only from this app's own files, so markup that slipped past the
+     * sanitiser cannot run anything; styles likewise only from the app's own
+     * stylesheet, with no inline style at all. Images may come from anywhere, since
+     * articles show the images of the sites they came from. Forms may post here, and on to the payment
+     * provider's checkout and portal, which the order and portal forms redirect to.
+     */
+    String contentSecurityPolicy() {
+        StringBuilder formAction = new StringBuilder("'self'");
+        AppProperties.Billing billing = appProperties.billing();
+        for (String url : new String[] {billing.monthlyCheckoutUrl(), billing.yearlyCheckoutUrl(),
+                billing.portalUrl()}) {
+            String origin = originOf(url);
+            if (origin != null && formAction.indexOf(" " + origin) < 0) {
+                formAction.append(' ').append(origin);
+            }
+        }
+        return "default-src 'self'; "
+                + "script-src 'self'; "
+                + "style-src 'self'; "
+                + "img-src 'self' data: https: http:; "
+                + "connect-src 'self'; "
+                + "font-src 'self'; "
+                + "object-src 'none'; "
+                + "base-uri 'self'; "
+                + "frame-ancestors 'none'; "
+                + "form-action " + formAction;
+    }
+
+    /** {@code https://host[:port]} of an absolute http(s) URL, or null. */
+    static String originOf(String url) {
+        if (url == null) {
+            return null;
+        }
+        try {
+            java.net.URI uri = java.net.URI.create(url.trim());
+            String scheme = uri.getScheme() == null ? "" : uri.getScheme().toLowerCase(java.util.Locale.ROOT);
+            if (!("https".equals(scheme) || "http".equals(scheme)) || uri.getHost() == null) {
+                return null;
+            }
+            String host = uri.getHost().toLowerCase(java.util.Locale.ROOT);
+            if (!host.matches("[a-z0-9.\\-\\[\\]:]+")) {
+                return null;
+            }
+            return scheme + "://" + host + (uri.getPort() >= 0 ? ":" + uri.getPort() : "");
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
+
+    /**
+     * Form login and remember-me, without a fallback to Spring's global manager. That
+     * one checks account status before the password, so an unconfirmed address
+     * answered "confirm your e-mail" to any password at all, which told a stranger
+     * the address was registered. Here the password is checked first (see
+     * {@link LoginStatusChecker}). It is not a bean on purpose: an
+     * {@code AuthenticationManager} bean would switch off Boot's defaults that the
+     * slice tests rely on.
+     */
+    private AuthenticationManager authenticationManager(UserDetailsService userDetailsService,
+                                                        PasswordEncoder passwordEncoder,
+                                                        AuthenticationEventPublisher eventPublisher) {
+        DaoAuthenticationProvider form = new DaoAuthenticationProvider(passwordEncoder);
+        form.setUserDetailsService(userDetailsService);
+        form.setPreAuthenticationChecks(user -> { });
+        form.setPostAuthenticationChecks(new LoginStatusChecker());
+        ProviderManager manager = new ProviderManager(
+                form, new RememberMeAuthenticationProvider(appProperties.rememberMeKey()));
+        if (eventPublisher != null) {
+            manager.setAuthenticationEventPublisher(eventPublisher);
+        }
+        return manager;
     }
 
     /**
@@ -197,7 +299,9 @@ public class SecurityConfig {
             if (username != null && !username.isBlank()) {
                 request.getSession().setAttribute(LAST_LOGIN_USERNAME, username.trim());
             }
-            String failure = exception instanceof DisabledException ? "unverified" : "error";
+            // Only a correct password on an unconfirmed account earns the specific hint;
+            // everything else, a switched-off account included, reads as a plain failure.
+            String failure = exception instanceof EmailNotVerifiedException ? "unverified" : "error";
             response.sendRedirect(request.getContextPath() + "/login?" + failure);
         };
     }

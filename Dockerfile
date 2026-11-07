@@ -1,9 +1,18 @@
 # Multi-stage build for Extrablatt
-FROM eclipse-temurin:21-jdk-alpine AS build
+#
+# Base images are pinned to an exact JDK build and Alpine release so a rebuild
+# of the same commit gets the same runtime. Dependabot (.github/dependabot.yml)
+# proposes the bumps.
+FROM eclipse-temurin:21.0.13_9-jdk-alpine-3.24 AS build
 WORKDIR /workspace
 
+# Build definition first: the dependency download below stays cached as its own
+# layer until pom.xml or the wrapper changes, so a source-only change does not
+# fetch every dependency again.
 COPY mvnw pom.xml ./
 COPY .mvn .mvn
+RUN chmod +x mvnw && ./mvnw -B -q dependency:go-offline
+
 COPY src src
 
 # The build context has no .git (it is excluded from the deploy sync), so the
@@ -17,17 +26,16 @@ COPY src src
 ARG RAILWAY_GIT_COMMIT_SHA
 ARG GIT_REVISION=unknown
 
-RUN chmod +x mvnw \
-  && if [ "$GIT_REVISION" = "unknown" ] && [ -n "$RAILWAY_GIT_COMMIT_SHA" ]; then \
+RUN if [ "$GIT_REVISION" = "unknown" ] && [ -n "$RAILWAY_GIT_COMMIT_SHA" ]; then \
        GIT_REVISION="$(echo "$RAILWAY_GIT_COMMIT_SHA" | cut -c1-7)"; \
      fi \
-  && ./mvnw -q -DskipTests -Dgit.revision="$GIT_REVISION" package
+  && ./mvnw -B -q -DskipTests -Dgit.revision="$GIT_REVISION" package
 
-FROM eclipse-temurin:21-jre-alpine AS runtime
+FROM eclipse-temurin:21.0.13_9-jre-alpine-3.24 AS runtime
 WORKDIR /app
 
-RUN apk add --no-cache wget \
-  && addgroup -S kindle && adduser -S kindle -G kindle
+# The healthcheck uses BusyBox wget, which Alpine ships in the base image.
+RUN addgroup -S kindle && adduser -S kindle -G kindle
 USER kindle:kindle
 
 COPY --from=build /workspace/target/kindle-rss-*.jar /app/app.jar

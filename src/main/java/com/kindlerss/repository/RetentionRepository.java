@@ -54,11 +54,18 @@ public class RetentionRepository {
      * keeping once it can no longer be redeemed.
      */
     public int deleteSpentTokensBefore(Instant cutoff) {
-        return jdbc.update("""
+        int accountTokens = jdbc.update("""
                 DELETE FROM email_tokens
                 WHERE (used_at IS NOT NULL AND used_at < ?)
                    OR expires_at < ?
                 """, Timestamp.from(cutoff), Timestamp.from(cutoff));
+        // Cancellation links too; the declaration they confirmed stays on record.
+        int cancellationTokens = jdbc.update("""
+                DELETE FROM cancellation_tokens
+                WHERE (used_at IS NOT NULL AND used_at < ?)
+                   OR expires_at < ?
+                """, Timestamp.from(cutoff), Timestamp.from(cutoff));
+        return accountTokens + cancellationTokens;
     }
 
     /**

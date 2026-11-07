@@ -27,6 +27,14 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    # Hand every setting in the repo-root .env to the app (BILLING_*, RETENTION_*,
+    # NEWSLETTER_*, ...), not just the ones mapped below. The path is relative to
+    # this file, so it is the same .env that --env-file .env reads from the repo
+    # root and that deploy/deploy.sh copies to the server. Entries under
+    # environment: still win, which keeps the required-variable checks and the
+    # in-network database URL.
+    env_file:
+      - ../.env
     environment:
       SPRING_PROFILES_ACTIVE: production
       DATABASE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-kindle_rss}

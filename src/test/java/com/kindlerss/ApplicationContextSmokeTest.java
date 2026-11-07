@@ -19,7 +19,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 
 /**
  * Boots the whole application context (security, filters, scheduler, mail, and
@@ -53,6 +55,16 @@ class ApplicationContextSmokeTest {
 
     @Test
     void contextLoads() {
+    }
+
+    @Autowired
+    org.springframework.mail.javamail.JavaMailSender mailSender;
+
+    /** Every mail service gets the sender that refuses scrubbed staging addresses. */
+    @Test
+    void theMailSenderRefusesInvalidRecipients() {
+        assertTrue(mailSender instanceof com.kindlerss.config.RecipientGuardMailSender,
+                mailSender.getClass().getName());
     }
 
     /**
@@ -117,4 +129,52 @@ class ApplicationContextSmokeTest {
 
     private static final java.util.regex.Pattern HASHED_STYLESHEET =
             java.util.regex.Pattern.compile("<link rel=\"stylesheet\" href=\"(/css/app-[0-9a-f]{32}\\.css)\"");
+
+    /**
+     * The rate limiter keys on the address ClientIpResolver works out, with the
+     * whole filter chain in place, ForwardedHeaderFilter included. That filter
+     * hands everything after it the leftmost X-Forwarded-For entry as the remote
+     * address, so a client that changed it on every attempt used to get a fresh
+     * allowance each time.
+     */
+    @Test
+    void loginAttemptsAreLimitedPerResolvedClientNotPerForgedHeader() throws Exception {
+        String chain = ", 203.0.113.77, 172.68.10.20";
+        for (int i = 0; i < 10; i++) {
+            assertTrue(loginFrom("100.64.0.2", "198.51.100." + i + chain) != 429, "attempt " + i);
+        }
+        assertEquals(429, loginFrom("100.64.0.2", "198.51.100.99" + chain));
+        assertTrue(loginFrom("100.64.0.2", "203.0.113.78, 172.68.10.20") != 429,
+                "another reader behind the same proxies is not affected");
+    }
+
+    private int loginFrom(String peer, String forwardedFor) throws Exception {
+        // MockMvc leaves the servlet path empty; Tomcat sets it to the path.
+        return mockMvc.perform(post("/login").servletPath("/login")
+                        .with(csrf())
+                        .with(request -> {
+                            request.setRemoteAddr(peer);
+                            return request;
+                        })
+                        .header("X-Forwarded-For", forwardedFor)
+                        .param("username", "nobody@example.com")
+                        .param("password", "wrong"))
+                .andReturn().getResponse().getStatus();
+    }
+
+    /**
+     * An address nothing serves reaches the static resource handler, which throws
+     * NoResourceFoundException. That has to come out as a 404 on the styled error
+     * page, not as a 500 from the catch-all handler.
+     */
+    @Test
+    @WithMockUser
+    void anUnknownAddressIsAStyled404() throws Exception {
+        String page = mockMvc.perform(get("/no-such-page").accept(MediaType.TEXT_HTML))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isNotFound())
+                .andReturn().getResponse().getContentAsString();
+
+        assertTrue(HASHED_STYLESHEET.matcher(page).find(), "the 404 page links the hashed stylesheet");
+        assertTrue(page.contains("Not found"), page);
+    }
 }

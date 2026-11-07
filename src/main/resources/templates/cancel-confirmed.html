@@ -26,14 +26,17 @@
       <dt>Received</dt>
       <dd><span th:text="${receivedAt}">1 September 2026 at 09:14</span> (Central European Time)</dd>
 
+      <th:block th:if="${echo}">
       <dt>Declared by</dt>
       <dd th:text="${request.name} ?: 'not given'">not given</dd>
+      </th:block>
 
       <dt>Account</dt>
       <dd th:text="${request.email}">you@example.com</dd>
 
       <dt>Contract</dt>
-      <dd th:text="${request.contractRef} ?: 'Extrablatt Supporter'">Extrablatt Supporter</dd>
+      <dd th:if="${echo}" th:text="${request.contractRef} ?: 'Extrablatt Supporter'">Extrablatt Supporter</dd>
+      <dd th:unless="${echo}">Extrablatt Supporter</dd>
 
       <dt>Type</dt>
       <dd th:if="${immediate}">Immediate (extraordinary) cancellation</dd>
@@ -42,8 +45,10 @@
       <dt>Contract ends</dt>
       <dd th:text="${effectiveAt}">1 September 2027</dd>
 
+      <th:block th:if="${echo}">
       <dt>Reason given</dt>
       <dd th:text="${request.reason} ?: 'none'">none</dd>
+      </th:block>
     </dl>
   </div>
 

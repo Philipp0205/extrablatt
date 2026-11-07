@@ -237,6 +237,43 @@ class AppControllerSecurityTest {
     }
 
     @Test
+    void aWrongPasswordOnAnUnverifiedAccountDoesNotRevealThatTheAccountExists() throws Exception {
+        String hash = new BCryptPasswordEncoder().encode("test-password-123");
+        AppUser account = new AppUser(UID, "user@example.com", hash, null,
+                null, null, Instant.now(), Instant.now());
+        when(userDetailsService.loadUserByUsername("user@example.com"))
+                .thenReturn(new AppUserDetails(account));
+
+        mockMvc.perform(formLogin().user("user@example.com").password("not-the-password"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/login?error"));
+    }
+
+    @Test
+    void aDisabledAccountFailsLikeAWrongPassword() throws Exception {
+        String hash = new BCryptPasswordEncoder().encode("test-password-123");
+        AppUser account = new AppUser(UID, "user@example.com", hash, null,
+                Instant.now(), Instant.now(), Instant.now(), Instant.now());
+        when(userDetailsService.loadUserByUsername("user@example.com"))
+                .thenReturn(new AppUserDetails(account));
+
+        mockMvc.perform(formLogin().user("user@example.com").password("test-password-123"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/login?error"));
+        verify(userService, never()).recordLastLogin(anyLong());
+    }
+
+    @Test
+    void anUnknownAddressFailsLikeAWrongPassword() throws Exception {
+        when(userDetailsService.loadUserByUsername("nobody@example.com"))
+                .thenThrow(new org.springframework.security.core.userdetails.UsernameNotFoundException("none"));
+
+        mockMvc.perform(formLogin().user("nobody@example.com").password("whatever-123"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/login?error"));
+    }
+
+    @Test
     @WithMockUser
     void homeRequiresAuthAndRenders() throws Exception {
         when(feedService.listFeeds(UID)).thenReturn(List.of());
@@ -1005,14 +1042,61 @@ class AppControllerSecurityTest {
     @Test
     @WithMockUser
     void aFailedSendSaysWhyInsteadOfAnsweringWithNothing() throws Exception {
-        org.mockito.Mockito.doThrow(new IllegalStateException("Failed to send EPUB to Kindle: connection refused"))
+        org.mockito.Mockito.doThrow(new KindleMailService.DeliveryFailedException(
+                        "The article could not be e-mailed to your Kindle just now. Please try again in a few minutes.",
+                        new RuntimeException("smtp.internal.example:587 connection refused")))
                 .when(kindleMailService).sendToKindle(UID, 4L, false);
 
         mockMvc.perform(post("/articles/4/send-async").with(csrf()))
                 .andExpect(status().isInternalServerError())
                 .andExpect(content().contentTypeCompatibleWith("application/json"))
-                .andExpect(jsonPath("$.error")
-                        .value("Failed to send EPUB to Kindle: connection refused"));
+                .andExpect(jsonPath("$.error").value(
+                        "The article could not be e-mailed to your Kindle just now. Please try again in a few minutes."))
+                .andExpect(content().string(org.hamcrest.Matchers.not(containsString("smtp.internal"))));
+    }
+
+    /* Whatever an unexpected failure says about the server stays in the log. */
+    @Test
+    @WithMockUser
+    void anUnexpectedFailureDoesNotShowItsOwnMessage() throws Exception {
+        org.mockito.Mockito.doThrow(new IllegalStateException("535 5.7.8 auth failed for re_secret at smtp.resend.com"))
+                .when(kindleMailService).sendToKindle(UID, 4L, false);
+
+        mockMvc.perform(post("/articles/4/send-async").with(csrf()))
+                .andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.error").value("Could not send article"));
+
+        mockMvc.perform(post("/articles/4/send").with(csrf()))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(flash().attribute("error", "Could not send article"));
+    }
+
+    @Test
+    @WithMockUser
+    void aFailedFetchShowsTheReaderSentenceNotTheResolvedAddress() throws Exception {
+        when(articleService.importFromUrl(UID, "https://intranet.example"))
+                .thenThrow(new IllegalArgumentException("That address is not allowed",
+                        new com.kindlerss.service.SafeHttpClient.FetchException(
+                                "Resolved address is not allowed: 10.0.0.5", "That address is not allowed", null)));
+        when(feedService.addFeed(UID, "https://intranet.example", null))
+                .thenThrow(new com.kindlerss.service.SafeHttpClient.FetchException(
+                        "Resolved address is not allowed: 10.0.0.5", "That address is not allowed", null));
+
+        mockMvc.perform(post("/articles/from-url").with(csrf()).param("url", "https://intranet.example"))
+                .andExpect(flash().attribute("error", "That address is not allowed"));
+        mockMvc.perform(post("/feeds").with(csrf()).param("url", "https://intranet.example"))
+                .andExpect(flash().attribute("error", "That address is not allowed"));
+    }
+
+    @Test
+    @WithMockUser
+    void aDatabaseErrorWhileAddingAFeedIsNotShown() throws Exception {
+        when(feedService.addFeed(UID, "https://example.com", null))
+                .thenThrow(new org.springframework.dao.DataIntegrityViolationException(
+                        "ERROR: duplicate key value violates unique constraint \"feeds_user_url_key\""));
+
+        mockMvc.perform(post("/feeds").with(csrf()).param("url", "https://example.com"))
+                .andExpect(flash().attribute("error", "That site could not be added"));
     }
 
     /* A failure with no message of its own still gets a sentence to show. */
@@ -1221,6 +1305,37 @@ class AppControllerSecurityTest {
         org.junit.jupiter.api.Assertions.assertEquals("https://example.com/a", AppController.safeHttpUrl("https://example.com/a"));
     }
 
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {
+            "/\\evil.example",
+            "/\\/evil.example",
+            "\\\\evil.example",
+            "/\t/evil.example",
+            "/\n/evil.example",
+            "/\r/evil.example",
+            "/ /evil.example",
+            "/\u0000/evil.example",
+            "/\u007f/evil.example",
+            "/\u00a0/evil.example",
+            "/\u2028/evil.example",
+            "javascript:alert(1)",
+            "evil.example",
+            "https:/evil.example",
+            "///evil.example"
+    })
+    void safeRedirectRefusesWhatBrowsersMightReadAsAnotherHost(String target) {
+        org.junit.jupiter.api.Assertions.assertEquals("/items", AppController.safeRedirect(target));
+    }
+
+    @Test
+    void safeRedirectKeepsOrdinaryInAppPaths() {
+        org.junit.jupiter.api.Assertions.assertEquals("/", AppController.safeRedirect("/"));
+        org.junit.jupiter.api.Assertions.assertEquals("/articles/12", AppController.safeRedirect(" /articles/12 "));
+        org.junit.jupiter.api.Assertions.assertEquals("/items?page=2&category=Tech%20News&unread=true",
+                AppController.safeRedirect("/items?page=2&category=Tech%20News&unread=true"));
+        org.junit.jupiter.api.Assertions.assertEquals("/?category=a:b", AppController.safeRedirect("/?category=a:b"));
+    }
+
     @Test
     @WithMockUser
     void homeOffersAPasteUrlFormOnTheFeedsView() throws Exception {
@@ -1292,7 +1407,7 @@ class AppControllerSecurityTest {
                 "https://example.com/a", null, Instant.now(), null, null, "<p>Hi</p>",
                 false, null, Instant.now(), Instant.now(), "Pasted URLs");
         when(articleService.importFromUrl(UID, "https://example.com/a")).thenReturn(imported);
-        org.mockito.Mockito.doThrow(new IllegalStateException("Add your Kindle e-mail address in Settings first"))
+        org.mockito.Mockito.doThrow(new KindleMailService.SetupRequiredException("Add your Kindle e-mail address in Settings first"))
                 .when(kindleMailService).sendToKindle(UID, 8L, false);
 
         mockMvc.perform(post("/articles/from-url").with(csrf())

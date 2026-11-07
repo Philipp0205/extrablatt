@@ -39,6 +39,11 @@ public class AppUserDetails implements UserDetails {
         return emailVerified;
     }
 
+    /** Whether an operator has left the account switched on, regardless of e-mail confirmation. */
+    public boolean accountEnabled() {
+        return enabled;
+    }
+
     public boolean admin() {
         return admin;
     }

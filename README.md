@@ -37,7 +37,9 @@ their own licenses. Start with [Local configuration](#local-configuration) or
 - Optional quick-start feed suggestions and categories for organizing subscriptions
 - Scheduled refresh of every account's feeds every 30 minutes, plus a background
   poll when someone opens Feeds or Articles, asking each feed for more than the
-  handful of entries it publishes by default
+  handful of entries it publishes by default. A feed followed by several accounts
+  is fetched once per refresh, and no database transaction is held open while a
+  publisher answers
 - Article extraction (Readability4J) with sanitized HTML caching
 - A continuously scrolling, mobile-first article list that grows with **Load more
   articles**, and marks articles read only when you open them or ask it to
@@ -70,8 +72,15 @@ their own licenses. Start with [Local configuration](#local-configuration) or
 | `APP_PUBLIC_URL` | Base URL used in verification / reset e-mails (e.g. `http://localhost:8080`) |
 | `MAIL_FROM` | Shared sender on your verified domain (`mail@yourdomain.com`) |
 | `SMTP_HOST` / `SMTP_PORT` / `SMTP_USERNAME` / `SMTP_PASSWORD` | SMTP (Resend: host `smtp.resend.com`, username `resend`, password = API key) |
-| `REMEMBER_ME_KEY` | Secret for remember-me tokens |
+| `REMEMBER_ME_KEY` | Secret for remember-me tokens. At least 32 characters and not a placeholder (`openssl rand -base64 48`); startup fails otherwise under the `production` profile or a non-localhost `APP_PUBLIC_URL` |
 | `ADMIN_EMAILS` | Comma-separated account e-mails allowed to view telemetry and manage per-user send limits |
+| `TRUSTED_PROXIES` | `app.trusted-proxies`: comma-separated CIDRs of proxies allowed to add to `X-Forwarded-For`. Blank (default) means `127.0.0.0/8, 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 100.64.0.0/10, 169.254.0.0/16, ::1/128, fc00::/7, fe80::/10`; a value replaces that list. See [Client address behind proxies](#client-address-behind-proxies) |
+| `TRUST_CLOUDFLARE` | `app.trust-cloudflare`, default `true`: also trust Cloudflare's published edge ranges. Set `false` when Cloudflare is not in front of the app |
+
+Flyway applies migrations strictly in version order (`out-of-order` is off). If a
+database is missing a lower version (for example a branch that skipped one was
+deployed first), Flyway refuses to start. Set `FLYWAY_OUT_OF_ORDER=true` for a
+single repair deploy so the missing script runs, then remove it again.
 
 3. Export variables (or use your shell dotenv tooling) and run:
 
@@ -109,6 +118,12 @@ Kindle address under **Settings**.
 ```
 
 Tests do not require PostgreSQL or Docker. They cover EPUB layout, HTML sanitization, SSRF address checks, and MVC/security smoke paths with mocked services.
+
+GitHub Actions run the tests on every push and pull request (`ci.yml`) and
+CodeQL analysis of the Java code (`codeql.yml`, also weekly). Third-party
+actions are pinned to commit SHAs with the release noted alongside, and
+Dependabot (`.github/dependabot.yml`) opens weekly update PRs against
+`staging` for Maven, Actions and the Docker base images.
 
 ## Using the app
 
@@ -216,6 +231,12 @@ read it, mark it read, **Send to Kindle**, recategorize, or **Delete** it.
 **New address** in Settings rotates the inbox (e.g. once it starts collecting
 spam) without losing anything already received.
 
+With billing on, the inbox belongs to the Supporter plan (and the free week).
+Once an account no longer has it, an issue from a sender it has never heard
+from is dropped instead of creating a feed (the inbound webhook answers 200
+with `"status": "dropped"`), while senders that already have a feed keep
+delivering.
+
 This needs an inbound e-mail provider in front of the app, since Extrablatt
 itself never receives mail directly:
 
@@ -226,10 +247,16 @@ itself never receives mail directly:
    out of the box. Mailgun Routes, SendGrid Inbound Parse, or a Cloudflare Email
    Routing worker all work too with a small JSON reshape in front of the webhook.
 2. Configure that provider's inbound webhook to `POST` to
-   `https://<your-app>/inbound/newsletters?secret=<NEWSLETTER_INBOUND_SECRET>`
-   (`NEWSLETTER_INBOUND_SECRET` is a long random value you choose; the query
-   parameter is the only thing standing in for a login on this endpoint, since
-   the provider cannot authenticate like a browser).
+   `https://<your-app>/inbound/newsletters` with `NEWSLETTER_INBOUND_SECRET` (a
+   long random value you choose) sent in an `X-Newsletter-Secret` header or as
+   `Authorization: Bearer <secret>`. Postmark cannot set custom headers, so give it
+   `https://inbound:<NEWSLETTER_INBOUND_SECRET>@<your-app>/inbound/newsletters`;
+   it sends that as HTTP Basic auth and the app reads the password. The secret is
+   the only thing standing in for a login on this endpoint, since the provider
+   cannot authenticate like a browser. The older
+   `?secret=<NEWSLETTER_INBOUND_SECRET>` form still works but logs a deprecation
+   warning, because URLs end up in proxy and access logs. A message larger than
+   `NEWSLETTER_MAX_BODY_BYTES` (default 10 MiB) is refused with 413.
 3. Set both variables in `.env` (or your platform's env vars) and redeploy.
 
 The webhook expects Postmark's inbound JSON shape: `To`/`ToFull`/
@@ -270,7 +297,9 @@ abuse guardrail rather than a plan limit. The complimentary week is
 Every account that exists when the original subscriptions migration ran is
 grandfathered permanently: it was never advertised as something with a
 subscription, and capping it afterwards would be both unfair and bad for the
-project. An administrator can also grant the plan by hand from **Settings →
+project. A grandfathered account cannot place an order: the order page sends it
+back to **Settings → Subscription** with a note, because a pending order would
+otherwise replace the permanent plan. An administrator can also grant the plan by hand from **Settings →
 Telemetry**, which is how a reader whose payment went through but whose callback
 went missing gets fixed.
 
@@ -289,9 +318,27 @@ subscribed. Losing a subscription never deletes anything; feeds, articles and
 reading position stay. Reading in the browser continues; sending to Kindle needs
 a paid period.
 
+A callback that cannot be applied yet, usually a subscription event that overtook
+the checkout naming its account, is answered with a 503 so the provider delivers it
+again, and the app also retries it itself from the stored payload. The first retry
+waits `BILLING_WEBHOOK_RETRY_BACKOFF` (default `PT1M`), each one after that twice as
+long up to six hours, until `BILLING_WEBHOOK_MAX_ATTEMPTS` (default 12, about a day)
+is used up. A retry that arrives after a newer event for the same subscription was
+applied is skipped rather than rolling the subscription back.
+
 Two things are deliberately manual, because the app holds no provider API key: a
 cancellation is e-mailed to `BILLING_OPERATOR_EMAIL` so the payment is stopped at
 the provider by hand, and a missed callback is fixed with the admin grant above.
+
+`/cancel` needs no login, as § 312k BGB requires, but a declaration only takes
+effect at once for the signed-in owner of the account. Anyone else's is recorded
+with the time it arrived, and a single-use link (24 hours, at most three per account
+per day, only its SHA-256 hash stored) goes to the account's own address; following
+it and pressing the button applies the cancellation. The page shown afterwards is
+the same whether or not the address has an account, and the link e-mail repeats
+nothing the requester typed. See
+[`docs/subscriptions-and-payments.md`](docs/subscriptions-and-payments.md) for the
+legal reasoning, which needs a lawyer's look before charging anyone.
 
 Before charging anyone there is work no configuration flag covers.
 [`docs/going-live.md`](docs/going-live.md) is the runbook: the tax and establishment
@@ -350,7 +397,7 @@ well: managed Postgres, TLS, and Dockerfile builds with low ops.
    DATABASE_USER     = ${{Postgres.PGUSER}}
    DATABASE_PASSWORD = ${{Postgres.PGPASSWORD}}
    APP_PUBLIC_URL    = https://<your-service>.up.railway.app
-   REMEMBER_ME_KEY   = <long random string>
+   REMEMBER_ME_KEY   = <output of: openssl rand -base64 48>
    ADMIN_EMAILS      = you@yourdomain.com
    MAIL_FROM         = mail@yourdomain.com
    SMTP_HOST         = smtp.resend.com
@@ -363,6 +410,11 @@ well: managed Postgres, TLS, and Dockerfile builds with low ops.
    create an API key; move out of the sandbox to e-mail arbitrary recipients.
 5. Deploy, open the service URL, and register the first account. Set a billing
    alert on day one.
+
+Behind Cloudflare and Railway the defaults for `TRUSTED_PROXIES` and
+`TRUST_CLOUDFLARE` are correct; leave both unset (see
+[Client address behind proxies](#client-address-behind-proxies)). Turning off the
+`*.up.railway.app` domain once a custom domain works is optional hardening.
 
 Flyway runs the schema migrations automatically on first boot. Rely on Railway's
 managed Postgres backups. Any SMTP provider (Postmark, SES, …) works by changing
@@ -383,16 +435,54 @@ This repo's Railway project has two environments:
 Merge (or push) to `staging` to ship a build you can try before it reaches
 readers. Merge to `main` when that build should go live. Staging has its own
 Postgres so Flyway and feed refresh cannot touch production; `deploy/sync-staging-db.sh`
-(and the **Sync staging database** GitHub Action, daily plus manual) dumps
-production and restores it onto staging.
+(and the **Sync staging database** GitHub Action, daily plus manual) copies
+production onto staging with personal data scrubbed.
 
-Staging still uses the production SMTP sender, so Kindle sends and account
-e-mail from that host are real. `APP_PUBLIC_URL` is `https://staging.extrablatt.app`,
-so verification and reset links stay on staging.
+The copy is streamed into staging as one transaction: the production dump,
+then `deploy/staging-scrub.sql`. Either the scrubbed copy is committed or
+staging keeps what it had, so unscrubbed production data is never committed
+there. The scrub:
+
+- rewrites every account's e-mail and Kindle address to `...@staging.invalid`,
+  replaces its password hash with one that matches nothing and drops its
+  newsletter inbox address;
+- deletes all verification and reset tokens;
+- renames newsletter feeds and blanks their issues (sender, reader, content);
+- strips credentials and query strings from feed URLs and clears feed errors;
+- replaces payment provider ids, webhook payloads and cancellation details;
+- refuses to commit if any non-kept account still has a real address.
+
+`StagingScrubTest` fails when a migration adds a text column the scrub does
+not know about, so new personal data has to be classified before it ships.
+
+Accounts listed in `STAGING_KEEP_EMAILS` are left as they are so testers and
+admins (`ADMIN_EMAILS`) can still sign in; everyone else has to register anew
+on staging. Remember-me cookies are signed with `REMEMBER_ME_KEY` and the
+password hash, so after a sync only kept accounts stay signed in, and only if
+staging shares the key: give staging its own `REMEMBER_ME_KEY`.
+
+Staging must not send with the production SMTP account. Give it its own
+sender or a mail sink (for example Mailpit, or a Resend key restricted to a
+test domain), and optionally set `MAIL_ALLOWED_RECIPIENT_DOMAINS`. The sync
+compares the SMTP settings of both environments (hashes only, nothing is
+printed) and stops if they are the same or cannot be read; `ALLOW_SHARED_SMTP=1`
+overrides that. Independently, the app refuses to send to any `.invalid`
+address, so scrubbed accounts cannot receive mail even with shared SMTP.
+`APP_PUBLIC_URL` is `https://staging.extrablatt.app`, so verification and
+reset links stay on staging.
+
+The script registers a throwaway SSH key with Railway (held in a private
+`ssh-agent`, never written to `~/.ssh`), uses a private ssh config and
+known_hosts in a temp directory, and removes the key again on exit. It does
+not read or change `~/.ssh/config`. Pass `SSH_KEY_PATH` to use a key that is
+already registered, and `RAILWAY_SSH_KNOWN_HOSTS` to pin the relay host key
+instead of trusting it on first use.
 
 To let the **Sync staging database** GitHub Action talk to Railway, add a
-repository secret named `RAILWAY_TOKEN` (a Railway account or project token).
-Deploys themselves don't need it — those go through Railway's own GitHub
+repository secret named `RAILWAY_API_TOKEN` (a Railway account or workspace
+token; the Railway CLI refuses to manage SSH keys with a project token) and,
+optionally, a secret `STAGING_KEEP_EMAILS` and a variable `RAILWAY_PROJECT_ID`.
+Deploys themselves don't need it: those go through Railway's own GitHub
 trigger on `main`/`staging` regardless. Until the secret is set, **Sync
 staging database** skips its Railway steps with exit 0 instead of failing the
 Actions run.
@@ -539,6 +629,14 @@ Services:
 
 Healthchecks are configured on Postgres and the app (`/actuator/health`).
 
+The `app` service loads the repo-root `.env` with `env_file`, so every setting
+from `.env.example` (`BILLING_*`, `RETENTION_*`, `NEWSLETTER_*`, ...) reaches the
+application without being listed in the compose file. The `.env` file must
+exist next to `deploy/` (Compose fails otherwise). Values under `environment:`
+in `deploy/docker-compose.yml` take precedence: `DATABASE_URL` always points at
+the bundled Postgres, and `POSTGRES_PASSWORD`, `MAIL_FROM`, `REMEMBER_ME_KEY` and
+`DOMAIN` are still required.
+
 ### Behind an existing reverse proxy
 
 If the host already terminates TLS (its own Caddy, nginx, Traefik), the bundled
@@ -553,7 +651,9 @@ docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.host-proxy.
 Set `APP_HTTP_PORT` in `.env` if 8090 is taken, then point the host proxy at
 `127.0.0.1:$APP_HTTP_PORT`. See `deploy/host-caddy-site.example` for a site block.
 The app already runs with `server.forward-headers-strategy=framework`, so it
-honors `X-Forwarded-Proto` and issues Secure cookies and https redirects.
+honors `X-Forwarded-Proto` and issues Secure cookies and https redirects. The
+host proxy reaches the app through Docker's port publishing, so the app sees a
+private-range peer, which the default `TRUSTED_PROXIES` already covers.
 
 ## Deploy to a VPS (self-host alternative)
 
@@ -616,16 +716,75 @@ chmod +x deploy/backup.sh deploy/restore.sh
 ./deploy/restore.sh deploy/backups/kindle_rss_YYYYMMDD.sql.gz
 ```
 
+- Both scripts read only the keys they need (`POSTGRES_DB`, `POSTGRES_USER`,
+  `BACKUP_*`) from `.env`, as plain text; `.env` is never sourced or executed.
+  Variables already set in the environment win.
+- `backup.sh` keeps the newest `BACKUP_KEEP` backups (default 14, `0` keeps all)
+  and deletes older ones. Backups are created with mode `600`.
+- Set `BACKUP_AGE_RECIPIENT` (an age public key) or `BACKUP_GPG_RECIPIENT` (a gpg
+  key id or e-mail) to encrypt each backup; the file then ends in `.age` / `.gpg`.
+  Restoring an `.age` backup needs `BACKUP_AGE_IDENTITY` (path to the identity
+  file); `.gpg` backups use the local gpg keyring.
+- `restore.sh` replaces the whole database, so it asks you to type the database
+  name first. Pass `--yes` to skip that in scripts (it refuses to run without a
+  terminal otherwise). It restores in a single transaction with
+  `ON_ERROR_STOP=1`, so a broken dump leaves the database unchanged.
+
 ## Security notes
 
 - CSRF protection stays enabled; forms include tokens.
 - Feed/article HTML is sanitized with jsoup Safelist before `th:utext`.
-- Outbound fetches allow only `http`/`https`, resolve DNS, and reject loopback/private/link-local/multicast/CGNAT/ULA addresses; response size and timeouts are capped.
+- Outbound fetches allow only `http`/`https` and refuse loopback, private, link-local, CGNAT, ULA, multicast, documentation, benchmarking and reserved ranges, plus IPv6 prefixes that embed an IPv4 address (mapped, NAT64, 6to4, Teredo). The check runs inside the resolver the connection uses, so every DNS answer is checked at connect time and a host that switches to a private address after a first lookup (DNS rebinding) is still refused. Redirects are followed by hand (at most 5, each hop re-checked); no proxy, cookies or retries. Response size is capped (`app.http.max-bytes`), each wait for data is capped (`app.http.read-timeout`), and a whole fetch, redirects included, is capped by `app.http.total-timeout` (30s).
 - Redirect targets from form posts are restricted to same-app relative paths.
+- The public `/cancel` form changes a subscription only for the signed-in owner. For anyone else it records the declaration and mails a single-use, hashed, 24-hour link to the account's own address (at most three per account per day), without the requester's text; `/cancel/confirm` acts only on a CSRF-protected POST. The response is the same whether or not an account exists.
+- Every page is served with a Content-Security-Policy: scripts only from the app's own `/js/` files and styles only from its own `/css/app.css` (`script-src 'self'; style-src 'self'`), with no inline script, style or event handler. Images may come from any http(s) origin, since articles show their source's images; forms may post to the app and to the origins of the configured checkout and portal URLs. Framing is refused (`frame-ancestors 'none'`, `X-Frame-Options: DENY`). Confirmation prompts on destructive forms use a `data-confirm` attribute read by `js/app.js`; new templates must not add `style="..."` or `on...=` attributes (a test checks).
+- Errors render the error page with a fixed message: malformed or missing input is a 400, unknown paths a 404, a wrong HTTP method a 405, and anything unexpected a 500 that is logged in full but never shows the exception text.
 - Session cookies are not marked Secure in the default profile (local HTTP). The `production` profile sets Secure cookies; use a TLS-terminating proxy with forwarded headers.
+- Rate limiting keys on the client address `ClientIpResolver` works out (see [Client address behind proxies](#client-address-behind-proxies)), not on `getRemoteAddr()` and not on the leftmost `X-Forwarded-For` entry, both of which the client controls behind `server.forward-headers-strategy: framework`. No proxy has to overwrite the header; appending is fine. The limiter is in memory, bounded to 10,000 keys, and per instance.
+
+### Client address behind proxies
+
+Production runs client, Cloudflare, Railway's edge, app. Each proxy appends the
+address it saw to `X-Forwarded-For`, so only the right-hand end of that header is
+trustworthy; the leftmost entry is whatever the client sent. The app therefore
+works out the client address itself, from the original socket peer and the raw
+header (it unwraps Spring's `ForwardedHeaderFilter`, which only stays on for
+`X-Forwarded-Proto` / `-Host` / `-Port`):
+
+- If the socket peer is not a trusted proxy, `X-Forwarded-For` is ignored and the
+  peer is the client.
+- Otherwise the header is walked from the right, skipping trusted proxies
+  (Railway's private hops, then Cloudflare). The first untrusted address is the
+  client. If every entry is trusted, the leftmost one is used. An entry that is
+  not an IP literal stops the walk at the nearest trusted hop.
+- `CF-Connecting-IP` is never read. The Railway origin is also reachable directly
+  at `*.up.railway.app`, bypassing Cloudflare, and a Cloudflare Worker can set
+  that header too. A request straight to the origin still resolves correctly: to
+  the caller address Railway's edge appended.
+
+Settings:
+
+- `app.trusted-proxies` (env `TRUSTED_PROXIES`): comma-separated CIDRs. Blank
+  (default) means loopback, RFC 1918, `100.64.0.0/10` (Railway's private network
+  and CGNAT), `169.254.0.0/16`, `::1/128`, `fc00::/7` and `fe80::/10`. A value
+  replaces that list. A malformed range fails start-up.
+- `app.trust-cloudflare` (env `TRUST_CLOUDFLARE`, default `true`): also trust
+  Cloudflare's published IPv4 and IPv6 ranges, hardcoded in
+  `ClientIpResolver.CLOUDFLARE_RANGES` (copied from cloudflare.com/ips-v4 and
+  ips-v6 on 2026-11-07; refresh when Cloudflare changes them). Set `false` on a
+  deployment without Cloudflare, so a Cloudflare address in the header is not
+  skipped.
+
+The bundled VPS setup works with the defaults: Caddy sits on the Docker network
+(a private-range peer) and sets `X-Forwarded-For` to the client it saw.
+
+Optional hardening: switch off the `*.up.railway.app` domain in Railway
+(service, Settings, Networking) so all traffic goes through Cloudflare. The rate
+limiter is correct either way.
 
 ## Stack
 
-- Spring Boot 3.5.3, Java 21, Maven Wrapper
+- Spring Boot 3.5.16, Java 21, Maven Wrapper
 - Thymeleaf, Spring Security, JDBC, Mail, Flyway, Actuator
 - ROME 2.1.0, Readability4J 1.0.8, jsoup 1.22.2 (explicit override; Readability4J otherwise pulls 1.11.2)
+- Apache HttpClient 5 for outbound fetches (version from the Spring Boot BOM)

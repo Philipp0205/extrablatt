@@ -31,9 +31,12 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
@@ -109,6 +112,8 @@ class KindleMailServiceTest {
         );
         when(articleRepository.findById(UID, 7L)).thenReturn(Optional.of(article));
         when(articleRepository.countSentSince(eq(UID), any(Instant.class))).thenReturn(0L);
+        when(articleRepository.reserveSend(eq(UID), eq(7L), any(), anyInt(), any(), anyInt(), any()))
+                .thenReturn(new ArticleRepository.SendReservation(99L, null));
         when(articleService.getContentHtml(article, false)).thenReturn("<p>Content</p>");
         when(mailSender.createMimeMessage())
                 .thenReturn(new MimeMessage(Session.getInstance(new Properties())));
@@ -127,8 +132,9 @@ class KindleMailServiceTest {
         assertEquals("Extrablatt", from.getPersonal());
         assertEquals("reader@kindle.com", message.getValue().getAllRecipients()[0].toString());
         assertTrue(message.getValue().getContentType().startsWith("multipart/"));
-        verify(articleRepository).recordSend(eq(UID), eq(7L), any(Instant.class));
+        verify(articleRepository).confirmSend(eq(UID), eq(7L), any(Instant.class));
         verify(articleRepository).markRead(UID, 7L, true);
+        verify(articleRepository, never()).releaseSend(anyLong(), anyLong());
     }
 
     /**
@@ -197,10 +203,41 @@ class KindleMailServiceTest {
         doThrow(new IllegalStateException("SMTP unavailable"))
                 .when(mailSender).send(any(MimeMessage.class));
 
-        assertThrows(IllegalStateException.class, () -> service.sendToKindle(UID, 7L, false));
+        KindleMailService.DeliveryFailedException error = assertThrows(
+                KindleMailService.DeliveryFailedException.class, () -> service.sendToKindle(UID, 7L, false));
+        // What the mail server said is kept for the log, not shown to the reader.
+        assertFalse(error.getMessage().contains("SMTP unavailable"), error.getMessage());
+        assertEquals("SMTP unavailable", error.getCause().getMessage());
 
-        verify(articleRepository, never()).recordSend(any(Long.class), any(Long.class), any(Instant.class));
+        verify(articleRepository).releaseSend(UID, 99L);
+        verify(articleRepository, never()).confirmSend(anyLong(), anyLong(), any(Instant.class));
         verify(articleRepository, never()).markRead(UID, 7L, true);
+    }
+
+    /**
+     * The count before sending can pass for two sends at once. The reservation is
+     * what decides, and a refused one sends nothing.
+     */
+    @Test
+    void aSendThatLosesTheRaceForTheLastPlaceIsRefused() {
+        when(articleRepository.reserveSend(eq(UID), eq(7L), any(), anyInt(), any(), anyInt(), any()))
+                .thenReturn(new ArticleRepository.SendReservation(null,
+                        ArticleRepository.SendReservation.Limit.DAY));
+
+        IllegalStateException error = assertThrows(IllegalStateException.class,
+                () -> service.sendToKindle(UID, 7L, false));
+
+        assertTrue(error.getMessage().contains("Daily send limit reached (50)"), error.getMessage());
+        verify(mailSender, never()).send(any(MimeMessage.class));
+        verify(articleRepository, never()).releaseSend(anyLong(), anyLong());
+    }
+
+    @Test
+    void theReservationIsTakenWithThePlanLimits() {
+        service.sendToKindle(UID, 7L, false);
+
+        // Billing off: the full daily allowance and no monthly cap.
+        verify(articleRepository).reserveSend(eq(UID), eq(7L), any(), eq(50), any(), eq(0), any());
     }
 
     /**
@@ -235,7 +272,7 @@ class KindleMailServiceTest {
         service.sendToKindle(UID, 7L, false);
 
         verify(mailSender).send(any(MimeMessage.class));
-        verify(articleRepository).recordSend(eq(UID), eq(7L), any(Instant.class));
+        verify(articleRepository).confirmSend(eq(UID), eq(7L), any(Instant.class));
     }
 
     /** A still-running trial is the paid plan: it is not metered by the month. */

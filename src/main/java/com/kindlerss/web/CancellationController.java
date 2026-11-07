@@ -14,6 +14,7 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
+import java.util.Optional;
 
 /**
  * The cancellation route § 312k BGB requires, and the reason it is a page of its
@@ -88,11 +89,57 @@ public class CancellationController {
                 trimToNull(reason));
         SubscriptionService.Outcome outcome = subscriptions.cancel(
                 declaration, currentUser.details().map(details -> details.id()).orElse(null));
+        if (outcome.awaitingOwner()) {
+            return received(outcome, model);
+        }
+        return confirmed(outcome, model);
+    }
 
+    /**
+     * Where the e-mailed link lands. Only shows what it would confirm: mail scanners
+     * and link previews fetch links, and a GET that cancelled a subscription would
+     * let them do it.
+     */
+    @GetMapping("/cancel/confirm")
+    public String confirmForm(@RequestParam(value = "token", required = false) String token,
+                              Model model) {
+        Optional<CancellationRequest> pending = subscriptions.peekLink(token);
+        if (pending.isEmpty()) {
+            return "cancel-link-invalid";
+        }
+        model.addAttribute("token", token);
+        model.addAttribute("receivedAt", STAMP.format(pending.get().receivedAt().atZone(ZONE)));
+        model.addAttribute("immediate", pending.get().kind() == CancellationRequest.Kind.IMMEDIATE);
+        return "cancel-confirm";
+    }
+
+    @PostMapping("/cancel/confirm")
+    public String confirm(@RequestParam(value = "token", required = false) String token, Model model) {
+        Optional<SubscriptionService.Outcome> outcome = subscriptions.confirmByLink(token);
+        if (outcome.isEmpty()) {
+            return "cancel-link-invalid";
+        }
+        return confirmed(outcome.get(), model);
+    }
+
+    /**
+     * The same page whether or not the address belongs to an account, so the form
+     * does not tell anyone who has one. It still reads the declaration back with the
+     * time it arrived, which is what § 312k Abs. 3 BGB is about.
+     */
+    private String received(SubscriptionService.Outcome outcome, Model model) {
+        model.addAttribute("receivedAt", STAMP.format(outcome.request().receivedAt().atZone(ZONE)));
+        model.addAttribute("immediate",
+                outcome.request().kind() == CancellationRequest.Kind.IMMEDIATE);
+        return "cancel-received";
+    }
+
+    private String confirmed(SubscriptionService.Outcome outcome, Model model) {
         // Shown as well as e-mailed: § 312k Abs. 3 BGB is about the consumer being
         // able to keep the declaration, and not everyone reads e-mail on the device
         // they cancelled from.
         model.addAttribute("request", outcome.request());
+        model.addAttribute("echo", outcome.echoDeclaration());
         model.addAttribute("receivedAt", STAMP.format(outcome.request().receivedAt().atZone(ZONE)));
         model.addAttribute("effectiveAt", DAY.format(outcome.effectiveAt().atZone(ZONE)));
         model.addAttribute("applied", outcome.applied());

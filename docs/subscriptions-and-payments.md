@@ -102,14 +102,25 @@ no monthly ration unless an operator configures one:
 | Newsletter inbox | yes | — | yes |
 | Reading, categories, paged reader | yes | yes | yes |
 
+No newsletter inbox after the week means a sender the account has never
+received from is dropped rather than given a feed. Senders that already have a
+feed keep delivering; an inbox address already handed out keeps working.
+
 The daily cap stays in force for everyone, subscribers included. It is an abuse
 guardrail rather than a plan limit — the thing that stops one account emptying the
 e-mail budget in an afternoon — which is why the paid plan has one at all.
 
+Both caps are enforced by reserving the send before the mail goes out: the
+account's row is locked, the sends are counted, and the send event is written in
+one short transaction, so two sends started at the same moment cannot both take
+the last place. A delivery that fails gives its reservation back.
+
 Every account that existed before charging began is **grandfathered permanently**.
 The marketing page promised "no ads, no subscriptions, nothing to sell"; that
 promise was made to those people. `V12__subscriptions.sql` writes them all in as
-`GRANDFATHERED` with no end date.
+`GRANDFATHERED` with no end date. They cannot place an order (`BillingController`
+and `SubscriptionService.placeOrder` both refuse it with a note), because the
+`PENDING` order row would otherwise replace `GRANDFATHERED` before anything was paid.
 
 ### How many subscribers cover hosting
 
@@ -304,6 +315,8 @@ itself a defect, which is why there is no password box), confirms with a second
 button that says it cancels now, records the declaration in
 `cancellation_requests`, shows it back for printing and e-mails the same
 confirmation. Linked from the footer of both editions and from the marketing page.
+Declarations from anyone but the signed-in owner are confirmed by e-mailed link
+before they take effect; see "Who can make a cancellation take effect" below.
 
 ### 2. The order button (§ 312j BGB) — done, and it is why the order page is ours
 
@@ -455,9 +468,14 @@ self-hosted copy is unaffected, because it is not the one collecting the money.
   row means the free plan. Existing accounts are inserted as `GRANDFATHERED`.
 - `billing_events` — the provider's own event id as the primary key. Both providers
   retry and occasionally deliver twice; the insert is the lock, so a replay is a
-  no-op instead of a second period.
+  no-op instead of a second period. `V16` adds the retry bookkeeping described under
+  "The payment path".
 - `cancellation_requests` — the declaration itself, with the time it arrived,
   because § 312k Abs. 3 and 4 require it to be keepable and confirmable.
+  `applied_at` says when it changed the subscription, if it did.
+- `cancellation_tokens` (V17): SHA-256 hashes of the single-use links that let
+  the account's owner confirm a declaration made without signing in. Deleted with
+  the account; spent and expired ones are swept by the retention job.
 
 ### Entitlements
 
@@ -506,6 +524,33 @@ Three rules hold this together:
   later finds things where they left them, which is the only thing that makes
   someone resubscribe.
 
+An event that cannot be applied is retried rather than parked. The commonest cause
+is ordering: Stripe can deliver `customer.subscription.created` before the
+`checkout.session.completed` that ties the subscription to an account, and the
+first one then finds no account. `V16__billing_event_retries.sql` adds what the
+retry needs to `billing_events`: an attempt counter, when the current attempt was
+claimed, when the next one is due, and the subscription id and provider timestamp
+of the event.
+
+- The webhook answers such an event with a 503, so the provider redelivers it. A
+  redelivery of a failed event claims it again; one that is processed or in
+  progress is still a no-op.
+- `BillingWebhookService.retryFailedEvents` runs every minute and retries due events
+  from their stored payload. The signature was checked when the event arrived and
+  is not checked again. Waits start at `app.billing.webhook-retry-backoff` and
+  double, capped at six hours.
+- After `app.billing.webhook-max-attempts` attempts the event stays failed with its
+  reason on the row, the webhook answers 200 so the provider stops, and the admin
+  grant is the fix.
+- Before applying, an event is checked against the newest applied event for the
+  same subscription. Subscription events carry the whole state, so an older one
+  applied late would roll the subscription back; it is marked processed and
+  skipped instead. A checkout event carries no state and never supersedes anything.
+- A claim older than ten minutes without a result (the process died mid-apply) is
+  taken over by the next delivery or sweep.
+- Payloads redacted by the retention sweep cannot be retried from, so those are
+  left to the provider's own redelivery.
+
 `SubscriptionService.expireLapsed` runs nightly and expires subscriptions whose paid
 period passed and whose provider never said so. Without it a lost webhook fails
 silently and permanently, in either direction.
@@ -521,12 +566,44 @@ silently and permanently, in either direction.
    "Grant Supporter" control so a reader who paid and was not credited can be fixed
    without a database client, and so a complimentary subscription can be given out.
 
-An anonymous cancellation is accepted and confirmed — that is what the statute
-requires — and applied when it only stops a future renewal. An *immediate*
-cancellation is applied on the spot only for the signed-in owner, because it can
-involve refunding a period already paid for; anyone else's is recorded and passed to
-the operator. The worst an abused form can do is stop a renewal the owner can start
-again, and the owner is e-mailed either way.
+### Who can make a cancellation take effect
+
+The form is public and asks for no credential, as the statute and the OLG Köln
+require. It used to apply an ordinary cancellation for whoever typed an address, and
+to e-mail a confirmation containing their free text to that address. That let anyone
+stop a stranger's renewal, and let anyone send a message of their choosing from this
+server's domain to any address with an account.
+
+Now:
+
+- **Signed in as the owner of the address given:** applied at once, ordinary or
+  immediate, with the full confirmation on screen and by e-mail. Unchanged.
+- **Anyone else** (not signed in, or signed in as another account): the declaration
+  is recorded with the time it arrived and the operator is told. If the address
+  belongs to an account with something to cancel, a single-use link goes to that
+  account's own address, at most three per account per day. The link is valid for
+  24 hours; only its SHA-256 hash is stored. Opening it shows a "Cancel now" button
+  and changes nothing, because mail scanners open links; pressing the button (a
+  CSRF-protected POST) spends the token in one statement and applies the
+  cancellation exactly as for the signed-in owner. The confirmation that follows
+  goes to the account's address and does not repeat the name, reference or reason
+  the requester typed.
+- The page after submitting is the same whether or not an account was found: it
+  shows the time the declaration arrived and its type, says a link was sent if the
+  address has a subscription, and shows no end date. The form does not reveal who
+  has an account.
+
+The legal nuance, for review before charging anyone: § 312k Abs. 2 and Abs. 4 ask
+for a confirmation page and an immediate confirmation of receipt, and the BGH and OLG
+Köln decisions are about not putting the path behind a login. The receipt (time and
+type) is given on screen at once, and the declaration is stored. What waits for the
+owner is the effect on the contract. The argument is that a declaration only binds
+when it comes from the contracting party, and a typed address does not show that,
+while an e-mailed link to the address on the contract does without requiring a
+credential. A court could still read the extra step as a hurdle. If a lawyer
+disagrees, the narrower fallback is to apply ordinary cancellations at once again
+(they only stop a renewal) and keep the link only for immediate ones, while keeping
+the requester's free text out of the e-mail.
 
 ## Appendix: reproducing the numbers
 
