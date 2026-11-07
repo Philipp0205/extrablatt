@@ -14,7 +14,7 @@
        from the list, so the list comes back where it was scrolled to. -->
   <div class="article-tools">
     <a class="back-link" data-back-link th:href="@{/items}">
-      <span aria-hidden="true">←</span> Articles
+      <span aria-hidden="true">←</span> <span class="back-word">Articles</span>
     </a>
     <form class="inline" data-send-form
           th:action="@{/articles/{id}/send(id=${article.id})}"

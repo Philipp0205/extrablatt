@@ -5,9 +5,10 @@
  * linked from fragments/page-styles. No rule here depends on an inline style:
  * the templates are written to fit a `style-src 'self'` policy.
  *
- * Direction: a quiet editorial reader. Warm off-white paper, ink text, one teal
+ * Direction: a quiet editorial reader. Warm off-white paper, ink text, one black
  * accent, hairline dividers, serif headlines, sans-serif everything else. Dark
- * mode follows the system through the same custom properties.
+ * mode follows the system through the same custom properties, with a near-white
+ * accent and dark text on filled buttons.
  */
 
 :root {
@@ -21,12 +22,12 @@
   --muted: #69645b;
   --line: #e5e0d6;
   --line-strong: #cfc8ba;
-  --accent: #0b6b68;
+  --accent: #111111;
   --accent-ink: #ffffff;
-  --accent-soft: #e2f0ee;
+  --accent-soft: #ebe8e1;
   --danger: #a3261b;
   --danger-soft: #fbeae7;
-  --focus: #0b6b68;
+  --focus: #111111;
   --shadow: 0 1px 2px rgba(27, 26, 23, 0.06), 0 8px 24px rgba(27, 26, 23, 0.08);
 
   --serif: "Iowan Old Style", "Charter", "Source Serif Pro", Georgia, "Times New Roman", serif;
@@ -56,12 +57,12 @@
     --muted: #a39d91;
     --line: #302e29;
     --line-strong: #46433c;
-    --accent: #5cc2b8;
-    --accent-ink: #0b1a19;
-    --accent-soft: #19302e;
+    --accent: #f2f2f2;
+    --accent-ink: #111111;
+    --accent-soft: #2e2d29;
     --danger: #f09184;
     --danger-soft: #3a1f1b;
-    --focus: #7fd6cd;
+    --focus: #f2f2f2;
     --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 12px 32px rgba(0, 0, 0, 0.45);
   }
 }
@@ -382,7 +383,7 @@ button:hover, .btn:hover {
 }
 
 .btn.primary:hover, button.primary:hover {
-  background: color-mix(in srgb, var(--accent) 88%, var(--ink));
+  background: color-mix(in srgb, var(--accent) 80%, var(--surface));
 }
 
 .btn.danger, button.danger {
@@ -984,16 +985,61 @@ li[data-read="true"] .item-title {
 
 /* ---------- Article page ---------- */
 
+/* One row at every phone width: Back gives way first, Send and More never wrap
+   onto a line of their own. */
 .article-tools {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 0.5rem;
   margin: 0 0 0.5rem;
 }
 
 .article-tools .back-link {
+  flex: 0 1 auto;
+  min-width: 0;
   margin: 0 auto 0 0;
+  white-space: nowrap;
+}
+
+.article-tools .back-word {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.article-tools > form.inline,
+.article-tools > details.action-menu {
+  flex: 0 0 auto;
+}
+
+.article-tools .btn {
+  white-space: nowrap;
+}
+
+@media (max-width: 400px) {
+  .article-tools {
+    gap: 0.4rem;
+  }
+
+  .article-tools .btn {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+    font-size: 0.9rem;
+  }
+}
+
+/* Under 340px the word goes but stays the link's accessible name. */
+@media (max-width: 339px) {
+  .article-tools .back-word {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
 }
 
 .article-head h1 {

@@ -7,7 +7,7 @@ with a "Load more articles" button, and nothing is marked read unless the reader
 
 ## Design
 
-- **Look.** Warm off-white paper, near-black ink, one teal accent, hairline dividers.
+- **Look.** Warm off-white paper, near-black ink, a black accent (near-white in dark mode), hairline dividers.
   Serif headlines, a sans-serif face for controls and body text. System font stacks
   only, no web fonts. Light and dark themes come from the same CSS variables and
   follow the device setting (`prefers-color-scheme`).
