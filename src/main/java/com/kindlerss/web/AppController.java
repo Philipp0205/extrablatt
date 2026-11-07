@@ -681,15 +681,28 @@ public class AppController {
     }
 
     /**
-     * Prevent open redirects: only allow relative in-app paths.
+     * Prevent open redirects: only allow relative in-app paths. Browsers forgive a lot
+     * when reading a Location header (they turn a backslash into a slash and drop tabs
+     * and newlines), so anything other than a plain path that starts with a single
+     * slash is refused outright rather than cleaned up. A value that starts with one
+     * slash and contains neither a backslash nor whitespace/control characters cannot
+     * carry a scheme or a host.
      */
     static String safeRedirect(String redirect) {
+        String fallback = "/items";
         if (redirect == null || redirect.isBlank()) {
-            return "/items";
+            return fallback;
         }
         String value = redirect.trim();
-        if (!value.startsWith("/") || value.startsWith("//") || value.contains("://")) {
-            return "/items";
+        if (!value.startsWith("/") || value.startsWith("//")) {
+            return fallback;
+        }
+        for (int i = 0; i < value.length(); i++) {
+            char c = value.charAt(i);
+            if (c == '\\' || c <= 0x20 || Character.isISOControl(c)
+                    || Character.isWhitespace(c) || Character.isSpaceChar(c)) {
+                return fallback;
+            }
         }
         return value;
     }

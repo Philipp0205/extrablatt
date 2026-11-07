@@ -1320,6 +1320,37 @@ class AppControllerSecurityTest {
         org.junit.jupiter.api.Assertions.assertEquals("https://example.com/a", AppController.safeHttpUrl("https://example.com/a"));
     }
 
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {
+            "/\\evil.example",
+            "/\\/evil.example",
+            "\\\\evil.example",
+            "/\t/evil.example",
+            "/\n/evil.example",
+            "/\r/evil.example",
+            "/ /evil.example",
+            "/\u0000/evil.example",
+            "/\u007f/evil.example",
+            "/\u00a0/evil.example",
+            "/\u2028/evil.example",
+            "javascript:alert(1)",
+            "evil.example",
+            "https:/evil.example",
+            "///evil.example"
+    })
+    void safeRedirectRefusesWhatBrowsersMightReadAsAnotherHost(String target) {
+        org.junit.jupiter.api.Assertions.assertEquals("/items", AppController.safeRedirect(target));
+    }
+
+    @Test
+    void safeRedirectKeepsOrdinaryInAppPaths() {
+        org.junit.jupiter.api.Assertions.assertEquals("/", AppController.safeRedirect("/"));
+        org.junit.jupiter.api.Assertions.assertEquals("/articles/12", AppController.safeRedirect(" /articles/12 "));
+        org.junit.jupiter.api.Assertions.assertEquals("/items?page=2&category=Tech%20News&unread=true",
+                AppController.safeRedirect("/items?page=2&category=Tech%20News&unread=true"));
+        org.junit.jupiter.api.Assertions.assertEquals("/?category=a:b", AppController.safeRedirect("/?category=a:b"));
+    }
+
     @Test
     @WithMockUser
     void homeOffersAPasteUrlFormOnTheFeedsView() throws Exception {
