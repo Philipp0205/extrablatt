@@ -95,6 +95,7 @@ class DeviceLayoutTest {
     void anUnknownCookieValueMeansAutomatic() {
         assertEquals(DeviceLayout.Preference.EINK, DeviceLayout.Preference.fromCookie("eink"));
         assertEquals(DeviceLayout.Preference.SCROLL, DeviceLayout.Preference.fromCookie("scroll"));
+        assertEquals(DeviceLayout.Preference.DETECTED, DeviceLayout.Preference.fromCookie("eink-auto"));
         assertEquals(DeviceLayout.Preference.AUTO, DeviceLayout.Preference.fromCookie("kindle"));
         assertEquals(DeviceLayout.Preference.AUTO, DeviceLayout.Preference.fromCookie(null));
     }
@@ -105,5 +106,7 @@ class DeviceLayoutTest {
         assertFalse(DeviceLayout.Preference.SCROLL.einkFor(PAPERWHITE));
         assertTrue(DeviceLayout.Preference.AUTO.einkFor(PAPERWHITE));
         assertFalse(DeviceLayout.Preference.AUTO.einkFor(IPHONE_SAFARI));
+        assertTrue(DeviceLayout.Preference.DETECTED.einkFor(DESKTOP_CHROME));
+        assertEquals("auto", DeviceLayout.Preference.DETECTED.label());
     }
 }

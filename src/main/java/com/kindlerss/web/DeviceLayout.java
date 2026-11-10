@@ -74,7 +74,13 @@ public final class DeviceLayout {
         /** Scrolling layout, whatever the device. */
         SCROLL,
         /** Decide from the device. */
-        AUTO;
+        AUTO,
+        /**
+         * Automatic, and the browser itself reported a slow (e-ink) screen through
+         * {@code matchMedia('(update: slow)')}. Set by {@code app.js}, so the next page
+         * is rendered for e-ink by the server and does not switch over after painting.
+         */
+        DETECTED;
 
         /**
          * The value of {@code ?layout=}: {@code kindle} or {@code eink}, {@code scroll},
@@ -100,6 +106,9 @@ public final class DeviceLayout {
             if ("scroll".equals(value)) {
                 return SCROLL;
             }
+            if ("eink-auto".equals(value)) {
+                return DETECTED;
+            }
             return AUTO;
         }
 
@@ -108,15 +117,25 @@ public final class DeviceLayout {
             return switch (this) {
                 case EINK -> "eink";
                 case SCROLL -> "scroll";
+                case DETECTED -> "eink-auto";
                 case AUTO -> null;
             };
         }
 
         public boolean einkFor(String userAgent) {
             return switch (this) {
-                case EINK -> true;
+                case EINK, DETECTED -> true;
                 case SCROLL -> false;
                 case AUTO -> isEink(userAgent);
+            };
+        }
+
+        /** What Settings shows: {@code eink}, {@code scroll} or {@code auto}. */
+        public String label() {
+            return switch (this) {
+                case EINK -> "eink";
+                case SCROLL -> "scroll";
+                case AUTO, DETECTED -> "auto";
             };
         }
     }

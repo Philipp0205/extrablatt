@@ -1,7 +1,9 @@
 package com.kindlerss.config;
 
 import org.springframework.context.annotation.Configuration;
+import com.kindlerss.web.LayoutInterceptor;
 import org.springframework.http.CacheControl;
+import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 import org.springframework.web.servlet.resource.VersionResourceResolver;
@@ -36,6 +38,16 @@ public class WebConfig implements WebMvcConfigurer {
             .maxAge(Duration.ofDays(365))
             .cachePublic()
             .immutable();
+
+    /**
+     * Decides per request between the scrolling layout and the e-ink, page-turning
+     * one (see {@link LayoutInterceptor}). Static files are the same for everyone.
+     */
+    @Override
+    public void addInterceptors(InterceptorRegistry registry) {
+        registry.addInterceptor(new LayoutInterceptor())
+                .excludePathPatterns("/js/**", "/css/**");
+    }
 
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {

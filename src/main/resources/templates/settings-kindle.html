@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<html lang="en" xmlns:th="http://www.thymeleaf.org" th:classappend="${einkLayout} ? 'eink'">
 <head th:replace="~{fragments/settings-shell :: head('Kindle')}"></head>
 <body class="has-tabbar">
 <th:block th:replace="~{fragments/app-shell :: appBar('settings')}"></th:block>
