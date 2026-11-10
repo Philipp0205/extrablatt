@@ -8,7 +8,11 @@
  *  - loading more articles under the list instead of opening the next page;
  *  - "Mark all as read" covering every row on screen, appended ones included;
  *  - returning from an article to the list where it was left;
- *  - closing the article's More menu on an outside tap or Escape.
+ *  - closing the article's More menu on an outside tap or Escape;
+ *  - on a slow-updating screen the server did not recognise, switching to the
+ *    e-ink layout once (see LayoutInterceptor).
+ *
+ * On the e-ink layout, Load more stays a plain link and reader.js does the paging.
  *
  * Loading and scrolling never mark anything read. Only opening an article or the
  * explicit button does.
@@ -19,6 +23,41 @@
   if (!document.querySelector || !window.addEventListener) {
     return;
   }
+
+  var root = document.documentElement;
+  var eink = /\beink\b/.test(root.className);
+
+  /* ---------- E-ink screens the server did not recognise ---------- */
+
+  // The server picks the e-ink layout from the User-Agent. A browser that says
+  // it has a slow-updating or monochrome screen, and that no one has chosen a
+  // layout for, gets the layout through the cookie and one reload. A reader who
+  // picked scrolling has a cookie and is left alone; once per session at most,
+  // so a browser that drops the cookie does not reload forever.
+  (function () {
+    var media = window.matchMedia;
+    if (eink || !media || /(^|;\s*)layout=/.test(document.cookie)
+        || /[?&]layout=/.test(window.location.search)) {
+      return;
+    }
+    var slow = media('(update: slow)').matches || media('(monochrome)').matches;
+    if (!slow) {
+      return;
+    }
+    try {
+      if (window.sessionStorage.getItem('layout-detected')) {
+        return;
+      }
+      window.sessionStorage.setItem('layout-detected', '1');
+    } catch (ignored) {
+      return;
+    }
+    var secure = window.location.protocol === 'https:' ? '; Secure' : '';
+    document.cookie = 'layout=eink-auto; Path=/; Max-Age=31536000; SameSite=Lax' + secure;
+    if (/(^|;\s*)layout=eink-auto/.test(document.cookie)) {
+      window.location.replace(window.location.href);
+    }
+  })();
 
   /* ---------- Confirm prompts ---------- */
 
@@ -57,6 +96,14 @@
     while (slot && slot.firstChild) {
       slot.removeChild(slot.firstChild);
     }
+    refitPages();
+  }
+
+  // The feedback sits above the e-ink page frame; the page has to give it room.
+  function refitPages() {
+    if (window.extrablattReader && window.extrablattReader.refit) {
+      window.extrablattReader.refit();
+    }
   }
 
   function showFeedback(message, isError, settingsUrl) {
@@ -74,9 +121,12 @@
       banner.appendChild(link);
     }
     slot.appendChild(banner);
+    refitPages();
     // A banner above the fold is no use to someone sending from row 40.
     var rect = banner.getBoundingClientRect ? banner.getBoundingClientRect() : null;
-    if (isError && rect && (rect.top < 0 || rect.bottom > window.innerHeight) && banner.scrollIntoView) {
+    // On e-ink the banner sits above the page frame, always in view, and
+    // reader.js shortens the page to make room for it.
+    if (!eink && isError && rect && (rect.top < 0 || rect.bottom > window.innerHeight) && banner.scrollIntoView) {
       banner.scrollIntoView({block: 'center'});
     }
   }
@@ -216,6 +266,11 @@
   }
 
   function loadMore(link) {
+    // On e-ink the plain link opens the next batch as a page of its own: one
+    // full repaint, no fetch on an old browser, and a list that stays short.
+    if (eink) {
+      return false;
+    }
     var url = link.getAttribute('data-batch-url');
     var next = parseInt(link.getAttribute('data-batch-page'), 10);
     if (!url || !window.fetch || !window.DOMParser || link.getAttribute('aria-busy') === 'true') {

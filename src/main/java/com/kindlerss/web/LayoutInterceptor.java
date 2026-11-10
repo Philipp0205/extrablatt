@@ -7,6 +7,8 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
 import org.springframework.web.servlet.HandlerInterceptor;
 
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 
 /**
@@ -20,7 +22,7 @@ import java.time.Duration;
  *
  * <p>Order of precedence:
  * <ol>
- *   <li>{@code ?layout=kindle} or {@code ?layout=eink}, {@code ?layout=scroll}:
+ *   <li>{@code ?layout=kindle} or {@code ?layout=eink}, {@code ?layout=scroll}, on a GET:
  *       stored in the {@code layout} cookie for a year and used at once.
  *       {@code ?layout=auto} deletes the cookie. Other values are ignored.</li>
  *   <li>The {@code layout} cookie: {@code eink}, {@code scroll}, or {@code eink-auto}
@@ -45,7 +47,9 @@ public class LayoutInterceptor implements HandlerInterceptor {
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
-        DeviceLayout.Preference preference = DeviceLayout.Preference.fromParameter(request.getParameter(PARAMETER));
+        DeviceLayout.Preference preference = isSafe(request)
+                ? DeviceLayout.Preference.fromParameter(queryParameter(request.getQueryString()))
+                : null;
         if (preference != null) {
             writeCookie(request, response, preference);
         } else {
@@ -56,6 +60,35 @@ public class LayoutInterceptor implements HandlerInterceptor {
         request.setAttribute(PREFERENCE_ATTRIBUTE, preference.label());
         addVary(response);
         return true;
+    }
+
+    /**
+     * Only a GET or HEAD can change the layout. The parameter is read from the
+     * query string itself: {@code getParameter} would parse the body of a form
+     * POST or a webhook, which its handler then could not read.
+     */
+    private static boolean isSafe(HttpServletRequest request) {
+        String method = request.getMethod();
+        return "GET".equals(method) || "HEAD".equals(method);
+    }
+
+    static String queryParameter(String query) {
+        if (query == null || query.isEmpty()) {
+            return null;
+        }
+        for (String pair : query.split("&")) {
+            int equals = pair.indexOf('=');
+            String name = equals < 0 ? pair : pair.substring(0, equals);
+            if (PARAMETER.equals(name)) {
+                String value = equals < 0 ? "" : pair.substring(equals + 1);
+                try {
+                    return URLDecoder.decode(value, StandardCharsets.UTF_8);
+                } catch (IllegalArgumentException malformed) {
+                    return null;
+                }
+            }
+        }
+        return null;
     }
 
     private static void addVary(HttpServletResponse response) {
