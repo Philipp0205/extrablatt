@@ -89,11 +89,45 @@ top and again where the article ends. Less frequent actions (Original, Comments,
 show or hide images, Mark unread) are in a "More" menu. Both send buttons work as
 plain form posts without JavaScript.
 
+## E-ink Kindles: pages to turn
+
+Scrolling is slow and smeary on e-ink, so an e-ink Kindle gets the list and the
+article as pages to turn. Phones, tablets and desktops get the scrolling UI above,
+with markup byte for byte the same as before (`EinkLayoutTest`).
+
+- **Detection** (`DeviceLayout`). E-ink means the User-Agent has the word `Kindle`
+  and is not a Fire tablet. A Fire says `Silk`, `Kindle Fire`, or a model code like
+  `KFTRWI` (`\bKF[A-Z]{2,6}\b`). `Android` alone is no sign of a Fire: the newer
+  Chromium-based Kindle browser says `Android 10; K` and `Kindle/3.0+`.
+- **Override** (`LayoutInterceptor`). `?layout=kindle` (or `eink`), `?layout=scroll`
+  and `?layout=auto` on any GET set or clear the `layout` cookie (one year,
+  SameSite=Lax, Secure over HTTPS, readable by script). Settings > Reading has the
+  three links. The cookie beats the User-Agent both ways. Pages say
+  `Vary: User-Agent, Cookie`.
+- **Browser fallback** (`app.js`). A browser the server did not recognise, which
+  matches `(update: slow)` or `(monochrome)` and has no `layout` cookie, gets
+  `layout=eink-auto` and one reload, at most once per session. Doing it with a reload
+  keeps the phone markup free of any e-ink hooks.
+- **What the layout adds.** `<html class="eink">`, `eink.css` (pure black on white, no
+  shadows, blur, transitions or sticky bars, 48px controls), `reader-boot.js` (hides
+  `<main>` until the page is laid out, at most 4 seconds) and `reader.js`.
+- **Paging** (`reader.js`, ES5 for old Kindle WebKit). On the list and the article it
+  moves the content of `<main>` into a frame laid out in CSS columns one screen
+  wide, with Previous, "3 / 12" and Next under it. Tap the left third to go back,
+  the rest to go forward; swipe and the arrow and page keys work too. Links and
+  buttons in the page work as usual. The page is kept in the address (`#p3`), so
+  Back from an article returns to it. Previous on the first page of a later batch
+  opens the newer batch at its last page (`#end`). If columns do not work or the
+  screen is too small, the frame is taken off and the page scrolls.
+- **Load more** stays a plain link on e-ink: the next batch opens as a page of its
+  own. One repaint, no fetch on an old browser, and the list stays short.
+- Turning pages marks nothing read, as scrolling does not.
+
 ## Assets and Content-Security-Policy
 
 - One stylesheet, `static/css/app.css`, and one shared script, `static/js/app.js`. The
-  inline stylesheet (`StylesheetAdvice`) and the reader scripts (`reader.js`,
-  `reader-boot.js`, `filters.js`) are gone.
+  inline stylesheet (`StylesheetAdvice`) and `filters.js` are gone. `eink.css`,
+  `reader-boot.js` and `reader.js` load only on the e-ink layout (see above).
 - Both are served under a content hash (`/css/app-<hash>.css`, `/js/app-<hash>.js`)
   with `Cache-Control: max-age=31536000, public, immutable`, and fetching them starts
   no session.
