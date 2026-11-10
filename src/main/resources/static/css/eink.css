@@ -1,0 +1,218 @@
+/*
+ * The e-ink layout, on top of app.css.
+ *
+ * Linked only when LayoutInterceptor turns the layout on (html.eink), so phones
+ * and desktops never load it. Every rule is under html.eink, which also beats the
+ * dark-mode :root values: an e-ink screen is always black on white.
+ *
+ * E-ink repaints slowly and smears on motion, so there are no transitions,
+ * shadows, blur or translucency, and everything is pure black on pure white.
+ * Old Kindle browsers lack custom properties, so each color has a literal value
+ * before the variable.
+ *
+ * html.reader-paged is set by reader.js once a page is laid out in columns; the
+ * pager and the fixed-size page only apply then. Without it, the page scrolls.
+ */
+
+html.eink {
+  color-scheme: light;
+  --bg: #ffffff;
+  --surface: #ffffff;
+  --surface-2: #ffffff;
+  --ink: #000000;
+  --ink-2: #000000;
+  --muted: #000000;
+  --line: #000000;
+  --line-strong: #000000;
+  --accent: #000000;
+  --accent-ink: #ffffff;
+  --accent-soft: #ffffff;
+  --danger: #000000;
+  --danger-soft: #ffffff;
+  --focus: #000000;
+  --shadow: none;
+  --tap: 3rem;
+  font-size: 112.5%;
+  background: #ffffff;
+  scroll-behavior: auto;
+}
+
+html.eink body {
+  background: #ffffff;
+  color: #000000;
+}
+
+html.eink *,
+html.eink *::before,
+html.eink *::after {
+  -webkit-transition: none !important;
+  transition: none !important;
+  -webkit-animation: none !important;
+  animation: none !important;
+  -webkit-box-shadow: none !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
+}
+
+html.eink a {
+  color: #000000;
+  text-decoration: underline;
+}
+
+html.eink .btn,
+html.eink button {
+  min-height: 48px;
+}
+
+html.eink .btn.primary {
+  background: #000000;
+  color: #ffffff;
+  border-color: #000000;
+  text-decoration: none;
+}
+
+/* ---------- Shell ---------- */
+
+html.eink .appbar {
+  position: static;
+  background: #ffffff;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  border-bottom: 1px solid #000000;
+}
+
+html.eink .tabbar {
+  background: #ffffff;
+  border-top: 2px solid #000000;
+}
+
+html.eink .tabbar a,
+html.eink .tabbar a[aria-current="page"] {
+  color: #000000;
+  text-decoration: none;
+}
+
+html.eink .tabbar a[aria-current="page"] {
+  text-decoration: underline;
+  font-weight: 700;
+}
+
+/* The filters wrap instead of scrolling sideways, which e-ink does badly. */
+html.eink .filters {
+  -webkit-flex-wrap: wrap;
+  flex-wrap: wrap;
+  margin-left: 0;
+  margin-right: 0;
+  padding-left: 0;
+  padding-right: 0;
+  border-bottom: 1px solid #000000;
+}
+
+html.eink .filters .strip {
+  -webkit-flex-wrap: wrap;
+  flex-wrap: wrap;
+  overflow: visible;
+  scroll-snap-type: none;
+}
+
+html.eink .action-menu-items {
+  border: 2px solid #000000;
+  background: #ffffff;
+}
+
+html.eink dialog.donate-dialog {
+  border: 2px solid #000000;
+  background: #ffffff;
+  color: #000000;
+}
+
+html.eink dialog.donate-dialog::backdrop {
+  background: transparent;
+}
+
+/* Until reader.js has laid the page out, nothing flashes in the wrong place
+   (reader-boot.js sets reader-loading and takes it off within seconds). */
+html.eink.reader-loading main {
+  visibility: hidden;
+}
+
+/* ---------- Paged reading ---------- */
+
+html.eink .pager {
+  display: none;
+}
+
+html.eink.reader-paged,
+html.eink.reader-paged body {
+  overflow: hidden;
+}
+
+html.eink.reader-paged body.has-tabbar {
+  padding-bottom: 0;
+}
+
+html.eink.reader-paged body {
+  min-height: 0;
+}
+
+/* The tab bar sits under the pager in the flow, so its height is part of the
+   chrome reader.js measures, not something laid over the last line. */
+html.eink.reader-paged .tabbar {
+  position: static;
+}
+
+html.eink.reader-paged main {
+  padding-bottom: 0;
+}
+
+html.eink.reader-paged .reader-frame {
+  overflow: hidden;
+  scrollbar-width: none;
+}
+
+html.eink.reader-paged .reader-frame::-webkit-scrollbar {
+  display: none;
+}
+
+html.eink.reader-paged .reader-content li,
+html.eink.reader-paged .reader-content img,
+html.eink.reader-paged .reader-content figure,
+html.eink.reader-paged .reader-content blockquote,
+html.eink.reader-paged .reader-content .list-end {
+  -webkit-column-break-inside: avoid;
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+
+html.eink.reader-paged .reader-content img {
+  max-width: 100%;
+  height: auto;
+}
+
+html.eink.reader-paged .pager {
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: flex;
+  -webkit-box-align: center;
+  -webkit-align-items: center;
+  align-items: center;
+  -webkit-box-pack: justify;
+  -webkit-justify-content: space-between;
+  justify-content: space-between;
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid #000000;
+}
+
+html.eink.reader-paged .pager .btn {
+  min-width: 6rem;
+  min-height: 48px;
+}
+
+html.eink.reader-paged .pager .btn[disabled] {
+  visibility: hidden;
+}
+
+html.eink .pager-label {
+  font-weight: 600;
+}

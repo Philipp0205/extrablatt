@@ -11,13 +11,23 @@
   `style-src 'self'; script-src 'self'` policy. app.js is deferred: every page
   renders and works without it, it only adds load-more, async send, confirm
   prompts and the like on top.
+
+  On an e-ink Kindle (`einkLayout`, see LayoutInterceptor) three more files follow:
+  eink.css, whose rules all sit under html.eink, reader-boot.js, which hides the
+  page body until it is laid out, and reader.js, which turns the list and the
+  article into pages. Every other device gets exactly the lines above and nothing
+  else, so the block opens and closes on the script lines. reader.js is deferred
+  like app.js and runs after it.
 -->
 <th:block th:fragment="assets">
   <meta name="color-scheme" content="light dark"/>
   <meta name="theme-color" content="#faf8f4" media="(prefers-color-scheme: light)"/>
   <meta name="theme-color" content="#141412" media="(prefers-color-scheme: dark)"/>
   <link rel="stylesheet" th:href="@{/css/app.css}"/>
-  <script th:src="@{/js/app.js}" defer></script>
+  <script th:src="@{/js/app.js}" defer></script><th:block th:if="${einkLayout}">
+  <link rel="stylesheet" th:href="@{/css/eink.css}"/>
+  <script th:src="@{/js/reader-boot.js}"></script>
+  <script th:src="@{/js/reader.js}" defer></script></th:block>
 </th:block>
 </head>
 </html>

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<html lang="en" xmlns:th="http://www.thymeleaf.org" th:classappend="${einkLayout} ? 'eink'">
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
@@ -78,13 +78,13 @@
   <h2>Cookies</h2>
   <!-- § 25 TDDDG requires consent before storing anything on a device, with one
        narrow exception: storage strictly necessary to provide a service the user
-       expressly asked for. All four cookies below fall inside it — a login session,
-       an opt-in "stay signed in", and two settings that are only written when the
-       reader actively changes them. So there is no consent banner here, and adding
+       expressly asked for. All three cookies below fall inside it: a login session,
+       an opt-in "stay signed in", and the page layout, which remembers how this
+       device shows pages. So there is no consent banner here, and adding
        one would be asking permission for something that needs none. Disclosure is
        what the exception does require, and that is this table. -->
   <p>
-    We use four cookies. All of them are needed to provide what you asked for, none of
+    We use three cookies. All of them are needed to provide what you asked for, none of
     them tracks you, and there is no advertising or analytics cookie anywhere in this
     app — which is why you are not being asked to agree to any of it.
   </p>
@@ -106,6 +106,14 @@
           be logged in again every time</td>
         <td>1 year</td>
         <td>Only if you tick "remember me"</td>
+      </tr>
+      <tr>
+        <td><code>layout</code></td>
+        <td>Remembers whether this device shows pages to turn (for e-ink Kindles) or
+          a page to scroll</td>
+        <td>1 year</td>
+        <td>When you pick a layout under Settings, or once if the browser reports an
+          e-ink screen</td>
       </tr>
     </tbody>
   </table>

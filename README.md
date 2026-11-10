@@ -197,6 +197,12 @@ The article list is one continuous, scrolling column, laid out for a phone first
   off and new feed articles arrive already read, so a refresh does not fill Unread
   with a backlog and the list simply shows everything, newest first.
 
+On an e-ink Kindle the list and articles turn page by page instead: tap the right
+of the screen (or swipe, or press Next) for the next page, the left third to go
+back. Phones, tablets and Fire tablets keep scrolling. If a device picks wrong,
+**Settings → Reading → Page layout** switches it, or add `?layout=kindle` or
+`?layout=scroll` to any address. See [docs/mobile-ui.md](docs/mobile-ui.md).
+
 JavaScript (`static/js/app.js`) only adds conveniences: load-more appends in
 place, Send to Kindle sends without reloading, and **Mark all as read** includes
 the batches that were appended. With JavaScript disabled, **Load more articles**

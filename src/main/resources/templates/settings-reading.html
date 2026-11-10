@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<html lang="en" xmlns:th="http://www.thymeleaf.org" th:classappend="${einkLayout} ? 'eink'">
 <head th:replace="~{fragments/settings-shell :: head('Reading')}"></head>
 <body class="has-tabbar">
 <th:block th:replace="~{fragments/app-shell :: appBar('settings')}"></th:block>
@@ -25,6 +25,22 @@
       <button class="btn" type="submit">Save</button>
     </div>
   </form>
+
+  <h2 class="space-top-lg">Page layout</h2>
+  <p class="meta">On an e-ink Kindle, the article list and articles turn page by page
+    instead of scrolling. Extrablatt picks this by itself. Choose here if it picked
+    wrong. The choice is kept in a cookie on this device.</p>
+  <nav class="row" aria-label="Page layout">
+    <a class="chip" th:href="@{/settings/reading(layout='auto')}"
+       th:classappend="${layoutPreference == 'auto'} ? 'active'"
+       th:attr="aria-current=${layoutPreference == 'auto'} ? 'true' : null">Automatic</a>
+    <a class="chip" th:href="@{/settings/reading(layout='eink')}"
+       th:classappend="${layoutPreference == 'eink'} ? 'active'"
+       th:attr="aria-current=${layoutPreference == 'eink'} ? 'true' : null">Pages (e-ink)</a>
+    <a class="chip" th:href="@{/settings/reading(layout='scroll')}"
+       th:classappend="${layoutPreference == 'scroll'} ? 'active'"
+       th:attr="aria-current=${layoutPreference == 'scroll'} ? 'true' : null">Scrolling</a>
+  </nav>
 
   <div th:replace="~{fragments/site-footer :: siteFooter}"></div>
 </main>
