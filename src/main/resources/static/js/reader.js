@@ -166,8 +166,14 @@
     pageCount = Math.max(1, Math.round((span + COLUMN_GAP) / (pageWidth + COLUMN_GAP)));
   }
 
+  // How tall the page is. Not root.scrollHeight: that never drops below the
+  // viewport, so a short probe frame would read as a tall chrome.
+  function documentHeight() {
+    return Math.ceil(document.body.getBoundingClientRect().bottom + window.pageYOffset);
+  }
+
   function excessHeight() {
-    return root.scrollHeight - viewportHeight();
+    return documentHeight() - viewportHeight();
   }
 
   /*
@@ -183,7 +189,7 @@
     var probe = 100;
     pageHeight = probe;
     applyLayout();
-    var chrome = root.scrollHeight - probe;
+    var chrome = documentHeight() - probe;
     pageHeight = Math.floor(viewport - chrome - BOTTOM_GAP);
     if (pageHeight < MIN_PAGE_HEIGHT) {
       return false;
