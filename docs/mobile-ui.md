@@ -14,6 +14,8 @@ with a "Load more articles" button, and nothing is marked read unless the reader
 - **Navigation.** Three destinations: Articles, Feeds and Settings. On a phone they sit
   in a bottom tab bar within thumb reach. From 720px wide they move into the top bar
   and the tab bar goes away. The open destination carries `aria-current="page"`.
+  On a phone the top "Extrablatt" bar is hidden on pages with a tab bar (the tab bar
+  and the `<h1>` already name the page); signed-out pages and e-ink keep it.
 - **Touch and layout.** Every control is at least 44px tall (`--tap: 2.75rem`). The
   page respects safe-area insets (`viewport-fit=cover`), so the tab bar clears the home
   indicator.
