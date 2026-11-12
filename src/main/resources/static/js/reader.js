@@ -348,6 +348,41 @@
     return !!selection && !selection.isCollapsed && String(selection) !== '';
   }
 
+  /** The list title link a node is inside, or null. */
+  function titleLink(node) {
+    while (node && node !== frame) {
+      if (node.nodeName && node.nodeName.toLowerCase() === 'a'
+          && /\bitem-title\b/.test(node.className || '')) {
+        return node;
+      }
+      node = node.parentNode;
+    }
+    return null;
+  }
+
+  function inLeftThird(event) {
+    var bounds = frame.getBoundingClientRect();
+    return (event.clientX - bounds.left) < bounds.width / 3;
+  }
+
+  // On the list a title is a wide link, so only the left third of it opens the
+  // article; the rest turns the page forward. This runs in the capture phase and
+  // stops the click, so app.js does not mark the row read for an article that
+  // was not opened.
+  frame.addEventListener('click', function (event) {
+    if (!isList || !paged || event.defaultPrevented || hasSelection()
+        || !titleLink(event.target) || inLeftThird(event)) {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    if (swiped) {
+      swiped = false;
+      return;
+    }
+    turn(1);
+  }, true);
+
   // Tap zones: the left third goes back, the rest goes forward, as on a Kindle
   // book. Links and buttons in the page keep working.
   frame.addEventListener('click', function (event) {
@@ -358,8 +393,7 @@
       swiped = false;
       return;
     }
-    var bounds = frame.getBoundingClientRect();
-    turn((event.clientX - bounds.left) < bounds.width / 3 ? -1 : 1);
+    turn(inLeftThird(event) ? -1 : 1);
   });
 
   frame.addEventListener('touchstart', function (event) {
