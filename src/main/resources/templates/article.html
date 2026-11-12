@@ -6,22 +6,26 @@
   <title th:text="${article.title} + ' — Extrablatt'">Article — Extrablatt</title>
   <th:block th:replace="~{fragments/page-styles :: assets}"></th:block>
 </head>
-<body class="has-tabbar">
-<th:block th:replace="~{fragments/app-shell :: appBar('articles')}"></th:block>
+<body>
+<!-- Immersive reading: no brand bar and no tab bar, so the screen is the article. The
+     back link below is the way out, and it is the page's place in the navigation. -->
+<a class="skip-link" href="#main">Skip to content</a>
 <main id="main" class="wrap reading-column">
   <!-- The way back, sending, and the rarer actions behind More. Back is a link to
        the list; app.js turns it into the browser's own back when the reader came
        from the list, so the list comes back where it was scrolled to. -->
   <div class="article-tools">
-    <a class="back-link" data-back-link th:href="@{/items}">
-      <span aria-hidden="true">←</span> <span class="back-word">Articles</span>
-    </a>
+    <span class="back-link" data-back-link>
+      <a th:href="@{/items}" aria-current="page">
+        <span aria-hidden="true">←</span> <span class="back-word">Articles</span>
+      </a>
+    </span>
     <form class="inline" data-send-form
           th:action="@{/articles/{id}/send(id=${article.id})}"
           th:attr="data-send-url=@{/articles/{id}/send-async(id=${article.id})}" method="post">
       <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
       <input type="hidden" name="images" th:value="${images}"/>
-      <button class="btn primary" type="submit">
+      <button class="btn send-tool" type="submit">
         <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
           <path d="M4 12l16-8-6 16-2.5-6.5z"/>
           <path d="M11.5 13.5L20 4"/>
@@ -93,6 +97,5 @@
     <a class="btn" data-back-link th:href="@{/items}">Back to articles</a>
   </div>
 </main>
-<nav th:replace="~{fragments/app-shell :: tabBar('articles')}"></nav>
 </body>
 </html>
