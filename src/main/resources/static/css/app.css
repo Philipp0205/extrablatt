@@ -730,8 +730,8 @@ input[type="checkbox"], input[type="radio"] {
 .item-list > li {
   display: flex;
   align-items: flex-start;
-  gap: 0.75rem;
-  padding: 0.9rem 0;
+  gap: 0.25rem;
+  padding: 0.8rem 0;
   border-bottom: 1px solid var(--line);
 }
 
@@ -745,9 +745,9 @@ input[type="checkbox"], input[type="radio"] {
   flex-wrap: wrap;
   align-items: center;
   column-gap: 0.4rem;
-  margin: 0 0 0.2rem;
-  font-size: 0.78rem;
-  font-weight: 600;
+  margin: 0 0 0.15rem;
+  font-size: 0.75rem;
+  font-weight: 500;
   letter-spacing: 0.02em;
   color: var(--muted);
 }
@@ -765,6 +765,15 @@ input[type="checkbox"], input[type="radio"] {
 
 .item-meta .sep {
   color: var(--line-strong);
+}
+
+/* "Sent" is a small quiet tag, not another part of the time line. */
+.item-meta .sent-mark {
+  padding: 0 0.4rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: 0.68rem;
+  line-height: 1.5;
 }
 
 .item-title {
@@ -808,14 +817,25 @@ li[data-read="true"] .item-title {
 
 .item-list > li > form.inline {
   flex: 0 0 auto;
+  margin-right: -0.5rem;
 }
 
+/* A quiet icon at rest: no fill or outline, but the full 44px to tap. The title
+   gets the width; the word comes back on a wide screen. */
 .send-btn {
   min-height: var(--tap);
   min-width: var(--tap);
-  padding: 0 0.85rem;
+  padding: 0 0.6rem;
+  border-color: transparent;
+  background: transparent;
+  color: var(--muted);
   font-size: 0.85rem;
   white-space: nowrap;
+}
+
+.send-btn:hover, .send-btn[disabled], .send-btn[aria-busy="true"] {
+  background: transparent;
+  color: var(--ink);
 }
 
 .send-btn .icon {
@@ -827,7 +847,15 @@ li[data-read="true"] .item-title {
   display: none;
 }
 
-@media (min-width: 400px) {
+@media (min-width: 720px) {
+  .item-list > li > form.inline {
+    margin-right: 0;
+  }
+
+  .send-btn {
+    padding: 0 0.85rem;
+  }
+
   .send-btn .send-word {
     display: inline;
   }
@@ -953,6 +981,35 @@ li[data-read="true"] .item-title {
 
 .chip.filter-nav {
   padding: 0 0.7rem;
+}
+
+/* Unread | All: one pill split in two, so it reads as a choice between two
+   states rather than two filters. Not the same shape as the category chips. */
+.filter-mode-group {
+  display: inline-flex;
+  flex: 0 0 auto;
+}
+
+.filter-mode-group .chip {
+  min-height: var(--tap);
+  border-radius: 0;
+}
+
+.filter-mode-group .chip:first-child {
+  border-radius: 999px 0 0 999px;
+}
+
+/* Weight and underline say "current" without colour, which e-ink does not have. */
+.filter-mode-group .chip.active {
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.filter-mode-group .chip:last-child {
+  margin-left: -1px;
+  padding: 0 0.85rem;
+  border-radius: 0 999px 999px 0;
 }
 
 .filter-divide {

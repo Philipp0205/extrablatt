@@ -24,16 +24,14 @@
       th:attr="data-article-id=${a.id}, data-read=${a.read} ? 'true' : 'false'">
     <div class="item-main">
       <p class="item-meta">
-        <span class="source" th:text="${a.feedTitle}">Feed</span>
+        <!-- On a list already filtered to one feed the name would repeat on every row. -->
+        <span class="source" th:if="${feedId == null}" th:text="${a.feedTitle}">Feed</span>
         <th:block th:if="${a.publishedAt != null}">
-          <span class="sep" aria-hidden="true">·</span>
+          <span class="sep" th:if="${feedId == null}" aria-hidden="true">·</span>
           <time th:datetime="${a.publishedAt.toString()}"
                 th:text="${readableTime.describe(a.publishedAt)}">3 hours ago</time>
         </th:block>
-        <th:block th:if="${a.sentAt != null}">
-          <span class="sep" aria-hidden="true">·</span>
-          <span>Sent</span>
-        </th:block>
+        <span class="sent-mark" th:if="${a.sentAt != null}">Sent</span>
       </p>
       <a class="item-title" th:href="@{/articles/{id}(id=${a.id})}">
         <span class="unread-mark" th:classappend="${a.read} ? 'read'" aria-hidden="true"></span>
