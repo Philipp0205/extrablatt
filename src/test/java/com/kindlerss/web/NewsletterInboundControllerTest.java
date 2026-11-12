@@ -6,6 +6,7 @@ import com.kindlerss.security.RateLimitingFilter;
 import com.kindlerss.service.EntitlementService;
 import com.kindlerss.service.FeedService;
 import com.kindlerss.service.UserService;
+import com.kindlerss.service.ApiTokenService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -51,6 +52,9 @@ class NewsletterInboundControllerTest {
 
     @Autowired
     MockMvc mockMvc;
+
+    @MockitoBean
+    ApiTokenService apiTokenService;
 
     @MockitoBean
     EntitlementService entitlementService;

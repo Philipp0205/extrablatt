@@ -12,6 +12,7 @@ import com.kindlerss.service.EntitlementService;
 import com.kindlerss.service.UserService;
 import com.kindlerss.service.SubscriptionService;
 import java.net.URI;
+import com.kindlerss.service.ApiTokenService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -74,6 +75,9 @@ class BillingControllerTest {
 
     // ChangelogAdvice is picked up by every MVC slice, so the bean it needs has to
     // exist here even though this controller never renders a changelog.
+    @MockitoBean
+    ApiTokenService apiTokenService;
+
     @MockitoBean
     UserService userService;
 

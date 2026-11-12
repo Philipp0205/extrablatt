@@ -7,6 +7,7 @@ import com.kindlerss.security.CurrentUser;
 import com.kindlerss.security.RateLimiter;
 import com.kindlerss.security.RateLimitingFilter;
 import com.kindlerss.service.AdminTelemetryService;
+import com.kindlerss.service.ApiTokenService;
 import com.kindlerss.service.ArticleService;
 import com.kindlerss.service.DataExportService;
 import com.kindlerss.service.EntitlementService;
@@ -95,6 +96,9 @@ class EinkLayoutTest {
 
     @MockitoBean
     RetentionService retentionService;
+
+    @MockitoBean
+    ApiTokenService apiTokenService;
 
     @MockitoBean
     CurrentUser currentUser;

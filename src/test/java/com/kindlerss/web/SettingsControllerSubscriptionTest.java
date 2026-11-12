@@ -8,6 +8,7 @@ import com.kindlerss.security.AppUserDetails;
 import com.kindlerss.security.CurrentUser;
 import com.kindlerss.security.RateLimiter;
 import com.kindlerss.security.RateLimitingFilter;
+import com.kindlerss.service.ApiTokenService;
 import com.kindlerss.service.ArticleService;
 import com.kindlerss.service.DataExportService;
 import com.kindlerss.service.EntitlementService;
@@ -58,6 +59,9 @@ class SettingsControllerSubscriptionTest {
 
     @MockitoBean
     RetentionService retentionService;
+
+    @MockitoBean
+    ApiTokenService apiTokenService;
 
     @MockitoBean
     EntitlementService entitlementService;

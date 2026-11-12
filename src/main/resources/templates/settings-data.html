@@ -25,6 +25,8 @@
     <li>Your reading preference and, if you have one, your newsletter inbox address</li>
     <li>Your subscription, if any: plan, status, renewal date, and your payment
       provider's identifiers for you</li>
+    <li>Your API tokens: name, first characters, and when each was created, last used
+      and revoked</li>
     <li>Every feed you follow</li>
     <li>Every article we hold, with its title, address, and whether you read or sent it</li>
     <li>Every Kindle delivery, with the time it happened</li>
@@ -38,6 +40,8 @@
       about you, and it is still at the address in the file.</li>
     <li><strong>Your password.</strong> We only ever store a bcrypt hash of it, which
       cannot be turned back into the password.</li>
+    <li><strong>API token secrets.</strong> They are shown once when you create a
+      token and only a hash is kept, so they cannot be shown again.</li>
     <li><strong>Card details.</strong> They never reach us. Your payment provider holds
       those, and you can ask them for a copy separately.</li>
   </ul>

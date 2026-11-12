@@ -46,6 +46,14 @@ public class DataExportRepository {
                 """, userId);
     }
 
+    /** Name, prefix and dates only; the secret is not stored and its hash is never exported. */
+    public List<Map<String, Object>> apiTokens(long userId) {
+        return list("""
+                SELECT name, token_prefix, created_at, last_used_at, revoked_at
+                FROM api_tokens WHERE user_id = ? ORDER BY created_at
+                """, userId);
+    }
+
     /** The administrator's override, if one was ever set on this account. */
     public Map<String, Object> sendLimit(long userId) {
         return single("""

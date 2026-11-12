@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" th:classappend="${einkLayout} ? 'eink'">
+<head th:replace="~{fragments/settings-shell :: head('API tokens')}"></head>
+<body class="has-tabbar">
+<th:block th:replace="~{fragments/app-shell :: appBar('settings')}"></th:block>
+<main id="main" class="wrap">
+  <th:block th:replace="~{fragments/settings-shell :: top}"></th:block>
+
+  <a class="back-link" th:href="@{/settings}">← Settings</a>
+  <h1>API tokens</h1>
+
+  <p class="meta">A token lets an agent or script read and send your articles
+    without your password. It can do what you can do on this site, and nothing
+    for anyone else. See <code>docs/api.md</code> for how to use it.</p>
+
+  <div th:if="${newToken}" class="flash">
+    <p>Token <strong th:text="${newTokenName}">agent</strong> created. Copy it now:
+      it is shown only this once.</p>
+    <code class="address-box" th:text="${newToken}">eb_example</code>
+  </div>
+
+  <form th:action="@{/settings/api-tokens}" method="post">
+    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+    <label for="tokenName">Name</label>
+    <input id="tokenName" name="name" type="text" maxlength="60" required
+           placeholder="My agent"/>
+    <div class="row space-top">
+      <button class="btn" type="submit">Create token</button>
+    </div>
+  </form>
+
+  <h2 class="space-top-lg">Your tokens</h2>
+  <p class="meta" th:if="${#lists.isEmpty(tokens)}">No tokens yet.</p>
+  <ul class="feed-list" th:unless="${#lists.isEmpty(tokens)}">
+    <li th:each="token : ${tokens}">
+      <div>
+        <strong th:text="${token.name}">agent</strong>
+        <code th:text="${token.tokenPrefix} + '…'">eb_ab12…</code>
+      </div>
+      <div class="meta">
+        Created <span th:text="${#temporals.format(token.createdAt, 'd MMM yyyy')}">1 Jan 2026</span>
+        · <span th:if="${token.lastUsedAt == null}">never used</span>
+        <span th:if="${token.lastUsedAt != null}">last used
+          <span th:text="${#temporals.format(token.lastUsedAt, 'd MMM yyyy HH:mm')}">1 Jan 2026</span></span>
+      </div>
+      <form class="inline space-top-sm" th:action="@{/settings/api-tokens/{id}/revoke(id=${token.id})}"
+            method="post"
+            data-confirm="Revoke this token? Anything using it stops working.">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <button class="btn danger" type="submit">Revoke</button>
+      </form>
+    </li>
+  </ul>
+
+  <div th:replace="~{fragments/site-footer :: siteFooter}"></div>
+</main>
+<nav th:replace="~{fragments/app-shell :: tabBar('settings')}"></nav>
+</body>
+</html>

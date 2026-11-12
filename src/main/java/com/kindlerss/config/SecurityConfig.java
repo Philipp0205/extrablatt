@@ -1,10 +1,14 @@
 package com.kindlerss.config;
 
+import com.kindlerss.security.ApiTokenAuthenticationFilter;
 import com.kindlerss.security.AppUserDetails;
+import com.kindlerss.security.ClientIpResolver;
 import com.kindlerss.security.EmailNotVerifiedException;
 import com.kindlerss.security.LoginStatusChecker;
+import com.kindlerss.security.RateLimiter;
 import com.kindlerss.security.RateLimitingFilter;
 import com.kindlerss.security.StaleSessionFilter;
+import com.kindlerss.service.ApiTokenService;
 import com.kindlerss.service.UserService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -123,8 +127,32 @@ public class SecurityConfig {
         return http.build();
     }
 
+    /**
+     * The REST API, for scripts and agents. A bearer token is the only credential: no
+     * session is created or read, there is no login page to be sent to, and CSRF is
+     * off because no browser cookie is involved to forge a request with. Kept apart
+     * from the chain below so none of its form login, remember-me or CSRF changes.
+     */
     @Bean
     @Order(1)
+    SecurityFilterChain apiFilterChain(HttpSecurity http, ApiTokenService apiTokens,
+                                       RateLimiter rateLimiter) throws Exception {
+        http
+                .securityMatcher("/api/v1/**")
+                .authorizeHttpRequests(auth -> auth.anyRequest().authenticated())
+                .sessionManagement(session -> session
+                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .requestCache(RequestCacheConfigurer::disable)
+                .csrf(AbstractHttpConfigurer::disable)
+                .addFilterBefore(new ApiTokenAuthenticationFilter(apiTokens, rateLimiter,
+                                ClientIpResolver.fromSettings(appProperties.trustedProxies(),
+                                        appProperties.trustCloudflare())),
+                        UsernamePasswordAuthenticationFilter.class);
+        return http.build();
+    }
+
+    @Bean
+    @Order(2)
     SecurityFilterChain securityFilterChain(HttpSecurity http,
                                             RememberMeServices rememberMeServices,
                                             RateLimitingFilter rateLimitingFilter,

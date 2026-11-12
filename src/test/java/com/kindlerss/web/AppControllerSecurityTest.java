@@ -13,6 +13,7 @@ import com.kindlerss.service.EntitlementService;
 import com.kindlerss.service.FeedService;
 import com.kindlerss.service.KindleMailService;
 import com.kindlerss.service.UserService;
+import com.kindlerss.service.ApiTokenService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -82,6 +83,9 @@ class AppControllerSecurityTest {
 
     @Autowired
     MockMvc mockMvc;
+
+    @MockitoBean
+    ApiTokenService apiTokenService;
 
     @MockitoBean
     EntitlementService entitlementService;

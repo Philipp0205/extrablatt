@@ -37,6 +37,15 @@ WHERE id NOT IN (SELECT id FROM pg_temp.staging_kept_users);
 DELETE FROM email_tokens;
 DELETE FROM cancellation_tokens;
 
+-- API tokens are bearer credentials: a production token must not work on staging.
+-- The hash is replaced rather than the row deleted so the list pages still have
+-- something to show; no secret hashes to the new value.
+UPDATE api_tokens
+SET token_hash = 'staging-scrubbed-' || id,
+    token_prefix = 'eb_xxxxx',
+    name = 'Token ' || id,
+    revoked_at = COALESCE(revoked_at, NOW());
+
 -- Newsletter feeds are named after, and keyed by, the sender's address.
 UPDATE feeds
 SET url = 'newsletter:sender-' || id || '@staging.invalid',

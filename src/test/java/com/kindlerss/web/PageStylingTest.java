@@ -7,6 +7,7 @@ import com.kindlerss.security.CurrentUser;
 import com.kindlerss.security.RateLimiter;
 import com.kindlerss.security.RateLimitingFilter;
 import com.kindlerss.service.AdminTelemetryService;
+import com.kindlerss.service.ApiTokenService;
 import com.kindlerss.service.ArticleService;
 import com.kindlerss.service.DataExportService;
 import com.kindlerss.service.EntitlementService;
@@ -97,6 +98,9 @@ class PageStylingTest {
     RetentionService retentionService;
 
     @MockitoBean
+    ApiTokenService apiTokenService;
+
+    @MockitoBean
     CurrentUser currentUser;
 
     @MockitoBean
@@ -125,7 +129,7 @@ class PageStylingTest {
 
     @ParameterizedTest
     @ValueSource(strings = {"/", "/items?unread=false", "/settings", "/settings/kindle",
-            "/settings/reading", "/settings/account", "/settings/data", "/login", "/register",
+            "/settings/reading", "/settings/account", "/settings/api-tokens", "/settings/data", "/login", "/register",
             "/forgot-password", "/privacy", "/terms", "/imprint", "/withdrawal"})
     @WithMockUser
     void everyPageLinksTheHashedStylesheetAndCarriesNoInlineStyling(String path) throws Exception {
@@ -206,7 +210,8 @@ class PageStylingTest {
      * only, which is what the pages above are kept within; nothing inline is let in.
      */
     @ParameterizedTest
-    @ValueSource(strings = {"/", "/items?unread=false", "/settings/kindle", "/settings/account", "/login",
+    @ValueSource(strings = {"/", "/items?unread=false", "/settings/kindle", "/settings/account",
+            "/settings/api-tokens", "/login",
             "/register", "/withdrawal"})
     @WithMockUser
     void thePolicyAllowsOnlyTheAppsOwnStylesAndScripts(String path) throws Exception {
