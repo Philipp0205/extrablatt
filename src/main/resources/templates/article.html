@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" xmlns:th="http://www.thymeleaf.org" th:classappend="${einkLayout} ? 'eink'">
+<html lang="en" xmlns:th="http://www.thymeleaf.org" th:classappend="${einkLayout} ? ('eink' + ${einkTypeClasses})">
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
@@ -33,6 +33,10 @@
         <span data-send-label>Send to Kindle</span>
       </button>
     </form>
+    <a class="btn" th:if="${einkLayout and !images}"
+       th:href="@{/articles/{id}(id=${article.id}, images=true)}">Show images</a>
+    <a class="btn" th:if="${einkLayout and images}"
+       th:href="@{/articles/{id}(id=${article.id})}">Hide images</a>
     <details class="action-menu" data-action-menu>
       <summary class="btn" aria-label="More actions">More</summary>
       <div class="action-menu-items">

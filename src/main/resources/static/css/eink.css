@@ -42,6 +42,27 @@ html.eink body {
   color: #000000;
 }
 
+/* Reading type, chosen under Settings > Reading (cookie eink-type, see EinkType).
+   Medium sans is the default and has no class. The root size scales every rem, so
+   the whole page follows. Literal values: old Kindle browsers lack custom properties. */
+html.eink.eink-size-s {
+  font-size: 100%;
+}
+
+html.eink.eink-size-l {
+  font-size: 131.25%;
+}
+
+html.eink.eink-face-serif body {
+  font-family: Georgia, "Times New Roman", serif;
+}
+
+/* The word stays next to the paper-plane icon at every width (app.css hides it
+   under 720px on phones; a 600px Kindle should say what the button does). */
+html.eink .send-btn .send-word {
+  display: inline;
+}
+
 html.eink *,
 html.eink *::before,
 html.eink *::after {

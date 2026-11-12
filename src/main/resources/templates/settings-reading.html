@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" xmlns:th="http://www.thymeleaf.org" th:classappend="${einkLayout} ? 'eink'">
+<html lang="en" xmlns:th="http://www.thymeleaf.org" th:classappend="${einkLayout} ? ('eink' + ${einkTypeClasses})">
 <head th:replace="~{fragments/settings-shell :: head('Reading')}"></head>
 <body class="has-tabbar">
 <th:block th:replace="~{fragments/app-shell :: appBar('settings')}"></th:block>
@@ -40,6 +40,29 @@
     <a class="chip" th:href="@{/settings/reading(layout='scroll')}"
        th:classappend="${layoutPreference == 'scroll'} ? 'active'"
        th:attr="aria-current=${layoutPreference == 'scroll'} ? 'true' : null">Scrolling</a>
+  </nav>
+
+  <h2 class="space-top-lg">Text on e-ink</h2>
+  <p class="meta">Text size and typeface for the e-ink page layout. They do not change
+    phones or desktops. The choice is kept in a cookie on this device.</p>
+  <nav class="row" aria-label="Text size">
+    <a class="chip" th:href="@{/settings/reading(text='s')}"
+       th:classappend="${einkTypeSize == 's'} ? 'active'"
+       th:attr="aria-current=${einkTypeSize == 's'} ? 'true' : null">Small</a>
+    <a class="chip" th:href="@{/settings/reading(text='m')}"
+       th:classappend="${einkTypeSize == 'm'} ? 'active'"
+       th:attr="aria-current=${einkTypeSize == 'm'} ? 'true' : null">Medium</a>
+    <a class="chip" th:href="@{/settings/reading(text='l')}"
+       th:classappend="${einkTypeSize == 'l'} ? 'active'"
+       th:attr="aria-current=${einkTypeSize == 'l'} ? 'true' : null">Large</a>
+  </nav>
+  <nav class="row space-top" aria-label="Typeface">
+    <a class="chip" th:href="@{/settings/reading(font='sans')}"
+       th:classappend="${einkTypeFace == 'sans'} ? 'active'"
+       th:attr="aria-current=${einkTypeFace == 'sans'} ? 'true' : null">Sans-serif</a>
+    <a class="chip" th:href="@{/settings/reading(font='serif')}"
+       th:classappend="${einkTypeFace == 'serif'} ? 'active'"
+       th:attr="aria-current=${einkTypeFace == 'serif'} ? 'true' : null">Serif</a>
   </nav>
 
   <div th:replace="~{fragments/site-footer :: siteFooter}"></div>

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" xmlns:th="http://www.thymeleaf.org" th:classappend="${einkLayout} ? 'eink'">
+<html lang="en" xmlns:th="http://www.thymeleaf.org" th:classappend="${einkLayout} ? ('eink' + ${einkTypeClasses})">
 <head th:replace="~{fragments/settings-shell :: head('API tokens')}"></head>
 <body class="has-tabbar">
 <th:block th:replace="~{fragments/app-shell :: appBar('settings')}"></th:block>

@@ -255,4 +255,83 @@ class EinkLayoutTest {
                 .andExpect(content().string(matchesPattern(
                         "(?s).*<a [^>]*href=\"[^\"]*\\?layout=scroll\"[^>]*aria-current=\"true\".*")));
     }
+
+    @Test
+    void theTypeParametersSetTheTypeCookieAndTheHtmlClasses() throws Exception {
+        String size = mockMvc.perform(get("/login?text=l").header(HttpHeaders.USER_AGENT, PAPERWHITE))
+                .andExpect(content().string(containsString("<html lang=\"en\" class=\"eink eink-size-l\">")))
+                .andReturn().getResponse().getHeader(HttpHeaders.SET_COOKIE);
+        assertTrue(size.startsWith("eink-type=l-sans;"), size);
+        assertTrue(size.contains("Path=/") && size.contains("SameSite=Lax") && size.contains("Max-Age=31536000"), size);
+        assertFalse(size.contains("HttpOnly"), size);
+
+        String face = mockMvc.perform(get("/login?font=serif").header(HttpHeaders.USER_AGENT, PAPERWHITE)
+                        .cookie(new Cookie("eink-type", "s-sans")))
+                .andExpect(content().string(containsString("class=\"eink eink-size-s eink-face-serif\"")))
+                .andReturn().getResponse().getHeader(HttpHeaders.SET_COOKIE);
+        assertTrue(face.startsWith("eink-type=s-serif;"), face);
+
+        String reset = mockMvc.perform(get("/login?text=m&font=sans").header(HttpHeaders.USER_AGENT, PAPERWHITE)
+                        .cookie(new Cookie("eink-type", "l-serif")))
+                .andExpect(content().string(containsString(EINK_HTML)))
+                .andReturn().getResponse().getHeader(HttpHeaders.SET_COOKIE);
+        assertTrue(reset.startsWith("eink-type=;") && reset.contains("Max-Age=0"), reset);
+    }
+
+    @Test
+    void theTypeCookieIsReadAndBadValuesAreIgnored() throws Exception {
+        mockMvc.perform(get("/login").header(HttpHeaders.USER_AGENT, PAPERWHITE)
+                        .cookie(new Cookie("eink-type", "l-serif")))
+                .andExpect(header().doesNotExist(HttpHeaders.SET_COOKIE))
+                .andExpect(content().string(containsString("class=\"eink eink-size-l eink-face-serif\"")));
+        mockMvc.perform(get("/login?text=huge&font=comic").header(HttpHeaders.USER_AGENT, PAPERWHITE)
+                        .cookie(new Cookie("eink-type", "nonsense")))
+                .andExpect(header().doesNotExist(HttpHeaders.SET_COOKIE))
+                .andExpect(content().string(containsString(EINK_HTML)));
+        mockMvc.perform(get("/login").header(HttpHeaders.USER_AGENT, PIXEL)
+                        .cookie(new Cookie("eink-type", "l-serif")))
+                .andExpect(content().string(containsString(PLAIN_HTML)));
+    }
+
+    @Test
+    @WithMockUser
+    void settingsOffersTheTypeChoicesAndAPostDoesNotSetThem() throws Exception {
+        mockMvc.perform(get("/settings/reading").header(HttpHeaders.USER_AGENT, PAPERWHITE)
+                        .cookie(new Cookie("eink-type", "l-serif")))
+                .andExpect(content().string(containsString("?text=s")))
+                .andExpect(content().string(containsString("?text=m")))
+                .andExpect(content().string(containsString("?font=sans")))
+                .andExpect(content().string(matchesPattern(
+                        "(?s).*<a [^>]*href=\"[^\"]*\\?text=l\"[^>]*aria-current=\"true\".*")))
+                .andExpect(content().string(matchesPattern(
+                        "(?s).*<a [^>]*href=\"[^\"]*\\?font=serif\"[^>]*aria-current=\"true\".*")));
+        mockMvc.perform(post("/items/mark-read?text=l").with(csrf()).header(HttpHeaders.USER_AGENT, PAPERWHITE))
+                .andExpect(header().doesNotExist(HttpHeaders.SET_COOKIE));
+    }
+
+    @Test
+    @WithMockUser
+    void theEinkToolbarHasShowAndHideImagesButAScrollingPageKeepsThemUnderMore() throws Exception {
+        stubArticle();
+        String eink = mockMvc.perform(get("/articles/7").header(HttpHeaders.USER_AGENT, PAPERWHITE))
+                .andReturn().getResponse().getContentAsString();
+        assertTrue(eink.indexOf("Show images") < eink.indexOf("data-action-menu"), "toolbar link comes before More");
+        String scrolling = mockMvc.perform(get("/articles/7").header(HttpHeaders.USER_AGENT, PIXEL))
+                .andReturn().getResponse().getContentAsString();
+        assertTrue(scrolling.indexOf("Show images") > scrolling.indexOf("data-action-menu"), "phone keeps it under More");
+    }
+
+    @Test
+    @WithMockUser
+    void kindleSetupLinksPointAtAmazonCom() throws Exception {
+        AppUser unconfigured = new AppUser(UID, "user@example.com", "hash", null,
+                Instant.now(), null, Instant.now(), Instant.now());
+        when(userService.findById(UID)).thenReturn(Optional.of(unconfigured));
+        for (String path : List.of("/", "/settings/kindle")) {
+            mockMvc.perform(get(path).header(HttpHeaders.USER_AGENT, PIXEL))
+                    .andExpect(content().string(containsString(
+                            "https://www.amazon.com/hz/mycd/preferences/myx#/home/settings/payment")))
+                    .andExpect(content().string(not(containsString("amazon.de"))));
+        }
+    }
 }
