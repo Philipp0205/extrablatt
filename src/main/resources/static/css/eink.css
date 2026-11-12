@@ -184,6 +184,16 @@ html.eink.reader-paged .reader-content .list-end {
   break-inside: avoid;
 }
 
+/* A title is only as wide as its words, so the open target is the title and the
+   rest of the row turns the page (reader.js). The row keeps a full tap height. */
+html.eink.reader-paged .item-list > li {
+  min-height: 48px;
+}
+
+html.eink.reader-paged .item-title {
+  display: inline;
+}
+
 html.eink.reader-paged .reader-content img {
   max-width: 100%;
   height: auto;
