@@ -63,3 +63,79 @@ Every error is JSON: `{"error": "a sentence you can show"}`.
 - Following a site and sending to Kindle use the same code as the website: the same
   limits on feeds and sends, the same checks that refuse addresses inside private
   networks, and the same Kindle setup and e-mail confirmation rules.
+
+## MCP server
+
+Agents that speak the Model Context Protocol (MCP) can connect to Extrablatt directly,
+with no glue code. The server is part of the same app, at `/mcp` (Streamable HTTP, no
+sessions), and uses the same personal API tokens as the REST API: create one under
+**Settings → API tokens** and send it as `Authorization: Bearer eb_...`. A missing, wrong
+or revoked token gets a `401`. The 60 requests a minute per token limit applies here too.
+
+Tools, all for your own account and with the same limits and checks as the REST API:
+
+| Tool | What it does |
+|---|---|
+| `get_account` | Your e-mail, Kindle address and plan limits. |
+| `list_feeds`, `list_categories` | Your feeds with unread counts; your categories. |
+| `follow_feed` (`url`, `category`?) / `unfollow_feed` (`id`) | Follow or unfollow a site. |
+| `list_items` (`unread`?, `feed`?, `category`?, `page`?, `pageSize`?) | Articles, newest first. |
+| `list_unread` (`feed`?, `category`?, `page`?, `pageSize`?) | Same, unread only. |
+| `get_article` (`id`, `images`?) | One article with its readable text as HTML. |
+| `mark_read` (`id`, `read`?) | Mark one article read (default) or unread. |
+| `mark_all_read` (`feed`?, `category`?) | Mark unread articles read, up to 1000 at a time. |
+| `send_to_kindle` (`id`, `images`?) | Send an article to your Kindle. |
+| `send_url_to_kindle` (`url`, `images`?) | Fetch a page and send it. |
+
+A failed call returns a tool error with a short sentence, such as "Article not found".
+
+### Client setup
+
+Replace `https://your-extrablatt` with your server and `eb_...` with your token.
+
+**Claude Desktop** (`claude_desktop_config.json`). It starts remote servers through the
+`mcp-remote` helper:
+
+```json
+{
+  "mcpServers": {
+    "extrablatt": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "https://your-extrablatt/mcp",
+               "--header", "Authorization:${EXTRABLATT_AUTH}"],
+      "env": { "EXTRABLATT_AUTH": "Bearer eb_..." }
+    }
+  }
+}
+```
+
+Claude Code can add it with one command:
+`claude mcp add --transport http extrablatt https://your-extrablatt/mcp --header "Authorization: Bearer eb_..."`
+
+**Cursor** (`~/.cursor/mcp.json`):
+
+```json
+{
+  "mcpServers": {
+    "extrablatt": {
+      "url": "https://your-extrablatt/mcp",
+      "headers": { "Authorization": "Bearer eb_..." }
+    }
+  }
+}
+```
+
+**opencode** (`opencode.json`):
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "extrablatt": {
+      "type": "remote",
+      "url": "https://your-extrablatt/mcp",
+      "headers": { "Authorization": "Bearer eb_..." }
+    }
+  }
+}
+```

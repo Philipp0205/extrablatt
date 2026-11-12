@@ -128,7 +128,7 @@ public class SecurityConfig {
     }
 
     /**
-     * The REST API, for scripts and agents. A bearer token is the only credential: no
+     * The REST API and the MCP endpoint, for scripts and agents. A bearer token is the only credential: no
      * session is created or read, there is no login page to be sent to, and CSRF is
      * off because no browser cookie is involved to forge a request with. Kept apart
      * from the chain below so none of its form login, remember-me or CSRF changes.
@@ -138,7 +138,7 @@ public class SecurityConfig {
     SecurityFilterChain apiFilterChain(HttpSecurity http, ApiTokenService apiTokens,
                                        RateLimiter rateLimiter) throws Exception {
         http
-                .securityMatcher("/api/v1/**")
+                .securityMatcher("/api/v1/**", "/mcp", "/mcp/**")
                 .authorizeHttpRequests(auth -> auth.anyRequest().authenticated())
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS))

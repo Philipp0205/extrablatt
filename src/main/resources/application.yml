@@ -40,6 +40,16 @@ spring:
       # also means an error part-way through rendering still produces the error
       # page rather than half a document.
       produce-partial-output-while-processing: false
+  ai:
+    mcp:
+      server:
+        name: extrablatt
+        # Streamable HTTP at /mcp in its stateless form: every request stands alone, so
+        # the bearer token authenticates each one and no server-side session is kept.
+        protocol: STATELESS
+        type: SYNC
+        stateless:
+          mcp-endpoint: /mcp
   servlet:
     multipart:
       max-file-size: 10MB
