@@ -346,6 +346,21 @@ body.has-tabbar {
   }
 }
 
+/* On a phone the tab bar already names the page and the <h1> repeats it, so the
+   top bar saying "Extrablatt" a third time only costs height. It stays on wide
+   screens (it carries the nav there), on e-ink (Kindle paging measures the
+   chrome) and on signed-out pages, which have no tab bar. The skip link is not
+   inside the bar, so it keeps working. */
+@media (max-width: 719.98px) {
+  html:not(.eink) body.has-tabbar .appbar {
+    display: none;
+  }
+
+  html:not(.eink) body.has-tabbar .wrap {
+    padding-top: calc(1rem + var(--safe-top));
+  }
+}
+
 /* ---------- Controls ---------- */
 
 button, .btn {
@@ -376,13 +391,17 @@ button:hover, .btn:hover {
   text-decoration: none;
 }
 
-.btn.primary, button.primary {
+/* The Quick start form on the Feeds page is filled too; its button lives in
+   index.html, which this stylesheet cannot edit, so it is matched by its form. */
+.btn.primary, button.primary,
+form[action$="/feeds/defaults"] > button[type="submit"] {
   background: var(--accent);
   border-color: var(--accent);
   color: var(--accent-ink);
 }
 
-.btn.primary:hover, button.primary:hover {
+.btn.primary:hover, button.primary:hover,
+form[action$="/feeds/defaults"] > button[type="submit"]:hover {
   background: color-mix(in srgb, var(--accent) 80%, var(--surface));
 }
 
@@ -415,6 +434,12 @@ button[disabled], button[disabled]:hover, button[aria-busy="true"] {
   background: var(--surface);
 }
 
+/* A busy or disabled filled button stays filled, or its light text vanishes. */
+button.primary[disabled], button.primary[disabled]:hover, button.primary[aria-busy="true"],
+form[action$="/feeds/defaults"] > button[type="submit"][disabled] {
+  background: var(--accent);
+}
+
 form.inline {
   display: inline-flex;
   margin: 0;
@@ -438,6 +463,30 @@ input[type="number"], input[type="search"], input[type="tel"], select, textarea 
   background: var(--surface);
   color: var(--ink);
   font: inherit;
+}
+
+/* In dark mode --line-strong is too close to the field surface, so the border
+   all but disappears. Fields get a lighter border on the page background, and
+   checkboxes (whose native border cannot be styled) a thin outline. */
+@media (prefers-color-scheme: dark) {
+  input[type="email"], input[type="url"], input[type="password"], input[type="text"],
+  input[type="number"], input[type="search"], input[type="tel"], select, textarea {
+    border-color: #8c867a;
+    background: var(--bg);
+  }
+
+  input[type="checkbox"]:not(:focus-visible), input[type="radio"]:not(:focus-visible) {
+    outline: 1px solid #8c867a;
+    outline-offset: 0;
+  }
+
+  input[type="checkbox"]:not(:focus-visible) {
+    border-radius: 0.2rem;
+  }
+
+  input[type="radio"]:not(:focus-visible) {
+    border-radius: 50%;
+  }
 }
 
 input:focus-visible, select:focus-visible, textarea:focus-visible {
