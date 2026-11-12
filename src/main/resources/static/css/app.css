@@ -986,20 +986,37 @@ li[data-read="true"] .item-title {
 /* ---------- Article page ---------- */
 
 /* One row at every phone width: Back gives way first, Send and More never wrap
-   onto a line of their own. */
+   onto a line of their own. With no brand bar above it, this row is the page's
+   chrome, so it clears the notch itself. An open More menu is the one thing that
+   wraps: it takes a row of its own, in the flow, so it never covers the headline. */
 .article-tools {
   display: flex;
   align-items: center;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   gap: 0.5rem;
   margin: 0 0 0.5rem;
 }
 
+body:not(.has-tabbar) .article-tools {
+  padding-top: var(--safe-top);
+}
+
 .article-tools .back-link {
-  flex: 0 1 auto;
-  min-width: 0;
-  margin: 0 auto 0 0;
+  flex: 1 1 0;
+  min-width: var(--tap);
+  margin: 0;
   white-space: nowrap;
+}
+
+/* The link itself carries no class (the navigation test wants it bare); the span
+   around it is the back-link and carries data-back-link for app.js. */
+.article-tools .back-link > a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  min-height: var(--tap);
+  color: inherit;
+  text-decoration: none;
 }
 
 .article-tools .back-word {
@@ -1009,12 +1026,28 @@ li[data-read="true"] .item-title {
 }
 
 .article-tools > form.inline,
-.article-tools > details.action-menu {
+.article-tools > details.action-menu:not([open]) {
   flex: 0 0 auto;
 }
 
 .article-tools .btn {
   white-space: nowrap;
+}
+
+/* Sending is the main act here but not a banner: an accent outline, not a fill. */
+.article-tools .send-tool {
+  border-color: var(--accent);
+  background: transparent;
+  color: var(--accent);
+}
+
+.article-tools .send-tool:hover {
+  background: var(--accent-soft);
+}
+
+.article-tools .send-tool .icon {
+  width: 1.1rem;
+  height: 1.1rem;
 }
 
 @media (max-width: 400px) {
@@ -1171,9 +1204,18 @@ details[data-comment-replies][open] > summary {
   border-top: 1px solid var(--line);
 }
 
-/* The article's More menu: a native disclosure that floats a small card. */
+/* The article's More menu: a native disclosure with a small card. Opened, it takes
+   its own row under Back and Send and pushes the article down rather than lying on
+   the headline. */
 details.action-menu {
   position: relative;
+}
+
+details.action-menu[open] {
+  display: flex;
+  flex: 1 0 100%;
+  flex-direction: column;
+  align-items: flex-end;
 }
 
 details.action-menu > summary {
@@ -1185,10 +1227,7 @@ details.action-menu > summary::-webkit-details-marker {
 }
 
 .action-menu-items {
-  position: absolute;
-  right: 0;
-  top: calc(100% + 0.35rem);
-  z-index: 30;
+  margin-top: 0.35rem;
   display: flex;
   flex-direction: column;
   min-width: 12rem;

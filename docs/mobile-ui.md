@@ -84,10 +84,13 @@ arrive already marked read. `FeedService` is unchanged.
 
 ## Articles
 
-An article is a plain scrolling page in a reading column. Send to Kindle sits at the
-top and again where the article ends. Less frequent actions (Original, Comments,
-show or hide images, Mark unread) are in a "More" menu. Both send buttons work as
-plain form posts without JavaScript.
+An article is a plain scrolling page in a reading column. It is immersive: the brand
+bar and the bottom tab bar are left off, and a slim row of Back, Send to Kindle and
+More starts the page instead (Back is marked as the current place, Articles). Send to
+Kindle is offered again where the article ends. Less frequent actions (Original,
+Comments, show or hide images, Mark unread) are in a "More" menu, which opens in
+its own row and pushes the headline down rather than covering it. Both send buttons
+work as plain form posts without JavaScript.
 
 ## E-ink Kindles: pages to turn
 
