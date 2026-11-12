@@ -34,20 +34,32 @@
       <span aria-hidden="true">←</span>
       <span class="nav-word" th:text="${backChip.label}">All</span>
     </a>
-    <a class="chip filter-mode"
-       th:classappend="${modeChip.active} ? 'active'"
-       th:href="@{${modeChip.href}}"
-       th:attr="aria-pressed=${modeChip.active} ? 'true' : 'false'">
-      <span class="mode-dot" aria-hidden="true"></span>
-      <span th:text="${modeChip.label}">Unread</span>
-    </a>
+    <!-- Read state as a two-way segmented control: Unread only, or All articles
+         (read ones too). The inactive side links to the toggle; the current side
+         stays on this list. Both use aria-pressed. aria-current stays with the
+         category or feed chip in the row, so there is one "you are here" in the strip. -->
+    <div class="filter-mode-group" role="group" aria-label="Show articles">
+      <a class="chip filter-mode"
+         th:classappend="${modeChip.active} ? 'active'"
+         th:href="@{${modeChip.active ? listPath : modeChip.href}}"
+         th:attr="aria-pressed=${modeChip.active} ? 'true' : 'false'">
+        <span class="mode-dot" aria-hidden="true"></span>
+        <span th:text="${modeChip.label}">Unread</span>
+      </a>
+      <a class="chip filter-mode mode-all"
+         th:classappend="${!modeChip.active} ? 'active'"
+         th:href="@{${!modeChip.active ? listPath : modeChip.href}}"
+         th:attr="aria-pressed=${!modeChip.active} ? 'true' : 'false'">All</a>
+    </div>
     <span class="filter-divide" aria-hidden="true"></span>
     <div class="strip" data-strip-track>
-      <a class="chip" th:each="chip : ${filterChips}"
+      <!-- The top-level chip that clears the category reads "All feeds", so it is
+           not mistaken for the read-state "All" beside the Unread switch. -->
+      <a class="chip" th:each="chip, iter : ${filterChips}"
          th:classappend="${chip.active} ? 'active'"
          th:attr="aria-current=${chip.active} ? 'true' : null"
          th:href="@{${chip.href}}"
-         th:text="${chip.label}">Category</a>
+         th:text="${backChip == null and iter.first and chip.label == 'All' ? 'All feeds' : chip.label}">Category</a>
     </div>
   </nav>
 
