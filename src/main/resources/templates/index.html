@@ -114,6 +114,20 @@
     </details>
   </div>
 
+  <!-- Level one: a short dashboard. Each category is one large target with
+       enough context to choose it without rendering every feed underneath. -->
+  <ul class="category-list" th:if="${activeView != 'category' and !#lists.isEmpty(feedCategories)}">
+    <li th:each="category : ${feedCategories}">
+      <a th:href="@{/(category=${category.name})}">
+        <strong th:text="${category.name}">Category</strong>
+        <span class="meta"
+              th:text="${category.feedCount} + (${category.feedCount == 1} ? ' feed · ' : ' feeds · ') + ${category.unreadCount} + ' unread'">
+          4 feeds · 12 unread
+        </span>
+      </a>
+    </li>
+  </ul>
+
   <!-- Suggestions are first-run guidance, not a permanent navigation destination.
        They disappear as soon as the account has a subscription. -->
   <div th:if="${#lists.isEmpty(feeds) and !#lists.isEmpty(defaultFeeds)}">
@@ -133,58 +147,47 @@
     </form>
   </div>
 
-  <!-- Paste-URL send belongs on the category overview, not inside a single
-       category. /?view=add still hides it, matching the dedicated add screen. -->
-  <form th:if="${activeView == 'feeds'}" class="paste-url" th:action="@{/articles/from-url}" method="post">
-    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-    <label for="articleUrl">Send a page to Kindle</label>
-    <p class="meta">Paste a link to an article. We clean it up and put it in your Kindle library.</p>
-    <div class="row">
-      <input id="articleUrl" name="url" type="url" inputmode="url" required
-             placeholder="https://example.com/article" autocomplete="url"/>
-      <button class="btn" type="submit">Send to Kindle</button>
-    </div>
-    <label class="check">
-      <input type="checkbox" name="images" value="true"/>
-      <span>Include images</span>
-    </label>
-  </form>
-
   <p th:if="${#lists.isEmpty(feeds)}" class="muted">Nothing to read yet. Pick a few sites
     above, or tap Follow a site and paste a newspaper's address.</p>
 
-  <!-- Level one: a short dashboard. Each category is one large target with
-       enough context to choose it without rendering every feed underneath. -->
-  <ul class="category-list" th:if="${activeView != 'category' and !#lists.isEmpty(feedCategories)}">
-    <li th:each="category : ${feedCategories}">
-      <a th:href="@{/(category=${category.name})}">
-        <strong th:text="${category.name}">Category</strong>
-        <span class="meta"
-              th:text="${category.feedCount} + (${category.feedCount == 1} ? ' feed · ' : ' feeds · ') + ${category.unreadCount} + ' unread'">
-          4 feeds · 12 unread
-        </span>
-      </a>
-    </li>
-  </ul>
+  <!-- Paste-URL send is secondary to reading, so it sits closed below the
+       categories. It belongs on the category overview only, not inside a single
+       category, and /?view=add still hides it, matching the dedicated add screen.
+       It stays out of the Follow a site disclosure, which view=add opens. -->
+  <details class="tools paste-url-tools" th:if="${activeView == 'feeds'}">
+    <summary>Send a single page</summary>
+    <div class="tools-body">
+      <form class="paste-url" th:action="@{/articles/from-url}" method="post">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <label for="articleUrl">Send a page to Kindle</label>
+        <p class="meta">Paste a link to an article. We clean it up and put it in your Kindle library.</p>
+        <div class="row">
+          <input id="articleUrl" name="url" type="url" inputmode="url" required
+                 placeholder="https://example.com/article" autocomplete="url"/>
+          <button class="btn" type="submit">Send to Kindle</button>
+        </div>
+        <label class="check">
+          <input type="checkbox" name="images" value="true"/>
+          <span>Include images</span>
+        </label>
+      </form>
+    </div>
+  </details>
 
   <!-- Level two: only the feeds in the chosen category. -->
   <div class="feed-group" th:if="${activeView == 'category'}">
     <ul class="feed-list">
     <li th:each="feed : ${selectedFeeds}">
-      <div>
+      <div class="feed-row-main">
         <a th:href="@{/items(feed=${feed.id})}" th:text="${feed.title}">Title</a>
         <span class="badge" th:if="${feed.isNewsletter()}">Newsletter</span>
         <span class="badge" th:if="${feed.isClipping()}">Pasted URLs</span>
-        <span class="badge" th:text="${feed.unreadCount}">0</span>
+        <span class="badge badge-unread" th:classappend="${feed.unreadCount == 0} ? 'badge-zero'"
+              th:text="${feed.unreadCount}">0</span>
       </div>
-      <div class="meta" th:if="${feed.lastError != null}">
-        Couldn't update this feed. We'll try again.
-      </div>
-      <!-- Managing a feed is rare next to reading it, so the source address and the
-           category/delete controls fold away and the list stays a plain run of
-           titles and unread counts. Mark-as-read sits beside Edit because it is
-           used on the same row without opening those controls. -->
-      <div class="feed-row-actions">
+      <!-- Managing a feed is rare next to reading it, so the source address, the
+           category/delete controls and Mark read all fold into Edit and the closed
+           row stays a title and an unread count. -->
       <details class="tools">
         <summary>Edit</summary>
         <div class="tools-body">
@@ -207,6 +210,11 @@
                      placeholder="New category name" aria-label="New category name"/>
               <button type="submit">Save</button>
             </form>
+            <form class="inline" th:action="@{/feeds/{id}/read(id=${feed.id})}" method="post">
+              <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+              <input type="hidden" name="redirect" th:value="@{/(category=${selectedCategory})}"/>
+              <button type="submit" aria-label="Mark this feed as read">Mark read</button>
+            </form>
             <form class="inline" th:action="@{/feeds/{id}/delete(id=${feed.id})}" method="post">
               <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
               <input type="hidden" name="redirect" th:value="@{/(category=${selectedCategory})}"/>
@@ -215,11 +223,8 @@
           </div>
         </div>
       </details>
-      <form class="inline" th:action="@{/feeds/{id}/read(id=${feed.id})}" method="post">
-        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-        <input type="hidden" name="redirect" th:value="@{/(category=${selectedCategory})}"/>
-        <button type="submit" aria-label="Mark this feed as read">Mark read</button>
-      </form>
+      <div class="meta feed-row-error" th:if="${feed.lastError != null}">
+        Couldn't update this feed. We'll try again.
       </div>
     </li>
     </ul>
