@@ -35,7 +35,21 @@
         <rome.version>2.1.0</rome.version>
         <readability4j.version>1.0.8</readability4j.version>
         <epub4j.version>4.2.3</epub4j.version>
+        <!-- 1.1.x is the Spring AI line for Boot 3; 2.x needs Boot 4. -->
+        <spring-ai.version>1.1.8</spring-ai.version>
     </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.springframework.ai</groupId>
+                <artifactId>spring-ai-bom</artifactId>
+                <version>${spring-ai.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
 
     <dependencies>
         <dependency>
@@ -110,6 +124,13 @@
             <groupId>io.documentnode</groupId>
             <artifactId>epub4j-core</artifactId>
             <version>${epub4j.version}</version>
+        </dependency>
+
+        <!-- MCP server at /mcp (Streamable HTTP) so agents can use the same services as the
+             REST API. Only the MCP server starter: no chat models or vector stores. -->
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-starter-mcp-server-webmvc</artifactId>
         </dependency>
 
         <dependency>
