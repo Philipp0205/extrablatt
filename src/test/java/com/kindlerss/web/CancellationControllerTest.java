@@ -7,6 +7,7 @@ import com.kindlerss.security.RateLimitingFilter;
 import com.kindlerss.service.EntitlementService;
 import com.kindlerss.service.UserService;
 import com.kindlerss.service.SubscriptionService;
+import com.kindlerss.service.ApiTokenService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -52,6 +53,9 @@ class CancellationControllerTest {
 
     // ChangelogAdvice is picked up by every MVC slice, so the bean it needs has to
     // exist here even though this controller never renders a changelog.
+    @MockitoBean
+    ApiTokenService apiTokenService;
+
     @MockitoBean
     UserService userService;
 

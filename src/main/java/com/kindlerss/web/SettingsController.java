@@ -5,6 +5,7 @@ import com.kindlerss.domain.AppUser;
 import com.kindlerss.domain.Entitlement;
 import com.kindlerss.domain.Subscription;
 import com.kindlerss.security.CurrentUser;
+import com.kindlerss.service.ApiTokenService;
 import com.kindlerss.service.ArticleService;
 import com.kindlerss.service.ChangelogCatalog;
 import com.kindlerss.service.DataExportService;
@@ -23,6 +24,7 @@ import org.springframework.security.web.authentication.logout.SecurityContextLog
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
@@ -41,6 +43,7 @@ public class SettingsController {
     private final SubscriptionService subscriptionService;
     private final DataExportService dataExportService;
     private final RetentionService retentionService;
+    private final ApiTokenService apiTokenService;
     private final CurrentUser currentUser;
     private final AppProperties properties;
 
@@ -49,6 +52,7 @@ public class SettingsController {
                               SubscriptionService subscriptionService,
                               DataExportService dataExportService,
                               RetentionService retentionService,
+                              ApiTokenService apiTokenService,
                               CurrentUser currentUser,
                               AppProperties properties) {
         this.userService = userService;
@@ -57,6 +61,7 @@ public class SettingsController {
         this.subscriptionService = subscriptionService;
         this.dataExportService = dataExportService;
         this.retentionService = retentionService;
+        this.apiTokenService = apiTokenService;
         this.currentUser = currentUser;
         this.properties = properties;
     }
@@ -97,6 +102,12 @@ public class SettingsController {
         Entitlement entitlement = entitlementService.forUser(userId);
         addSubscriptionAttributes(model, userId, entitlement);
         return "settings-subscription";
+    }
+
+    @GetMapping("/settings/api-tokens")
+    public String apiTokens(Model model) {
+        model.addAttribute("tokens", apiTokenService.list(currentUser.requireId()));
+        return "settings-api-tokens";
     }
 
     @GetMapping("/settings/data")
@@ -174,6 +185,29 @@ public class SettingsController {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
         }
         return "redirect:/settings/kindle";
+    }
+
+    /** The secret goes out once, in the flash that the redirect carries, and is not kept anywhere. */
+    @PostMapping("/settings/api-tokens")
+    public String createApiToken(@RequestParam("name") String name, RedirectAttributes redirectAttributes) {
+        try {
+            ApiTokenService.Created created = apiTokenService.create(currentUser.requireId(), name);
+            redirectAttributes.addFlashAttribute("newToken", created.secret());
+            redirectAttributes.addFlashAttribute("newTokenName", created.token().name());
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+        }
+        return "redirect:/settings/api-tokens";
+    }
+
+    @PostMapping("/settings/api-tokens/{id}/revoke")
+    public String revokeApiToken(@PathVariable("id") long id, RedirectAttributes redirectAttributes) {
+        if (apiTokenService.revoke(currentUser.requireId(), id)) {
+            redirectAttributes.addFlashAttribute("message", "Token revoked");
+        } else {
+            redirectAttributes.addFlashAttribute("error", "Token not found");
+        }
+        return "redirect:/settings/api-tokens";
     }
 
     @PostMapping("/settings/reading")

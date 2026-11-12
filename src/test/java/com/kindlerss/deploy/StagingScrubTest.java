@@ -21,6 +21,7 @@ import java.util.TreeSet;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -74,7 +75,10 @@ class StagingScrubTest {
             Map.entry("cancellation_requests.contract_ref", "scrubbed"),
             Map.entry("cancellation_requests.kind", "enum"),
             Map.entry("cancellation_requests.reason", "scrubbed"),
-            Map.entry("cancellation_tokens.token_hash", "rows deleted"));
+            Map.entry("cancellation_tokens.token_hash", "rows deleted"),
+            Map.entry("api_tokens.name", "scrubbed"),
+            Map.entry("api_tokens.token_hash", "scrubbed, and revoked"),
+            Map.entry("api_tokens.token_prefix", "scrubbed"));
 
     private static EmbeddedPostgres postgres;
     private static DataSource dataSource;
@@ -97,7 +101,7 @@ class StagingScrubTest {
         jdbc = new JdbcTemplate(dataSource);
         jdbc.execute("""
                 TRUNCATE users, feeds, articles, email_tokens, subscriptions, billing_events,
-                         cancellation_requests, user_send_limits, article_send_events
+                         cancellation_requests, user_send_limits, article_send_events, api_tokens
                          RESTART IDENTITY CASCADE
                 """);
         jdbc.update("""
@@ -141,6 +145,10 @@ class StagingScrubTest {
                 INSERT INTO cancellation_tokens (token_hash, request_id, user_id, expires_at)
                 VALUES ('hash-of-link', 2, 2, NOW() + INTERVAL '1 day')
                 """);
+        jdbc.update("""
+                INSERT INTO api_tokens (user_id, name, token_hash, token_prefix)
+                VALUES (1, 'Reader laptop', 'a3f1c0de5e', 'eb_AbCd12')
+                """);
     }
 
     @Test
@@ -174,6 +182,17 @@ class StagingScrubTest {
             assertFalse(user.get("password_hash").toString().startsWith("$2"), user.toString());
         }
         assertEquals(0, count("SELECT COUNT(*) FROM email_tokens"));
+    }
+
+    @Test
+    void apiTokensNoLongerWorkAndLoseTheirHashes() throws Exception {
+        scrub(List.of());
+
+        Map<String, Object> token = jdbc.queryForMap("SELECT * FROM api_tokens");
+        assertEquals("staging-scrubbed-1", token.get("token_hash"));
+        assertEquals("eb_xxxxx", token.get("token_prefix"));
+        assertEquals("Token 1", token.get("name"));
+        assertNotNull(token.get("revoked_at"));
     }
 
     @Test

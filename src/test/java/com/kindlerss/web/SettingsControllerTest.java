@@ -5,6 +5,7 @@ import com.kindlerss.security.AppUserDetails;
 import com.kindlerss.security.CurrentUser;
 import com.kindlerss.security.RateLimiter;
 import com.kindlerss.security.RateLimitingFilter;
+import com.kindlerss.service.ApiTokenService;
 import com.kindlerss.service.ArticleService;
 import com.kindlerss.service.ChangelogCatalog;
 import com.kindlerss.service.DataExportService;
@@ -66,6 +67,9 @@ class SettingsControllerTest {
     RetentionService retentionService;
 
     @MockitoBean
+    ApiTokenService apiTokenService;
+
+    @MockitoBean
     EntitlementService entitlementService;
 
     @MockitoBean
@@ -94,6 +98,79 @@ class SettingsControllerTest {
         when(currentUser.requireId()).thenReturn(UID);
         when(currentUser.details()).thenReturn(Optional.of(new AppUserDetails(user)));
         when(userService.findById(UID)).thenReturn(Optional.of(user));
+    }
+
+    @Test
+    @WithMockUser
+    void theApiTokensPageListsTokensByPrefixOnly() throws Exception {
+        when(apiTokenService.list(UID)).thenReturn(java.util.List.of(
+                new com.kindlerss.domain.ApiToken(5L, UID, "My agent", "eb_AbCd12",
+                        Instant.now(), null, null)));
+
+        mockMvc.perform(get("/settings/api-tokens"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("My agent")))
+                .andExpect(content().string(containsString("eb_AbCd12")))
+                .andExpect(content().string(containsString("never used")));
+    }
+
+    @Test
+    @WithMockUser
+    void creatingATokenShowsItsSecretOnceAndNeedsCsrf() throws Exception {
+        when(apiTokenService.create(UID, "My agent")).thenReturn(new ApiTokenService.Created(
+                new com.kindlerss.domain.ApiToken(5L, UID, "My agent", "eb_AbCd12", Instant.now(), null, null),
+                "eb_AbCd12SECRETSECRET"));
+
+        mockMvc.perform(post("/settings/api-tokens").param("name", "My agent"))
+                .andExpect(status().isForbidden());
+        verify(apiTokenService, never()).create(anyLong(), org.mockito.ArgumentMatchers.anyString());
+
+        var created = mockMvc.perform(post("/settings/api-tokens").with(csrf()).param("name", "My agent"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/settings/api-tokens"))
+                .andExpect(flash().attribute("newToken", "eb_AbCd12SECRETSECRET"))
+                .andReturn();
+
+        mockMvc.perform(get("/settings/api-tokens").flashAttrs(created.getFlashMap()))
+                .andExpect(content().string(containsString("eb_AbCd12SECRETSECRET")));
+        mockMvc.perform(get("/settings/api-tokens"))
+                .andExpect(content().string(not(containsString("eb_AbCd12SECRETSECRET"))));
+    }
+
+    @Test
+    @WithMockUser
+    void aTokenNameThatIsRefusedIsReportedOnThePage() throws Exception {
+        when(apiTokenService.create(UID, " ")).thenThrow(new IllegalArgumentException("Give the token a name"));
+
+        mockMvc.perform(post("/settings/api-tokens").with(csrf()).param("name", " "))
+                .andExpect(redirectedUrl("/settings/api-tokens"))
+                .andExpect(flash().attribute("error", "Give the token a name"));
+    }
+
+    @Test
+    @WithMockUser
+    void revokingATokenNeedsCsrfAndIsScopedToTheAccount() throws Exception {
+        when(apiTokenService.revoke(UID, 5L)).thenReturn(true);
+        when(apiTokenService.revoke(UID, 6L)).thenReturn(false);
+
+        mockMvc.perform(post("/settings/api-tokens/5/revoke"))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(post("/settings/api-tokens/5/revoke").with(csrf()))
+                .andExpect(redirectedUrl("/settings/api-tokens"))
+                .andExpect(flash().attribute("message", "Token revoked"));
+        mockMvc.perform(post("/settings/api-tokens/6/revoke").with(csrf()))
+                .andExpect(flash().attribute("error", "Token not found"));
+        verify(apiTokenService).revoke(UID, 5L);
+    }
+
+    @Test
+    void theApiTokensPageNeedsAnAccount() throws Exception {
+        mockMvc.perform(get("/settings/api-tokens"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("http://localhost/login"));
+        mockMvc.perform(post("/settings/api-tokens").with(csrf()).param("name", "x"))
+                .andExpect(status().is3xxRedirection());
+        verify(apiTokenService, never()).create(anyLong(), org.mockito.ArgumentMatchers.anyString());
     }
 
     /**

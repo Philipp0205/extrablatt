@@ -8,6 +8,7 @@ import com.kindlerss.service.SubscriptionService;
 import com.kindlerss.service.UserService;
 import com.kindlerss.web.AuthController;
 import com.kindlerss.web.GlobalExceptionHandler;
+import com.kindlerss.service.ApiTokenService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -43,6 +44,9 @@ class StaticAssetCachingTest {
 
     @Autowired
     MockMvc mockMvc;
+
+    @MockitoBean
+    ApiTokenService apiTokenService;
 
     @MockitoBean
     UserDetailsService userDetailsService;

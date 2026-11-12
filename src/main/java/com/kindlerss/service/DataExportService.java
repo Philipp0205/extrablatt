@@ -55,6 +55,7 @@ public class DataExportService {
         export.put("account", account);
         export.put("subscription", exports.subscription(userId));
         export.put("administrative_send_limit", exports.sendLimit(userId));
+        export.put("api_tokens", exports.apiTokens(userId));
         export.put("feeds", exports.feeds(userId));
         export.put("articles", exports.articles(userId));
         export.put("kindle_deliveries", exports.sendHistory(userId));
