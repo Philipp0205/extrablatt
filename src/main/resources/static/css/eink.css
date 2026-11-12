@@ -81,6 +81,15 @@ html.eink .appbar {
   border-bottom: 1px solid #000000;
 }
 
+/* On short screens (the Kindle Basic is 600x800) the brand bar costs a line or
+   two of every page. Pages with the tab bar drop it; the skip link is outside
+   the bar and the article page has no tab bar, so its toolbar stays. */
+@media (max-height: 850px) {
+  html.eink body.has-tabbar .appbar {
+    display: none;
+  }
+}
+
 html.eink .tabbar {
   background: #ffffff;
   border-top: 2px solid #000000;
