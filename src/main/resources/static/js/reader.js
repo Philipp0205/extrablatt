@@ -155,9 +155,11 @@
     setColumnStyle('columnWidth', pageWidth + 'px');
     setColumnStyle('columnGap', COLUMN_GAP + 'px');
     setColumnStyle('columnFill', 'auto');
+    // Capped well under a page so a first image can share page 1 with the
+    // heading and a few lines instead of being pushed whole onto page 2.
     var images = content.getElementsByTagName('img');
     for (var i = 0; i < images.length; i++) {
-      images[i].style.maxHeight = Math.max(80, pageHeight - 24) + 'px';
+      images[i].style.maxHeight = Math.max(80, Math.floor(pageHeight * 0.6)) + 'px';
     }
   }
 
