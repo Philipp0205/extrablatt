@@ -86,6 +86,30 @@ html.eink .tabbar {
   border-top: 2px solid #000000;
 }
 
+/* Paperwhite (758px), Oasis and Scribe (930px) are past app.css's 720px
+   breakpoint, which would swap the tab bar for the desktop nav. On e-ink the tab
+   bar stays at every width. Flex, not grid, since old Kindle browsers lack grid. */
+html.eink .appnav {
+  display: none;
+}
+
+html.eink .tabbar {
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: flex;
+}
+
+html.eink .tabbar a {
+  -webkit-box-flex: 1;
+  -webkit-flex: 1 1 0;
+  flex: 1 1 0;
+}
+
+html.eink body.has-tabbar {
+  padding-bottom: 60px;
+  padding-bottom: calc(var(--tabbar-h) + var(--safe-bottom));
+}
+
 html.eink .tabbar a,
 html.eink .tabbar a[aria-current="page"] {
   color: #000000;
