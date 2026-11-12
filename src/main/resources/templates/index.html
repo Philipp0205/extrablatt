@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" xmlns:th="http://www.thymeleaf.org" th:classappend="${einkLayout} ? 'eink'">
+<html lang="en" xmlns:th="http://www.thymeleaf.org" th:classappend="${einkLayout} ? ('eink' + ${einkTypeClasses})">
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
@@ -27,7 +27,7 @@
       <li>Add our sender address
         <strong th:text="${mailFrom} ?: 'shown on the Settings page'">mail@extrablatt.app</strong>
         to Amazon's <em>Approved Personal Document E-mail List</em>. Open your
-        <a href="https://www.amazon.de/hz/mycd/preferences/myx#/home/settings/payment"
+        <a href="https://www.amazon.com/hz/mycd/preferences/myx#/home/settings/payment"
            target="_blank" rel="noopener noreferrer">Amazon content &amp; devices settings</a>
         — this is easiest to do on your phone.</li>
     </ol>

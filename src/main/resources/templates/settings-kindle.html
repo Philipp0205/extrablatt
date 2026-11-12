@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" xmlns:th="http://www.thymeleaf.org" th:classappend="${einkLayout} ? 'eink'">
+<html lang="en" xmlns:th="http://www.thymeleaf.org" th:classappend="${einkLayout} ? ('eink' + ${einkTypeClasses})">
 <head th:replace="~{fragments/settings-shell :: head('Kindle')}"></head>
 <body class="has-tabbar">
 <th:block th:replace="~{fragments/app-shell :: appBar('settings')}"></th:block>
@@ -40,7 +40,7 @@
           to the <em>Approved Personal Document E-mail List</em>.</li>
       </ol>
       <p>
-        <a class="btn" href="https://www.amazon.de/hz/mycd/preferences/myx#/home/settings/payment"
+        <a class="btn" href="https://www.amazon.com/hz/mycd/preferences/myx#/home/settings/payment"
            target="_blank" rel="noopener noreferrer">Open Amazon settings</a>
         — easiest to complete on your phone.
       </p>
