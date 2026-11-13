@@ -1117,6 +1117,29 @@ li[data-read="true"] .item-title {
   }
 }
 
+/* Phone: the way out and the unread switch take a compact row of their own, and the
+   feed chips get a full-width row below it, edge to edge, fading out at the right
+   edge to say there is more. Not for e-ink, which wraps the filters instead. */
+@media (max-width: 719px) {
+  html:not(.eink) .filters {
+    flex-wrap: wrap;
+    row-gap: 0.15rem;
+  }
+
+  html:not(.eink) .filter-divide {
+    display: none;
+  }
+
+  html:not(.eink) .filters .strip {
+    flex: 0 0 calc(100% + 2rem + var(--safe-left) + var(--safe-right));
+    margin: 0 calc(-1rem - var(--safe-right)) 0 calc(-1rem - var(--safe-left));
+    padding: 0.15rem calc(1rem + var(--safe-right)) 0.15rem calc(1rem + var(--safe-left));
+    scroll-padding: 0 calc(1rem + var(--safe-left));
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 1rem), transparent);
+    mask-image: linear-gradient(to right, #000 calc(100% - 1rem), transparent);
+  }
+}
+
 @media (min-width: 720px) {
   .filters {
     margin-left: 0;
