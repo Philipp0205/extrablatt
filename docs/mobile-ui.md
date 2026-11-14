@@ -11,6 +11,11 @@ with a "Load more articles" button, and nothing is marked read unless the reader
   Serif headlines, a sans-serif face for controls and body text. System font stacks
   only, no web fonts. Light and dark themes come from the same CSS variables and
   follow the device setting (`prefers-color-scheme`).
+  On phones (up to 719px, never e-ink) the "Papier" layer at the end of `app.css`
+  restyles this as a newspaper: newsprint paper with an oxblood accent, a centred
+  masthead, a larger first row, underline-tab filters and a centred reader headline
+  with a drop cap. It sets its serif in Newsreader (OFL, self-hosted woff2 in
+  `static/fonts/`, served from `/fonts/`) and has its own light and dark tokens.
 - **Navigation.** Three destinations: Articles, Feeds and Settings. On a phone they sit
   in a bottom tab bar within thumb reach. From 720px wide they move into the top bar
   and the tab bar goes away. The open destination carries `aria-current="page"`.
