@@ -116,7 +116,11 @@ public class SecurityConfig {
     @Order(0)
     SecurityFilterChain staticAssetFilterChain(HttpSecurity http) throws Exception {
         http
-                .securityMatcher("/js/**", "/css/**", "/fonts/**")
+                .securityMatcher("/js/**", "/css/**", "/fonts/**",
+                        // Icons and the web app manifest: same for everyone, stable
+                        // names, so WebConfig gives them a short public cache.
+                        "/icons/**", "/favicon.ico", "/favicon.svg",
+                        "/apple-touch-icon.png", "/manifest.webmanifest")
                 .authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -233,6 +237,7 @@ public class SecurityConfig {
                 + "img-src 'self' data: https: http:; "
                 + "connect-src 'self'; "
                 + "font-src 'self'; "
+                + "manifest-src 'self'; "
                 + "object-src 'none'; "
                 + "base-uri 'self'; "
                 + "frame-ancestors 'none'; "

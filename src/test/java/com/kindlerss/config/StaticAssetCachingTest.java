@@ -22,6 +22,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.not;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -127,6 +128,51 @@ class StaticAssetCachingTest {
                 .andExpect(header().string(HttpHeaders.CACHE_CONTROL, containsString("max-age=31536000")))
                 .andExpect(header().string(HttpHeaders.CACHE_CONTROL, containsString("public")))
                 .andExpect(header().string(HttpHeaders.CACHE_CONTROL, containsString("immutable")))
+                .andExpect(header().string(HttpHeaders.CACHE_CONTROL, not(containsString("no-store"))))
+                .andExpect(header().doesNotExist(HttpHeaders.SET_COOKIE));
+    }
+
+    /**
+     * The manifest has a stable name, so it gets a short public cache rather than a
+     * year, and must be served with the manifest media type, not octet-stream.
+     */
+    @Test
+    void theManifestIsPublicShortCachedAndHasTheManifestType() throws Exception {
+        mockMvc.perform(get("/manifest.webmanifest"))
+                .andExpect(status().isOk())
+                .andExpect(header().string(HttpHeaders.CONTENT_TYPE, containsString("application/manifest+json")))
+                .andExpect(header().string(HttpHeaders.CACHE_CONTROL, containsString("public")))
+                .andExpect(header().string(HttpHeaders.CACHE_CONTROL, not(containsString("no-store"))))
+                .andExpect(header().doesNotExist(HttpHeaders.SET_COOKIE));
+    }
+
+    /** Icons are public and cacheable, with stable names, and start no session. */
+    @Test
+    void anIconIsPublicShortCachedAndStartsNoSession() throws Exception {
+        mockMvc.perform(get("/icons/icon-192.png"))
+                .andExpect(status().isOk())
+                .andExpect(header().string(HttpHeaders.CONTENT_TYPE, containsString("image/png")))
+                .andExpect(header().string(HttpHeaders.CACHE_CONTROL, containsString("public")))
+                .andExpect(header().string(HttpHeaders.CACHE_CONTROL, not(containsString("no-store"))))
+                .andExpect(header().doesNotExist(HttpHeaders.SET_COOKIE));
+    }
+
+    @Test
+    void theLoginPageLinksTheManifestAndIcons() throws Exception {
+        mockMvc.perform(get("/login"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("href=\"/manifest.webmanifest\"")))
+                .andExpect(content().string(containsString("href=\"/favicon.svg\"")))
+                .andExpect(content().string(containsString("href=\"/icons/favicon-32.png\"")))
+                .andExpect(content().string(containsString("href=\"/apple-touch-icon.png\"")));
+    }
+
+    @Test
+    void theSvgFaviconIsPublicShortCachedAndStartsNoSession() throws Exception {
+        mockMvc.perform(get("/favicon.svg"))
+                .andExpect(status().isOk())
+                .andExpect(header().string(HttpHeaders.CONTENT_TYPE, containsString("image/svg+xml")))
+                .andExpect(header().string(HttpHeaders.CACHE_CONTROL, containsString("public")))
                 .andExpect(header().string(HttpHeaders.CACHE_CONTROL, not(containsString("no-store"))))
                 .andExpect(header().doesNotExist(HttpHeaders.SET_COOKIE));
     }
