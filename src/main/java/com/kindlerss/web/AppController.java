@@ -363,9 +363,16 @@ public class AppController {
         }
         boolean unreadByDefault = unread == null || Boolean.TRUE.equals(unread);
         Boolean unreadOnly = unreadByDefault ? Boolean.TRUE : null;
+        boolean snapshotMinted = false;
         if (unreadByDefault && snapshot == null) {
-            return "redirect:" + itemsPath(feedId, category, true, Math.max(page, 1),
-                    System.currentTimeMillis());
+            if (batch) {
+                return "redirect:" + itemsPath(feedId, category, true, Math.max(page, 1),
+                        System.currentTimeMillis());
+            }
+            // Rendered straight away with a fresh snapshot instead of redirecting to it;
+            // the page then writes its stable address into the history (data-stable-path).
+            snapshot = System.currentTimeMillis();
+            snapshotMinted = true;
         }
         if (!batch) {
             feedService.refreshForUserSoon(userId);
@@ -408,9 +415,13 @@ public class AppController {
         model.addAttribute("nextBatchPath", nextPath + "&batch=true");
         model.addAttribute("prevPath", itemsPath(feedId, category, unreadByDefault, Math.max(first - 1, 1), snapshot));
         // Where an action started from, so that it can return to this exact list.
-        model.addAttribute("listPath", itemsPath(feedId, category, unreadByDefault, first, last, snapshot));
+        String listPath = itemsPath(feedId, category, unreadByDefault, first, last, snapshot);
+        model.addAttribute("listPath", listPath);
         if (batch) {
             return "fragments/article-rows :: batch";
+        }
+        if (snapshotMinted) {
+            model.addAttribute("stablePath", listPath);
         }
         addFilterBar(model, feedService.listFeeds(userId), feedId, category, unreadByDefault);
         model.addAttribute("firstIndex", articles.isEmpty() ? 0 : (long) (first - 1) * pageSize + 1);

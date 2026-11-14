@@ -53,6 +53,7 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.flash;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.model;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestBuilders.formLogin;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -419,7 +420,32 @@ class AppControllerSecurityTest {
     @Test
     @WithMockUser
     void itemsDefaultToAStableUnreadList() throws Exception {
+        when(articleService.count(eq(UID), isNull(), isNull(), eq(Boolean.TRUE), any())).thenReturn(0L);
+        when(feedService.listFeeds(UID)).thenReturn(List.of());
         mockMvc.perform(get("/items"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("items"))
+                .andExpect(model().attributeExists("snapshot"))
+                .andExpect(model().attributeExists("stablePath"))
+                .andExpect(content().string(containsString("data-stable-path=\"/items?page=1&amp;unread=true&amp;snapshot=")));
+    }
+
+    @Test
+    @WithMockUser
+    void itemsWithASnapshotRenderWithoutAStablePath() throws Exception {
+        when(articleService.count(eq(UID), isNull(), isNull(), eq(Boolean.TRUE), any())).thenReturn(0L);
+        when(feedService.listFeeds(UID)).thenReturn(List.of());
+        mockMvc.perform(get("/items").param("unread", "true").param("snapshot", "1700000000000"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("items"))
+                .andExpect(model().attributeDoesNotExist("stablePath"))
+                .andExpect(content().string(not(containsString("data-stable-path"))));
+    }
+
+    @Test
+    @WithMockUser
+    void batchWithoutASnapshotStillRedirects() throws Exception {
+        mockMvc.perform(get("/items").param("batch", "true"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrlPattern("/items?page=1&unread=true&snapshot=*"));
     }
@@ -1004,9 +1030,13 @@ class AppControllerSecurityTest {
         when(feedService.findById(UID, 5L)).thenReturn(Optional.of(
                 new Feed(5L, "Android", "https://example.com/feed", "https://example.com",
                         null, null, null)));
+        when(feedService.listFeeds(UID)).thenReturn(List.of());
         mockMvc.perform(get("/items").param("feed", "5").param("unread", "true"))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrlPattern("/items?page=1&feed=5&unread=true&snapshot=*"));
+                .andExpect(status().isOk())
+                .andExpect(view().name("items"))
+                .andExpect(model().attributeExists("snapshot"))
+                .andExpect(content().string(containsString(
+                        "data-stable-path=\"/items?page=1&amp;feed=5&amp;unread=true&amp;snapshot=")));
     }
 
     @Test

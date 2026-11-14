@@ -400,6 +400,22 @@
     }
   }
 
+  /* ---------- Unread list: write the snapshot address into the history ---------- */
+
+  // /items answers without a redirect and mints the snapshot itself; the address bar
+  // then still says /items, so reload and the back button would take a new snapshot.
+  var stable = document.querySelector('[data-stable-path]');
+  if (stable && window.history && window.history.replaceState) {
+    var stablePath = stable.getAttribute('data-stable-path');
+    if (stablePath) {
+      try {
+        window.history.replaceState(window.history.state, '', stablePath + window.location.hash);
+      } catch (ignored) {
+        // The address stays as it is; the list itself is unaffected.
+      }
+    }
+  }
+
   /* ---------- Article: back to the list where it was left ---------- */
 
   var backLinks = document.querySelectorAll('[data-back-link]');
