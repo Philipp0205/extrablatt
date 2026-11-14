@@ -2023,3 +2023,48 @@ html:not(.eink) .changelog-release { border-top: 1px solid var(--ink); }
 html:not(.eink) .btn.send-btn { border-color: transparent; background: transparent; color: var(--muted); }
 html:not(.eink) .btn.send-btn:hover { background: transparent; color: var(--accent); }
 }
+
+/* ==========================================================================
+   Polish: press feedback, busy state, tap targets, settings rows (phones and desktop, never e-ink)
+   ========================================================================== */
+
+/* Hit areas: Papier shrank some controls below the 44px minimum on phones. */
+@media (max-width: 719px) {
+  html:not(.eink) .filters .chip,
+  html:not(.eink) .filter-mode-group .chip { min-height: 2.75rem; min-width: 2.75rem; justify-content: center; display: inline-flex; align-items: center; }
+  html:not(.eink) .article-tools .btn { min-height: 2.75rem; }
+  html:not(.eink) .settings-chips .chip,
+  html:not(.eink) a.chip { min-height: 2.75rem; display: inline-flex; align-items: center; }
+  html:not(.eink) .feed-row-main > a { min-height: 2.75rem; display: inline-flex; align-items: center; }
+  /* A long value (an e-mail address) must not squeeze the topic name into a column of single letters. */
+  html:not(.eink) .category-list a strong { flex: 0 0 auto; }
+  html:not(.eink) .category-list a .meta { flex: 0 1 auto; min-width: 0; overflow-wrap: anywhere; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html:not(.eink) { -webkit-tap-highlight-color: transparent; }
+  html:not(.eink) button, html:not(.eink) .btn, html:not(.eink) .chip, html:not(.eink) details.tools > summary {
+    transition: transform 0.14s ease-out, background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, opacity 0.15s ease;
+  }
+  html:not(.eink) button:not([disabled]):active, html:not(.eink) .btn:active, html:not(.eink) .chip:active, html:not(.eink) details.tools > summary:active {
+    transform: scale(0.97);
+  }
+  html:not(.eink) .tabbar a { transition: opacity 0.14s ease-out, color 0.15s ease; }
+  html:not(.eink) .tabbar a:active { opacity: 0.55; }
+  html:not(.eink) .tabbar a .icon { transition: transform 0.14s ease-out; }
+  html:not(.eink) .tabbar a:active .icon { transform: scale(0.9); }
+  html:not(.eink) .category-list a, html:not(.eink) .item-title { transition: background-color 0.15s ease, color 0.15s ease; }
+  html:not(.eink) .category-list a:active { background: var(--surface-2); }
+  html:not(.eink) .item-title:active { color: var(--accent); }
+
+  /* Messages arrive with a short fade (opacity only, so nothing shifts). */
+  html:not(.eink) .flash[role] { animation: eb-fade-in 0.2s ease-out; }
+  html:not(.eink) details.tools[open] > .tools-body,
+  html:not(.eink) details.action-menu[open] > .action-menu-items { animation: eb-fade-in 0.16s ease-out; }
+  @keyframes eb-fade-in { from { opacity: 0; } to { opacity: 1; } }
+
+  /* A button that is working breathes a little instead of just greying out. */
+  html:not(.eink) button[aria-busy="true"] { cursor: progress; animation: eb-busy 1.1s ease-in-out infinite; }
+  @keyframes eb-busy { 0%, 100% { opacity: 0.55; } 50% { opacity: 0.8; } }
+}
+html:not(.eink) button[aria-busy="true"] { cursor: progress; }
