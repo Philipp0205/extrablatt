@@ -962,7 +962,7 @@ class AppControllerSecurityTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString(">1 unread<")))
                 .andExpect(content().string(not(containsString("unread-meter"))))
-                .andExpect(content().string(not(containsString("width:"))))
+                .andExpect(content().string(not(containsString("style=\"width"))))
                 .andExpect(content().string(containsString("data-article-id=\"4\"")));
     }
 

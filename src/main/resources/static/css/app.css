@@ -186,7 +186,7 @@ hr {
 .skip-link {
   position: absolute;
   left: calc(0.75rem + var(--safe-left));
-  top: calc(-4rem + var(--safe-top));
+  top: calc(-4rem - var(--safe-top));
   z-index: 100;
   padding: 0.6rem 1rem;
   border-radius: var(--radius-sm);
@@ -2068,3 +2068,17 @@ html:not(.eink) .btn.send-btn:hover { background: transparent; color: var(--acce
   @keyframes eb-busy { 0%, 100% { opacity: 0.55; } 50% { opacity: 0.8; } }
 }
 html:not(.eink) button[aria-busy="true"] { cursor: progress; }
+/* Installed app only: a fixed strip as tall as the status bar, in the page colour, so scrolling text never runs under the clock. It is 0px tall wherever there is no inset. */
+@media (display-mode: standalone) {
+  html:not(.eink) body::before {
+    content: "";
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: var(--safe-top);
+    background: var(--bg);
+    z-index: 60;
+    pointer-events: none;
+  }
+}
