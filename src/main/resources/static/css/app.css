@@ -186,7 +186,7 @@ hr {
 .skip-link {
   position: absolute;
   left: calc(0.75rem + var(--safe-left));
-  top: calc(-4rem + var(--safe-top));
+  top: calc(-4rem - var(--safe-top));
   z-index: 100;
   padding: 0.6rem 1rem;
   border-radius: var(--radius-sm);
