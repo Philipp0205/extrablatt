@@ -280,3 +280,332 @@ html.eink.reader-paged .pager .btn[disabled] {
 html.eink .pager-label {
   font-weight: 600;
 }
+
+/*
+ * B · Bibliothek — the e-ink layout as a reading-app library (Kindle / Apple Books / Fable lists).
+ * Appended to eink.css; everything is under html.eink. Black and white plus ONE grey (#555555, secondary text only).
+ * Dense rows with a bold left bar for unread, a full-height Send cell, text tabs with a thick underline, segmented choices.
+ * Literal values only (no var(), calc(), grid or gap), -webkit- prefixes on flex.
+ */
+
+/* ----- Header and tab bar ----- */
+html.eink .appbar {
+  border-bottom: 4px solid #000000;
+  padding: 0.2rem 0;
+}
+html.eink .appbar .brand {
+  font-size: 1.35rem;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  text-decoration: none;
+}
+html.eink .tabbar {
+  border-top: 4px solid #000000;
+}
+html.eink .tabbar a {
+  min-height: 4rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  border-top: 6px solid #ffffff;
+  margin-top: -4px;
+}
+html.eink .tabbar a[aria-current="page"] {
+  font-weight: 800;
+  text-decoration: none;
+  border-top: 6px solid #000000;
+}
+html.eink .tabbar .icon {
+  width: 1.7rem;
+  height: 1.7rem;
+  stroke-width: 2;
+}
+
+/* ----- Controls: 2px outlines, small radius ----- */
+html.eink .btn,
+html.eink button {
+  border: 2px solid #000000;
+  border-radius: 4px;
+  font-weight: 700;
+  text-decoration: none;
+  min-height: 52px;
+}
+html.eink .btn.primary,
+html.eink button.primary {
+  background: #000000;
+  color: #ffffff;
+}
+html.eink input[type="text"],
+html.eink input[type="email"],
+html.eink input[type="password"],
+html.eink input[type="url"],
+html.eink select,
+html.eink textarea {
+  border: 2px solid #000000;
+  border-radius: 4px;
+  min-height: 52px;
+  background: #ffffff;
+  color: #000000;
+}
+html.eink .meta,
+html.eink .item-meta {
+  color: #555555;
+}
+html.eink .flash {
+  border: 2px solid #000000;
+  border-radius: 4px;
+  background: #ffffff;
+}
+
+/* ----- Articles list: library rows ----- */
+html.eink .list-head h1 {
+  font-size: 1.9rem;
+}
+html.eink .list-head .meta {
+  font-weight: 700;
+  color: #000000;
+}
+html.eink .filters {
+  border-bottom: 2px solid #000000;
+  padding-bottom: 0;
+  margin-bottom: 0;
+}
+html.eink .filters .strip {
+  border-bottom: 0;
+}
+html.eink .chip {
+  border: 0;
+  border-bottom: 5px solid #ffffff;
+  border-radius: 0;
+  background: #ffffff;
+  color: #000000;
+  min-height: 3rem;
+  padding: 0 0.8rem;
+  font-size: 1rem;
+  font-weight: 500;
+  text-decoration: none;
+}
+html.eink .chip.active,
+html.eink .chip[aria-current="page"] {
+  background: #ffffff;
+  color: #000000;
+  border-bottom: 5px solid #000000;
+  font-weight: 800;
+}
+html.eink .filter-mode-group .chip {
+  border: 2px solid #000000;
+  border-radius: 4px 0 0 4px;
+  min-height: 2.6rem;
+  text-decoration: none;
+  font-weight: 600;
+}
+html.eink .filter-mode-group .chip:last-child {
+  border-radius: 0 4px 4px 0;
+  margin-left: -2px;
+}
+html.eink .filter-mode-group .chip.active {
+  background: #000000;
+  color: #ffffff;
+  font-weight: 800;
+  text-decoration: none;
+}
+html.eink .chip .mode-dot {
+  display: none;
+}
+html.eink .filter-divide {
+  display: none;
+}
+html.eink .item-list > li {
+  -webkit-box-align: stretch;
+  -webkit-align-items: stretch;
+  align-items: stretch;
+  padding: 0;
+  border-bottom: 1px solid #000000;
+  min-height: 5.6rem;
+}
+html.eink .item-main {
+  padding: 0.7rem 0.6rem 0.7rem 1rem;
+  border-left: 10px solid #000000;
+}
+html.eink li[data-read="true"] .item-main {
+  border-left: 10px solid #ffffff;
+}
+html.eink .item-meta {
+  font-size: 0.8rem;
+  font-weight: 500;
+  margin-bottom: 0.15rem;
+}
+html.eink .item-meta .source {
+  color: #555555;
+  letter-spacing: 0.04em;
+}
+html.eink .item-meta .sent-mark {
+  border: 1px solid #555555;
+  border-radius: 3px;
+}
+html.eink .item-title {
+  font-family: inherit;
+  font-size: 1.3rem;
+  line-height: 1.25;
+  font-weight: 800;
+  text-decoration: none;
+}
+html.eink li[data-read="true"] .item-title {
+  font-weight: 400;
+  color: #000000;
+}
+html.eink .unread-mark {
+  display: none;
+}
+html.eink .item-list > li > form.inline {
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: flex;
+  margin: 0;
+  border-left: 2px solid #000000;
+}
+html.eink .send-btn {
+  -webkit-box-orient: vertical;
+  -webkit-flex-direction: column;
+  flex-direction: column;
+  -webkit-box-pack: center;
+  -webkit-justify-content: center;
+  justify-content: center;
+  min-width: 5.2rem;
+  height: 100%;
+  min-height: 0;
+  border: 0;
+  border-radius: 0;
+  color: #000000;
+  font-size: 0.9rem;
+  font-weight: 700;
+  padding: 0 0.4rem;
+}
+html.eink .send-btn .icon {
+  display: block;
+  width: 1.6rem;
+  height: 1.6rem;
+  margin: 0 auto 0.15rem;
+}
+html.eink .send-btn .send-word {
+  display: block;
+}
+html.eink .list-end .meta {
+  color: #555555;
+}
+
+/* ----- Pager ----- */
+html.eink.reader-paged .pager {
+  border-top: 2px solid #000000;
+  padding-top: 0.4rem;
+}
+html.eink.reader-paged .pager .btn {
+  min-width: 8rem;
+  min-height: 56px;
+  font-size: 1.05rem;
+}
+html.eink .pager-label {
+  font-weight: 700;
+  color: #555555;
+}
+
+/* ----- Reader: ragged-right, generous leading, short rule under the title ----- */
+html.eink .article-tools {
+  border-bottom: 2px solid #000000;
+  padding-bottom: 0.5rem;
+}
+html.eink .article-tools .btn {
+  font-size: 0.95rem;
+}
+html.eink .article-tools .back-link a {
+  text-decoration: none;
+  font-weight: 700;
+}
+html.eink .article-head h1 {
+  font-size: 2rem;
+  line-height: 1.15;
+  font-weight: 800;
+  margin-bottom: 0.5rem;
+}
+html.eink .article-head .meta {
+  color: #555555;
+}
+html.eink .article-head {
+  padding-bottom: 0.9rem;
+}
+html.eink .article-head:after {
+  content: "";
+  display: block;
+  width: 3.5rem;
+  border-top: 5px solid #000000;
+  margin-top: 0.8rem;
+}
+html.eink .article-body {
+  border-top: 0;
+  margin-top: 0;
+  padding-top: 0;
+  text-align: left;
+  line-height: 1.7;
+}
+html.eink .article-body p {
+  margin: 0 0 0.9rem;
+}
+html.eink .article-body h2,
+html.eink .article-body h3 {
+  font-weight: 800;
+  margin: 1.1rem 0 0.4rem;
+}
+html.eink .article-body blockquote {
+  border-left: 5px solid #000000;
+  padding-left: 1rem;
+  margin-left: 0;
+}
+html.eink .article-end {
+  border-top: 2px solid #000000;
+}
+
+/* ----- Feeds, settings: big list rows; choices as segmented buttons ----- */
+html.eink .category-list > li,
+html.eink .feed-list > li {
+  min-height: 4.2rem;
+  border-bottom: 1px solid #000000;
+}
+html.eink .category-list a,
+html.eink .feed-list a {
+  text-decoration: none;
+  font-weight: 800;
+}
+html.eink .row .chip {
+  -webkit-box-flex: 1;
+  -webkit-flex: 1 1 0;
+  flex: 1 1 0;
+  -webkit-box-pack: center;
+  -webkit-justify-content: center;
+  justify-content: center;
+  border: 2px solid #000000;
+  border-radius: 4px;
+  min-height: 3.2rem;
+  font-weight: 600;
+}
+html.eink .row .chip.active,
+html.eink .row .chip[aria-current="page"],
+html.eink .row .chip[aria-pressed="true"] {
+  background: #000000;
+  color: #ffffff;
+  font-weight: 800;
+}
+html.eink .plan {
+  border: 2px solid #000000;
+  border-radius: 6px;
+}
+html.eink .back-link,
+html.eink .back-link a {
+  text-decoration: none;
+  font-weight: 700;
+}
+html.eink h2 {
+  border-bottom: 2px solid #000000;
+  padding-bottom: 0.25rem;
+}
+html.eink .site-legal {
+  border-top: 2px solid #000000;
+}
