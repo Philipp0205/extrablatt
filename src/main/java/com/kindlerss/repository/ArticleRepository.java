@@ -38,6 +38,25 @@ public class ArticleRepository {
             columnExists(rs, "feed_title") ? rs.getString("feed_title") : null
     );
 
+    /** Maps the list columns of {@link #findPage}; the three body fields are not selected and stay null. */
+    private static final RowMapper<Article> LIST_MAPPER = (rs, rowNum) -> new Article(
+            rs.getLong("id"),
+            rs.getLong("feed_id"),
+            rs.getString("guid"),
+            rs.getString("title"),
+            rs.getString("url"),
+            rs.getString("author"),
+            toInstant(rs.getTimestamp("published_at")),
+            null,
+            null,
+            null,
+            rs.getBoolean("read"),
+            toInstant(rs.getTimestamp("sent_at")),
+            toInstant(rs.getTimestamp("created_at")),
+            toInstant(rs.getTimestamp("updated_at")),
+            rs.getString("feed_title")
+    );
+
     private final JdbcTemplate jdbc;
 
     public ArticleRepository(JdbcTemplate jdbc) {
@@ -58,10 +77,16 @@ public class ArticleRepository {
         return findPage(userId, feedId, null, unreadOnly, null, limit, offset);
     }
 
+    /**
+     * One page of the account's articles for list views. The returned articles carry no
+     * body text: {@code summaryHtml}, {@code feedContentHtml} and {@code extractedContentHtml}
+     * are always null. Callers that need content must use {@link #findById}.
+     */
     public List<Article> findPage(long userId, Long feedId, String category, Boolean unreadOnly,
                                   Instant unreadSnapshot, int limit, int offset) {
         StringBuilder sql = new StringBuilder("""
-                SELECT a.*, f.title AS feed_title
+                SELECT a.id, a.feed_id, a.guid, a.title, a.url, a.author, a.published_at,
+                       a.read, a.sent_at, a.created_at, a.updated_at, f.title AS feed_title
                 FROM articles a
                 JOIN feeds f ON f.id = a.feed_id
                 WHERE f.user_id = ?
@@ -84,7 +109,7 @@ public class ArticleRepository {
         sql.append(" ORDER BY a.published_at DESC NULLS LAST, a.id DESC LIMIT ? OFFSET ?");
         args.add(limit);
         args.add(offset);
-        return jdbc.query(sql.toString(), MAPPER, args.toArray());
+        return jdbc.query(sql.toString(), LIST_MAPPER, args.toArray());
     }
 
     public long count(long userId, Long feedId, Boolean unreadOnly) {

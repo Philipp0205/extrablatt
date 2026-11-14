@@ -55,6 +55,11 @@ public class ArticleService {
         return findPage(userId, feedId, null, unreadOnly, null, page, pageSize);
     }
 
+    /**
+     * One page of articles for list views. The returned articles carry no body text
+     * ({@code summaryHtml}, {@code feedContentHtml} and {@code extractedContentHtml} are null);
+     * callers that need content must use {@link #findById}.
+     */
     public List<Article> findPage(long userId, Long feedId, String category, Boolean unreadOnly,
                                   Instant unreadSnapshot, int page, int pageSize) {
         int safePage = Math.max(page, 1);
