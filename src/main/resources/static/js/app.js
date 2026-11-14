@@ -11,7 +11,8 @@
  *  - returning from an article to the list where it was left;
  *  - closing the article's More menu on an outside tap or Escape;
  *  - on a slow-updating screen the server did not recognise, switching to the
- *    e-ink layout once (see LayoutInterceptor).
+ *    e-ink layout once (see LayoutInterceptor);
+ *  - keeping the browser bar colour (theme-color) equal to the painted page background.
  *
  * On the e-ink layout, Load more stays a plain link and reader.js does the paging.
  *
@@ -58,6 +59,86 @@
     if (/(^|;\s*)layout=eink-auto/.test(document.cookie)) {
       window.location.replace(window.location.href);
     }
+  })();
+
+  /* ---------- Bar colour ---------- */
+
+  // An installed Android app can ignore the media-bound theme-color metas, so
+  // one meta without media carries the colour the page actually paints.
+  (function () {
+    var media = window.matchMedia;
+    if (eink || !media || !window.getComputedStyle || !document.querySelectorAll) {
+      return;
+    }
+    var current = null;
+    var meta = null;
+    var frame = false;
+
+    function toHex(value) {
+      var m = /^rgba?\(\s*(\d+)[\s,]+(\d+)[\s,]+(\d+)(?:[\s,/]+([\d.]+%?))?\s*\)$/.exec(value || '');
+      if (!m || (m[4] !== undefined && parseFloat(m[4]) === 0)) {
+        return null;
+      }
+      var hex = '#';
+      for (var i = 1; i <= 3; i++) {
+        var part = Math.max(0, Math.min(255, parseInt(m[i], 10)));
+        hex += (part < 16 ? '0' : '') + part.toString(16);
+      }
+      return hex;
+    }
+
+    function sync() {
+      var color = toHex(window.getComputedStyle(root).backgroundColor);
+      if (!color) {
+        return;
+      }
+      if (!meta) {
+        var metas = document.querySelectorAll('meta[name="theme-color"]');
+        for (var i = 0; i < metas.length; i++) {
+          if (metas[i].hasAttribute('media')) {
+            metas[i].parentNode.removeChild(metas[i]);
+          } else if (!meta) {
+            meta = metas[i];
+          }
+        }
+        if (!meta) {
+          meta = document.createElement('meta');
+          meta.setAttribute('name', 'theme-color');
+          document.head.appendChild(meta);
+        }
+      }
+      if (color !== current) {
+        current = color;
+        meta.setAttribute('content', color);
+      }
+    }
+
+    function listen(query) {
+      var list = media.call(window, query);
+      if (!list) {
+        return;
+      }
+      if (list.addEventListener) {
+        list.addEventListener('change', sync);
+      } else if (list.addListener) {
+        list.addListener(sync);
+      }
+    }
+
+    sync();
+    listen('(prefers-color-scheme: dark)');
+    listen('(max-width: 719px)');
+    window.addEventListener('resize', function () {
+      if (!window.requestAnimationFrame) {
+        sync();
+      } else if (!frame) {
+        frame = true;
+        window.requestAnimationFrame(function () {
+          frame = false;
+          sync();
+        });
+      }
+    });
   })();
 
   /* ---------- Confirm prompts ---------- */
