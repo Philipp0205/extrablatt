@@ -15,6 +15,7 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
+import java.util.Optional;
 
 /** Publishes the signed-in account's e-mail and verification status to every view. */
 @ControllerAdvice(assignableTypes = {AppController.class, SettingsController.class, AdminController.class,
@@ -26,6 +27,8 @@ public class AccountAdvice {
      * starts a new session, so the notice returns the next time they sign in.
      */
     public static final String TRIAL_ENDED_ACK = "TRIAL_ENDED_ACK";
+
+    private static final String ENTITLEMENT_ATTRIBUTE = AccountAdvice.class.getName() + ".ENTITLEMENT";
 
     private final CurrentUser currentUser;
     private final EntitlementService entitlements;
@@ -123,7 +126,23 @@ public class AccountAdvice {
         return attrs.getRequest();
     }
 
+    /** Computed at most once per request; the cached value is an Optional so null (nobody signed in) is cached too. */
+    @SuppressWarnings("unchecked")
     private Entitlement entitlement() {
+        HttpServletRequest request = currentRequest();
+        if (request == null) {
+            return loadEntitlement();
+        }
+        Object cached = request.getAttribute(ENTITLEMENT_ATTRIBUTE);
+        if (cached instanceof Optional<?> hit) {
+            return ((Optional<Entitlement>) hit).orElse(null);
+        }
+        Entitlement entitlement = loadEntitlement();
+        request.setAttribute(ENTITLEMENT_ATTRIBUTE, Optional.ofNullable(entitlement));
+        return entitlement;
+    }
+
+    private Entitlement loadEntitlement() {
         if (!properties.billing().enabled()) {
             return new Entitlement(com.kindlerss.domain.Plan.SUPPORTER, 50, 0, 50, true);
         }

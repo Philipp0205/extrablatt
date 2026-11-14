@@ -111,6 +111,23 @@ class PostgresRepositoryTest {
     }
 
     @Test
+    void findsTheArticlesAmongGivenIdsThatHaveNoExtractedContent() {
+        var feed = feeds.insert(userId, "Extracted", "https://extracted.example.com/feed.xml",
+                "https://extracted.example.com", null);
+        long missing = insertArticle(feed.id(), "extracted-1");
+        long blank = insertArticle(feed.id(), "extracted-2");
+        long stored = insertArticle(feed.id(), "extracted-3");
+        long notAsked = insertArticle(feed.id(), "extracted-4");
+        articles.updateExtractedContent(blank, " \n\t ");
+        articles.updateExtractedContent(stored, "<p>Body</p>");
+
+        assertEquals(List.of(missing, blank), articles.findIdsWithoutExtractedContent(
+                List.of(stored, blank, missing, -1L)).stream().sorted().toList());
+        assertFalse(articles.findIdsWithoutExtractedContent(List.of(missing)).contains(notAsked));
+        assertTrue(articles.findIdsWithoutExtractedContent(List.of()).isEmpty());
+    }
+
+    @Test
     void marksEveryUnreadArticleInAFeedAndLeavesOtherFeedsAlone() {
         var feed = feeds.insert(userId, "Mark all", "https://mark-all.example.com/feed.xml",
                 "https://mark-all.example.com", null);
@@ -808,6 +825,44 @@ class PostgresRepositoryTest {
 
         assertEquals("<p>extracted</p>",
                 articles.findById(keeper, unread).orElseThrow().extractedContentHtml());
+    }
+
+    /** The list query leaves the body columns out; only findById reads them. */
+    @Test
+    void theArticleListCarriesNoBodiesWhileFindByIdStillDoes() {
+        long reader = users.insert("list-reader@example.com", "hash").id();
+        var feed = feeds.insert(reader, "List feed", "https://list.example.com/feed.xml",
+                "https://list.example.com", null);
+        long older = articles.insert(feed.id(), "list-old", "Older", "https://list.example.com/old",
+                "Author", Instant.parse("2026-08-01T00:00:00Z"), "<p>old summary</p>", "<p>old feed content</p>");
+        long newer = articles.insert(feed.id(), "list-new", "Newer", "https://list.example.com/new",
+                "Author", Instant.parse("2026-08-02T00:00:00Z"), "<p>new summary</p>", "<p>new feed content</p>");
+        articles.updateExtractedContent(newer, "<p>new extracted</p>");
+        articles.markRead(reader, newer, true);
+        Instant sentAt = Instant.parse("2026-08-03T12:00:00Z");
+        articles.confirmSend(reader, newer, sentAt);
+
+        var page = articles.findPage(reader, null, null, null, null, 50, 0);
+
+        assertEquals(List.of(newer, older), page.stream().map(com.kindlerss.domain.Article::id).toList());
+        var listed = page.get(0);
+        assertEquals("Newer", listed.title());
+        assertEquals("List feed", listed.feedTitle());
+        assertEquals(feed.id(), listed.feedId());
+        assertTrue(listed.read());
+        assertEquals(sentAt, listed.sentAt());
+        assertFalse(page.get(1).read());
+        assertNull(page.get(1).sentAt());
+        for (var article : page) {
+            assertNull(article.summaryHtml());
+            assertNull(article.feedContentHtml());
+            assertNull(article.extractedContentHtml());
+        }
+
+        var full = articles.findById(reader, newer).orElseThrow();
+        assertEquals("<p>new summary</p>", full.summaryHtml());
+        assertEquals("<p>new feed content</p>", full.feedContentHtml());
+        assertEquals("<p>new extracted</p>", full.extractedContentHtml());
     }
 
     private static int count(JdbcTemplate jdbc, String sql, Object... args) {
