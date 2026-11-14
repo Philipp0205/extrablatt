@@ -164,7 +164,28 @@ class StaticAssetCachingTest {
                 .andExpect(content().string(containsString("href=\"/manifest.webmanifest\"")))
                 .andExpect(content().string(containsString("href=\"/favicon.svg\"")))
                 .andExpect(content().string(containsString("href=\"/icons/favicon-32.png\"")))
-                .andExpect(content().string(containsString("href=\"/apple-touch-icon.png\"")));
+                .andExpect(content().string(containsString("href=\"/apple-touch-icon.png?v=2\"")))
+                .andExpect(content().string(containsString("name=\"apple-mobile-web-app-capable\"")))
+                .andExpect(content().string(containsString("name=\"mobile-web-app-capable\"")))
+                .andExpect(content().string(containsString("name=\"apple-mobile-web-app-status-bar-style\" content=\"black-translucent\"")))
+                .andExpect(content().string(containsString("content=\"#f4eee1\" media=\"(prefers-color-scheme: light) and (max-width: 719px)\"")))
+                .andExpect(content().string(containsString("content=\"#17140f\" media=\"(prefers-color-scheme: dark) and (max-width: 719px)\"")));
+    }
+
+    /**
+     * Home-screen icons are cached hard by iOS and Android, so the manifest points at
+     * versioned icon addresses. The bar colour comes only from the per-scheme meta
+     * tags: a fixed theme_color in the manifest would always be the light one.
+     */
+    @Test
+    void theManifestVersionsItsIconsAndLeavesTheThemeColourToTheMetas() throws Exception {
+        mockMvc.perform(get("/manifest.webmanifest"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("\"/icons/icon-192.png?v=2\"")))
+                .andExpect(content().string(containsString("\"/icons/icon-512.png?v=2\"")))
+                .andExpect(content().string(containsString("\"/icons/maskable-512.png?v=2\"")))
+                .andExpect(content().string(not(containsString("theme_color"))))
+                .andExpect(content().string(containsString("background_color")));
     }
 
     @Test

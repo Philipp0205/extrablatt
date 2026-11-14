@@ -18,16 +18,30 @@
   article into pages. Every other device gets exactly the lines above and nothing
   else, so the block opens and closes on the script lines. reader.js is deferred
   like app.js and runs after it.
+
+  App bars and icons: there are four theme-color metas because the phone layout
+  (max-width 719px) paints the page in the Papier --bg (#f4eee1 light, #17140f
+  dark), and the bar of an installed app should match it. Wider screens keep the
+  desktop colours. Chrome uses the first meta whose media matches, so the phone
+  width ones come first. black-translucent lets the page paint under the iOS
+  status bar, and the CSS pads the top with env(safe-area-inset-top). The ?v= on
+  the icon links (and in manifest.webmanifest) exists because iOS and Android
+  cache home-screen icons hard: bump it whenever an icon changes.
 -->
 <th:block th:fragment="assets">
   <meta name="color-scheme" content="light dark"/>
+  <meta name="theme-color" content="#f4eee1" media="(prefers-color-scheme: light) and (max-width: 719px)"/>
+  <meta name="theme-color" content="#17140f" media="(prefers-color-scheme: dark) and (max-width: 719px)"/>
   <meta name="theme-color" content="#faf8f4" media="(prefers-color-scheme: light)"/>
   <meta name="theme-color" content="#141412" media="(prefers-color-scheme: dark)"/>
   <link rel="manifest" th:href="@{/manifest.webmanifest}"/>
   <link rel="icon" type="image/svg+xml" th:href="@{/favicon.svg}"/>
   <link rel="icon" type="image/png" sizes="32x32" th:href="@{/icons/favicon-32.png}"/>
-  <link rel="apple-touch-icon" th:href="@{/apple-touch-icon.png}"/>
+  <link rel="apple-touch-icon" th:href="@{/apple-touch-icon.png(v=2)}"/>
   <meta name="apple-mobile-web-app-title" content="Extrablatt"/>
+  <meta name="mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
   <link rel="stylesheet" th:href="@{/css/app.css}"/>
   <script th:src="@{/js/app.js}" defer></script><th:block th:if="${einkLayout}">
   <link rel="stylesheet" th:href="@{/css/eink.css}"/>
