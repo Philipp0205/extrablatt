@@ -4,6 +4,7 @@
  *
  *  - confirm prompts for forms marked data-confirm (no inline handlers, so the
  *    pages fit a script-src 'self' policy);
+ *  - submit buttons stop answering once their form is on its way, so a slow request cannot be sent twice;
  *  - sending to Kindle in place, without leaving the page or losing the scroll;
  *  - loading more articles under the list instead of opening the next page;
  *  - "Mark all as read" covering every row on screen, appended ones included;
@@ -72,6 +73,42 @@
       event.stopImmediatePropagation();
     }
   }, true);
+
+  /* ---------- Submit once ---------- */
+
+  // Bubbling phase, so a confirm prompt that was declined (defaultPrevented) is
+  // left alone. The buttons are disabled in a timeout so the browser still
+  // submits the form's own data first.
+  document.addEventListener('submit', function (event) {
+    var form = event.target;
+    if (eink || event.defaultPrevented || !form || !form.hasAttribute
+        || form.hasAttribute('data-send-form') || form.hasAttribute('data-mark-read-form')) {
+      return;
+    }
+    var buttons = form.querySelectorAll('button[type="submit"]');
+    window.setTimeout(function () {
+      for (var i = 0; i < buttons.length; i++) {
+        buttons[i].disabled = true;
+        buttons[i].setAttribute('aria-busy', 'true');
+      }
+    }, 0);
+  });
+
+  // The page came back from the back/forward cache: nothing is on its way now.
+  window.addEventListener('pageshow', function (event) {
+    if (!event.persisted) {
+      return;
+    }
+    var busy = document.querySelectorAll('button[aria-busy="true"]');
+    for (var i = 0; i < busy.length; i++) {
+      var button = busy[i];
+      if (button.closest && button.closest('[data-send-form]')) {
+        continue;
+      }
+      button.disabled = false;
+      button.removeAttribute('aria-busy');
+    }
+  });
 
   /* ---------- Send to Kindle in place ---------- */
 
