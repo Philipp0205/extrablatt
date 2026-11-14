@@ -183,6 +183,27 @@ public class ArticleRepository {
         return key == null ? -1 : key.longValue();
     }
 
+    /**
+     * Of the given article ids, those whose extracted content is missing: NULL or
+     * only whitespace. One query with the ids as a single array parameter. It does
+     * not check ownership; callers load each article with {@link #findById} first.
+     */
+    public List<Long> findIdsWithoutExtractedContent(Collection<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return List.of();
+        }
+        Long[] idArray = ids.toArray(Long[]::new);
+        return jdbc.query(con -> {
+            PreparedStatement statement = con.prepareStatement("""
+                    SELECT id FROM articles
+                    WHERE id = ANY(?)
+                    AND (extracted_content_html IS NULL OR extracted_content_html !~ '\\S')
+                    """);
+            statement.setArray(1, con.createArrayOf("bigint", idArray));
+            return statement;
+        }, (rs, rowNum) -> rs.getLong("id"));
+    }
+
     public void updateExtractedContent(long id, String extractedHtml) {
         jdbc.update("""
                 UPDATE articles SET extracted_content_html = ?, updated_at = NOW() WHERE id = ?

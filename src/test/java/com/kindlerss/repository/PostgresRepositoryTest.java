@@ -111,6 +111,23 @@ class PostgresRepositoryTest {
     }
 
     @Test
+    void findsTheArticlesAmongGivenIdsThatHaveNoExtractedContent() {
+        var feed = feeds.insert(userId, "Extracted", "https://extracted.example.com/feed.xml",
+                "https://extracted.example.com", null);
+        long missing = insertArticle(feed.id(), "extracted-1");
+        long blank = insertArticle(feed.id(), "extracted-2");
+        long stored = insertArticle(feed.id(), "extracted-3");
+        long notAsked = insertArticle(feed.id(), "extracted-4");
+        articles.updateExtractedContent(blank, " \n\t ");
+        articles.updateExtractedContent(stored, "<p>Body</p>");
+
+        assertEquals(List.of(missing, blank), articles.findIdsWithoutExtractedContent(
+                List.of(stored, blank, missing, -1L)).stream().sorted().toList());
+        assertFalse(articles.findIdsWithoutExtractedContent(List.of(missing)).contains(notAsked));
+        assertTrue(articles.findIdsWithoutExtractedContent(List.of()).isEmpty());
+    }
+
+    @Test
     void marksEveryUnreadArticleInAFeedAndLeavesOtherFeedsAlone() {
         var feed = feeds.insert(userId, "Mark all", "https://mark-all.example.com/feed.xml",
                 "https://mark-all.example.com", null);

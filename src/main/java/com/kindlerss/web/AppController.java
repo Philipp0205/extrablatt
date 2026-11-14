@@ -424,6 +424,8 @@ public class AppController {
             model.addAttribute("stablePath", listPath);
         }
         addFilterBar(model, feedService.listFeeds(userId), feedId, category, unreadByDefault);
+        articleService.warmExtractedContent(userId,
+                articles.stream().filter(a -> !a.read()).limit(5).map(Article::id).toList());
         model.addAttribute("firstIndex", articles.isEmpty() ? 0 : (long) (first - 1) * pageSize + 1);
         model.addAttribute("lastIndex", (long) (first - 1) * pageSize + articles.size());
         // Counted without the snapshot: the snapshot deliberately holds on to the

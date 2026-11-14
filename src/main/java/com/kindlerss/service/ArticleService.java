@@ -10,15 +10,29 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import jakarta.annotation.PreDestroy;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionOperations;
 
+import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /** Loads, extracts, and updates article read/sent state. */
 @Service
@@ -33,18 +47,162 @@ public class ArticleService {
     private final DiscussionParser discussionParser;
     private final TransactionOperations transactions;
 
+    /** How many articles of a list are warmed at most per request. */
+    private static final int WARM_MAX_IDS = 5;
+    private static final int WARM_QUEUE_CAPACITY = 20;
+    private static final int WARM_THREADS = 2;
+    private static final Duration WARM_FAILURE_TTL = Duration.ofMinutes(15);
+    private static final int WARM_FAILURE_PRUNE_AT = 1000;
+
+    private final Executor warmExecutor;
+    /** Set only when this service created the executor, so only then does it shut it down. */
+    private final ExecutorService ownedWarmExecutor;
+    private final Set<Long> warmInFlight = ConcurrentHashMap.newKeySet();
+    /** Article id to the moment its failed extraction may be tried by the warm path again. */
+    private final ConcurrentHashMap<Long, Instant> warmFailedUntil = new ConcurrentHashMap<>();
+
+    @Autowired
     public ArticleService(ArticleRepository articleRepository,
                           FeedRepository feedRepository,
                           SafeHttpClient httpClient,
                           HtmlSanitizer sanitizer,
                           DiscussionParser discussionParser,
                           TransactionOperations transactions) {
+        this(articleRepository, feedRepository, httpClient, sanitizer, discussionParser, transactions,
+                newWarmExecutor(), true);
+    }
+
+    /** For tests: runs background warming on the given executor, which the test controls. */
+    ArticleService(ArticleRepository articleRepository,
+                   FeedRepository feedRepository,
+                   SafeHttpClient httpClient,
+                   HtmlSanitizer sanitizer,
+                   DiscussionParser discussionParser,
+                   TransactionOperations transactions,
+                   Executor warmExecutor) {
+        this(articleRepository, feedRepository, httpClient, sanitizer, discussionParser, transactions,
+                warmExecutor, false);
+    }
+
+    private ArticleService(ArticleRepository articleRepository,
+                           FeedRepository feedRepository,
+                           SafeHttpClient httpClient,
+                           HtmlSanitizer sanitizer,
+                           DiscussionParser discussionParser,
+                           TransactionOperations transactions,
+                           Executor warmExecutor,
+                           boolean owned) {
         this.articleRepository = articleRepository;
         this.feedRepository = feedRepository;
         this.httpClient = httpClient;
         this.sanitizer = sanitizer;
         this.discussionParser = discussionParser;
         this.transactions = transactions;
+        this.warmExecutor = warmExecutor;
+        this.ownedWarmExecutor = owned ? (ExecutorService) warmExecutor : null;
+    }
+
+    private static ExecutorService newWarmExecutor() {
+        AtomicInteger counter = new AtomicInteger();
+        // Two daemon threads and a short queue. When it is full, execute() rejects the
+        // task and warmExtractedContent drops it (and its in-flight marker): warming is
+        // only a head start, and opening the article extracts it anyway.
+        return new ThreadPoolExecutor(WARM_THREADS, WARM_THREADS, 0L, TimeUnit.MILLISECONDS,
+                new ArrayBlockingQueue<>(WARM_QUEUE_CAPACITY),
+                runnable -> {
+                    Thread thread = new Thread(runnable, "article-warm-" + counter.incrementAndGet());
+                    thread.setDaemon(true);
+                    return thread;
+                },
+                new ThreadPoolExecutor.AbortPolicy());
+    }
+
+    @PreDestroy
+    void shutdownWarmExecutor() {
+        if (ownedWarmExecutor != null) {
+            ownedWarmExecutor.shutdownNow();
+        }
+    }
+
+    /**
+     * Starts extracting the text of the first few of these articles in the background,
+     * so that opening one from the list finds it already stored. Returns at once and
+     * never throws. Ids already being worked on, or that failed within the last
+     * fifteen minutes, are skipped; so are ids whose content is already stored.
+     * Only this path consults the list of failures: opening an article always tries.
+     */
+    public void warmExtractedContent(long userId, Collection<Long> articleIds) {
+        List<Long> claimed = new ArrayList<>();
+        try {
+            if (articleIds == null || articleIds.isEmpty()) {
+                return;
+            }
+            Instant now = Instant.now();
+            for (Long id : articleIds.stream().filter(Objects::nonNull).distinct().limit(WARM_MAX_IDS).toList()) {
+                Instant failedUntil = warmFailedUntil.get(id);
+                if (failedUntil != null && failedUntil.isAfter(now)) {
+                    continue;
+                }
+                if (warmInFlight.add(id)) {
+                    claimed.add(id);
+                }
+            }
+            if (claimed.isEmpty()) {
+                return;
+            }
+            Set<Long> missing = new HashSet<>(articleRepository.findIdsWithoutExtractedContent(claimed));
+            for (Long id : List.copyOf(claimed)) {
+                if (!missing.contains(id)) {
+                    warmInFlight.remove(id);
+                    claimed.remove(id);
+                }
+            }
+            for (Long id : List.copyOf(claimed)) {
+                claimed.remove(id);
+                try {
+                    warmExecutor.execute(() -> warmOne(userId, id));
+                } catch (RuntimeException e) {
+                    warmInFlight.remove(id);
+                    log.debug("Could not queue warming of article {}: {}", id, e.getMessage());
+                }
+            }
+        } catch (Exception e) {
+            claimed.forEach(warmInFlight::remove);
+            log.warn("Warming article content failed: {}", e.getMessage());
+        }
+    }
+
+    private void warmOne(long userId, long id) {
+        try {
+            Optional<Article> article = articleRepository.findById(userId, id);
+            if (article.isEmpty()) {
+                return;
+            }
+            // Not in a transaction: this fetches from the publisher.
+            resolveRawContent(article.get());
+            boolean stored = articleRepository.findById(userId, id)
+                    .map(Article::extractedContentHtml)
+                    .filter(html -> !html.isBlank())
+                    .isPresent();
+            if (!stored) {
+                rememberWarmFailure(id);
+            }
+        } catch (Exception e) {
+            log.debug("Warming article {} failed: {}", id, e.getMessage());
+        } finally {
+            warmInFlight.remove(id);
+        }
+    }
+
+    private void rememberWarmFailure(long id) {
+        Instant now = Instant.now();
+        if (warmFailedUntil.size() > WARM_FAILURE_PRUNE_AT) {
+            warmFailedUntil.values().removeIf(until -> !until.isAfter(now));
+            if (warmFailedUntil.size() > WARM_FAILURE_PRUNE_AT) {
+                warmFailedUntil.clear();
+            }
+        }
+        warmFailedUntil.put(id, now.plus(WARM_FAILURE_TTL));
     }
 
     public Optional<Article> findById(long userId, long id) {
