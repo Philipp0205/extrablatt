@@ -23,6 +23,11 @@
   <meta name="color-scheme" content="light dark"/>
   <meta name="theme-color" content="#faf8f4" media="(prefers-color-scheme: light)"/>
   <meta name="theme-color" content="#141412" media="(prefers-color-scheme: dark)"/>
+  <link rel="manifest" th:href="@{/manifest.webmanifest}"/>
+  <link rel="icon" type="image/svg+xml" th:href="@{/favicon.svg}"/>
+  <link rel="icon" type="image/png" sizes="32x32" th:href="@{/icons/favicon-32.png}"/>
+  <link rel="apple-touch-icon" th:href="@{/apple-touch-icon.png}"/>
+  <meta name="apple-mobile-web-app-title" content="Extrablatt"/>
   <link rel="stylesheet" th:href="@{/css/app.css}"/>
   <script th:src="@{/js/app.js}" defer></script><th:block th:if="${einkLayout}">
   <link rel="stylesheet" th:href="@{/css/eink.css}"/>

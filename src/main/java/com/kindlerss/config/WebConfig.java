@@ -40,17 +40,35 @@ public class WebConfig implements WebMvcConfigurer {
             .immutable();
 
     /**
+     * About a week, public, not immutable. The icon and manifest file names are
+     * stable (no hash, no version), so a later logo change must be able to reach
+     * browsers within days instead of being stuck for a year.
+     */
+    private static final CacheControl WEEK = CacheControl
+            .maxAge(Duration.ofDays(7))
+            .cachePublic();
+
+    /**
      * Decides per request between the scrolling layout and the e-ink, page-turning
      * one (see {@link LayoutInterceptor}). Static files are the same for everyone.
      */
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(new LayoutInterceptor())
-                .excludePathPatterns("/js/**", "/css/**", "/fonts/**");
+                .excludePathPatterns("/js/**", "/css/**", "/fonts/**",
+                        "/icons/**", "/favicon.ico", "/favicon.svg",
+                        "/apple-touch-icon.png", "/manifest.webmanifest");
     }
 
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
+        registry.addResourceHandler("/icons/**")
+                .addResourceLocations("classpath:/static/icons/")
+                .setCacheControl(WEEK);
+        registry.addResourceHandler("/favicon.ico", "/favicon.svg",
+                        "/apple-touch-icon.png", "/manifest.webmanifest")
+                .addResourceLocations("classpath:/static/")
+                .setCacheControl(WEEK);
         // The font file names carry their version (newsreader-5.3.0-...), so no
         // version resolver is needed to make a year-long cache safe.
         registry.addResourceHandler("/fonts/**")
