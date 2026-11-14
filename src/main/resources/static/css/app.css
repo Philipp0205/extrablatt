@@ -1821,3 +1821,209 @@ dialog.donate-dialog .row {
     padding-bottom: 0;
   }
 }
+
+/* ==========================================================================
+   Papier (phones only, never e-ink)
+
+   Direction A, "Papier": calm editorial. A printed broadsheet at phone size:
+   warm newsprint paper, one oxblood accent, serif for everything you read,
+   hairline rules instead of boxes, a centred masthead and a lead story.
+
+   Scope: every rule below sits inside @media (max-width: 719px) and under
+   html:not(.eink), so desktop and e-ink render exactly as before. The only
+   top-level rules are the two @font-face blocks, and the font they declare is
+   only referenced from inside that media block, so a desktop browser or a
+   Kindle never downloads it. Newsreader (OFL, see /fonts/OFL.txt) is served
+   by WebConfig from /fonts/. The sans stack is left alone on purpose.
+   ========================================================================== */
+
+@font-face {
+  font-family: "Newsreader";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 200 800;
+  src: url(/fonts/newsreader-5.3.0-latin-wght-normal.woff2) format("woff2-variations"),
+       url(/fonts/newsreader-5.3.0-latin-wght-normal.woff2) format("woff2");
+  unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;
+}
+
+@font-face {
+  font-family: "Newsreader";
+  font-style: italic;
+  font-display: swap;
+  font-weight: 200 800;
+  src: url(/fonts/newsreader-5.3.0-latin-wght-italic.woff2) format("woff2-variations"),
+       url(/fonts/newsreader-5.3.0-latin-wght-italic.woff2) format("woff2");
+  unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;
+}
+
+@media (max-width: 719px) {
+html:not(.eink) {
+  --bg: #f4eee1;
+  --surface: #faf6ec;
+  --surface-2: #ece4d3;
+  --ink: #211d17;
+  --ink-2: #3b352b;
+  --muted: #7a7160;
+  --line: #d9cfb9;
+  --line-strong: #bdb097;
+  --accent: #8f2a1c;            /* oxblood */
+  --accent-ink: #fbf6ea;
+  --accent-soft: #eadbc9;
+  --radius: 2px;
+  --radius-sm: 2px;
+  --serif: "Newsreader", "Iowan Old Style", "Charter", "Source Serif Pro", Georgia, "Times New Roman", serif;
+}
+}
+
+/* Dark Papier: the same newsprint idea at night, warm and low-contrast-glare. */
+@media (max-width: 719px) and (prefers-color-scheme: dark) {
+html:not(.eink) {
+  --bg: #17140f;
+  --surface: #1f1b15;
+  --surface-2: #2a251c;
+  --ink: #ece4d2;
+  --ink-2: #d3cab6;
+  --muted: #a1977f;
+  --line: #35302a;
+  --line-strong: #4d463a;
+  --accent: #d9806c;            /* oxblood, lightened to read on dark paper */
+  --accent-ink: #17140f;
+  --accent-soft: #3a2620;
+}
+/* Every rule of the mock below reads these tokens (filled buttons are
+   var(--ink) on var(--bg), underlines are var(--ink), the plan slip's offset
+   shadow is var(--line-strong)), so they invert with no per-rule overrides. */
+}
+
+@media (max-width: 719px) {
+html:not(.eink) body { font-family: var(--sans); }
+html:not(.eink) h1, html:not(.eink) h2, html:not(.eink) h3 { font-family: var(--serif); letter-spacing: -0.01em; }
+html:not(.eink) a { text-decoration-color: color-mix(in srgb, var(--accent) 45%, transparent); }
+
+/* Masthead: the top bar comes back on phones as a centred nameplate between two rules. */
+html:not(.eink) body.has-tabbar .appbar { display: block; position: static; background: transparent; backdrop-filter: none; border: 0; }
+html:not(.eink) .appbar-inner { justify-content: center; min-height: 0; padding-top: 1.1rem; padding-bottom: 0.15rem; flex-direction: column; gap: 0; }
+html:not(.eink) .appbar .brand {
+  display: block; min-height: 0; width: 100%; text-align: center;
+  font-family: var(--serif); font-weight: 600; font-size: 2rem; letter-spacing: 0.02em; line-height: 1.1;
+  padding: 0.35rem 0 0.45rem; border-top: 3px double var(--ink); border-bottom: 1px solid var(--ink);
+}
+html:not(.eink) body.has-tabbar .wrap { padding-top: 0.9rem; }
+html:not(.eink) .wrap { padding-left: 1.25rem; padding-right: 1.25rem; }
+html:not(.eink) .flash { border: 0; border-top: 1px solid var(--line-strong); border-bottom: 1px solid var(--line-strong); border-radius: 0; background: transparent; padding: 0.75rem 0; font-family: var(--serif); font-size: 1.02rem; }
+html:not(.eink) .flash.error { background: transparent; color: var(--accent); }
+
+/* Controls: square, ink-filled, small caps feel */
+html:not(.eink) button, html:not(.eink) .btn { border-radius: 2px; font-size: 0.82rem; letter-spacing: 0.06em; text-transform: uppercase; font-weight: 600; background: transparent; border-color: var(--ink); }
+html:not(.eink) button:hover, html:not(.eink) .btn:hover { background: var(--surface-2); }
+html:not(.eink) .btn.primary, html:not(.eink) button.primary, html:not(.eink) form[action$="/feeds/defaults"] > button[type="submit"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+html:not(.eink) .btn.quiet { border-color: transparent; }
+html:not(.eink) .btn.danger { color: var(--accent); border-color: var(--accent); }
+html:not(.eink) input[type="email"], html:not(.eink) input[type="url"], html:not(.eink) input[type="password"], html:not(.eink) input[type="text"],
+html:not(.eink) input[type="number"], html:not(.eink) input[type="search"], html:not(.eink) select, html:not(.eink) textarea {
+  background: transparent; border: 0; border-bottom: 1.5px solid var(--ink); border-radius: 0; padding-left: 0; padding-right: 0; font-family: var(--serif); font-size: 1.1rem;
+}
+html:not(.eink) label { font-family: var(--sans); font-size: 0.7rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+html:not(.eink) .check { font-family: var(--serif); font-size: 1.02rem; }
+html:not(.eink) .meta { font-family: var(--serif); font-size: 0.98rem; color: var(--muted); }
+html:not(.eink) .badge { border-radius: 2px; }
+
+/* Articles list */
+html:not(.eink) .list-head { align-items: baseline; margin-top: 0.9rem; padding-bottom: 0.4rem; }
+html:not(.eink) .list-head h1 { font-size: 0.78rem; letter-spacing: 0.18em; text-transform: uppercase; font-family: var(--sans); font-weight: 700; color: var(--accent); }
+html:not(.eink) .list-head .meta { font-family: var(--sans); font-size: 0.72rem; letter-spacing: 0.06em; text-transform: uppercase; }
+html:not(.eink) .filters { border-bottom: 1px solid var(--ink); margin-bottom: 0; padding-bottom: 0; }
+html:not(.eink) .filters .chip { background: transparent; border: 0; border-radius: 0; padding: 0 0.15rem; margin-right: 0.7rem; min-height: 2.5rem; font-family: var(--serif); font-size: 1.05rem; font-weight: 500; color: var(--muted); border-bottom: 2px solid transparent; }
+html:not(.eink) .filters .chip.active, html:not(.eink) .filters .chip[aria-current="page"] { background: transparent; color: var(--ink); border-bottom-color: var(--accent); font-weight: 600; }
+html:not(.eink) .filter-mode-group .chip { margin-right: 0.5rem; font-family: var(--sans); font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase; border-radius: 0; }
+html:not(.eink) .filter-mode-group .chip.active { text-decoration: none; color: var(--accent); border-bottom-color: var(--accent); background: transparent; }
+html:not(.eink) .filter-mode-group .chip:last-child { margin-left: 0; padding: 0 0.15rem; }
+html:not(.eink) .chip .mode-dot { display: none; }
+html:not(.eink) .chip.filter-nav { padding: 0 0.15rem; color: var(--accent); }
+
+html:not(.eink) .item-list > li { padding: 1.15rem 0 1.1rem; border-bottom: 1px solid var(--line-strong); gap: 0.5rem; }
+html:not(.eink) .item-title { font-family: var(--serif); font-size: 1.28rem; line-height: 1.22; font-weight: 600; letter-spacing: -0.012em; }
+html:not(.eink) li[data-read="true"] .item-title { color: var(--muted); font-weight: 400; }
+html:not(.eink) .item-meta { font-family: var(--sans); font-size: 0.66rem; letter-spacing: 0.1em; margin-bottom: 0.4rem; }
+html:not(.eink) .item-meta .source { color: var(--accent); font-weight: 700; letter-spacing: 0.12em; }
+html:not(.eink) .item-meta .sent-mark { border-radius: 0; border-color: var(--line-strong); text-transform: uppercase; letter-spacing: 0.1em; font-size: 0.6rem; }
+html:not(.eink) .unread-mark { width: 0.42rem; height: 0.42rem; margin-right: 0.45rem; background: var(--accent); margin-bottom: 0.2em; }
+/* Lead story: the first row is set larger, like the splash on a front page. */
+html:not(.eink) .item-list > li:first-child { padding-top: 1.1rem; }
+html:not(.eink) .item-list > li:first-child .item-title { font-size: 1.85rem; line-height: 1.12; letter-spacing: -0.02em; }
+html:not(.eink) .item-list > li:first-child .item-meta .source { font-size: 0.7rem; }
+html:not(.eink) .send-btn { color: var(--muted); }
+html:not(.eink) .list-end .btn { min-width: 11rem; }
+
+/* Tab bar: text first, a top rule marks the current page */
+html:not(.eink) .tabbar { background: var(--bg); border-top: 1px solid var(--ink); }
+html:not(.eink) .tabbar a { position: relative; font-family: var(--serif); font-size: 0.98rem; font-weight: 500; letter-spacing: 0.01em; color: var(--muted); gap: 0.2rem; }
+html:not(.eink) .tabbar a .icon { width: 1.2rem; height: 1.2rem; stroke-width: 1.5; }
+html:not(.eink) .tabbar a[aria-current="page"] { color: var(--ink); font-weight: 700; }
+html:not(.eink) .tabbar a[aria-current="page"]::before { content: ""; position: absolute; top: -1px; left: 22%; right: 22%; height: 3px; background: var(--accent); }
+
+/* Reader */
+html:not(.eink) .article-tools { margin-bottom: 0.4rem; border-bottom: 1px solid var(--line-strong); padding-bottom: 0.2rem; }
+html:not(.eink) .article-tools .back-link > a { font-family: var(--sans); font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase; }
+html:not(.eink) .article-tools .btn { font-size: 0.72rem; min-height: 2.4rem; }
+html:not(.eink) .article-tools .send-tool { background: transparent; border-color: var(--accent); color: var(--accent); }
+html:not(.eink) .article-head { text-align: center; padding: 1.2rem 0 0.4rem; }
+html:not(.eink) .article-head h1 { font-size: 2.2rem; line-height: 1.1; letter-spacing: -0.02em; font-weight: 600; margin: 0.5rem 0 0.8rem; text-wrap: balance; }
+html:not(.eink) .article-head .item-meta { justify-content: center; }
+html:not(.eink) .article-head .meta { font-style: italic; font-size: 1.02rem; }
+html:not(.eink) .article-body { font-family: var(--serif); font-size: 1.28rem; line-height: 1.62; border-top: 0; padding-top: 0.6rem; position: relative; }
+html:not(.eink) .article-body::before { content: "\2766"; display: block; text-align: center; color: var(--accent); font-size: 1rem; margin: 0.3rem 0 1.2rem; }
+html:not(.eink) .article-body > p:first-of-type::first-letter { float: left; font-family: var(--serif); font-weight: 600; font-size: 4.1rem; line-height: 0.78; padding: 0.3rem 0.5rem 0 0; color: var(--accent); }
+html:not(.eink) .article-body h2 { font-size: 1.55rem; letter-spacing: -0.01em; }
+html:not(.eink) .article-body blockquote { border: 0; border-top: 1px solid var(--ink); border-bottom: 1px solid var(--ink); padding: 1rem 0.25rem; margin: 1.6rem 0; text-align: center; font-style: italic; font-size: 1.45rem; line-height: 1.3; color: var(--ink); }
+html:not(.eink) .article-end { border-top: 3px double var(--ink); padding-top: 1.1rem; flex-direction: column; align-items: stretch; }
+html:not(.eink) .article-end .btn { width: 100%; min-height: 3rem; }
+html:not(.eink) .article-end form.inline { display: flex; }
+html:not(.eink) .article-end form.inline .btn { flex: 1; }
+
+/* Feeds and settings share the list: serif headings, hairlines, numerals */
+html:not(.eink) .subview > h1:first-child, html:not(.eink) .feed-page-heading h1, html:not(.eink) main > h1 { font-size: 2.3rem; font-weight: 500; letter-spacing: -0.02em; margin-bottom: 0.15rem; }
+html:not(.eink) .feed-page-heading { align-items: flex-end; border-bottom: 1px solid var(--ink); padding-bottom: 0.7rem; }
+html:not(.eink) .feed-page-heading .meta { font-size: 0.72rem; font-family: var(--sans); letter-spacing: 0.08em; text-transform: uppercase; }
+html:not(.eink) details.tools > summary { border-radius: 2px; font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; font-family: var(--sans); }
+html:not(.eink) .category-list li:first-child, html:not(.eink) .feed-list > li:first-child { border-top: 0; }
+html:not(.eink) .category-list li, html:not(.eink) .feed-list > li { border-bottom: 1px solid var(--line-strong); }
+html:not(.eink) .category-list a { min-height: 4.25rem; padding: 0.9rem 0; align-items: baseline; }
+html:not(.eink) .category-list a strong { font-size: 1.55rem; font-weight: 500; letter-spacing: -0.015em; }
+html:not(.eink) .category-list a .meta { font-family: var(--sans); font-size: 0.66rem; letter-spacing: 0.1em; text-transform: uppercase; }
+html:not(.eink) .category-list a::after { border-color: var(--accent); margin-left: 0; align-self: center; }
+html:not(.eink) .feed-row-main > a { font-size: 1.3rem; font-weight: 500; }
+html:not(.eink) .badge-unread { background: transparent; color: var(--accent); border: 1px solid var(--accent); border-radius: 999px; }
+html:not(.eink) .badge-unread.badge-zero { color: var(--muted); border-color: var(--line-strong); background: transparent; }
+html:not(.eink) .back-link { font-family: var(--sans); font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase; }
+html:not(.eink) .settings-section { border-top: 1px solid var(--ink); padding-top: 0.5rem; }
+html:not(.eink) .address-box { border-radius: 0; border-color: var(--ink); background: var(--surface); }
+
+/* Billing: ruled tear-off slips, not boxes. The order summary keeps its heavy frame (§ 312j BGB). */
+html:not(.eink) .plan-grid { gap: 1.25rem; }
+html:not(.eink) .plan { background: var(--surface); border: 1px solid var(--ink); border-radius: 0; box-shadow: 4px 4px 0 var(--line-strong); padding: 1.1rem 1.1rem 1.2rem; }
+html:not(.eink) .plan h2 { margin-top: 0; font-size: 0.78rem; letter-spacing: 0.16em; text-transform: uppercase; font-family: var(--sans); color: var(--accent); }
+html:not(.eink) .plan .price { font-size: 2.6rem; font-weight: 500; letter-spacing: -0.02em; }
+html:not(.eink) .plan ul { font-family: var(--serif); font-size: 1.02rem; }
+html:not(.eink) .plan .btn { width: 100%; background: var(--ink); color: var(--bg); }
+html:not(.eink) .order-summary { border: 2px solid var(--ink); border-radius: 0; background: var(--surface); }
+html:not(.eink) .order-summary h2 { margin-top: 0; font-size: 1.5rem; }
+html:not(.eink) .order-summary dl { grid-template-columns: 1fr; gap: 0; }
+html:not(.eink) .order-summary dt { margin-top: 0.7rem; font-family: var(--sans); font-size: 0.66rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); }
+html:not(.eink) .order-summary dd { font-family: var(--serif); font-size: 1.05rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--line); }
+html:not(.eink) .consent label { font-family: var(--serif); font-size: 1.02rem; text-transform: none; letter-spacing: 0; color: var(--ink); font-weight: 400; }
+html:not(.eink) .actions .btn:first-child { flex: 1 1 100%; background: var(--ink); color: var(--bg); min-height: 3rem; }
+html:not(.eink) .receipt, html:not(.eink) .boxed-fieldset { border-radius: 0; border-color: var(--ink); }
+
+/* Signed-out pages: masthead is the brand bar; form sits under it like a classified ad */
+html:not(.eink) body:not(.has-tabbar) .appbar-inner { padding-top: 1.6rem; }
+html:not(.eink) body:not(.has-tabbar) .appbar .brand { font-size: 2.6rem; }
+html:not(.eink) body:not(.has-tabbar) main > h1:first-child { text-align: center; font-size: 1.9rem; margin-top: 1.4rem; }
+html:not(.eink) body:not(.has-tabbar) main > h1:first-child + .meta { text-align: center; font-style: italic; margin-bottom: 1.5rem; }
+html:not(.eink) .site-legal { border-top: 1px solid var(--ink); margin-top: 2.5rem; }
+html:not(.eink) .site-legal a { font-family: var(--sans); font-size: 0.66rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+html:not(.eink) .changelog-release { border-top: 1px solid var(--ink); }
+html:not(.eink) .btn.send-btn { border-color: transparent; background: transparent; color: var(--muted); }
+html:not(.eink) .btn.send-btn:hover { background: transparent; color: var(--accent); }
+}

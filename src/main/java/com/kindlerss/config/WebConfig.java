@@ -46,11 +46,16 @@ public class WebConfig implements WebMvcConfigurer {
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(new LayoutInterceptor())
-                .excludePathPatterns("/js/**", "/css/**");
+                .excludePathPatterns("/js/**", "/css/**", "/fonts/**");
     }
 
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
+        // The font file names carry their version (newsreader-5.3.0-...), so no
+        // version resolver is needed to make a year-long cache safe.
+        registry.addResourceHandler("/fonts/**")
+                .addResourceLocations("classpath:/static/fonts/")
+                .setCacheControl(FOREVER);
         registry.addResourceHandler("/js/**")
                 .addResourceLocations("classpath:/static/js/")
                 .setCacheControl(FOREVER)

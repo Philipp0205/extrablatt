@@ -114,4 +114,20 @@ class StaticAssetCachingTest {
                 .andExpect(header().string(HttpHeaders.CACHE_CONTROL, not(containsString("no-store"))))
                 .andExpect(header().doesNotExist(HttpHeaders.SET_COOKIE));
     }
+
+    /**
+     * The phone layout's serif is a self-hosted font. Its file name carries the
+     * version, so it is kept for a year like the scripts, and it is public: a font
+     * request says nothing about who asked and must not start a session.
+     */
+    @Test
+    void aFontIsPublicCacheableForAYearAndStartsNoSession() throws Exception {
+        mockMvc.perform(get("/fonts/newsreader-5.3.0-latin-wght-normal.woff2"))
+                .andExpect(status().isOk())
+                .andExpect(header().string(HttpHeaders.CACHE_CONTROL, containsString("max-age=31536000")))
+                .andExpect(header().string(HttpHeaders.CACHE_CONTROL, containsString("public")))
+                .andExpect(header().string(HttpHeaders.CACHE_CONTROL, containsString("immutable")))
+                .andExpect(header().string(HttpHeaders.CACHE_CONTROL, not(containsString("no-store"))))
+                .andExpect(header().doesNotExist(HttpHeaders.SET_COOKIE));
+    }
 }
