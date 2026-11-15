@@ -36,7 +36,7 @@
         <readability4j.version>1.0.8</readability4j.version>
         <epub4j.version>4.2.3</epub4j.version>
         <!-- 1.1.x is the Spring AI line for Boot 3; 2.x needs Boot 4. -->
-        <spring-ai.version>1.1.8</spring-ai.version>
+        <spring-ai.version>2.0.2</spring-ai.version>
     </properties>
 
     <dependencyManagement>
