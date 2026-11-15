@@ -123,7 +123,7 @@ GitHub Actions run the tests on every push and pull request (`ci.yml`) and
 CodeQL analysis of the Java code (`codeql.yml`, also weekly). Third-party
 actions are pinned to commit SHAs with the release noted alongside, and
 Dependabot (`.github/dependabot.yml`) opens weekly update PRs against
-`staging` for Maven, Actions and the Docker base images.
+`main` for Maven, Actions and the Docker base images.
 
 ## Using the app
 
@@ -432,17 +432,10 @@ Flyway runs the schema migrations automatically on first boot. Rely on Railway's
 managed Postgres backups. Any SMTP provider (Postmark, SES, …) works by changing
 the `SMTP_*` / `MAIL_FROM` variables — no code change.
 
-### Production vs staging
+### Production
 
-Staging was retired on 2026-11-12 and no longer exists. Production deploys
-from the `main` branch through Railway's GitHub trigger
+Production deploys from the `main` branch through Railway's GitHub trigger
 (https://reader.extrablatt.app). Merge to `main` to ship.
-
-The daily **Sync staging database** GitHub Action and `deploy/sync-staging-db.sh`
-have been removed, so nothing copies production data anywhere. Dependabot
-update PRs target `main`. `deploy/staging-scrub.sql` remains as the record of
-the scrub rules, and `StagingScrubTest` still checks it against the schema; no
-script applies it.
 
 The steps above cover the application service. `marketing/` also has its own
 `Dockerfile` (a tiny Caddy container serving the folder on `$PORT`), so it can
@@ -456,80 +449,6 @@ railway domain extrablatt.app --service marketing-site   # reader.extrablatt.app
 
 Any static file host (GitHub Pages, Cloudflare Pages, Netlify, …) works
 just as well if you'd rather not run it on Railway.
-
-#### The staging landing page
-
-The landing page quotes prices and links to the cancellation and withdrawal
-pages, so it needs somewhere to be read before it is live. Staging gets its own
-`marketing-site` service, in the `staging` environment, with one variable the
-production one does not have:
-
-It already exists, as **`marketing-site-staging`**, live on
-<https://marketing-site-staging-staging.up.railway.app>. Its configuration is the
-production service with one branch changed:
-
-| | `marketing-site` (production) | `marketing-site-staging` |
-|---|---|---|
-| Branch | `main` | `staging` |
-| Root directory | `marketing` | `marketing` |
-| Builder | Dockerfile | Dockerfile |
-| `SITE_ENV` | unset (so, production) | `staging` |
-| Domain | `extrablatt.app` | generated `*.up.railway.app` |
-
-The name has to differ because **Railway service names are unique across a
-project, not per environment** — `railway add --service marketing-site` fails
-with "already exists in this project" even from the staging environment. The app
-service is called `kindle-rss-app` in both only because it predates the split.
-
-A generated domain rather than a custom one keeps the DNS zone free of a
-hostname only you will visit. If you do add one, note that the production zone
-is behind Cloudflare, which serves its own content-signals `robots.txt` — worth
-checking that it does not shadow the one in the image. The `noindex` tag in the
-page holds either way, which is why the build writes both.
-
-To recreate it from scratch, or to build a second one:
-
-```bash
-railway environment staging                                          # switch the linked environment
-railway add --service marketing-site-staging --repo Philipp0205/extrablatt \
-    --branch staging --variables "SITE_ENV=staging"
-railway domain --service marketing-site-staging --environment staging
-```
-
-Then, in the dashboard, **Settings → Source → Root Directory → `marketing`**.
-The CLI has no flag for it, and without it Railway builds the repo root and
-deploys the app instead of the landing page.
-
-`railway add` has no `--environment` flag — it creates the service in whichever
-environment is currently linked, which is why the switch comes first. Check with
-`railway status` if you are not sure where you are.
-
-Deploys come from Railway's own GitHub trigger on the `staging` branch, the same
-mechanism that ships the production page.
-
-To change `SITE_ENV` later, it is `railway variable set SITE_ENV=staging
---service marketing-site-staging --environment staging` (`railway variables
---set …` is the deprecated spelling).
-
-`SITE_ENV=staging` is what makes it a staging copy rather than a second live
-one. Railway passes it into the Docker build, where `marketing/make-staging.sh`:
-
-- **points every link at `staging.extrablatt.app`.** The page mentions the app
-  in twenty-odd places — buttons, the address to type on the Kindle, the meta
-  description — and they are all the same string, so one substitution moves all
-  of them. Skip this and "Choose yearly" on staging opens the *live* checkout.
-- **keeps the copy out of search results,** with `robots.txt` and a `noindex`
-  meta tag. It is the live page word for word, so an indexable second copy
-  competes with the real one for the same searches.
-- **puts a banner across the top** saying which site you are on.
-
-The build refuses to finish if the substitution left a production hostname
-behind, so a misconfigured staging site fails to deploy rather than quietly
-pointing at production.
-
-One thing this does *not* solve: the staging app's own `BILLING_*` variables
-decide what its checkout does. Point them at your payment provider's test mode,
-or the staging landing page will walk you into a real payment.
 
 ## Marketing / landing page
 
@@ -558,10 +477,7 @@ holding a few feeds, so the app lays out exactly as it would on the
 device. Keep that 3:4: the hero's device frame crops anything taller.
 
 The committed files are the *production* page: they name `reader.extrablatt.app`
-throughout, and that is what ships to `extrablatt.app`. The staging copy is
-built from the same files by `marketing/make-staging.sh`, so there is one page
-to edit rather than two that drift apart. See
-[The staging landing page](#the-staging-landing-page) for how that is wired.
+throughout, and that is what ships to `extrablatt.app`.
 
 ## DNS / TLS
 
