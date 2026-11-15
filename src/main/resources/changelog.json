@@ -1,6 +1,20 @@
 {
   "releases": [
     {
+      "id": "2026-11-15-no-comment-threads",
+      "date": "15 November 2026",
+      "title": "Reddit and Hacker News posts come without comments",
+      "highlights": [
+        "Posts from Reddit and Hacker News now open and send as the article only.",
+        "The comment threads are no longer pulled in."
+      ],
+      "changes": [
+        "Reddit and Hacker News posts are fetched and read like any other article. The comment thread is no longer added to the page, to the EPUB or to what is sent to your Kindle.",
+        "When a feed provides a Hacker News comments link, it stays beside Original.",
+        "Threads that were already saved with an article stay as they were."
+      ]
+    },
+    {
       "id": "2026-11-15",
       "date": "15 November 2026",
       "title": "Recovery codes, a sign-in link and an install banner",

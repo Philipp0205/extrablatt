@@ -44,7 +44,6 @@ public class ArticleService {
     private final FeedRepository feedRepository;
     private final SafeHttpClient httpClient;
     private final HtmlSanitizer sanitizer;
-    private final DiscussionParser discussionParser;
     private final TransactionOperations transactions;
 
     /** How many articles of a list are warmed at most per request. */
@@ -66,9 +65,8 @@ public class ArticleService {
                           FeedRepository feedRepository,
                           SafeHttpClient httpClient,
                           HtmlSanitizer sanitizer,
-                          DiscussionParser discussionParser,
                           TransactionOperations transactions) {
-        this(articleRepository, feedRepository, httpClient, sanitizer, discussionParser, transactions,
+        this(articleRepository, feedRepository, httpClient, sanitizer, transactions,
                 newWarmExecutor(), true);
     }
 
@@ -77,10 +75,9 @@ public class ArticleService {
                    FeedRepository feedRepository,
                    SafeHttpClient httpClient,
                    HtmlSanitizer sanitizer,
-                   DiscussionParser discussionParser,
                    TransactionOperations transactions,
                    Executor warmExecutor) {
-        this(articleRepository, feedRepository, httpClient, sanitizer, discussionParser, transactions,
+        this(articleRepository, feedRepository, httpClient, sanitizer, transactions,
                 warmExecutor, false);
     }
 
@@ -88,7 +85,6 @@ public class ArticleService {
                            FeedRepository feedRepository,
                            SafeHttpClient httpClient,
                            HtmlSanitizer sanitizer,
-                           DiscussionParser discussionParser,
                            TransactionOperations transactions,
                            Executor warmExecutor,
                            boolean owned) {
@@ -96,7 +92,6 @@ public class ArticleService {
         this.feedRepository = feedRepository;
         this.httpClient = httpClient;
         this.sanitizer = sanitizer;
-        this.discussionParser = discussionParser;
         this.transactions = transactions;
         this.warmExecutor = warmExecutor;
         this.ownedWarmExecutor = owned ? (ExecutorService) warmExecutor : null;
@@ -317,15 +312,6 @@ public class ArticleService {
     }
 
     private String resolveRawContent(Article article) {
-        if (discussionParser.supports(article)
-                && !discussionParser.isParsedDiscussion(article.extractedContentHtml())) {
-            Optional<String> discussion = discussionParser.parse(article);
-            if (discussion.isPresent() && !discussion.get().isBlank()) {
-                String sanitized = sanitizer.sanitizeWithImages(discussion.get());
-                articleRepository.updateExtractedContent(article.id(), sanitized);
-                return sanitized;
-            }
-        }
         if (article.extractedContentHtml() != null && !article.extractedContentHtml().isBlank()) {
             return article.extractedContentHtml();
         }
