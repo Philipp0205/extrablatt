@@ -13,8 +13,10 @@ import com.kindlerss.security.RateLimitingFilter;
 import com.kindlerss.security.StaleSessionFilter;
 import com.kindlerss.service.ApiTokenService;
 import com.kindlerss.service.UserService;
+import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import java.io.IOException;
 import java.util.List;
 
 import org.springframework.beans.factory.ObjectProvider;
@@ -24,6 +26,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
 import org.springframework.core.env.Environment;
 import org.springframework.core.env.Profiles;
+import org.springframework.http.HttpHeaders;
 import org.springframework.security.authentication.AuthenticationEventPublisher;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.ProviderManager;
@@ -47,8 +50,15 @@ import org.springframework.security.web.authentication.RememberMeServices;
 import org.springframework.security.web.authentication.session.ChangeSessionIdAuthenticationStrategy;
 import org.springframework.security.web.authentication.session.CompositeSessionAuthenticationStrategy;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
+import org.springframework.security.web.context.SecurityContextHolderFilter;
+import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import org.springframework.security.web.csrf.CsrfAuthenticationStrategy;
+import org.springframework.security.web.csrf.CsrfException;
+import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 import org.springframework.security.web.csrf.HttpSessionCsrfTokenRepository;
+import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
+import org.springframework.security.web.util.matcher.AndRequestMatcher;
+import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.security.web.authentication.SavedRequestAwareAuthenticationSuccessHandler;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.authentication.rememberme.RememberMeAuthenticationFilter;
@@ -84,6 +94,11 @@ public class SecurityConfig {
             // error controller only renders the status of the request that failed.
             "/error"
     };
+
+    private static final RequestMatcher API_PATH =
+            PathPatternRequestMatcher.withDefaults().matcher("/api/v1/**");
+    private static final RequestMatcher HAS_AUTHORIZATION_HEADER =
+            request -> request.getHeader(HttpHeaders.AUTHORIZATION) != null;
 
     /** Session attribute holding the e-mail from a failed login, so the form can keep it. */
     public static final String LAST_LOGIN_USERNAME = "LAST_LOGIN_USERNAME";
@@ -149,17 +164,19 @@ public class SecurityConfig {
     }
 
     /**
-     * The REST API, for scripts and agents. A bearer token is the only credential: no
-     * session is created or read, there is no login page to be sent to, and CSRF is
-     * off because no browser cookie is involved to forge a request with. Kept apart
-     * from the chain below so none of its form login, remember-me or CSRF changes.
+     * The REST API, for scripts and agents: every {@code /api/v1/**} request that carries
+     * an {@code Authorization} header, valid or not. A bearer token is the only
+     * credential: no session is created or read, there is no login page to be sent to,
+     * and CSRF is off because no browser cookie is involved to forge a request with.
+     * Kept apart from the chain below so none of its form login, remember-me or CSRF
+     * changes.
      */
     @Bean
     @Order(1)
     SecurityFilterChain apiFilterChain(HttpSecurity http, ApiTokenService apiTokens,
                                        RateLimiter rateLimiter) throws Exception {
         http
-                .securityMatcher("/api/v1/**")
+                .securityMatcher(new AndRequestMatcher(API_PATH, HAS_AUTHORIZATION_HEADER))
                 .authorizeHttpRequests(auth -> auth.anyRequest().authenticated())
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -172,8 +189,64 @@ public class SecurityConfig {
         return http.build();
     }
 
+    /**
+     * The same API for the browser client, which has no token: {@code /api/v1/**}
+     * without an {@code Authorization} header, answered from the signed-in session.
+     *
+     * <p>The session is only read, never created ({@link SessionCreationPolicy#NEVER}).
+     * Because a browser attaches the cookie by itself, CSRF is on, as a double-submit
+     * cookie: {@code XSRF-TOKEN}, readable by the page's script, which sends it back in
+     * {@code X-XSRF-TOKEN}. The plain (not XOR-masked) handler is used because the
+     * script reads the raw cookie, and it loads the token eagerly so the cookie is
+     * written on the first GET already. There is no login page, remember-me or request
+     * cache here: nobody is redirected, an unauthenticated request is a JSON 401.
+     */
     @Bean
     @Order(2)
+    SecurityFilterChain apiSessionFilterChain(HttpSecurity http, RememberMeServices rememberMeServices,
+                                              UserService userService) throws Exception {
+        CookieCsrfTokenRepository csrfTokens = CookieCsrfTokenRepository.withHttpOnlyFalse();
+        csrfTokens.setCookiePath("/");
+        csrfTokens.setCookieCustomizer(cookie -> cookie.sameSite("Lax"));
+        CsrfTokenRequestAttributeHandler csrfHandler = new CsrfTokenRequestAttributeHandler();
+        // No attribute name means the token is not deferred: it is loaded (and its cookie
+        // written) on every request, not only when something reads it.
+        csrfHandler.setCsrfRequestAttributeName(null);
+        http
+                .securityMatcher(API_PATH)
+                .authorizeHttpRequests(auth -> auth.anyRequest().authenticated())
+                .sessionManagement(session -> session
+                        .sessionCreationPolicy(SessionCreationPolicy.NEVER))
+                .requestCache(RequestCacheConfigurer::disable)
+                .csrf(csrf -> csrf
+                        .csrfTokenRepository(csrfTokens)
+                        .csrfTokenRequestHandler(csrfHandler))
+                .exceptionHandling(handling -> handling
+                        .authenticationEntryPoint((request, response, exception) -> {
+                            response.setHeader(HttpHeaders.WWW_AUTHENTICATE, "Bearer");
+                            writeJsonError(response, 401, "Sign in, or send an API token");
+                        })
+                        .accessDeniedHandler((request, response, exception) -> writeJsonError(response, 403,
+                                exception instanceof CsrfException
+                                        ? "Missing or invalid CSRF token"
+                                        : "Access denied")))
+                // Right after the session's context is loaded, so a session that outlived a
+                // password reset or a switched-off account is not honoured.
+                .addFilterAfter(new StaleSessionFilter(userService, rememberMeServices),
+                        SecurityContextHolderFilter.class);
+        return http.build();
+    }
+
+    /** Fixed sentences only, so there is nothing to escape. */
+    private static void writeJsonError(HttpServletResponse response, int status, String error)
+            throws IOException {
+        response.setStatus(status);
+        response.setContentType("application/json;charset=UTF-8");
+        response.getWriter().write("{\"error\":\"" + error + "\"}");
+    }
+
+    @Bean
+    @Order(3)
     SecurityFilterChain securityFilterChain(HttpSecurity http,
                                             RememberMeServices rememberMeServices,
                                             RateLimitingFilter rateLimitingFilter,
