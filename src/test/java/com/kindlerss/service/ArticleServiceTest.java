@@ -62,7 +62,7 @@ class ArticleServiceTest {
     @BeforeEach
     void setUp() {
         service = new ArticleService(articleRepository, feedRepository, httpClient, new HtmlSanitizer(),
-                new DiscussionParser(httpClient), transactions);
+                transactions);
     }
 
     /** A slow page must not pin a database connection while it loads. */
@@ -107,6 +107,45 @@ class ArticleServiceTest {
 
         assertEquals("https://news.ycombinator.com/item?id=12345",
                 service.findCommentsUrl(article).orElseThrow());
+    }
+
+    @Test
+    void aRedditPostIsExtractedLikeAnyOtherArticleWithoutItsCommentFeed() {
+        String url = "https://www.reddit.com/r/kindle/comments/abc123/why_paper_still_wins/";
+        Article article = new Article(21L, 3L, "t3_abc123", "Why paper still wins", url, null, Instant.EPOCH,
+                "<p>submitted by /u/ada</p>", null, null, false, null, Instant.EPOCH, Instant.EPOCH, "r/kindle");
+        when(httpClient.get(url)).thenReturn(fetched(url, PAGE_HTML, "text/html"));
+
+        String html = service.getContentHtml(article, false);
+
+        assertTrue(html.contains("Electronic ink is pleasant"));
+        assertTrue(!html.contains("data-discussion-comments"));
+        verify(articleRepository).updateExtractedContent(eq(21L), org.mockito.ArgumentMatchers.argThat(
+                stored -> stored.contains("Electronic ink is pleasant")
+                        && !stored.contains("data-discussion-comments")));
+        verify(httpClient).get(url);
+        verify(httpClient, never()).get(org.mockito.ArgumentMatchers.contains(".rss"));
+        org.mockito.Mockito.verifyNoMoreInteractions(httpClient);
+    }
+
+    @Test
+    void aHackerNewsItemIsExtractedLikeAnyOtherArticleWithoutItsItemPage() {
+        String url = "https://news.ycombinator.com/item?id=12345";
+        Article article = new Article(22L, 4L, "12345", "Why paper still wins", url, null, Instant.EPOCH,
+                "<p>Comments URL: <a href=\"" + url + "\">comments</a></p>", null, null, false, null,
+                Instant.EPOCH, Instant.EPOCH, "Hacker News");
+        when(httpClient.get(url)).thenReturn(fetched(url, PAGE_HTML, "text/html"));
+
+        String html = service.getContentHtml(article, false);
+
+        assertTrue(html.contains("Electronic ink is pleasant"));
+        assertTrue(!html.contains("data-discussion-comments"));
+        verify(articleRepository).updateExtractedContent(eq(22L), org.mockito.ArgumentMatchers.argThat(
+                stored -> stored.contains("Electronic ink is pleasant")
+                        && !stored.contains("data-discussion-comments")));
+        // Only the one normal article fetch: no item page, no comment feed.
+        verify(httpClient).get(url);
+        org.mockito.Mockito.verifyNoMoreInteractions(httpClient);
     }
 
     /**

@@ -132,7 +132,7 @@ class ArticleWarmingTest {
         warmExecutor = new TrackingExecutor();
         transactions = new RecordingTransactions();
         service = new ArticleService(articles, feeds, httpClient, new HtmlSanitizer(),
-                new DiscussionParser(httpClient), transactions, warmExecutor);
+                transactions, warmExecutor);
     }
 
     @AfterEach
