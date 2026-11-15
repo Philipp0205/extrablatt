@@ -65,7 +65,11 @@ public class SecurityConfig {
             // CSRF still applies; the form carries a token like every other.
             "/cancel",
             // Where the e-mailed confirmation link lands; the token is the credential.
-            "/cancel/confirm"
+            "/cancel/confirm",
+            // Where the container sends a failed request to be answered (see
+            // RateLimitingFilter's 429, which also reaches signed-out visitors). Boot's
+            // error controller only renders the status of the request that failed.
+            "/error"
     };
 
     /** Session attribute holding the e-mail from a failed login, so the form can keep it. */

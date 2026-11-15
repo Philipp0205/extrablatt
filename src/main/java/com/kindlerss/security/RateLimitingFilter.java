@@ -30,6 +30,8 @@ public class RateLimitingFilter extends OncePerRequestFilter {
     private static final Set<String> LIMITED_PATHS = Set.of(
             "/login", "/register", "/forgot-password", "/reset-password",
             "/cancel", "/cancel/confirm");
+    private static final String TOO_MANY_ATTEMPTS =
+            "Too many attempts. Please wait a few minutes and try again.";
     private static final int MAX_HITS = 10;
     private static final Duration WINDOW = Duration.ofMinutes(5);
 
@@ -53,9 +55,10 @@ public class RateLimitingFilter extends OncePerRequestFilter {
         if ("POST".equalsIgnoreCase(request.getMethod()) && LIMITED_PATHS.contains(request.getServletPath())) {
             String key = request.getServletPath() + "|" + clientIpResolver.resolve(request);
             if (!rateLimiter.tryAcquire(key, MAX_HITS, WINDOW)) {
-                response.setStatus(429);
-                response.setContentType("text/plain;charset=UTF-8");
-                response.getWriter().write("Too many attempts. Please wait a few minutes and try again.");
+                // Handed to the container's error dispatch, so Boot's /error answers: the
+                // styled templates/error/429.html for a browser, JSON for a client that asks
+                // for it. The status stays 429 either way.
+                response.sendError(429, TOO_MANY_ATTEMPTS);
                 return;
             }
         }

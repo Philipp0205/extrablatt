@@ -1383,6 +1383,65 @@ class AppControllerSecurityTest {
 
     @Test
     @WithMockUser
+    void theFeedsPageOffersDeleteAsALinkToAConfirmPageNotAFormThatDeletes() throws Exception {
+        when(feedService.listFeeds(UID)).thenReturn(List.of(
+                new Feed(5L, "Android", "https://example.com/feed", "https://example.com",
+                        "Technology", null, null, null)));
+
+        mockMvc.perform(get("/").param("category", "Technology"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("href=\"/feeds/5/delete?redirect=/?category%3DTechnology\"")))
+                .andExpect(content().string(not(containsString("action=\"/feeds/5/delete\""))));
+    }
+
+    @Test
+    @WithMockUser
+    void theDeleteConfirmPageNamesTheFeedAndPostsToTheRealDelete() throws Exception {
+        when(feedService.findById(UID, 5L)).thenReturn(Optional.of(
+                new Feed(5L, "Android Weekly", "https://example.com/feed", "https://example.com",
+                        "Technology", null, null, null)));
+
+        mockMvc.perform(get("/feeds/5/delete").param("redirect", "/?category=Technology"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("delete-feed-confirm"))
+                .andExpect(content().string(containsString("Android Weekly")))
+                .andExpect(content().string(containsString("action=\"/feeds/5/delete\"")))
+                .andExpect(content().string(containsString("method=\"post\"")))
+                .andExpect(content().string(containsString("name=\"_csrf\"")))
+                .andExpect(content().string(containsString("href=\"/?category=Technology\"")));
+
+        verify(feedService, never()).deleteFeed(anyLong(), anyLong());
+    }
+
+    @Test
+    @WithMockUser
+    void theDeleteConfirmPageForAMissingFeedGoesBackWithAnError() throws Exception {
+        when(feedService.findById(UID, 99L)).thenReturn(Optional.empty());
+
+        mockMvc.perform(get("/feeds/99/delete"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/"))
+                .andExpect(flash().attribute("error", "Feed not found"));
+        verify(feedService, never()).deleteFeed(anyLong(), anyLong());
+    }
+
+    @Test
+    @WithMockUser
+    void deletingAFeedStillNeedsCsrfAndKeepsItsMessage() throws Exception {
+        mockMvc.perform(post("/feeds/5/delete"))
+                .andExpect(status().isForbidden());
+        verify(feedService, never()).deleteFeed(anyLong(), anyLong());
+
+        when(feedService.deleteFeed(UID, 5L)).thenReturn(true);
+        mockMvc.perform(post("/feeds/5/delete").with(csrf())
+                        .param("redirect", "/?category=Technology"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/?category=Technology"))
+                .andExpect(flash().attribute("message", "Feed deleted"));
+    }
+
+    @Test
+    @WithMockUser
     void renamingACategoryUpdatesEveryFeedInIt() throws Exception {
         when(feedService.renameCategory(UID, "Technology", "Tech")).thenReturn(2);
 

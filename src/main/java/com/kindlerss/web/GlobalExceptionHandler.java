@@ -80,11 +80,12 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler({NoResourceFoundException.class, NoHandlerFoundException.class})
     @ResponseStatus(HttpStatus.NOT_FOUND)
-    public Object noSuchPage(Exception ex, HttpServletRequest request, Model model) {
+    public Object noSuchPage(Exception ex, HttpServletRequest request) {
         if (isApiRequest(request)) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", NOT_FOUND_MESSAGE));
         }
-        return error(model, NOT_FOUND_MESSAGE);
+        // templates/error/404.html, the same page Boot's /error picks for a 404.
+        return "error/404";
     }
 
     @ExceptionHandler(HttpRequestMethodNotSupportedException.class)

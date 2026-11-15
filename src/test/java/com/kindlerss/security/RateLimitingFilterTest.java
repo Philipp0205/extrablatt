@@ -77,6 +77,23 @@ class RateLimitingFilterTest {
     }
 
     @Test
+    void aThrottledRequestIsHandedToTheErrorPageNotAnsweredInPlainText() throws Exception {
+        MockHttpServletResponse response = null;
+        for (int i = 0; i < 11; i++) {
+            MockHttpServletRequest request = new MockHttpServletRequest("POST", "/login");
+            request.setServletPath("/login");
+            request.setRemoteAddr("203.0.113.50");
+            response = new MockHttpServletResponse();
+            new MockFilterChain(new NoContent(), filter).doFilter(request, response);
+        }
+
+        assertThat(response.getStatus()).isEqualTo(429);
+        assertThat(response.getErrorMessage()).isEqualTo("Too many attempts. Please wait a few minutes and try again.");
+        assertThat(response.getContentType()).isNull();
+        assertThat(response.getContentAsString()).isEmpty();
+    }
+
+    @Test
     void thePublicCancellationFormIsThrottledToo() throws Exception {
         for (int i = 0; i < 10; i++) {
             assertThat(post("/cancel", "203.0.113.8", null)).isEqualTo(200);

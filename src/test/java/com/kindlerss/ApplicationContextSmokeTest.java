@@ -175,6 +175,58 @@ class ApplicationContextSmokeTest {
                 .andReturn().getResponse().getContentAsString();
 
         assertTrue(HASHED_STYLESHEET.matcher(page).find(), "the 404 page links the hashed stylesheet");
-        assertTrue(page.contains("Not found"), page);
+        assertTrue(page.contains("This page was not found"), page);
+        assertFalse(page.contains("<style"), "and carries no inline styling");
+    }
+
+    /**
+     * RateLimitingFilter answers with sendError(429), and the container then dispatches
+     * to /error, which has to be reachable signed out and render templates/error/429.html.
+     * The dispatch is made by hand here, since MockMvc does not perform error dispatches.
+     */
+    @Test
+    void theTooManyAttemptsPageIsStyledAndReachableSignedOut() throws Exception {
+        String page = mockMvc.perform(get("/error")
+                        .requestAttr(jakarta.servlet.RequestDispatcher.ERROR_STATUS_CODE, 429)
+                        .requestAttr(jakarta.servlet.RequestDispatcher.ERROR_REQUEST_URI, "/login")
+                        .accept(MediaType.TEXT_HTML))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().is(429))
+                .andReturn().getResponse().getContentAsString();
+
+        assertTrue(HASHED_STYLESHEET.matcher(page).find(), "the 429 page links the hashed stylesheet");
+        assertTrue(page.contains("Too many attempts. Please wait a few minutes and try again."), page);
+        assertFalse(page.contains("<style"), "and carries no inline styling");
+    }
+
+    /** The whole path on a real server: a throttled browser POST gets the styled page, still a 429. */
+    @Test
+    void aThrottledBrowserPostGetsTheStyledPageWithStatus429() {
+        TestRestTemplate client = new TestRestTemplate();
+        String base = "http://localhost:" + port;
+        ResponseEntity<String> form = client.getForEntity(base + "/forgot-password", String.class);
+        java.util.regex.Matcher token = java.util.regex.Pattern
+                .compile("name=\"_csrf\" value=\"([^\"]+)\"").matcher(form.getBody());
+        assertTrue(token.find(), "the form carries a CSRF token");
+        String cookie = form.getHeaders().getFirst(org.springframework.http.HttpHeaders.SET_COOKIE);
+        assertNotNull(cookie, "the token is tied to a session");
+
+        ResponseEntity<String> last = null;
+        for (int i = 0; i < 11; i++) {
+            org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
+            headers.add(org.springframework.http.HttpHeaders.COOKIE, cookie.split(";", 2)[0]);
+            headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+            headers.setAccept(java.util.List.of(MediaType.TEXT_HTML));
+            last = client.postForEntity(base + "/forgot-password",
+                    new org.springframework.http.HttpEntity<>(
+                            "_csrf=" + token.group(1) + "&email=nobody%40example.com", headers),
+                    String.class);
+        }
+
+        assertEquals(HttpStatus.TOO_MANY_REQUESTS, last.getStatusCode());
+        assertNotNull(last.getBody());
+        assertTrue(last.getHeaders().getContentType().isCompatibleWith(MediaType.TEXT_HTML),
+                String.valueOf(last.getHeaders().getContentType()));
+        assertTrue(HASHED_STYLESHEET.matcher(last.getBody()).find(), "the 429 page links the hashed stylesheet");
+        assertTrue(last.getBody().contains("Too many attempts. Please wait a few minutes and try again."));
     }
 }
