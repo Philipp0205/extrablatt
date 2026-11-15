@@ -111,9 +111,9 @@ with markup byte for byte the same as before (`EinkLayoutTest`).
   Chromium-based Kindle browser says `Android 10; K` and `Kindle/3.0+`.
 - **Override** (`LayoutInterceptor`). `?layout=kindle` (or `eink`), `?layout=scroll`
   and `?layout=auto` on any GET set or clear the `layout` cookie (one year,
-  SameSite=Lax, Secure over HTTPS, readable by script). Settings > Reading has the
-  three links. The cookie beats the User-Agent both ways. Pages say
-  `Vary: User-Agent, Cookie`.
+  SameSite=Lax, Secure over HTTPS, readable by script). There is no picker in
+  Settings; these query parameters are the only override. The cookie beats the
+  User-Agent both ways. Pages say `Vary: User-Agent, Cookie`.
 - **Browser fallback** (`app.js`). A browser the server did not recognise, which
   matches `(update: slow)` or `(monochrome)` and has no `layout` cookie, gets
   `layout=eink-auto` and one reload, at most once per session. Doing it with a reload

@@ -299,13 +299,13 @@ class EinkLayoutTest {
 
     @Test
     @WithMockUser
-    void settingsOffersTheReadingLayout() throws Exception {
+    void settingsDoesNotOfferAPageLayoutPicker() throws Exception {
         mockMvc.perform(get("/settings/reading").header(HttpHeaders.USER_AGENT, PAPERWHITE)
                         .cookie(new Cookie("layout", "scroll")))
-                .andExpect(content().string(containsString("?layout=eink")))
-                .andExpect(content().string(containsString("?layout=auto")))
-                .andExpect(content().string(matchesPattern(
-                        "(?s).*<a [^>]*href=\"[^\"]*\\?layout=scroll\"[^>]*aria-current=\"true\".*")));
+                .andExpect(content().string(not(containsString("?layout="))))
+                .andExpect(content().string(not(containsString("Page layout"))))
+                .andExpect(content().string(containsString("?text=s")))
+                .andExpect(content().string(containsString("?font=sans")));
     }
 
     @Test
