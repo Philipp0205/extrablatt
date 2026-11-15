@@ -8,6 +8,7 @@
  *  - sending to Kindle in place, without leaving the page or losing the scroll;
  *  - loading more articles under the list instead of opening the next page;
  *  - "Mark all as read" covering every row on screen, appended ones included;
+ *  - optionally marking rows read as they are scrolled past (IntersectionObserver);
  *  - returning from an article to the list where it was left;
  *  - closing the article's More menu on an outside tap or Escape;
  *  - on a slow-updating screen the server did not recognise, switching to the
@@ -15,8 +16,9 @@
  *
  * On the e-ink layout, Load more stays a plain link and reader.js does the paging.
  *
- * Loading and scrolling never mark anything read. Only opening an article or the
- * explicit button does.
+ * Loading and scrolling never mark anything read, unless the reader turned on
+ * "mark read by scrolling" (off by default, never on e-ink). Otherwise only opening
+ * an article or the explicit button does.
  */
 (function () {
   'use strict';
@@ -426,6 +428,143 @@
       }
     });
   }
+
+  /* ---------- Articles list: mark read by scrolling (opt-in) ---------- */
+
+  // Only when the account turned it on (the server then writes data-scroll-read on
+  // the list) and never on e-ink, which pages instead of scrolling. A row counts as
+  // scrolled past once it has been on screen and then leaves through the top edge,
+  // wholly above the viewport. A row that was never seen on screen, such as one
+  // above the fold after a reload that restored the scroll position, is not marked.
+  // Marks are sent in batches, and a row already read is not observed at all.
+  (function () {
+    var endpoint = list ? list.getAttribute('data-scroll-read') : null;
+    if (eink || !endpoint || !window.IntersectionObserver || !window.fetch) {
+      return;
+    }
+    var csrfToken = list.getAttribute('data-csrf');
+    var csrfHeader = list.getAttribute('data-csrf-header');
+    var seen = {};
+    var queued = {};
+    var timer = null;
+
+    function setRowRead(row, read) {
+      row.setAttribute('data-read', read ? 'true' : 'false');
+      var mark = row.querySelector('.unread-mark');
+      if (mark) {
+        var has = / read\b/.test(' ' + mark.className);
+        if (read && !has) {
+          mark.className += ' read';
+        } else if (!read && has) {
+          mark.className = mark.className.replace(/\s*\bread\b/, '');
+        }
+      }
+      var word = row.querySelector('.item-title .offscreen');
+      if (word) {
+        word.hidden = read;
+      }
+    }
+
+    function rowFor(id) {
+      return list.querySelector('li[data-article-id="' + id + '"]');
+    }
+
+    function flush() {
+      timer = null;
+      var ids = Object.keys(queued);
+      if (!ids.length) {
+        return;
+      }
+      queued = {};
+      var body = new window.URLSearchParams();
+      for (var i = 0; i < ids.length; i++) {
+        body.append('id', ids[i]);
+      }
+      var headers = {'Accept': 'application/json'};
+      if (csrfHeader && csrfToken) {
+        headers[csrfHeader] = csrfToken;
+      }
+      window.fetch(endpoint, {
+        method: 'POST',
+        credentials: 'same-origin',
+        keepalive: true,
+        headers: headers,
+        body: body
+      }).then(function (response) {
+        if (!isJson(response) || !response.ok) {
+          throw new Error('not marked');
+        }
+      }).catch(function () {
+        // The server did not take them, so the list must not claim they are read.
+        for (var j = 0; j < ids.length; j++) {
+          var row = rowFor(ids[j]);
+          if (row) {
+            setRowRead(row, false);
+          }
+        }
+      });
+    }
+
+    function queue(row) {
+      var id = row.getAttribute('data-article-id');
+      if (!id || row.getAttribute('data-read') === 'true') {
+        return;
+      }
+      setRowRead(row, true);
+      queued[id] = true;
+      if (!timer) {
+        timer = window.setTimeout(flush, 1500);
+      }
+    }
+
+    var observer = new window.IntersectionObserver(function (entries) {
+      for (var i = 0; i < entries.length; i++) {
+        var entry = entries[i];
+        var row = entry.target;
+        var id = row.getAttribute('data-article-id');
+        if (entry.isIntersecting) {
+          seen[id] = true;
+          continue;
+        }
+        var top = entry.rootBounds ? entry.rootBounds.top : 0;
+        if (seen[id] && entry.boundingClientRect.bottom <= top) {
+          observer.unobserve(row);
+          queue(row);
+        }
+      }
+    });
+
+    function watch(row) {
+      if (row.getAttribute('data-read') !== 'true') {
+        observer.observe(row);
+      }
+    }
+
+    var rows = list.querySelectorAll('li[data-article-id]');
+    for (var i = 0; i < rows.length; i++) {
+      watch(rows[i]);
+    }
+    // Rows that load-more appends later.
+    if (window.MutationObserver) {
+      new window.MutationObserver(function (records) {
+        for (var r = 0; r < records.length; r++) {
+          var added = records[r].addedNodes;
+          for (var n = 0; n < added.length; n++) {
+            if (added[n].nodeType === 1 && added[n].hasAttribute('data-article-id')) {
+              watch(added[n]);
+            }
+          }
+        }
+      }).observe(list, {childList: true});
+    }
+    // Leaving the page must not lose the last few.
+    document.addEventListener('visibilitychange', function () {
+      if (document.visibilityState === 'hidden' && timer) {
+        window.clearTimeout(timer);
+        flush();
+      }
+    });
+  })();
 
   /* ---------- Filter chips: keep the active one in view ---------- */
 

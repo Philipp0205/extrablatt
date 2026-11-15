@@ -18,9 +18,17 @@
     </label>
     <p class="meta">When this is on, new articles arrive unread and stay that way until
       you open one or press Mark all as read under the list. Scrolling and loading
-      more articles never mark anything read.</p>
+      more articles never mark anything read unless you turn on the option below.</p>
     <p class="meta">When it is off, new articles arrive already marked read, so the
       Unread filter stays empty and the list simply shows everything, newest first.</p>
+    <label class="check space-top">
+      <input type="checkbox" name="markReadOnScroll" value="true"
+             th:checked="${account.markReadOnScroll}"/>
+      <span>Mark articles read as I scroll past them</span>
+    </label>
+    <p class="meta">Off by default. When on, an article in the list is marked read once
+      you have seen it and scrolled it off the top of the screen. It does not apply
+      on e-ink pages.</p>
     <div class="row space-top">
       <button class="btn primary" type="submit">Save</button>
     </div>

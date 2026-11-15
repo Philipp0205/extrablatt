@@ -72,7 +72,13 @@
     <span th:unless="${unread}">Follow a site under Feeds to start reading.</span>
   </div>
 
-  <ul class="item-list" data-item-list th:if="${!#lists.isEmpty(articles)}">
+  <!-- Armed for mark-read-by-scrolling only for an account that turned it on, and
+       never on the e-ink layout (app.js also stays out of it there). -->
+  <ul class="item-list" data-item-list th:if="${!#lists.isEmpty(articles)}"
+      th:with="scrollRead=${markReadOnScroll and einkLayout != true}"
+      th:attr="data-scroll-read=${scrollRead} ? @{/items/scroll-read} : null,
+               data-csrf=${scrollRead} ? ${_csrf.token} : null,
+               data-csrf-header=${scrollRead} ? ${_csrf.headerName} : null">
     <li th:replace="~{fragments/article-rows :: rows}"></li>
   </ul>
 

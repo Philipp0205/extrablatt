@@ -912,6 +912,116 @@ class AppControllerSecurityTest {
 
     @Test
     @WithMockUser
+    void scrollReadMarksTheReportedArticlesWhenTheOptionIsOn() throws Exception {
+        when(userService.markReadOnScroll(UID)).thenReturn(true);
+        when(articleService.markRead(eq(UID), anyList(), eq(true))).thenReturn(2);
+
+        mockMvc.perform(post("/items/scroll-read").with(csrf()).param("id", "1", "2", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.marked").value(2));
+
+        verify(articleService).markRead(UID, List.of(1L, 2L), true);
+    }
+
+    @Test
+    @WithMockUser
+    void scrollReadMarksNothingWhenTheOptionIsOff() throws Exception {
+        when(userService.markReadOnScroll(UID)).thenReturn(false);
+
+        mockMvc.perform(post("/items/scroll-read").with(csrf()).param("id", "1", "2"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.marked").value(0));
+
+        verify(articleService, never()).markRead(eq(UID), anyList(), anyBoolean());
+    }
+
+    @Test
+    @WithMockUser
+    void scrollReadWithNoIdsMarksNothing() throws Exception {
+        when(userService.markReadOnScroll(UID)).thenReturn(true);
+
+        mockMvc.perform(post("/items/scroll-read").with(csrf()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.marked").value(0));
+
+        verify(articleService, never()).markRead(eq(UID), anyList(), anyBoolean());
+    }
+
+    @Test
+    @WithMockUser
+    void scrollReadTakesNoMoreThanItsCap() throws Exception {
+        when(userService.markReadOnScroll(UID)).thenReturn(true);
+        String[] ids = new String[AppController.MAX_MARK_READ + 50];
+        for (int i = 0; i < ids.length; i++) {
+            ids[i] = String.valueOf(i + 1);
+        }
+        when(articleService.markRead(eq(UID), anyList(), eq(true))).thenReturn(AppController.MAX_MARK_READ);
+
+        mockMvc.perform(post("/items/scroll-read").with(csrf()).param("id", ids))
+                .andExpect(status().isOk());
+
+        org.mockito.ArgumentCaptor<List<Long>> marked = org.mockito.ArgumentCaptor.forClass(List.class);
+        verify(articleService).markRead(eq(UID), marked.capture(), eq(true));
+        org.junit.jupiter.api.Assertions.assertEquals(AppController.MAX_MARK_READ, marked.getValue().size());
+    }
+
+    @Test
+    @WithMockUser
+    void scrollReadNeedsCsrf() throws Exception {
+        when(userService.markReadOnScroll(UID)).thenReturn(true);
+
+        mockMvc.perform(post("/items/scroll-read").param("id", "1"))
+                .andExpect(status().isForbidden());
+
+        verify(articleService, never()).markRead(eq(UID), anyList(), anyBoolean());
+    }
+
+    @Test
+    void scrollReadNeedsASignedInUser() throws Exception {
+        mockMvc.perform(post("/items/scroll-read").with(csrf()).param("id", "1"))
+                .andExpect(status().is3xxRedirection());
+
+        verify(articleService, never()).markRead(eq(UID), anyList(), anyBoolean());
+    }
+
+    @Test
+    @WithMockUser
+    void theListIsNotArmedForScrollReadUnlessTheOptionIsOn() throws Exception {
+        stubOneRowList();
+
+        mockMvc.perform(get("/items").param("unread", "false"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(not(containsString("data-scroll-read"))))
+                .andExpect(content().string(not(containsString("data-csrf"))));
+    }
+
+    @Test
+    @WithMockUser
+    void theListIsArmedForScrollReadWhenTheOptionIsOn() throws Exception {
+        when(userService.markReadOnScroll(UID)).thenReturn(true);
+        stubOneRowList();
+
+        mockMvc.perform(get("/items").param("unread", "false"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("data-scroll-read=\"/items/scroll-read\"")))
+                .andExpect(content().string(containsString("data-csrf-header=\"X-CSRF-TOKEN\"")))
+                // Nothing is marked by showing the list, even when armed.
+                .andExpect(content().string(not(containsString("style=\""))));
+
+        verify(articleService, never()).markRead(eq(UID), anyList(), anyBoolean());
+        verify(articleService, never()).markRead(eq(UID), anyLong(), anyBoolean());
+    }
+
+    private void stubOneRowList() {
+        when(articleService.findPage(eq(UID), isNull(), isNull(), eq(1), eq(20)))
+                .thenReturn(List.of(new Article(4L, 1L, "guid-4", "Article 4", null, null,
+                        null, null, null, null, false, null, null, null, "Example Feed")));
+        when(articleService.count(eq(UID), isNull(), isNull())).thenReturn(1L);
+        when(feedService.listFeeds(UID)).thenReturn(List.of());
+    }
+
+    @Test
+    @WithMockUser
     void thePagedEndpointsAreGone() throws Exception {
         mockMvc.perform(post("/items/advance").with(csrf()).param("id", "1"))
                 .andExpect(status().is4xxClientError());

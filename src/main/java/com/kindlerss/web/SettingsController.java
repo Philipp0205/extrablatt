@@ -212,8 +212,10 @@ public class SettingsController {
 
     @PostMapping("/settings/reading")
     public String updateReading(@RequestParam(value = "markReadOnNextPage", required = false) String markReadOnNextPage,
+                                @RequestParam(value = "markReadOnScroll", required = false) String markReadOnScroll,
                                 RedirectAttributes redirectAttributes) {
         userService.updateMarkReadOnNextPage(currentUser.requireId(), markReadOnNextPage != null);
+        userService.updateMarkReadOnScroll(currentUser.requireId(), markReadOnScroll != null);
         redirectAttributes.addFlashAttribute("message", "Reading preference saved");
         return "redirect:/settings/reading";
     }

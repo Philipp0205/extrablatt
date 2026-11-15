@@ -19,8 +19,16 @@ public record AppUser(
         Instant updatedAt,
         String newsletterInboundToken,
         boolean markReadOnNextPage,
-        String lastSeenChangelogId
+        String lastSeenChangelogId,
+        boolean markReadOnScroll
 ) {
+    public AppUser(Long id, String email, String passwordHash, String kindleEmail,
+                   Instant emailVerifiedAt, Instant disabledAt, Instant createdAt, Instant updatedAt,
+                   String newsletterInboundToken, boolean markReadOnNextPage, String lastSeenChangelogId) {
+        this(id, email, passwordHash, kindleEmail, emailVerifiedAt, disabledAt, createdAt, updatedAt,
+                newsletterInboundToken, markReadOnNextPage, lastSeenChangelogId, false);
+    }
+
     public boolean emailVerified() {
         return emailVerifiedAt != null;
     }
