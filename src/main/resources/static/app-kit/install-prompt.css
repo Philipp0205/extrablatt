@@ -89,9 +89,9 @@
 .ak-ip .ak-ip-install {
   min-height: 40px;
   padding: 0 20px;
-  border: 1px solid var(--ak-ip-accent, var(--ak-accent, #ff2d78));
+  border: 1px solid var(--ak-ip-accent, var(--ak-accent, #e3166b));
   border-radius: 10px;
-  background: var(--ak-ip-accent, var(--ak-accent, #ff2d78));
+  background: var(--ak-ip-accent, var(--ak-accent, #e3166b));
   color: var(--ak-ip-accent-fg, var(--ak-accent-ink, #ffffff));
   font: inherit;
   font-weight: 600;
