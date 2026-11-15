@@ -1075,6 +1075,11 @@ li[data-read="true"] .item-title {
   padding: 0 0.7rem;
 }
 
+/* The in-row way back is for the phone only; elsewhere the back chip does the job. */
+.filters .chip.strip-back {
+  display: none;
+}
+
 /* Unread | All: one pill split in two, so it reads as a choice between two
    states rather than two filters. Not the same shape as the category chips. */
 .filter-mode-group {
@@ -1117,13 +1122,40 @@ li[data-read="true"] .item-title {
   }
 }
 
-/* Phone: the way out and the unread switch take a compact row of their own, and the
-   feed chips get a full-width row below it, edge to edge, fading out at the right
-   edge to say there is more. Not for e-ink, which wraps the filters instead. */
+/* Phone: the unread switch is lifted out of the filter row up beside the heading
+   and count: .list-head keeps a tap-height row for it, and the nav is pulled up
+   over that row with the switch pinned to its right edge. The feed chips get a
+   full-width row below, edge to edge, fading out at the right edge to say there is
+   more. The back chip gives way to an "All feeds" chip at the head of that row.
+   Not for e-ink, which wraps the filters instead. */
 @media (max-width: 719px) {
+  html:not(.eink) .list-head {
+    justify-content: flex-start;
+    align-items: center;
+    min-height: 2.75rem;
+    margin-bottom: 0;
+  }
+
   html:not(.eink) .filters {
+    position: relative;
     flex-wrap: wrap;
     row-gap: 0.15rem;
+    margin-top: -2.75rem;
+    padding-top: 2.75rem;
+  }
+
+  html:not(.eink) .filters .filter-mode-group {
+    position: absolute;
+    top: 0;
+    right: calc(1rem + var(--safe-right));
+  }
+
+  html:not(.eink) .filters a.chip.filter-nav {
+    display: none;
+  }
+
+  html:not(.eink) .filters .chip.strip-back {
+    display: inline-flex;
   }
 
   html:not(.eink) .filter-divide {
@@ -1933,6 +1965,9 @@ html:not(.eink) .badge { border-radius: 2px; }
 html:not(.eink) .list-head { align-items: baseline; margin-top: 0.9rem; padding-bottom: 0.4rem; }
 html:not(.eink) .list-head h1 { font-size: 0.78rem; letter-spacing: 0.18em; text-transform: uppercase; font-family: var(--sans); font-weight: 700; color: var(--accent); }
 html:not(.eink) .list-head .meta { font-family: var(--sans); font-size: 0.72rem; letter-spacing: 0.06em; text-transform: uppercase; }
+/* The unread switch is pinned over the right of this row (see the filters block above),
+   so the row is exactly one tap high and centres the heading and count in it. */
+html:not(.eink) .list-head { align-items: center; padding-bottom: 0; padding-right: 7rem; }
 html:not(.eink) .filters { border-bottom: 1px solid var(--ink); margin-bottom: 0; padding-bottom: 0; }
 html:not(.eink) .filters .chip { background: transparent; border: 0; border-radius: 0; padding: 0 0.15rem; margin-right: 0.7rem; min-height: 2.5rem; font-family: var(--serif); font-size: 1.05rem; font-weight: 500; color: var(--muted); border-bottom: 2px solid transparent; }
 html:not(.eink) .filters .chip.active, html:not(.eink) .filters .chip[aria-current="page"] { background: transparent; color: var(--ink); border-bottom-color: var(--accent); font-weight: 600; }
