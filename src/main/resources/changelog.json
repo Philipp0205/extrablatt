@@ -1,6 +1,24 @@
 {
   "releases": [
     {
+      "id": "2026-11-15",
+      "date": "15 November 2026",
+      "title": "Recovery codes, a sign-in link and an install banner",
+      "highlights": [
+        "Create a recovery code under Settings, Account. It is an extra way to sign in, and your password still works.",
+        "If you lose the code, the login page can e-mail you a sign-in link. It works once and expires after 20 minutes.",
+        "On a phone, Extrablatt now offers to add itself to your home screen."
+      ],
+      "changes": [
+        "Settings, Account creates or replaces a recovery code in the form ABCD-EFGH-JKLM. It is shown once, and Extrablatt keeps only a hash of it.",
+        "The login page has a \"Sign in with a recovery code\" option that takes the code alone.",
+        "\"Lost your recovery code?\" on the login page e-mails a one-time sign-in link. The link works once and expires after 20 minutes.",
+        "Phones show an install banner. iPhone browsers other than Safari get the Share steps for Add to Home Screen.",
+        "Settings, Reading has a new option to mark articles read as you scroll past them. It is off by default and does not apply to Kindle pages.",
+        "The Kindle layout is scaled down for newer, high-density Paperwhite screens, so more of the article list fits on one page."
+      ]
+    },
+    {
       "id": "2026-09-13-licensing",
       "date": "13 September 2026",
       "title": "Source available, free to self-host",
