@@ -176,6 +176,12 @@ public class UserRepository {
                 (rs, row) -> rs.getString("recovery_hash"), id).stream().findFirst();
     }
 
+    /** Finds the account whose recovery code hashes to this (see RecoveryCodeService.hash). */
+    public Optional<AppUser> findByRecoveryHash(String recoveryHash) {
+        return jdbc.query("SELECT * FROM users WHERE recovery_hash = ?", MAPPER, recoveryHash)
+                .stream().findFirst();
+    }
+
     public boolean deleteById(long id) {
         return jdbc.update("DELETE FROM users WHERE id = ?", id) > 0;
     }

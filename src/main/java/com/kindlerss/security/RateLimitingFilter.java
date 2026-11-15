@@ -28,7 +28,7 @@ import java.util.Set;
 public class RateLimitingFilter extends OncePerRequestFilter {
 
     private static final Set<String> LIMITED_PATHS = Set.of(
-            "/login", "/register", "/forgot-password", "/reset-password",
+            "/login", "/login/recovery", "/register", "/forgot-password", "/reset-password",
             "/cancel", "/cancel/confirm");
     private static final String TOO_MANY_ATTEMPTS =
             "Too many attempts. Please wait a few minutes and try again.";

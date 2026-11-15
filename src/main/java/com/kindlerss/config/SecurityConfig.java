@@ -3,8 +3,11 @@ package com.kindlerss.config;
 import com.kindlerss.security.ApiTokenAuthenticationFilter;
 import com.kindlerss.security.AppUserDetails;
 import com.kindlerss.security.ClientIpResolver;
+import com.kindlerss.security.DatabaseUserDetailsService;
 import com.kindlerss.security.EmailNotVerifiedException;
 import com.kindlerss.security.LoginStatusChecker;
+import com.kindlerss.security.RecoveryCodeAuthenticationFilter;
+import com.kindlerss.security.RecoveryCodeAuthenticationProvider;
 import com.kindlerss.security.RateLimiter;
 import com.kindlerss.security.RateLimitingFilter;
 import com.kindlerss.security.StaleSessionFilter;
@@ -12,6 +15,8 @@ import com.kindlerss.service.ApiTokenService;
 import com.kindlerss.service.UserService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import java.util.List;
+
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -39,6 +44,11 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.security.web.authentication.RememberMeServices;
+import org.springframework.security.web.authentication.session.ChangeSessionIdAuthenticationStrategy;
+import org.springframework.security.web.authentication.session.CompositeSessionAuthenticationStrategy;
+import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
+import org.springframework.security.web.csrf.CsrfAuthenticationStrategy;
+import org.springframework.security.web.csrf.HttpSessionCsrfTokenRepository;
 import org.springframework.security.web.authentication.SavedRequestAwareAuthenticationSuccessHandler;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.authentication.rememberme.RememberMeAuthenticationFilter;
@@ -58,7 +68,7 @@ public class SecurityConfig {
 
     /** Public pages that must be reachable without an account. */
     private static final String[] PUBLIC_PATHS = {
-            "/login", "/register", "/verify", "/forgot-password", "/reset-password",
+            "/login", "/login/recovery", "/register", "/verify", "/forgot-password", "/reset-password",
             "/check-email", "/privacy", "/terms", "/imprint", "/withdrawal",
             // § 312k BGB requires the cancellation path to be permanently available
             // and not to sit behind account credentials, so it is public on purpose.
@@ -167,11 +177,13 @@ public class SecurityConfig {
                                             UserService userService,
                                             UserDetailsService userDetailsService,
                                             PasswordEncoder passwordEncoder,
-                                            ObjectProvider<AuthenticationEventPublisher> eventPublisher)
+                                            ObjectProvider<AuthenticationEventPublisher> eventPublisher,
+                                            ObjectProvider<DatabaseUserDetailsService> accounts)
             throws Exception {
+        AuthenticationManager authenticationManager = authenticationManager(
+                userDetailsService, passwordEncoder, eventPublisher.getIfAvailable(), accounts);
         http
-                .authenticationManager(authenticationManager(
-                        userDetailsService, passwordEncoder, eventPublisher.getIfAvailable()))
+                .authenticationManager(authenticationManager)
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
                         .requestMatchers(PUBLIC_PATHS).permitAll()
@@ -201,6 +213,8 @@ public class SecurityConfig {
                         .key(appProperties.rememberMeKey())
                 )
                 .addFilterBefore(rateLimitingFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(recoveryCodeFilter(authenticationManager, rememberMeServices, userService),
+                        UsernamePasswordAuthenticationFilter.class)
                 // After remember-me, so a session restored from either source is checked
                 // against the account as it is now.
                 .addFilterAfter(new StaleSessionFilter(userService, rememberMeServices),
@@ -280,17 +294,54 @@ public class SecurityConfig {
      */
     private AuthenticationManager authenticationManager(UserDetailsService userDetailsService,
                                                         PasswordEncoder passwordEncoder,
-                                                        AuthenticationEventPublisher eventPublisher) {
+                                                        AuthenticationEventPublisher eventPublisher,
+                                                        ObjectProvider<DatabaseUserDetailsService> accounts) {
         DaoAuthenticationProvider form = new DaoAuthenticationProvider(passwordEncoder);
         form.setUserDetailsService(userDetailsService);
         form.setPreAuthenticationChecks(user -> { });
         form.setPostAuthenticationChecks(new LoginStatusChecker());
+        // Looked up per attempt: the account store is not part of the web-only test slices.
+        RecoveryCodeAuthenticationProvider recovery = new RecoveryCodeAuthenticationProvider(hash ->
+                java.util.Optional.ofNullable(accounts.getIfAvailable())
+                        .flatMap(store -> store.findByRecoveryHash(hash)));
         ProviderManager manager = new ProviderManager(
-                form, new RememberMeAuthenticationProvider(appProperties.rememberMeKey()));
+                form, recovery, new RememberMeAuthenticationProvider(appProperties.rememberMeKey()));
         if (eventPublisher != null) {
             manager.setAuthenticationEventPublisher(eventPublisher);
         }
         return manager;
+    }
+
+    /**
+     * Login with a recovery code, wired like form login: the same success handler (last
+     * login, saved-request redirect), the same remember-me services, and a new session id
+     * on success. Every failure is the same redirect, see {@link #recoveryFailureHandler()}.
+     */
+    private RecoveryCodeAuthenticationFilter recoveryCodeFilter(AuthenticationManager authenticationManager,
+                                                                RememberMeServices rememberMeServices,
+                                                                UserService userService) {
+        RecoveryCodeAuthenticationFilter filter = new RecoveryCodeAuthenticationFilter();
+        filter.setAuthenticationManager(authenticationManager);
+        filter.setSecurityContextRepository(new HttpSessionSecurityContextRepository());
+        filter.setSessionAuthenticationStrategy(new CompositeSessionAuthenticationStrategy(List.of(
+                new ChangeSessionIdAuthenticationStrategy(),
+                new CsrfAuthenticationStrategy(new HttpSessionCsrfTokenRepository()))));
+        filter.setRememberMeServices(rememberMeServices);
+        filter.setAuthenticationSuccessHandler(formLoginSuccessHandler(userService));
+        filter.setAuthenticationFailureHandler(recoveryFailureHandler());
+        return filter;
+    }
+
+    /**
+     * A wrong, unknown, malformed or switched-off code all read as the same generic
+     * error. Only a code that matched an account with an unconfirmed address earns the
+     * "unverified" hint, as with a right password. The typed code is kept nowhere.
+     */
+    private AuthenticationFailureHandler recoveryFailureHandler() {
+        return (request, response, exception) -> {
+            String failure = exception instanceof EmailNotVerifiedException ? "unverified" : "recoveryError";
+            response.sendRedirect(request.getContextPath() + "/login?" + failure);
+        };
     }
 
     /**

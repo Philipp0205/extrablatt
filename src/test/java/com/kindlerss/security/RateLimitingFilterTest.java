@@ -94,6 +94,17 @@ class RateLimitingFilterTest {
     }
 
     @Test
+    void theRecoveryCodeLoginIsThrottledToo() throws Exception {
+        for (int i = 0; i < 10; i++) {
+            assertThat(post("/login/recovery", "203.0.113.9", null)).isEqualTo(200);
+        }
+        assertThat(post("/login/recovery", "203.0.113.9", null)).isEqualTo(429);
+        // Keyed by path and address: the password login and other readers are unaffected.
+        assertThat(post("/login", "203.0.113.9", null)).isEqualTo(200);
+        assertThat(post("/login/recovery", "203.0.113.10", null)).isEqualTo(200);
+    }
+
+    @Test
     void thePublicCancellationFormIsThrottledToo() throws Exception {
         for (int i = 0; i < 10; i++) {
             assertThat(post("/cancel", "203.0.113.8", null)).isEqualTo(200);
