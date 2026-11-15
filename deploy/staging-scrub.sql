@@ -1,9 +1,7 @@
 -- Removes personal data from a production copy before staging may use it.
 --
--- deploy/sync-staging-db.sh streams the production dump, the keep list and this
--- file into one psql transaction on staging, so either the scrubbed copy is
--- committed or staging keeps what it had. Unscrubbed production data is never
--- committed on staging.
+-- Retired: the sync script that applied this file has been removed. It is kept
+-- as the record of the scrub rules, and StagingScrubTest still runs it.
 --
 -- Accounts whose e-mail is in pg_temp.staging_keep_emails (STAGING_KEEP_EMAILS,
 -- e.g. the testers and ADMIN_EMAILS) stay as they are so they can still sign in.
