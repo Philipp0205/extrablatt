@@ -101,6 +101,9 @@ class EinkLayoutTest {
     ApiTokenService apiTokenService;
 
     @MockitoBean
+    com.kindlerss.service.RecoveryCodeService recoveryCodeService;
+
+    @MockitoBean
     CurrentUser currentUser;
 
     @MockitoBean

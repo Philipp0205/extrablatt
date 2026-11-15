@@ -42,6 +42,7 @@ class StagingScrubTest {
             Map.entry("users.password_hash", "scrubbed"),
             Map.entry("users.kindle_email", "scrubbed"),
             Map.entry("users.newsletter_inbound_token", "scrubbed"),
+            Map.entry("users.recovery_hash", "scrubbed"),
             Map.entry("users.last_seen_changelog_id", "release id"),
             Map.entry("email_tokens.token", "rows deleted"),
             Map.entry("email_tokens.purpose", "rows deleted"),
@@ -105,10 +106,10 @@ class StagingScrubTest {
                          RESTART IDENTITY CASCADE
                 """);
         jdbc.update("""
-                INSERT INTO users (email, password_hash, kindle_email, newsletter_inbound_token, email_verified_at)
-                VALUES ('Reader@Example.com', '$2a$10$realhash', 'reader@kindle.com', 'inbox123', NOW()),
-                       ('tester@example.org', '$2a$10$testerhash', 'tester@kindle.com', 'inbox456', NOW()),
-                       ('nokindle@example.net', '$2a$10$otherhash', NULL, NULL, NULL)
+                INSERT INTO users (email, password_hash, kindle_email, newsletter_inbound_token, email_verified_at, recovery_hash)
+                VALUES ('Reader@Example.com', '$2a$10$realhash', 'reader@kindle.com', 'inbox123', NOW(), 'recoveryhash1'),
+                       ('tester@example.org', '$2a$10$testerhash', 'tester@kindle.com', 'inbox456', NOW(), NULL),
+                       ('nokindle@example.net', '$2a$10$otherhash', NULL, NULL, NULL, NULL)
                 """);
         jdbc.update("""
                 INSERT INTO email_tokens (token, user_id, purpose, expires_at)
@@ -177,6 +178,7 @@ class StagingScrubTest {
         assertEquals("user-1@staging.invalid", users.get(0).get("email"));
         assertEquals("kindle-1@staging.invalid", users.get(0).get("kindle_email"));
         assertNull(users.get(0).get("newsletter_inbound_token"));
+        assertNull(users.get(0).get("recovery_hash"));
         assertNull(users.get(2).get("kindle_email"));
         for (Map<String, Object> user : users) {
             assertFalse(user.get("password_hash").toString().startsWith("$2"), user.toString());
