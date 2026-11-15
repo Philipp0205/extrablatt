@@ -1,0 +1,46 @@
+{
+  "label": "after",
+  "base": "http://127.0.0.1:8194",
+  "checks": {
+    "phone-not-eink": {
+      "pass": true,
+      "eink": false
+    },
+    "phone-inbox-ui-gone": {
+      "pass": true,
+      "hasInboxUi": false
+    },
+    "phone-data-no-inbox-copy": {
+      "pass": true,
+      "hasInboxAddressCopy": false
+    },
+    "phone-existing-newsletter-badge": {
+      "pass": true,
+      "hasNewsletterBadge": true
+    },
+    "phone-no-console-errors": {
+      "pass": true,
+      "errors": []
+    },
+    "kindle-eink-class": {
+      "pass": true,
+      "eink": true
+    },
+    "kindle-inbox-ui-gone": {
+      "pass": true,
+      "hasInboxUi": false
+    },
+    "kindle-data-no-inbox-copy": {
+      "pass": true,
+      "hasInboxAddressCopy": false
+    },
+    "kindle-existing-newsletter-badge": {
+      "pass": true,
+      "hasNewsletterBadge": true
+    },
+    "kindle-no-console-errors": {
+      "pass": true,
+      "errors": []
+    }
+  }
+}
