@@ -105,6 +105,19 @@ class RateLimitingFilterTest {
     }
 
     @Test
+    void theSignInLinkRequestAndUseAreThrottledToo() throws Exception {
+        for (String path : new String[] {"/recover/request", "/recover"}) {
+            for (int i = 0; i < 10; i++) {
+                assertThat(post(path, "203.0.113.20", null)).isEqualTo(200);
+            }
+            assertThat(post(path, "203.0.113.20", null)).isEqualTo(429);
+            // Keyed by path and address: other readers are unaffected.
+            assertThat(post(path, "203.0.113.21", null)).isEqualTo(200);
+        }
+        assertThat(post("/login", "203.0.113.20", null)).isEqualTo(200);
+    }
+
+    @Test
     void thePublicCancellationFormIsThrottledToo() throws Exception {
         for (int i = 0; i < 10; i++) {
             assertThat(post("/cancel", "203.0.113.8", null)).isEqualTo(200);

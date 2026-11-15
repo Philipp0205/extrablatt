@@ -7,9 +7,11 @@ import org.springframework.stereotype.Repository;
 
 import java.sql.Timestamp;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
+import java.util.OptionalLong;
 
-/** JDBC persistence for one-time e-mail tokens (verification and password reset). */
+/** JDBC persistence for one-time e-mail tokens (verification, password reset and sign-in). */
 @Repository
 public class EmailTokenRepository {
 
@@ -45,6 +47,24 @@ public class EmailTokenRepository {
 
     public void markUsed(String token) {
         jdbc.update("UPDATE email_tokens SET used_at = NOW() WHERE token = ? AND used_at IS NULL", token);
+    }
+
+    /**
+     * Atomically spends a sign-in token: one statement deletes the row if it is
+     * still unexpired and returns its user, so of two parallel requests with the
+     * same token only one gets a row (the other waits on the row lock, then finds
+     * it gone). {@code storedToken} is the hash, as stored.
+     */
+    public OptionalLong consumeSignIn(String storedToken) {
+        if (storedToken == null || storedToken.isBlank()) {
+            return OptionalLong.empty();
+        }
+        List<Long> users = jdbc.query("""
+                DELETE FROM email_tokens
+                WHERE token = ? AND purpose = 'SIGN_IN' AND used_at IS NULL AND expires_at > NOW()
+                RETURNING user_id
+                """, (rs, rowNum) -> rs.getLong("user_id"), storedToken);
+        return users.isEmpty() ? OptionalLong.empty() : OptionalLong.of(users.get(0));
     }
 
     /** Removes any outstanding tokens of a purpose so only the newest link works. */

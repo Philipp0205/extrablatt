@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" th:classappend="${einkLayout} ? ('eink' + ${einkTypeClasses})">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+  <title>Sign in — Extrablatt</title>
+  <th:block th:replace="~{fragments/page-styles :: assets}"></th:block>
+</head>
+<body>
+<th:block th:replace="~{fragments/app-shell :: brandBar}"></th:block>
+<main id="main" class="wrap">
+
+  <h1>Sign in</h1>
+  <div th:if="${param.invalid}" class="flash error">
+    That sign-in link is invalid or has expired.
+    <a th:href="@{/recover/request}">Ask for a new one</a>.
+  </div>
+  <p class="meta">Press the button to sign in. You will be shown a new recovery code, and your old one stops working.</p>
+
+  <form th:action="@{/recover}" method="post">
+    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+    <label for="token" id="token-label">Sign-in code from the e-mail</label>
+    <input id="token" name="token" type="text" autocomplete="off" spellcheck="false" required/>
+    <div class="row space-top">
+      <button class="btn primary" type="submit">Sign in</button>
+    </div>
+  </form>
+
+  <p class="meta space-top">
+    <a th:href="@{/login}">Back to log in</a>
+  </p>
+</main>
+<script th:src="@{/js/recover.js}"></script>
+</body>
+</html>
