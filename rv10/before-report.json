@@ -1,0 +1,63 @@
+[
+ [
+  "phone reading",
+  {
+   "radios": [],
+   "checkboxes": [
+    "markReadOnNextPage*",
+    "markReadOnScroll"
+   ],
+   "layoutLinks": [
+    "/settings/reading?layout=auto",
+    "/settings/reading?layout=eink",
+    "/settings/reading?layout=scroll"
+   ],
+   "h2": [
+    "Page layout",
+    "Text on e-ink"
+   ],
+   "eink": false
+  }
+ ],
+ [
+  "?layout=kindle on /items is e-ink",
+  {
+   "status": 200,
+   "eink": true
+  }
+ ],
+ [
+  "?layout=auto back to phone layout",
+  {
+   "eink": false
+  }
+ ],
+ [
+  "phone page errors",
+  []
+ ],
+ [
+  "kindle reading",
+  {
+   "radios": [],
+   "checkboxes": [
+    "markReadOnNextPage*",
+    "markReadOnScroll"
+   ],
+   "layoutLinks": [
+    "/settings/reading?layout=auto",
+    "/settings/reading?layout=eink",
+    "/settings/reading?layout=scroll"
+   ],
+   "h2": [
+    "Page layout",
+    "Text on e-ink"
+   ],
+   "eink": true
+  }
+ ],
+ [
+  "kindle page errors",
+  []
+ ]
+]

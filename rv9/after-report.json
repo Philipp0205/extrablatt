@@ -1,0 +1,202 @@
+[
+ [
+  "stored track=1 scroll=0 shows",
+  {
+   "radios": [
+    "readTracking=open*",
+    "readTracking=scroll",
+    "readTracking=none"
+   ],
+   "checkboxes": [],
+   "layoutLinks": [
+    "/settings/reading?layout=auto",
+    "/settings/reading?layout=eink",
+    "/settings/reading?layout=scroll"
+   ],
+   "h2": [
+    "Page layout",
+    "Text on e-ink"
+   ],
+   "eink": false
+  }
+ ],
+ [
+  "stored track=1 scroll=1 shows",
+  {
+   "radios": [
+    "readTracking=open",
+    "readTracking=scroll*",
+    "readTracking=none"
+   ],
+   "checkboxes": [],
+   "layoutLinks": [
+    "/settings/reading?layout=auto",
+    "/settings/reading?layout=eink",
+    "/settings/reading?layout=scroll"
+   ],
+   "h2": [
+    "Page layout",
+    "Text on e-ink"
+   ],
+   "eink": false
+  }
+ ],
+ [
+  "stored track=0 scroll=0 shows",
+  {
+   "radios": [
+    "readTracking=open",
+    "readTracking=scroll",
+    "readTracking=none*"
+   ],
+   "checkboxes": [],
+   "layoutLinks": [
+    "/settings/reading?layout=auto",
+    "/settings/reading?layout=eink",
+    "/settings/reading?layout=scroll"
+   ],
+   "h2": [
+    "Page layout",
+    "Text on e-ink"
+   ],
+   "eink": false
+  }
+ ],
+ [
+  "stored track=0 scroll=1 shows",
+  {
+   "radios": [
+    "readTracking=open",
+    "readTracking=scroll",
+    "readTracking=none*"
+   ],
+   "checkboxes": [],
+   "layoutLinks": [
+    "/settings/reading?layout=auto",
+    "/settings/reading?layout=eink",
+    "/settings/reading?layout=scroll"
+   ],
+   "h2": [
+    "Page layout",
+    "Text on e-ink"
+   ],
+   "eink": false
+  }
+ ],
+ [
+  "click scroll -> stored",
+  {
+   "stored": "1 1",
+   "expected": "1 1",
+   "ok": true
+  }
+ ],
+ [
+  "after save scroll shows",
+  {
+   "radios": [
+    "readTracking=open",
+    "readTracking=scroll*",
+    "readTracking=none"
+   ],
+   "checkboxes": [],
+   "layoutLinks": [
+    "/settings/reading?layout=auto",
+    "/settings/reading?layout=eink",
+    "/settings/reading?layout=scroll"
+   ],
+   "h2": [
+    "Page layout",
+    "Text on e-ink"
+   ],
+   "eink": false
+  }
+ ],
+ [
+  "click none -> stored",
+  {
+   "stored": "0 0",
+   "expected": "0 0",
+   "ok": true
+  }
+ ],
+ [
+  "after save none shows",
+  {
+   "radios": [
+    "readTracking=open",
+    "readTracking=scroll",
+    "readTracking=none*"
+   ],
+   "checkboxes": [],
+   "layoutLinks": [
+    "/settings/reading?layout=auto",
+    "/settings/reading?layout=eink",
+    "/settings/reading?layout=scroll"
+   ],
+   "h2": [
+    "Page layout",
+    "Text on e-ink"
+   ],
+   "eink": false
+  }
+ ],
+ [
+  "click open -> stored",
+  {
+   "stored": "1 0",
+   "expected": "1 0",
+   "ok": true
+  }
+ ],
+ [
+  "after save open shows",
+  {
+   "radios": [
+    "readTracking=open*",
+    "readTracking=scroll",
+    "readTracking=none"
+   ],
+   "checkboxes": [],
+   "layoutLinks": [
+    "/settings/reading?layout=auto",
+    "/settings/reading?layout=eink",
+    "/settings/reading?layout=scroll"
+   ],
+   "h2": [
+    "Page layout",
+    "Text on e-ink"
+   ],
+   "eink": false
+  }
+ ],
+ [
+  "phone page errors",
+  []
+ ],
+ [
+  "kindle reading",
+  {
+   "radios": [
+    "readTracking=open*",
+    "readTracking=scroll",
+    "readTracking=none"
+   ],
+   "checkboxes": [],
+   "layoutLinks": [
+    "/settings/reading?layout=auto",
+    "/settings/reading?layout=eink",
+    "/settings/reading?layout=scroll"
+   ],
+   "h2": [
+    "Page layout",
+    "Text on e-ink"
+   ],
+   "eink": true
+  }
+ ],
+ [
+  "kindle page errors",
+  []
+ ]
+]
