@@ -545,6 +545,41 @@ class AppControllerSecurityTest {
 
     @Test
     @WithMockUser
+    void insideACategoryTheRowCarriesAnAllFeedsChipBackToTheTopLevel() throws Exception {
+        when(articleService.findPage(eq(UID), isNull(), isNull(), eq(1), eq(20))).thenReturn(List.of());
+        when(articleService.count(eq(UID), isNull(), isNull())).thenReturn(0L);
+        when(articleService.findPage(eq(UID), isNull(), eq("Technology"), isNull(), isNull(), eq(1), eq(20)))
+                .thenReturn(List.of());
+        when(articleService.count(eq(UID), isNull(), eq("Technology"), isNull(), isNull())).thenReturn(0L);
+        when(feedService.listFeeds(UID)).thenReturn(List.of(
+                new Feed(5L, "Android Police", "https://example.com/a", null, "Technology", null, null, null)));
+
+        // On the phone the "← All" chip is hidden and this chip, first in the row, is
+        // the way back: same link as the back chip, inside the scrolling strip.
+        String inside = mockMvc.perform(get("/items").param("category", "Technology").param("unread", "false"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        int strip = inside.indexOf("data-strip-track");
+        int allFeeds = inside.indexOf("class=\"chip strip-back\"");
+        int category = inside.indexOf("href=\"/items?category=Technology&amp;unread=false\"");
+        org.junit.jupiter.api.Assertions.assertTrue(strip > 0 && allFeeds > strip && allFeeds < category,
+                "the All feeds chip leads the row");
+        org.junit.jupiter.api.Assertions.assertTrue(
+                inside.contains("class=\"chip strip-back\" href=\"/items?unread=false\">All feeds</a>"),
+                "the All feeds chip uses the back chip's link");
+        org.junit.jupiter.api.Assertions.assertTrue(
+                inside.indexOf("class=\"chip filter-nav\"") < inside.indexOf("filter-mode-group"),
+                "the back chip stays ahead of the unread switch for wide screens and e-ink");
+
+        // At the top level the first chip already reads "All feeds"; no second one.
+        mockMvc.perform(get("/items").param("unread", "false"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(not(containsString("strip-back"))))
+                .andExpect(content().string(stringContainsCount(">All feeds</a>", 1)));
+    }
+
+    @Test
+    @WithMockUser
     void theUnreadSwitchIsNotDrawnLikeAFeed() throws Exception {
         when(articleService.findPage(eq(UID), isNull(), eq("Technology"), isNull(), isNull(), eq(1), eq(20)))
                 .thenReturn(List.of());

@@ -53,6 +53,11 @@
     </div>
     <span class="filter-divide" aria-hidden="true"></span>
     <div class="strip" data-strip-track>
+      <!-- Inside a category the phone has no separate back control: the row leads
+           with an "All feeds" chip to the same place. Hidden on wide screens and
+           e-ink, which keep the back chip ahead of the row. -->
+      <a class="chip strip-back" th:if="${backChip != null}"
+         th:href="@{${backChip.href}}">All feeds</a>
       <!-- The top-level chip that clears the category reads "All feeds", so it is
            not mistaken for the read-state "All" beside the Unread switch. -->
       <a class="chip" th:each="chip, iter : ${filterChips}"
