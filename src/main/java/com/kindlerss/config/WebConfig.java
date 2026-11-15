@@ -40,13 +40,26 @@ public class WebConfig implements WebMvcConfigurer {
             .immutable();
 
     /**
-     * About a week, public, not immutable. The icon and manifest file names are
-     * stable (no hash, no version), so a later logo change must be able to reach
-     * browsers within days instead of being stuck for a year.
+     * About a week, public, not immutable. The icon file names are stable (no
+     * hash), so a later logo change must be able to reach browsers within days
+     * instead of being stuck for a year.
      */
     private static final CacheControl WEEK = CacheControl
             .maxAge(Duration.ofDays(7))
             .cachePublic();
+
+    /**
+     * The manifest is revalidated on every use: {@code max-age=0, must-revalidate,
+     * public}. It is tiny and carries the theme and background colours of an
+     * installed app, so a stale copy (the week-long one that kept the old light
+     * colours) is worse than one conditional request. Not {@code no-store}: the
+     * browser may keep the file and just ask whether it changed (ETag/Last-Modified
+     * gives a cheap 304), and it is the same for everyone.
+     */
+    private static final CacheControl REVALIDATE = CacheControl
+            .maxAge(Duration.ZERO)
+            .cachePublic()
+            .mustRevalidate();
 
     /**
      * Decides per request between the scrolling layout and the e-ink, page-turning
@@ -66,9 +79,12 @@ public class WebConfig implements WebMvcConfigurer {
                 .addResourceLocations("classpath:/static/icons/")
                 .setCacheControl(WEEK);
         registry.addResourceHandler("/favicon.ico", "/favicon.svg",
-                        "/apple-touch-icon.png", "/manifest.webmanifest")
+                        "/apple-touch-icon.png")
                 .addResourceLocations("classpath:/static/")
                 .setCacheControl(WEEK);
+        registry.addResourceHandler("/manifest.webmanifest")
+                .addResourceLocations("classpath:/static/")
+                .setCacheControl(REVALIDATE);
         // The font file names carry their version (newsreader-5.3.0-...), so no
         // version resolver is needed to make a year-long cache safe.
         registry.addResourceHandler("/fonts/**")

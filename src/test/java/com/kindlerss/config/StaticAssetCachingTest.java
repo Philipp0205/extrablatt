@@ -133,14 +133,18 @@ class StaticAssetCachingTest {
     }
 
     /**
-     * The manifest has a stable name, so it gets a short public cache rather than a
-     * year, and must be served with the manifest media type, not octet-stream.
+     * The manifest is revalidated on every use (a week-long copy kept the old light
+     * colours on installed apps), and must be served with the manifest media type,
+     * not octet-stream.
      */
     @Test
     void theManifestIsPublicShortCachedAndHasTheManifestType() throws Exception {
         mockMvc.perform(get("/manifest.webmanifest"))
                 .andExpect(status().isOk())
                 .andExpect(header().string(HttpHeaders.CONTENT_TYPE, containsString("application/manifest+json")))
+                .andExpect(header().string(HttpHeaders.CACHE_CONTROL, containsString("max-age=0")))
+                .andExpect(header().string(HttpHeaders.CACHE_CONTROL, containsString("must-revalidate")))
+                .andExpect(header().string(HttpHeaders.CACHE_CONTROL, not(containsString("max-age=604800"))))
                 .andExpect(header().string(HttpHeaders.CACHE_CONTROL, containsString("public")))
                 .andExpect(header().string(HttpHeaders.CACHE_CONTROL, not(containsString("no-store"))))
                 .andExpect(header().doesNotExist(HttpHeaders.SET_COOKIE));
@@ -159,9 +163,21 @@ class StaticAssetCachingTest {
 
     @Test
     void theLoginPageLinksTheManifestAndIcons() throws Exception {
+        String html = mockMvc.perform(get("/login"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        // Browsers that ignore media (Firefox's installed app) take the first meta,
+        // so it must be the dark phone colour.
+        java.util.regex.Matcher firstMeta = java.util.regex.Pattern
+                .compile("<meta name=\"theme-color\"[^>]*>").matcher(html);
+        org.junit.jupiter.api.Assertions.assertTrue(firstMeta.find(), "no theme-color meta");
+        org.junit.jupiter.api.Assertions.assertTrue(
+                firstMeta.group().contains("content=\"#17140f\" media=\"(prefers-color-scheme: dark) and (max-width: 719px)\""),
+                "first theme-color meta was " + firstMeta.group());
+
         mockMvc.perform(get("/login"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("href=\"/manifest.webmanifest\"")))
+                .andExpect(content().string(containsString("href=\"/manifest.webmanifest?v=3\"")))
                 .andExpect(content().string(containsString("href=\"/favicon.svg\"")))
                 .andExpect(content().string(containsString("href=\"/icons/favicon-32.png\"")))
                 .andExpect(content().string(containsString("href=\"/apple-touch-icon.png?v=2\"")))
