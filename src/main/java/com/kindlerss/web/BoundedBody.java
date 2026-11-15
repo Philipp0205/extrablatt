@@ -7,8 +7,8 @@ import java.io.IOException;
 import java.io.InputStream;
 
 /**
- * Reads a request body into memory with a hard size cap, for the two endpoints
- * strangers can POST to without logging in (payment webhook, newsletter inbox).
+ * Reads a request body into memory with a hard size cap, for the endpoint
+ * strangers can POST to without logging in (payment webhook).
  * A declared Content-Length over the cap is refused before a byte is read; a body
  * without one (chunked) is read only up to the cap.
  */

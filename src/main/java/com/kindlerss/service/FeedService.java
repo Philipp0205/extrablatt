@@ -42,7 +42,6 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
@@ -76,8 +75,6 @@ public class FeedService {
             new DefaultFeed("spiegel", "Der Spiegel",
                     "https://www.spiegel.de/schlagzeilen/index.rss", "News")
     );
-
-    private static final Pattern EMAIL_ADDRESS = Pattern.compile("([a-zA-Z0-9._%+-]+)@([a-zA-Z0-9.-]+)");
 
     /** An address that already names its protocol, e.g. {@code https://example.com}. */
     private static final Pattern URL_SCHEME = Pattern.compile("^[a-zA-Z][a-zA-Z0-9+.-]*://");
@@ -249,69 +246,6 @@ public class FeedService {
         return feedRepository.updateCategory(userId, id, category);
     }
 
-    /** Returned by {@link #receiveNewsletterIssue} when the account's feed limit blocked a new sender. */
-    public static final long NEWSLETTER_FEED_LIMIT_REACHED = -2;
-    /** Returned by {@link #receiveNewsletterIssue} when a new sender needs the Supporter plan. */
-    public static final long NEWSLETTER_PLAN_REQUIRED = -3;
-    /** Returned by {@link #receiveNewsletterIssue} for a message already stored (repeat delivery). */
-    public static final long NEWSLETTER_DUPLICATE = -1;
-
-    /**
-     * Stores one incoming newsletter issue as an article, auto-creating (once,
-     * per distinct sender) a feed for it the same way {@link #addFeed} creates one
-     * for an RSS URL — an account only ever gives out one inbox address, and each
-     * sender that mails it becomes its own entry in the feed list. Deduped by
-     * {@code guid} (ideally the message's {@code Message-ID}) like a polled feed's
-     * entries.
-     *
-     * <p>A new sender only gets a feed while the account's plan includes the
-     * newsletter inbox. Senders that already have one keep delivering after the
-     * plan lapses: losing a subscription changes allowances, it does not take
-     * things away.
-     */
-    @Transactional
-    public long receiveNewsletterIssue(long userId, String senderAddress, String senderName, String guid,
-                                       String subject, Instant publishedAt, String contentHtml) {
-        String sender = normalizedSenderAddress(senderAddress);
-        if (sender == null) {
-            return NEWSLETTER_DUPLICATE; // no usable sender identity; nothing sensible to store
-        }
-        String senderUrl = "newsletter:" + sender;
-        Feed feed = feedRepository.findByUrl(userId, senderUrl).orElse(null);
-        if (feed == null) {
-            Entitlement entitlement = entitlements.forUser(userId);
-            if (!entitlement.newsletters()) {
-                log.info("Dropping newsletter issue for user {}: new sender needs the Supporter plan", userId);
-                return NEWSLETTER_PLAN_REQUIRED;
-            }
-            if (feedRepository.countByUser(userId) >= entitlement.maxFeeds()) {
-                // The sender's address is deliberately not logged: it is a third party's
-                // e-mail address, and the account id is enough to work out what happened.
-                log.info("Dropping newsletter issue for user {}: feed limit reached", userId);
-                return NEWSLETTER_FEED_LIMIT_REACHED;
-            }
-            String title = senderName == null || senderName.isBlank() ? sender : senderName.trim();
-            feed = feedRepository.findOrCreateNewsletterFeed(userId, senderUrl, title, "Newsletters");
-        }
-        if (articleRepository.existsByFeedIdAndGuid(feed.id(), guid)) {
-            return NEWSLETTER_DUPLICATE;
-        }
-        String title = subject == null || subject.isBlank() ? "(untitled)" : subject.trim();
-        long id = articleRepository.insert(feed.id(), guid, title, null, senderName, publishedAt,
-                null, sanitizer.sanitizeWithImages(contentHtml));
-        feedRepository.clearError(feed.id());
-        return id;
-    }
-
-    /** Just the {@code local@domain} part, lower-cased, from a possibly-decorated address. */
-    private static String normalizedSenderAddress(String rawAddress) {
-        if (rawAddress == null) {
-            return null;
-        }
-        Matcher matcher = EMAIL_ADDRESS.matcher(rawAddress);
-        return matcher.find() ? matcher.group().toLowerCase(Locale.ROOT) : null;
-    }
-
     /** Returned by {@link #renameCategory} when the category already has the requested name. */
     public static final int CATEGORY_NAME_UNCHANGED = -1;
 
@@ -390,7 +324,8 @@ public class FeedService {
     private void refreshFeeds(List<Feed> feeds) {
         Map<String, List<Feed>> byUrl = new LinkedHashMap<>();
         for (Feed feed : feeds) {
-            // Newsletters arrive by e-mail; pasted URLs are fetched once on send.
+            // Only RSS feeds are polled; feeds of any other source (existing
+            // newsletter feeds, pasted URLs) are never fetched here.
             if (feed.source() != FeedSource.RSS) {
                 continue;
             }

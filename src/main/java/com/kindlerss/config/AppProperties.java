@@ -18,7 +18,6 @@ public record AppProperties(
         Feeds feeds,
         Articles articles,
         Limits limits,
-        Newsletters newsletters,
         Billing billing,
         Retention retention,
         String trustedProxies,
@@ -38,9 +37,6 @@ public record AppProperties(
         }
         if (limits == null) {
             limits = new Limits(null, null);
-        }
-        if (newsletters == null) {
-            newsletters = new Newsletters(null, null);
         }
         if (billing == null) {
             billing = new Billing(false, null, null, null, null, null, null, null,
@@ -69,9 +65,9 @@ public record AppProperties(
     }
 
     public AppProperties(String mailFrom, String publicUrl, String rememberMeKey, Http http,
-                         Feeds feeds, Articles articles, Limits limits, Newsletters newsletters,
+                         Feeds feeds, Articles articles, Limits limits,
                          Billing billing, Retention retention) {
-        this(mailFrom, publicUrl, rememberMeKey, http, feeds, articles, limits, newsletters,
+        this(mailFrom, publicUrl, rememberMeKey, http, feeds, articles, limits,
                 billing, retention, null, null);
     }
 
@@ -128,45 +124,6 @@ public record AppProperties(
                 pageSize = DEFAULT_PAGE_SIZE;
             }
             pageSize = Math.min(Math.max(pageSize, 5), 100);
-        }
-    }
-
-    /**
-     * Newsletters arrive by e-mail rather than by polling a URL: each newsletter
-     * feed gets an address {@code <token>@inboundDomain}, and an inbound mail
-     * provider (Postmark, Mailgun routes, …) is configured to POST received
-     * messages to {@code /inbound/newsletters} with {@code inboundSecret} in the
-     * {@code X-Newsletter-Secret} header or as the URL's Basic auth password.
-     * Leaving {@code inboundDomain} blank disables adding new newsletters; the
-     * shared secret guards the webhook since it cannot itself require a login.
-     * {@code maxBodyBytes} caps one message (HTML, text and headers together);
-     * default 10 MiB.
-     */
-    public record Newsletters(String inboundDomain, String inboundSecret, int maxBodyBytes) {
-        public static final int DEFAULT_MAX_BODY_BYTES = 10 * 1024 * 1024;
-
-        public Newsletters(String inboundDomain, String inboundSecret) {
-            this(inboundDomain, inboundSecret, 0);
-        }
-
-        @ConstructorBinding
-        public Newsletters {
-            if (maxBodyBytes <= 0) {
-                maxBodyBytes = DEFAULT_MAX_BODY_BYTES;
-            }
-            if (inboundDomain != null) {
-                inboundDomain = inboundDomain.trim().toLowerCase();
-                if (inboundDomain.isBlank()) {
-                    inboundDomain = null;
-                }
-            }
-            if (inboundSecret != null && inboundSecret.isBlank()) {
-                inboundSecret = null;
-            }
-        }
-
-        public boolean enabled() {
-            return inboundDomain != null;
         }
     }
 

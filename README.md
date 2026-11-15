@@ -32,9 +32,6 @@ their own licenses. Start with [Local configuration](#local-configuration) or
 - Add feeds by RSS/Atom URL or homepage (autodiscovery from `<link>` tags,
   feed-like links, and the site's conventional feed paths)
 - Send any web article to Kindle by pasting its URL (extracted, stored, emailed as EPUB)
-- Optional newsletter subscriptions: one inbound e-mail address per account —
-  subscribe any newsletter to it and issues show up as articles, sent to Kindle
-  the same way as any other
 - Optional quick-start feed suggestions and categories for organizing subscriptions
 - Scheduled refresh of every account's feeds every 30 minutes, plus a background
   poll when someone opens Feeds or Articles, asking each feed for more than the
@@ -243,56 +240,6 @@ use Amazon trademarks such as `kindle` in the local part.
 
 Without approval, messages are silently dropped by Amazon.
 
-## Newsletters
-
-Some sources only publish by e-mail, not RSS. Once `NEWSLETTER_INBOUND_DOMAIN`
-and `NEWSLETTER_INBOUND_SECRET` are set, **Settings** shows one newsletter
-inbox address per account, generated the first time that page is opened (e.g.
-`3f9c2a1b4e...@news.yourdomain.com`). Subscribe *any* newsletter to that same
-address — there is nothing to add up front. The first issue from a given
-sender creates a feed for it automatically (titled from the sender, filed
-under a "Newsletters" category); later issues from that sender land as
-articles on the same feed. From there it behaves exactly like an RSS feed:
-read it, mark it read, **Send to Kindle**, recategorize, or **Delete** it.
-**New address** in Settings rotates the inbox (e.g. once it starts collecting
-spam) without losing anything already received.
-
-With billing on, the inbox belongs to the Supporter plan (and the free week).
-Once an account no longer has it, an issue from a sender it has never heard
-from is dropped instead of creating a feed (the inbound webhook answers 200
-with `"status": "dropped"`), while senders that already have a feed keep
-delivering.
-
-This needs an inbound e-mail provider in front of the app, since Extrablatt
-itself never receives mail directly:
-
-1. Pick a subdomain for newsletter addresses (`NEWSLETTER_INBOUND_DOMAIN`, e.g.
-   `news.yourdomain.com`) and point its MX record at an inbound e-mail provider —
-   [Postmark](https://postmarkapp.com/inbound-email) (an "Inbound" server stream)
-   is the easiest fit, since its webhook payload is what the app expects
-   out of the box. Mailgun Routes, SendGrid Inbound Parse, or a Cloudflare Email
-   Routing worker all work too with a small JSON reshape in front of the webhook.
-2. Configure that provider's inbound webhook to `POST` to
-   `https://<your-app>/inbound/newsletters` with `NEWSLETTER_INBOUND_SECRET` (a
-   long random value you choose) sent in an `X-Newsletter-Secret` header or as
-   `Authorization: Bearer <secret>`. Postmark cannot set custom headers, so give it
-   `https://inbound:<NEWSLETTER_INBOUND_SECRET>@<your-app>/inbound/newsletters`;
-   it sends that as HTTP Basic auth and the app reads the password. The secret is
-   the only thing standing in for a login on this endpoint, since the provider
-   cannot authenticate like a browser. The older
-   `?secret=<NEWSLETTER_INBOUND_SECRET>` form still works but logs a deprecation
-   warning, because URLs end up in proxy and access logs. A message larger than
-   `NEWSLETTER_MAX_BODY_BYTES` (default 10 MiB) is refused with 413.
-3. Set both variables in `.env` (or your platform's env vars) and redeploy.
-
-The webhook expects Postmark's inbound JSON shape: `To`/`ToFull`/
-`OriginalRecipient` (to find which account's inbox an issue arrived at, by the
-address's local part), `From`/`FromName` (identifies which sender's feed it
-belongs to, and names that feed the first time), `Subject`, `HtmlBody`/
-`TextBody`, `MessageID` (deduplicates re-deliveries the way a feed's `guid`
-does), and `Date`. Leaving `NEWSLETTER_INBOUND_DOMAIN` unset hides the feature
-entirely; existing RSS feeds are unaffected either way.
-
 ## Subscriptions (optional)
 
 The billing configuration below is for the project owner's hosted service or
@@ -313,7 +260,6 @@ stays free and unmetered.
 |---|---|---|
 | Send to Kindle | no (unless `BILLING_FREE_SENDS_PER_MONTH` is set) | no monthly limit, up to `MAX_SENDS_PER_DAY` (50) a day |
 | Feeds | existing feeds stay; adding more needs a plan | `MAX_FEEDS_PER_USER` (50) |
-| Newsletter inbox | — | yes |
 | Price | €0 for seven days | €2.99/month billed yearly (€35.88 for 12 months), or €3.99/month |
 
 `MAX_SENDS_PER_DAY` stays in force for everyone, including subscribers, as an
@@ -517,7 +463,7 @@ Services:
 Healthchecks are configured on Postgres and the app (`/actuator/health`).
 
 The `app` service loads the repo-root `.env` with `env_file`, so every setting
-from `.env.example` (`BILLING_*`, `RETENTION_*`, `NEWSLETTER_*`, ...) reaches the
+from `.env.example` (`BILLING_*`, `RETENTION_*`, ...) reaches the
 application without being listed in the compose file. The `.env` file must
 exist next to `deploy/` (Compose fails otherwise). Values under `environment:`
 in `deploy/docker-compose.yml` take precedence: `DATABASE_URL` always points at

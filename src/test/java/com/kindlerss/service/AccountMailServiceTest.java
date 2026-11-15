@@ -70,7 +70,7 @@ class AccountMailServiceTest {
     }
 
     private static AppProperties properties(String mailFrom) {
-        return new AppProperties(mailFrom, null, null, null, null, null, null, null, null, null, null, null);
+        return new AppProperties(mailFrom, null, null, null, null, null, null, null, null, null, null);
     }
 
     @Test

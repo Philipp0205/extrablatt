@@ -46,7 +46,7 @@ class SubscriptionServiceTest {
                 "https://pay/monthly", "https://pay/yearly", null, null, null,
                 null, null, null, null, null, null);
         AppProperties properties = new AppProperties("from@example.com", null, null, null, null,
-                null, null, null, billing, null);
+                null, null, billing, null);
         return new SubscriptionService(subscriptions, cancellations, users, mail, properties);
     }
 
@@ -115,7 +115,7 @@ class SubscriptionServiceTest {
 
     private static AppUser owner() {
         return new AppUser(UID, OWNER_EMAIL, "hash", null, Instant.now(), null, Instant.now(),
-                Instant.now(), "inbound", false, null);
+                Instant.now(), false, null);
     }
 
     private static SubscriptionService.Declaration declaration(CancellationRequest.Kind kind) {

@@ -5,11 +5,9 @@ import java.time.Instant;
 /**
  * Subscribed source, optionally with an unread count for list views. Most feeds
  * are {@link FeedSource#RSS}, polled at {@code url}. A {@link FeedSource#NEWSLETTER}
- * feed is instead auto-created the first time an account's shared newsletter
- * inbox (see {@code AppUser.newsletterInboundToken}) receives an issue from a new
- * sender; {@code url} holds a synthetic {@code newsletter:<sender-address>} value
- * (never fetched) so the column can stay non-null and unique per account, and also
- * doubles as the key used to find that sender's feed again next time. A
+ * feed is a leftover from the retired newsletter inbox: it keeps its articles and
+ * stays readable, but receives no new issues. {@code url} holds a synthetic
+ * {@code newsletter:<sender-address>} value (never fetched). A
  * {@link FeedSource#CLIPPING} feed is the account's bucket for pages sent by
  * pasting a URL; it uses the synthetic {@code clippings:} address and is never
  * polled.

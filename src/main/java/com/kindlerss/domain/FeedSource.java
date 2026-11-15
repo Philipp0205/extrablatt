@@ -4,7 +4,7 @@ package com.kindlerss.domain;
 public enum FeedSource {
     /** Polled over HTTP on a schedule, as RSS/Atom. */
     RSS,
-    /** Delivered by e-mail to a per-feed inbound address and stored as they arrive. */
+    /** Created by the retired newsletter inbox; kept so existing feeds load. Never polled. */
     NEWSLETTER,
     /** Pages fetched once from a pasted URL, not polled afterwards. */
     CLIPPING

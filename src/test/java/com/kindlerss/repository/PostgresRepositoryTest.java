@@ -322,24 +322,6 @@ class PostgresRepositoryTest {
     }
 
     @Test
-    void aNewsletterFeedIsFoundOrCreatedOncePerSenderPerAccount() {
-        var first = feeds.findOrCreateNewsletterFeed(userId, "newsletter:editor@example.com",
-                "Stratechery", "Newsletters");
-        assertTrue(first.isNewsletter());
-        assertEquals("editor@example.com", first.newsletterSender());
-
-        // A second issue from the same sender reuses the feed instead of duplicating it.
-        var again = feeds.findOrCreateNewsletterFeed(userId, "newsletter:editor@example.com",
-                "Stratechery", "Newsletters");
-        assertEquals(first.id(), again.id());
-
-        // The same sender can independently become a feed for a different account.
-        var theirs = feeds.findOrCreateNewsletterFeed(otherUserId, "newsletter:editor@example.com",
-                "Stratechery", "Newsletters");
-        assertTrue(theirs.id() != first.id());
-    }
-
-    @Test
     void aClippingFeedIsFoundOrCreatedOncePerAccount() {
         var first = feeds.findOrCreateClippingFeed(userId);
         assertTrue(first.isClipping());
@@ -354,9 +336,16 @@ class PostgresRepositoryTest {
     }
 
     @Test
-    void anIssueSentToTheNewslettersInboxBecomesAnArticleOfItsAutoCreatedFeed() {
-        var newsletter = feeds.findOrCreateNewsletterFeed(userId, "newsletter:weekly@example.com",
-                "Weekly Digest", "Newsletters");
+    void anExistingNewsletterFeedStillLoadsAndKeepsItsArticles() {
+        // No code creates these any more, but rows from before still have to read back.
+        jdbc.update("""
+                INSERT INTO feeds (user_id, title, url, category, source)
+                VALUES (?, 'Weekly Digest', 'newsletter:weekly@example.com', 'Newsletters', 'NEWSLETTER')
+                """, userId);
+        var newsletter = feeds.findByUrl(userId, "newsletter:weekly@example.com").orElseThrow();
+        assertTrue(newsletter.isNewsletter());
+        assertEquals("weekly@example.com", newsletter.newsletterSender());
+
         long articleId = articles.insert(newsletter.id(), "message-id-1", "Issue #1", null, "Sender",
                 Instant.parse("2026-08-10T00:00:00Z"), null, "<p>Hello</p>");
 
@@ -367,20 +356,14 @@ class PostgresRepositoryTest {
     }
 
     @Test
-    void anAccountsNewsletterInboxTokenIsGeneratedOnceAndFoundByIt() {
+    void anAccountsStoredNewsletterInboxTokenDoesNotStopTheAccountFromLoading() {
         var third = users.insert("third@example.com", "hash");
-        assertTrue(users.setNewsletterInboundTokenIfAbsent(third.id(), "inbox-token"));
-        // A concurrent/second attempt to set it must not clobber the winning token.
-        assertFalse(users.setNewsletterInboundTokenIfAbsent(third.id(), "other-token"));
+        // The column stays in the schema, so accounts that had an inbox keep a value in it.
+        jdbc.update("UPDATE users SET newsletter_inbound_token = 'old-inbox-token' WHERE id = ?", third.id());
 
-        var found = users.findByNewsletterInboundToken("inbox-token");
-        assertTrue(found.isPresent());
-        assertEquals(third.id(), found.get().id());
-        assertTrue(users.findByNewsletterInboundToken("no-such-token").isEmpty());
-
-        users.updateNewsletterInboundToken(third.id(), "rotated-token");
-        assertTrue(users.findByNewsletterInboundToken("inbox-token").isEmpty());
-        assertEquals(third.id(), users.findByNewsletterInboundToken("rotated-token").orElseThrow().id());
+        var loaded = users.findById(third.id()).orElseThrow();
+        assertEquals("third@example.com", loaded.email());
+        assertEquals(third.id(), users.findByEmail("third@example.com").orElseThrow().id());
     }
 
     @Test
