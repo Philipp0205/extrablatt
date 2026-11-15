@@ -3,9 +3,8 @@
 #
 # Environments:
 #   production  — GitHub branch `main`, https://reader.extrablatt.app
-#   staging     — GitHub branch `staging`, https://staging.extrablatt.app
-#                 (own Postgres; refreshed from production by
-#                 deploy/sync-staging-db.sh / the Sync staging database workflow)
+#   staging     — retired. The staging environment is gone and the daily
+#                 production-to-staging database sync has been removed.
 #
 # Required service variables (Railway dashboard -> Variables):
 #   SPRING_PROFILES_ACTIVE = production
