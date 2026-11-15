@@ -87,7 +87,10 @@ public class SettingsController {
 
     @GetMapping("/settings/reading")
     public String reading(Model model) {
-        model.addAttribute("account", requireAccount());
+        AppUser user = requireAccount();
+        model.addAttribute("account", user);
+        model.addAttribute("readTracking",
+                ReadTracking.fromFlags(user.markReadOnNextPage(), user.markReadOnScroll()).parameter());
         return "settings-reading";
     }
 
@@ -224,11 +227,13 @@ public class SettingsController {
     }
 
     @PostMapping("/settings/reading")
-    public String updateReading(@RequestParam(value = "markReadOnNextPage", required = false) String markReadOnNextPage,
-                                @RequestParam(value = "markReadOnScroll", required = false) String markReadOnScroll,
+    public String updateReading(@RequestParam(value = "readTracking", required = false) String readTracking,
                                 RedirectAttributes redirectAttributes) {
-        userService.updateMarkReadOnNextPage(currentUser.requireId(), markReadOnNextPage != null);
-        userService.updateMarkReadOnScroll(currentUser.requireId(), markReadOnScroll != null);
+        ReadTracking.fromParameter(readTracking).ifPresent(mode -> {
+            long id = currentUser.requireId();
+            userService.updateMarkReadOnNextPage(id, mode.track());
+            userService.updateMarkReadOnScroll(id, mode.scroll());
+        });
         redirectAttributes.addFlashAttribute("message", "Reading preference saved");
         return "redirect:/settings/reading";
     }

@@ -30,6 +30,7 @@ import java.util.Optional;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.not;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
@@ -309,63 +310,110 @@ class SettingsControllerTest {
 
     @Test
     @WithMockUser
-    void readingSettingsCanTurnMarkOnNextPageOff() throws Exception {
+    void readingSettingsOffersOneRadioGroupWithOpenCheckedByDefault() throws Exception {
         mockMvc.perform(get("/settings/reading"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("Keep track of unread articles")))
-                .andExpect(content().string(containsString("action=\"/settings/reading\"")));
+                .andExpect(content().string(containsString("action=\"/settings/reading\"")))
+                .andExpect(content().string(containsString("Mark articles as read")))
+                .andExpect(content().string(containsString("When I open an article")))
+                .andExpect(content().string(containsString("As I scroll past them")))
+                .andExpect(content().string(containsString("Don't keep track")))
+                .andExpect(content().string(containsString("name=\"readTracking\" value=\"open\" checked=\"checked\"")))
+                .andExpect(content().string(not(containsString("name=\"readTracking\" value=\"scroll\" checked"))))
+                .andExpect(content().string(not(containsString("name=\"readTracking\" value=\"none\" checked"))))
+                .andExpect(content().string(not(containsString("name=\"markReadOnScroll\""))))
+                .andExpect(content().string(not(containsString("name=\"markReadOnNextPage\""))));
+    }
 
-        mockMvc.perform(post("/settings/reading").with(csrf()))
+    @Test
+    @WithMockUser
+    void readingSettingsChecksScrollWhenTrackingAndScrollAreOn() throws Exception {
+        showAccountWithFlags(true, true);
+
+        mockMvc.perform(get("/settings/reading"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("name=\"readTracking\" value=\"scroll\" checked=\"checked\"")))
+                .andExpect(content().string(not(containsString("name=\"readTracking\" value=\"open\" checked"))))
+                .andExpect(content().string(not(containsString("name=\"readTracking\" value=\"none\" checked"))));
+    }
+
+    @Test
+    @WithMockUser
+    void readingSettingsChecksNoneWhenTrackingIsOff() throws Exception {
+        showAccountWithFlags(false, false);
+
+        mockMvc.perform(get("/settings/reading"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("name=\"readTracking\" value=\"none\" checked=\"checked\"")))
+                .andExpect(content().string(not(containsString("name=\"readTracking\" value=\"open\" checked"))))
+                .andExpect(content().string(not(containsString("name=\"readTracking\" value=\"scroll\" checked"))));
+    }
+
+    @Test
+    @WithMockUser
+    void readingSettingsShowsTrackingOffWithScrollOnAsNoneWithoutSaving() throws Exception {
+        showAccountWithFlags(false, true);
+
+        mockMvc.perform(get("/settings/reading"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("name=\"readTracking\" value=\"none\" checked=\"checked\"")))
+                .andExpect(content().string(not(containsString("name=\"readTracking\" value=\"scroll\" checked"))));
+        verify(userService, never()).updateMarkReadOnNextPage(anyLong(), anyBoolean());
+        verify(userService, never()).updateMarkReadOnScroll(anyLong(), anyBoolean());
+    }
+
+    @Test
+    @WithMockUser
+    void readingSettingsSavesOpenAsTrackingOnAndScrollOff() throws Exception {
+        mockMvc.perform(post("/settings/reading").with(csrf()).param("readTracking", "open"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/settings/reading"))
                 .andExpect(flash().attribute("message", "Reading preference saved"));
-        verify(userService).updateMarkReadOnNextPage(UID, false);
-    }
-
-    @Test
-    @WithMockUser
-    void readingSettingsOffersMarkReadOnScrollUncheckedByDefault() throws Exception {
-        mockMvc.perform(get("/settings/reading"))
-                .andExpect(status().isOk())
-                .andExpect(content().string(containsString("name=\"markReadOnScroll\"")))
-                .andExpect(content().string(containsString("Mark articles read as I scroll past them")))
-                .andExpect(content().string(not(containsString("name=\"markReadOnScroll\" value=\"true\" checked"))));
-    }
-
-    @Test
-    @WithMockUser
-    void readingSettingsCanTurnMarkReadOnScrollOnAndOff() throws Exception {
-        mockMvc.perform(post("/settings/reading").with(csrf())
-                        .param("markReadOnScroll", "true"))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/settings/reading"));
-        verify(userService).updateMarkReadOnScroll(UID, true);
-
-        mockMvc.perform(post("/settings/reading").with(csrf()))
-                .andExpect(status().is3xxRedirection());
+        verify(userService).updateMarkReadOnNextPage(UID, true);
         verify(userService).updateMarkReadOnScroll(UID, false);
     }
 
     @Test
     @WithMockUser
-    void readingSettingsShowsMarkReadOnScrollCheckedWhenOn() throws Exception {
-        AppUser on = new AppUser(UID, "user@example.com", "hash", "reader@kindle.com",
-                Instant.now(), null, Instant.now(), Instant.now(), null, true, null, true);
-        when(userService.findById(UID)).thenReturn(Optional.of(on));
-
-        mockMvc.perform(get("/settings/reading"))
-                .andExpect(status().isOk())
-                .andExpect(content().string(containsString("name=\"markReadOnScroll\" value=\"true\" checked=\"checked\"")));
+    void readingSettingsSavesScrollAsTrackingOnAndScrollOn() throws Exception {
+        mockMvc.perform(post("/settings/reading").with(csrf()).param("readTracking", "scroll"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/settings/reading"));
+        verify(userService).updateMarkReadOnNextPage(UID, true);
+        verify(userService).updateMarkReadOnScroll(UID, true);
     }
 
     @Test
     @WithMockUser
-    void readingSettingsCanTurnMarkOnNextPageOn() throws Exception {
-        mockMvc.perform(post("/settings/reading").with(csrf())
-                        .param("markReadOnNextPage", "true"))
+    void readingSettingsSavesNoneAsTrackingOffAndScrollOff() throws Exception {
+        mockMvc.perform(post("/settings/reading").with(csrf()).param("readTracking", "none"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/settings/reading"));
-        verify(userService).updateMarkReadOnNextPage(UID, true);
+        verify(userService).updateMarkReadOnNextPage(UID, false);
+        verify(userService).updateMarkReadOnScroll(UID, false);
+    }
+
+    @Test
+    @WithMockUser
+    void readingSettingsChangesNothingForAMissingOrUnknownValue() throws Exception {
+        mockMvc.perform(post("/settings/reading").with(csrf()))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/settings/reading"))
+                .andExpect(flash().attribute("message", "Reading preference saved"));
+        mockMvc.perform(post("/settings/reading").with(csrf()).param("readTracking", "sideways"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/settings/reading"));
+        mockMvc.perform(post("/settings/reading").with(csrf()).param("readTracking", "OPEN"))
+                .andExpect(status().is3xxRedirection());
+
+        verify(userService, never()).updateMarkReadOnNextPage(anyLong(), anyBoolean());
+        verify(userService, never()).updateMarkReadOnScroll(anyLong(), anyBoolean());
+    }
+
+    private void showAccountWithFlags(boolean track, boolean scroll) {
+        AppUser user = new AppUser(UID, "user@example.com", "hash", "reader@kindle.com",
+                Instant.now(), null, Instant.now(), Instant.now(), null, track, null, scroll);
+        when(userService.findById(UID)).thenReturn(Optional.of(user));
     }
 
     @Test
