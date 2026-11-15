@@ -98,6 +98,9 @@ class TrialEndedDialogTest {
     ApiTokenService apiTokenService;
 
     @MockitoBean
+    com.kindlerss.service.RecoveryCodeService recoveryCodeService;
+
+    @MockitoBean
     SubscriptionService subscriptionService;
 
     @BeforeEach

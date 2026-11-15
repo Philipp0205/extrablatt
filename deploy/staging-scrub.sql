@@ -27,7 +27,8 @@ SET email = 'user-' || id || '@staging.invalid',
     password_hash = '!scrubbed-for-staging',
     kindle_email = CASE WHEN kindle_email IS NULL THEN NULL
                         ELSE 'kindle-' || id || '@staging.invalid' END,
-    newsletter_inbound_token = NULL
+    newsletter_inbound_token = NULL,
+    recovery_hash = NULL
 WHERE id NOT IN (SELECT id FROM pg_temp.staging_kept_users);
 
 -- Verification and reset links are bearer credentials, and so are the

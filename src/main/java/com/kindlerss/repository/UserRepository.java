@@ -164,6 +164,18 @@ public class UserRepository {
                 """, token, id);
     }
 
+    /** Sets or replaces the hash of the account's recovery code. */
+    public void setRecoveryHash(long id, String recoveryHash) {
+        jdbc.update("""
+                UPDATE users SET recovery_hash = ?, updated_at = NOW() WHERE id = ?
+                """, recoveryHash, id);
+    }
+
+    public Optional<String> findRecoveryHash(long id) {
+        return jdbc.query("SELECT recovery_hash FROM users WHERE id = ? AND recovery_hash IS NOT NULL",
+                (rs, row) -> rs.getString("recovery_hash"), id).stream().findFirst();
+    }
+
     public boolean deleteById(long id) {
         return jdbc.update("DELETE FROM users WHERE id = ?", id) > 0;
     }

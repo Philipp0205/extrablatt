@@ -11,6 +11,7 @@ import com.kindlerss.service.ChangelogCatalog;
 import com.kindlerss.service.DataExportService;
 import com.kindlerss.service.EntitlementService;
 import com.kindlerss.service.Money;
+import com.kindlerss.service.RecoveryCodeService;
 import com.kindlerss.service.RetentionService;
 import com.kindlerss.service.SubscriptionService;
 import com.kindlerss.service.UserService;
@@ -44,6 +45,7 @@ public class SettingsController {
     private final DataExportService dataExportService;
     private final RetentionService retentionService;
     private final ApiTokenService apiTokenService;
+    private final RecoveryCodeService recoveryCodeService;
     private final CurrentUser currentUser;
     private final AppProperties properties;
 
@@ -53,6 +55,7 @@ public class SettingsController {
                               DataExportService dataExportService,
                               RetentionService retentionService,
                               ApiTokenService apiTokenService,
+                              RecoveryCodeService recoveryCodeService,
                               CurrentUser currentUser,
                               AppProperties properties) {
         this.userService = userService;
@@ -62,6 +65,7 @@ public class SettingsController {
         this.dataExportService = dataExportService;
         this.retentionService = retentionService;
         this.apiTokenService = apiTokenService;
+        this.recoveryCodeService = recoveryCodeService;
         this.currentUser = currentUser;
         this.properties = properties;
     }
@@ -90,6 +94,7 @@ public class SettingsController {
     @GetMapping("/settings/account")
     public String account(Model model) {
         model.addAttribute("account", requireAccount());
+        model.addAttribute("hasRecoveryCode", recoveryCodeService.hasCode(currentUser.requireId()));
         return "settings-account";
     }
 
@@ -198,6 +203,14 @@ public class SettingsController {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
         }
         return "redirect:/settings/api-tokens";
+    }
+
+    /** Creates the recovery code or replaces it; like a token, the plain code goes out once, in the flash. */
+    @PostMapping("/settings/account/recovery-code")
+    public String createRecoveryCode(RedirectAttributes redirectAttributes) {
+        redirectAttributes.addFlashAttribute("newRecoveryCode",
+                recoveryCodeService.createOrRotate(currentUser.requireId()));
+        return "redirect:/settings/account";
     }
 
     @PostMapping("/settings/api-tokens/{id}/revoke")

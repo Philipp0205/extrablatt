@@ -20,6 +20,24 @@
     <button class="btn" type="submit">Log out</button>
   </form>
 
+  <h2 class="space-top-lg">Recovery code</h2>
+  <div th:if="${newRecoveryCode}" class="flash">
+    <p>Your recovery code. Save it now: it will not be shown again.</p>
+    <code class="address-box" th:text="${newRecoveryCode}">ABCD-EFGH-JKLM</code>
+  </div>
+  <p class="meta" th:unless="${hasRecoveryCode}">
+    A recovery code is a backup way to prove the account is yours.
+    You do not have one yet.
+  </p>
+  <p class="meta" th:if="${hasRecoveryCode}">
+    A recovery code is set. Replacing it gives you a new one; the old code stops working.
+  </p>
+  <form th:action="@{/settings/account/recovery-code}" method="post">
+    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+    <button class="btn" type="submit" th:unless="${hasRecoveryCode}">Create recovery code</button>
+    <button class="btn" type="submit" th:if="${hasRecoveryCode}">Replace recovery code</button>
+  </form>
+
   <h2 class="space-top-lg">Delete account</h2>
   <p class="meta">This permanently removes your account, feeds, and articles.</p>
   <p class="meta" th:if="${billingEnabled}">

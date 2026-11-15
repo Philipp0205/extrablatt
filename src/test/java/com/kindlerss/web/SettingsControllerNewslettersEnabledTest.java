@@ -66,6 +66,9 @@ class SettingsControllerNewslettersEnabledTest {
     ApiTokenService apiTokenService;
 
     @MockitoBean
+    com.kindlerss.service.RecoveryCodeService recoveryCodeService;
+
+    @MockitoBean
     EntitlementService entitlementService;
 
     @MockitoBean
