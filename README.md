@@ -26,7 +26,8 @@ their own licenses. Start with [Local configuration](#local-configuration) or
 
 ## Features
 
-- Email + password accounts with e-mail verification and password reset
+- Accounts with e-mail verification, password sign-in with reset, and recovery
+  codes with a one-time e-mail sign-in link for a lost code
 - Per-user feeds and articles — every account has its own, isolated subscriptions
 - Add feeds by RSS/Atom URL or homepage (autodiscovery from `<link>` tags,
   feed-like links, and the site's conventional feed paths)
@@ -42,9 +43,13 @@ their own licenses. Start with [Local configuration](#local-configuration) or
   publisher answers
 - Article extraction (Readability4J) with sanitized HTML caching
 - A continuously scrolling, mobile-first article list that grows with **Load more
-  articles**, and marks articles read only when you open them or ask it to
+  articles**, and marks articles read only when you open them or ask it to. An
+  optional setting under Settings, Reading marks articles read as you scroll past
+  them (off by default, not used on e-ink)
 - Send-to-Kindle as EPUB 3 through one shared, provider-verified sender, with the
   article's own address printed under the title so the page can be found again
+- JSON API under `/api/v1` with personal API tokens (Settings → API tokens), see
+  [docs/api.md](docs/api.md)
 - Per-account limits and IP-based rate limiting on auth endpoints
 - Optional paid subscriptions: a week of the full plan at no charge, then a
   "Supporter" plan at €2.99/month billed yearly (€35.88 for 12 months) or €3.99/month, with a subscription menu, a
@@ -101,6 +106,12 @@ Kindle address under **Settings**.
   reveal which addresses are registered.
 - Sending to Kindle is unlocked once the e-mail is verified and a Kindle address is
   set in **Settings**.
+- **Settings → Account** creates or replaces a recovery code (format
+  `XXXX-XXXX-XXXX`). It is shown once, and only its SHA-256 hash is stored. On the
+  login page, **Sign in with a recovery code** takes the code alone, with no e-mail
+  typed.
+- **Lost your recovery code?** (`/recover/request`) e-mails a one-time sign-in link
+  that lives 20 minutes and works once. Only a hash of its token is stored.
 - Each account only ever sees and manages its own feeds and articles; access is
   checked on every request.
 - Per-account guardrails (`MAX_FEEDS_PER_USER`, `MAX_SENDS_PER_DAY`) and rate
