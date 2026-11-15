@@ -21,13 +21,31 @@ curl -H "Authorization: Bearer eb_..." https://your-extrablatt/api/v1/account
 ```
 
 Bodies are JSON (`Content-Type: application/json`). Tokens work only under `/api/v1/`;
-they do not sign you in to the website, and the API sets no cookies.
+they do not sign you in to the website, and token requests set no cookies.
+
+## Browser session
+
+The web client does not use a token. It calls the same `/api/v1/` endpoints from the
+page, without an `Authorization` header, and is authenticated by the normal
+signed-in session cookie. The API never starts a session; with no session the answer
+is `401`.
+
+Because the browser sends that cookie by itself, changing requests (`POST`, `PUT`,
+`DELETE`) must also prove they come from the page. Every API response sets an
+`XSRF-TOKEN` cookie that scripts can read; send its value back in an `X-XSRF-TOKEN`
+header. Without it, or with a different value, the answer is `403` and
+`{"error": "..."}`. Reads need no header.
+
+A request that has an `Authorization` header is always a token request: the session
+is ignored and no CSRF header is needed, even if a session cookie is sent along.
+Bearer tokens work exactly as described above.
 
 ## Endpoints
 
 | Method and path | What it does |
 |---|---|
-| `GET /api/v1/account` | Your e-mail, whether it is confirmed, your Kindle address, the "mark read on next page" preference and your plan limits. |
+| `GET /api/v1/account` | Your e-mail, whether it is confirmed, your Kindle address, the "mark read on next page" preference and your plan limits, including `onTrial` and `trialEndsOn` (for example "22 November 2026") while a trial runs. |
+| `PUT /api/v1/account/kindle-email` | Saves your Kindle address: `{"kindleEmail": "you@kindle.com"}`. A blank or missing value clears it. Returns `kindleEmail` and `kindleConfigured`. |
 | `GET /api/v1/categories` | The categories your feeds are in. |
 | `GET /api/v1/feeds` | Your feeds, with unread counts. |
 | `POST /api/v1/feeds` | Follow a site: `{"url": "https://example.com", "category": "Tech"}`. `category` is optional. Returns `201` and the feed. |
@@ -49,8 +67,8 @@ Every error is JSON: `{"error": "a sentence you can show"}`.
 | Status | Meaning |
 |---|---|
 | 400 | The request was not valid, or the site could not be followed or fetched. |
-| 401 | Token missing, wrong or revoked, or the account is switched off or not confirmed. |
-| 403 | Sending was refused (for example the daily send limit). |
+| 401 | Token missing, wrong or revoked, or the account is switched off or not confirmed. Without a token: no signed-in session. |
+| 403 | Sending was refused (for example the daily send limit), or a session request had no valid `X-XSRF-TOKEN`. |
 | 404 | No such feed or article for your account. Other people's items look the same. |
 | 409 | No Kindle address saved yet. The body also has `"setup": true`. |
 | 429 | Too many requests. |

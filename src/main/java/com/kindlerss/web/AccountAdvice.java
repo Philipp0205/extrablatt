@@ -74,7 +74,11 @@ public class AccountAdvice {
 
     @ModelAttribute("trialEndsOn")
     public String trialEndsOn() {
-        Entitlement entitlement = entitlement();
+        return formatTrialEnd(entitlement());
+    }
+
+    /** The day a live trial ends, as readers see it ("15 November 2026"); null without a trial. */
+    static String formatTrialEnd(Entitlement entitlement) {
         if (entitlement == null || entitlement.trialEndsAt() == null) {
             return null;
         }

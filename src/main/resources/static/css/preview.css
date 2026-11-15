@@ -1,0 +1,328 @@
+/*
+ * The preview app (/app). Extrablatt's palette laid over the app-kit tokens: the
+ * values come from css/app.css (:root and its dark block for wide screens, the
+ * Papier palette for phones, the one the phone theme-color metas use), mapped to
+ * the --ak-* names. Loaded after ak-tokens.css, so these win at equal specificity.
+ * The old UI's app.css is not loaded here.
+ */
+
+/* ---------- Palette ---------- */
+
+:root {
+  --ak-bg: #faf8f4;
+  --ak-text: #1b1a17;
+  --ak-muted: #69645b;
+  --ak-faint: #8a8579;
+  --ak-hairline: #e5e0d6;
+  --ak-surface: #ffffff;
+  --ak-surface-2: #f2efe8;
+  --ak-surface-3: #cfc8ba;
+  --ak-panel: #f2efe8;
+  --ak-danger: #a3261b;
+  --ak-badge: #a3261b;
+  --ak-scrim: rgba(27, 26, 23, 0.45);
+  --ak-tabbar: rgba(250, 248, 244, 0.94);
+  --ak-btn-fill: #1b1a17;
+  --ak-btn-ink: #faf8f4;
+  --ak-accent: #111111;
+  --ak-accent-2: #111111;
+  --ak-accent-strong: #000000;
+  --ak-accent-ink: #ffffff;
+  --ak-font-article: "Iowan Old Style", "Charter", "Source Serif Pro", Georgia, "Times New Roman", serif;
+  --pv-notice-bg: #ffffff;
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ak-bg: #141412;
+    --ak-text: #ece8df;
+    --ak-muted: #a39d91;
+    --ak-faint: #7d776c;
+    --ak-hairline: #302e29;
+    --ak-surface: #1c1b19;
+    --ak-surface-2: #24231f;
+    --ak-surface-3: #46433c;
+    --ak-panel: #24231f;
+    --ak-danger: #f09184;
+    --ak-badge: #a3261b;
+    --ak-scrim: rgba(0, 0, 0, 0.6);
+    --ak-tabbar: rgba(20, 20, 18, 0.94);
+    --ak-btn-fill: #ece8df;
+    --ak-btn-ink: #141412;
+    --ak-accent: #f2f2f2;
+    --ak-accent-2: #f2f2f2;
+    --ak-accent-strong: #ffffff;
+    --ak-accent-ink: #111111;
+    --pv-notice-bg: #1c1b19;
+  }
+}
+
+/* Phone: Papier. */
+@media (max-width: 719px) {
+  :root {
+    --ak-bg: #f4eee1;
+    --ak-text: #211d17;
+    --ak-muted: #7a7160;
+    --ak-faint: #8f8571;
+    --ak-hairline: #d9cfb9;
+    --ak-surface: #faf6ec;
+    --ak-surface-2: #ece4d3;
+    --ak-surface-3: #bdb097;
+    --ak-panel: #ece4d3;
+    --ak-scrim: rgba(33, 29, 23, 0.45);
+    --ak-tabbar: rgba(244, 238, 225, 0.94);
+    --ak-btn-fill: #211d17;
+    --ak-btn-ink: #f4eee1;
+    --ak-accent: #8f2a1c;
+    --ak-accent-2: #8f2a1c;
+    --ak-accent-strong: #741f13;
+    --ak-accent-ink: #fbf6ea;
+    --pv-notice-bg: #faf6ec;
+  }
+}
+
+@media (max-width: 719px) and (prefers-color-scheme: dark) {
+  :root {
+    --ak-bg: #17140f;
+    --ak-text: #ece4d2;
+    --ak-muted: #a1977f;
+    --ak-faint: #867c66;
+    --ak-hairline: #35302a;
+    --ak-surface: #1f1b15;
+    --ak-surface-2: #2a251c;
+    --ak-surface-3: #4d463a;
+    --ak-panel: #2a251c;
+    --ak-scrim: rgba(0, 0, 0, 0.6);
+    --ak-tabbar: rgba(23, 20, 15, 0.94);
+    --ak-btn-fill: #ece4d2;
+    --ak-btn-ink: #17140f;
+    --ak-accent: #d9806c;
+    --ak-accent-2: #d9806c;
+    --ak-accent-strong: #c96a55;
+    --ak-accent-ink: #17140f;
+    --pv-notice-bg: #1f1b15;
+  }
+}
+
+/* ---------- Page ---------- */
+
+html { background: var(--ak-bg); }
+
+body {
+  margin: 0;
+  background: var(--ak-bg);
+  color: var(--ak-text);
+  font-family: var(--ak-font);
+  line-height: var(--ak-lh);
+  -webkit-text-size-adjust: 100%;
+}
+
+a { color: inherit; }
+a:focus-visible,
+button:focus-visible {
+  outline: 2px solid var(--ak-accent-2);
+  outline-offset: 2px;
+}
+
+.pv-shell { min-height: 100vh; min-height: 100dvh; }
+
+.pv-main {
+  box-sizing: border-box;
+  padding: var(--ak-safe-top) max(var(--ak-s4), var(--ak-safe-right))
+    calc(var(--ak-tab) + var(--ak-s5)) max(var(--ak-s4), var(--ak-safe-left));
+}
+
+.pv-screens { margin: 0 auto; max-width: 600px; }
+.pv-screen[hidden] { display: none; }
+
+.pv-note { padding: var(--ak-s4) 0; }
+
+/* ---------- Side nav (wide screens) ---------- */
+
+.pv-side { display: none; }
+
+@media (min-width: 720px) {
+  .ak-tabbar { display: none; }
+
+  .pv-shell {
+    display: grid;
+    grid-template-columns: 220px minmax(0, 1fr);
+  }
+
+  .pv-side {
+    display: block;
+    box-sizing: border-box;
+    position: sticky;
+    top: 0;
+    align-self: start;
+    height: 100vh;
+    height: 100dvh;
+    padding: var(--ak-s5) var(--ak-s4) var(--ak-s5) max(var(--ak-s4), var(--ak-safe-left));
+    border-right: 1px solid var(--ak-hairline);
+  }
+
+  .pv-main { padding-top: var(--ak-s5); padding-bottom: var(--ak-s5); }
+}
+
+.pv-brand {
+  display: block;
+  margin: 0 0 var(--ak-s5) var(--ak-s3);
+  font-family: var(--ak-font-article);
+  font-size: 22px;
+  font-weight: var(--ak-fw-bold);
+  letter-spacing: -0.02em;
+  text-decoration: none;
+}
+
+.pv-sidenav { margin: 0; padding: 0; list-style: none; }
+.pv-sidenav a {
+  display: flex;
+  align-items: center;
+  min-height: var(--ak-tap);
+  padding: 0 var(--ak-s3);
+  border-left: 3px solid transparent;
+  color: var(--ak-muted);
+  font-size: var(--ak-fs-lg);
+  font-weight: var(--ak-fw);
+  text-decoration: none;
+}
+.pv-sidenav a:hover { color: var(--ak-text); }
+.pv-sidenav a[aria-current="page"] {
+  border-left-color: var(--ak-accent);
+  color: var(--ak-text);
+}
+
+.pv-icon {
+  width: 24px;
+  height: 24px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* ---------- Articles ---------- */
+
+.pv-flash {
+  margin: var(--ak-s4) 0 0;
+  padding: var(--ak-s3) var(--ak-s4);
+  border: 1px solid var(--ak-hairline);
+  border-left: 3px solid var(--ak-accent);
+  border-radius: var(--ak-radius-sm);
+  background: var(--pv-notice-bg);
+}
+.pv-flash a { text-decoration: underline; }
+
+.pv-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--ak-s3);
+  padding: var(--ak-s4) 0 var(--ak-s2);
+}
+.pv-screen .ak-screen-title { font-size: 32px; }
+.pv-count { margin: 0; color: var(--ak-muted); font-size: var(--ak-fs-md); }
+
+.pv-controls { display: flex; flex-direction: column; gap: var(--ak-s3); padding-bottom: var(--ak-s3); }
+/* Content width, left-aligned: the two labels do not need the whole row. */
+.pv-segment { display: inline-grid; align-self: flex-start; }
+.pv-segment .ak-segment-btn { padding: 0 var(--ak-s5); }
+.pv-chips {
+  display: flex;
+  gap: var(--ak-s2);
+  overflow-x: auto;
+  padding-bottom: 2px;
+  scrollbar-width: none;
+}
+.pv-chips::-webkit-scrollbar { display: none; }
+.pv-chips .ak-chip { flex: none; }
+@media (min-width: 720px) {
+  .pv-chips { flex-wrap: wrap; overflow-x: visible; }
+}
+
+.pv-rows { margin: 0; padding: 0; list-style: none; }
+.pv-row {
+  display: flex;
+  align-items: center;
+  gap: var(--ak-s3);
+  padding: var(--ak-s3) 0;
+  border-bottom: 1px solid var(--ak-hairline);
+}
+.pv-row-text { flex: 1; min-width: 0; }
+.pv-send {
+  flex: none;
+  width: auto;
+  min-height: var(--ak-tap);
+  padding: 0 var(--ak-s4);
+  font-size: var(--ak-fs-md);
+}
+.pv-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--ak-s2);
+  min-width: 0;
+  color: var(--ak-muted);
+  font-size: var(--ak-fs-sm);
+}
+.pv-meta-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pv-tag {
+  flex: none;
+  padding: 1px 8px;
+  border: 1px solid var(--ak-hairline);
+  border-radius: var(--ak-radius-pill);
+  font-size: var(--ak-fs-xs);
+  font-weight: var(--ak-fw);
+}
+
+.pv-title-line { display: flex; align-items: center; gap: var(--ak-s2); min-width: 0; }
+.pv-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--ak-accent);
+}
+.pv-title {
+  display: block;
+  flex: 1;
+  min-width: 0;
+  padding: var(--ak-s1) 0;
+  overflow: hidden;
+  font-family: var(--ak-font-article);
+  font-size: var(--ak-fs-xl);
+  text-decoration: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pv-title-unread { font-weight: var(--ak-fw-bold); }
+.pv-title:hover { text-decoration: underline; }
+.pv-title:not(.pv-title-unread) { color: var(--ak-muted); }
+
+.pv-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.pv-more { margin-top: var(--ak-s4); }
+.pv-status { margin: var(--ak-s4) 0; color: var(--ak-muted); }
+.pv-empty-text { margin: 0 0 var(--ak-s3); }
+.pv-empty-text:last-child { margin-bottom: 0; }
+.pv-link { text-decoration: underline; }
+
+.pv-placeholder { padding: var(--ak-s4) 0; }
+.pv-placeholder p { color: var(--ak-muted); font-size: var(--ak-fs-lg); }
+
+/* ---------- Kindle address sheet ---------- */
+
+.pv-sheet-title { margin: 0 0 var(--ak-s2); font-size: var(--ak-fs-display); font-weight: var(--ak-fw-bold); line-height: 1.1; }
+.pv-sheet-help { margin: 0 0 var(--ak-s4); color: var(--ak-muted); font-size: var(--ak-fs-md); }
+.pv-sheet-error { margin: 0; color: var(--ak-danger); font-size: var(--ak-fs-md); }
+/* The alert element stays rendered so screen readers announce the text when it appears. */
+.pv-sheet-error:not(:empty) { margin-top: var(--ak-s2); }
+.pv-sheet-actions { display: flex; flex-direction: column; gap: var(--ak-s2); margin-top: var(--ak-s4); }

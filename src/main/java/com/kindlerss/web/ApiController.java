@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -28,7 +29,8 @@ import java.util.Map;
 
 /**
  * JSON API for scripts and agents, authenticated by a personal API token (see
- * {@code SecurityConfig.apiFilterChain}). A thin layer over the same services the
+ * {@code SecurityConfig.apiFilterChain}) or, for the browser client, by the signed-in
+ * session ({@code SecurityConfig.apiSessionFilterChain}). A thin layer over the same services the
  * website uses, always for the token's own account, so the limits, the address
  * checks on followed sites and the Kindle rules are the website's.
  */
@@ -186,6 +188,8 @@ public class ApiController {
         plan.put("maxSendsPerMonth", entitlement.maxSendsPerMonth());
         plan.put("newsletters", entitlement.newsletters());
         plan.put("trialEndsAt", entitlement.trialEndsAt());
+        plan.put("onTrial", entitlement.onTrial());
+        plan.put("trialEndsOn", AccountAdvice.formatTrialEnd(entitlement));
         Map<String, Object> account = new java.util.LinkedHashMap<>();
         account.put("email", user.email());
         account.put("emailVerified", user.emailVerified());
@@ -194,6 +198,20 @@ public class ApiController {
         account.put("markReadOnNextPage", user.markReadOnNextPage());
         account.put("entitlement", plan);
         return account;
+    }
+
+    /** Same validation as the settings form; a blank or missing address clears it. */
+    @PutMapping("/account/kindle-email")
+    public Map<String, Object> updateKindleEmail(@RequestBody(required = false) KindleEmailRequest request) {
+        long userId = currentUser.requireId();
+        userService.updateKindleEmail(userId, request == null ? null : request.kindleEmail());
+        String saved = userService.findById(userId)
+                .orElseThrow(() -> new ArticleService.NotFoundException("Account not found"))
+                .kindleEmail();
+        Map<String, Object> result = new java.util.LinkedHashMap<>();
+        result.put("kindleEmail", saved);
+        result.put("kindleConfigured", saved != null && !saved.isBlank());
+        return result;
     }
 
     private void requireFeed(long userId, Long feedId) {
@@ -215,6 +233,9 @@ public class ApiController {
     }
 
     public record FromUrlRequest(String url, boolean images) {
+    }
+
+    public record KindleEmailRequest(String kindleEmail) {
     }
 
     public record FeedView(Long id, String title, String url, String siteUrl, String category,
