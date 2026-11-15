@@ -1,0 +1,29 @@
+-- Index for the article list (ArticleRepository.findPage / count):
+--
+--   FROM articles a JOIN feeds f ON f.id = a.feed_id
+--   WHERE f.user_id = ? [AND a.feed_id = ?] [AND category] [AND (a.read = FALSE OR a.read_at >= ?)]
+--   ORDER BY a.published_at DESC NULLS LAST, a.id DESC
+--   LIMIT ? OFFSET ?
+--
+-- The ownership filter is on feeds (idx_feeds_user), so the planner can walk
+-- from the reader's feeds into their articles through feed_id. The only
+-- index covering the ORDER BY so far, idx_articles_published_at, is global:
+-- using it means reading every user's articles newest first and discarding
+-- the ones that belong to someone else, which is cheap with one user and
+-- grows with the whole table in production.
+--
+-- Column order:
+--   feed_id        equality from the join (and from the optional single-feed
+--                  filter), so lookups per feed are index range scans;
+--   read           equality for the unread filter (read = FALSE); the
+--                  "OR read_at >= ?" branch is filtered from the heap;
+--   published_at DESC NULLS LAST, id DESC
+--                  exactly the sort of the query, so within one feed the rows
+--                  come out already ordered and LIMIT can stop early.
+--
+-- user_id is deliberately not copied onto articles; the join to feeds stays
+-- the single source of truth for ownership. Existing indexes are untouched.
+-- Plain CREATE INDEX (no CONCURRENTLY) so Flyway can run it in its usual
+-- transaction; it briefly blocks writes to articles while it builds.
+CREATE INDEX IF NOT EXISTS idx_articles_list
+    ON articles (feed_id, read, published_at DESC NULLS LAST, id DESC);

@@ -159,8 +159,8 @@ class AppControllerSecurityTest {
     }
 
     @Test
-    void aFailedVerificationEmailReportsThatNoAccountWasCreated() throws Exception {
-        org.mockito.Mockito.doThrow(new IllegalStateException("Could not send e-mail"))
+    void aFailedRegistrationReportsThatNoAccountWasCreated() throws Exception {
+        org.mockito.Mockito.doThrow(new IllegalStateException("database unavailable"))
                 .when(userService).register(anyString(), anyString());
 
         mockMvc.perform(post("/register").with(csrf())
@@ -169,7 +169,7 @@ class AppControllerSecurityTest {
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/register"))
                 .andExpect(flash().attribute("error",
-                        containsString("account was not created")));
+                        containsString("could not create the account")));
     }
 
     @Test
