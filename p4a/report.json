@@ -1,0 +1,162 @@
+[
+  {
+    "n": "signed-out /app redirects to sign-in",
+    "pass": true,
+    "x": "http://127.0.0.1:8294/login"
+  },
+  {
+    "n": "phone: list renders rows",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "phone: every row has a Send button",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "phone: XSRF-TOKEN cookie is readable by script",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "phone: success toast",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "phone: row shows Sent",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "phone: one mail reached the local sink",
+    "pass": true,
+    "x": "sink count 4 -> 5"
+  },
+  {
+    "n": "phone: server recorded sent_at",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "phone: POST without the CSRF header is 403",
+    "pass": true,
+    "x": "403"
+  },
+  {
+    "n": "phone: setup sheet opens when there is no address",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "phone: nothing sent before an address exists",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "phone: bad address shows the API error inline",
+    "pass": true,
+    "x": "Enter a valid Kindle e-mail address"
+  },
+  {
+    "n": "phone: address saved",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "phone: article sent after saving",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "phone: no page or console errors (the deliberate 403 and 400 probes excluded)",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "signed-out /app redirects to sign-in",
+    "pass": true,
+    "x": "http://127.0.0.1:8294/login"
+  },
+  {
+    "n": "desktop: list renders rows",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "desktop: every row has a Send button",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "desktop: XSRF-TOKEN cookie is readable by script",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "desktop: success toast",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "desktop: row shows Sent",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "desktop: one mail reached the local sink",
+    "pass": true,
+    "x": "sink count 6 -> 7"
+  },
+  {
+    "n": "desktop: server recorded sent_at",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "desktop: POST without the CSRF header is 403",
+    "pass": true,
+    "x": "403"
+  },
+  {
+    "n": "desktop: setup sheet opens when there is no address",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "desktop: nothing sent before an address exists",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "desktop: bad address shows the API error inline",
+    "pass": true,
+    "x": "Enter a valid Kindle e-mail address"
+  },
+  {
+    "n": "desktop: address saved",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "desktop: article sent after saving",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "desktop: no page or console errors (the deliberate 403 and 400 probes excluded)",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "signed-out /app redirects to sign-in",
+    "pass": true,
+    "x": "http://127.0.0.1:8294/login"
+  },
+  {
+    "n": "trial banner wording",
+    "pass": true,
+    "x": "You have a free week of the full plan, until 20 November 2026. Subscribe so Send-to-Kindle keeps working after that."
+  }
+]
