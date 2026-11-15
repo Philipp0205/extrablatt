@@ -70,6 +70,9 @@ public class SecurityConfig {
     private static final String[] PUBLIC_PATHS = {
             "/login", "/login/recovery", "/register", "/verify", "/forgot-password", "/reset-password",
             "/check-email", "/privacy", "/terms", "/imprint", "/withdrawal",
+            // "Lost your recovery code?": ask for a sign-in link, and the page the link opens.
+            // The token is in the URL fragment and is only read by the POST.
+            "/recover", "/recover/request",
             // § 312k BGB requires the cancellation path to be permanently available
             // and not to sit behind account credentials, so it is public on purpose.
             // CSRF still applies; the form carries a token like every other.

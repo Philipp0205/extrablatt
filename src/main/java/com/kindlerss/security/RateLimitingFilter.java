@@ -29,7 +29,7 @@ public class RateLimitingFilter extends OncePerRequestFilter {
 
     private static final Set<String> LIMITED_PATHS = Set.of(
             "/login", "/login/recovery", "/register", "/forgot-password", "/reset-password",
-            "/cancel", "/cancel/confirm");
+            "/cancel", "/cancel/confirm", "/recover/request", "/recover");
     private static final String TOO_MANY_ATTEMPTS =
             "Too many attempts. Please wait a few minutes and try again.";
     private static final int MAX_HITS = 10;

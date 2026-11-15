@@ -59,7 +59,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * what keeps them within a {@code style-src 'self'} policy. These tests hold both in
  * place, along with the frame every page shares.
  */
-@WebMvcTest(controllers = {AppController.class, AuthController.class, SettingsController.class})
+@WebMvcTest(controllers = {AppController.class, AuthController.class, SettingsController.class,
+        RecoverController.class})
 @Import({com.kindlerss.config.SecurityConfig.class, GlobalExceptionHandler.class,
         RateLimiter.class, RateLimitingFilter.class})
 @TestPropertySource(properties = {
@@ -104,6 +105,12 @@ class PageStylingTest {
     com.kindlerss.service.RecoveryCodeService recoveryCodeService;
 
     @MockitoBean
+    com.kindlerss.service.RecoverySignInService recoverySignInService;
+
+    @MockitoBean
+    com.kindlerss.security.LinkSignIn linkSignIn;
+
+    @MockitoBean
     CurrentUser currentUser;
 
     @MockitoBean
@@ -133,7 +140,7 @@ class PageStylingTest {
     @ParameterizedTest
     @ValueSource(strings = {"/", "/items?unread=false", "/settings", "/settings/kindle",
             "/settings/reading", "/settings/account", "/settings/api-tokens", "/settings/data", "/login", "/register",
-            "/forgot-password", "/privacy", "/terms", "/imprint", "/withdrawal"})
+            "/forgot-password", "/recover", "/recover/request", "/privacy", "/terms", "/imprint", "/withdrawal"})
     @WithMockUser
     void everyPageLinksTheHashedStylesheetAndCarriesNoInlineStyling(String path) throws Exception {
         String page = mockMvc.perform(get(path))

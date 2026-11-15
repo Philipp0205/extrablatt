@@ -18,6 +18,7 @@ import java.util.concurrent.Executor;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
@@ -85,6 +86,51 @@ class AccountMailServiceTest {
         executor.runAll();
 
         verify(mailSender, org.mockito.Mockito.times(4)).send(any(MimeMessage.class));
+    }
+
+    @Test
+    void theSignInLinkIsMultipartWithTheFragmentLinkAndNoImages() throws Exception {
+        service.sendSignInLink("a@example.com", "tok_123-abc");
+        executor.runAll();
+
+        org.mockito.ArgumentCaptor<MimeMessage> sent = org.mockito.ArgumentCaptor.forClass(MimeMessage.class);
+        verify(mailSender).send(sent.capture());
+        sent.getValue().saveChanges();
+        assertEquals("Your Extrablatt sign-in link", sent.getValue().getSubject());
+        assertEquals("a@example.com", sent.getValue().getAllRecipients()[0].toString());
+        assertTrue(sent.getValue().isMimeType("multipart/*"));
+
+        String all = allText(sent.getValue());
+        String link = "http://localhost:8080/recover#t=tok_123-abc";
+        assertTrue(all.contains(link), all);
+        assertTrue(all.contains("<a href=\"" + link + "\">" + link + "</a>"), all);
+        assertTrue(all.contains("Sign-in code (only if the link does not work)"), all);
+        assertTrue(all.contains("valid for 20 minutes"), all);
+        assertTrue(all.contains("old recovery code"), all);
+        assertTrue(all.contains("If you did not ask for this, ignore this email."), all);
+        assertFalse(all.toLowerCase().contains("<img"), all);
+        assertFalse(all.contains("style="), all);
+    }
+
+    @Test
+    void theSignInLinkIsQueuedInTheBackgroundAndAFailureIsNotThrown() {
+        doThrow(new MailSendException("smtp down")).when(mailSender).send(any(MimeMessage.class));
+
+        assertDoesNotThrow(() -> service.sendSignInLink("a@example.com", "secret-token"));
+        verify(mailSender, never()).send(any(MimeMessage.class));
+        assertDoesNotThrow(executor::runAll);
+    }
+
+    private static String allText(jakarta.mail.Part part) throws Exception {
+        if (part.isMimeType("multipart/*")) {
+            jakarta.mail.Multipart multipart = (jakarta.mail.Multipart) part.getContent();
+            StringBuilder text = new StringBuilder();
+            for (int i = 0; i < multipart.getCount(); i++) {
+                text.append(allText(multipart.getBodyPart(i))).append('\n');
+            }
+            return text.toString();
+        }
+        return part.getContent().toString();
     }
 
     @Test

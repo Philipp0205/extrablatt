@@ -16,7 +16,6 @@
     <p th:if="${sentTo != null}">
       We sent an e-mail to <strong th:text="${sentTo}">you@example.com</strong>.
     </p>
-    <p th:if="${sentTo == null}">We sent you an e-mail.</p>
     <p class="meta" th:text="${instruction}">Open the link in that message to continue.</p>
   </div>
 

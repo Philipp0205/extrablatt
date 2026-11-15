@@ -101,30 +101,34 @@ public class AccountMailService {
      * queued only once it has committed; if it rolls back, nothing is sent.
      */
     private void sendInBackground(String toEmail, String subject, String body) {
+        sendInBackground(toEmail, subject, body, null);
+    }
+
+    private void sendInBackground(String toEmail, String subject, String body, String html) {
         if (TransactionSynchronizationManager.isSynchronizationActive()) {
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                 @Override
                 public void afterCommit() {
-                    submit(toEmail, subject, body);
+                    submit(toEmail, subject, body, html);
                 }
             });
         } else {
-            submit(toEmail, subject, body);
+            submit(toEmail, subject, body, html);
         }
     }
 
-    private void submit(String toEmail, String subject, String body) {
+    private void submit(String toEmail, String subject, String body, String html) {
         try {
-            mailExecutor.execute(() -> deliverQuietly(toEmail, subject, body));
+            mailExecutor.execute(() -> deliverQuietly(toEmail, subject, body, html));
         } catch (RuntimeException e) {
             // Rejected (queue full or shutting down), or a synchronous executor failed.
             log.warn("Account e-mail ({}) was not sent: {}", subject, e.getMessage());
         }
     }
 
-    private void deliverQuietly(String toEmail, String subject, String body) {
+    private void deliverQuietly(String toEmail, String subject, String body, String html) {
         try {
-            send(toEmail, subject, body);
+            send(toEmail, subject, body, html);
         } catch (RuntimeException e) {
             // send() has already logged an SMTP failure; only a configuration
             // problem arrives here unlogged.
@@ -235,6 +239,47 @@ public class AccountMailService {
         send(toEmail, "Reset your Extrablatt password", body);
     }
 
+    /**
+     * The one-time sign-in link, queued in the background like the verification
+     * mail. The token sits in the URL fragment, so it never reaches a server log or a
+     * Referer header; it is repeated on its own line for the case where the link does
+     * not work. Plain text plus a minimal HTML part: no images, no styling. The token
+     * is never logged.
+     */
+    public void sendSignInLink(String toEmail, String token) {
+        String link = appUrl() + "/recover#t=" + token;
+        String body = """
+                You asked for a link to sign in to Extrablatt.
+
+                Open this one-time link to sign in (valid for 20 minutes):
+
+                %s
+
+                Signing in with it shows you a new recovery code. Your old recovery code
+                stops working as soon as you use the link.
+
+                Sign-in code (only if the link does not work):
+                %s
+
+                If you did not ask for this, ignore this email.
+                """.formatted(link, token);
+        String html = """
+                <p>You asked for a link to sign in to Extrablatt.</p>
+                <p>Open this one-time link to sign in (valid for 20 minutes):</p>
+                <p><a href="%1$s">%1$s</a></p>
+                <p>Signing in with it shows you a new recovery code. Your old recovery code
+                stops working as soon as you use the link.</p>
+                <p>Sign-in code (only if the link does not work):<br>
+                %2$s</p>
+                <p>If you did not ask for this, ignore this email.</p>
+                """.formatted(escapeHtml(link), escapeHtml(token));
+        sendInBackground(toEmail, "Your Extrablatt sign-in link", body, html);
+    }
+
+    private static String escapeHtml(String text) {
+        return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;");
+    }
+
     private String accountLink(String path, String token) {
         return appUrl() + path + "?token=" + token;
     }
@@ -245,16 +290,25 @@ public class AccountMailService {
 
     /** Package-private so billing e-mail reuses the one sender and its error handling. */
     void send(String toEmail, String subject, String body) {
+        send(toEmail, subject, body, null);
+    }
+
+    /** As above; with an {@code html} part the message is multipart (plain text and HTML). */
+    void send(String toEmail, String subject, String body, String html) {
         if (!StringUtils.hasText(properties.mailFrom())) {
             throw new IllegalStateException("MAIL_FROM must be configured to send account e-mail");
         }
         try {
             MimeMessage message = mailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(message, false, "UTF-8");
+            MimeMessageHelper helper = new MimeMessageHelper(message, html != null, "UTF-8");
             helper.setFrom(properties.mailFrom(), "Extrablatt");
             helper.setTo(toEmail);
             helper.setSubject(subject);
-            helper.setText(body, false);
+            if (html != null) {
+                helper.setText(body, html);
+            } else {
+                helper.setText(body, false);
+            }
             mailSender.send(message);
         } catch (Exception e) {
             // Surface the failure so registration/reset can report it, but keep the
