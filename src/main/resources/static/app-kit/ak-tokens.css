@@ -1,0 +1,269 @@
+/*
+ * app-kit design tokens (the Hangry look, shared by all apps).
+ *
+ * Dark is the default. A light phone gets the light colours through
+ * prefers-color-scheme. A page can force a scheme with
+ * <html data-ak-scheme="dark"> or <html data-ak-scheme="light">, and that
+ * wins over the phone setting. Only colours change between schemes. Space,
+ * type and radii are the same in both.
+ *
+ * ---------------------------------------------------------------------------
+ * OVERRIDE POINT: ACCENT. Each app keeps its own accent colour.
+ * ---------------------------------------------------------------------------
+ * The defaults below are Hangry pink. An app sets its own accent by
+ * reassigning these four variables in a style block AFTER this file:
+ *
+ *   --ak-accent          the main accent (links, accent buttons, active marks)
+ *   --ak-accent-2        the focus ring and the focused input outline
+ *   --ak-accent-strong   a deeper accent for pressed or filled states
+ *   --ak-accent-ink      text on top of an accent fill
+ *
+ * Example (Loan some, teal):
+ *
+ *   :root {
+ *     --ak-accent: #2bb3a3; --ak-accent-2: #2bb3a3; --ak-accent-strong: #2bb3a3;
+ *   }
+ *   @media (prefers-color-scheme: light) {
+ *     :root { --ak-accent: #00857a; --ak-accent-2: #00857a; --ak-accent-strong: #00857a; }
+ *   }
+ *   // Only if the page forces a scheme with data-ak-scheme:
+ *   html[data-ak-scheme="dark"]  { --ak-accent: #2bb3a3; --ak-accent-2: #2bb3a3; --ak-accent-strong: #2bb3a3; }
+ *   html[data-ak-scheme="light"] { --ak-accent: #00857a; --ak-accent-2: #00857a; --ak-accent-strong: #00857a; }
+ *
+ * ---------------------------------------------------------------------------
+ * OVERRIDE POINT: FONT. Each app may set its own font.
+ * ---------------------------------------------------------------------------
+ *   --ak-font           the UI font
+ *   --ak-font-article   long text (Extrablatt may put a serif here)
+ *
+ *   :root { --ak-font: Inter, system-ui, sans-serif; }
+ */
+
+:root {
+  /* Safe area. Same values as app-kit.css, so either file works alone. */
+  --ak-safe-top: env(safe-area-inset-top, 0px);
+  --ak-safe-right: env(safe-area-inset-right, 0px);
+  --ak-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --ak-safe-left: env(safe-area-inset-left, 0px);
+
+  /* Colour, dark (the default). */
+  --ak-bg: #000000;
+  --ak-text: #ffffff;
+  --ak-muted: #8e8e93;
+  --ak-faint: #636366;
+  --ak-hairline: rgba(255, 255, 255, 0.12);
+  --ak-surface: #1c1c1e;
+  --ak-surface-2: #2c2c2e;
+  --ak-surface-3: #3a3a3c;
+  --ak-panel: #141416;
+  --ak-danger: #ff453a;
+  --ak-warning: #ffd60a;
+  --ak-success: #30d158;
+  --ak-badge: #9f1239;
+  --ak-scrim: rgba(0, 0, 0, 0.72);
+  --ak-tabbar: rgba(0, 0, 0, 0.92);
+  --ak-overlay: rgba(28, 28, 30, 0.72);
+  --ak-btn-fill: #ffffff;
+  --ak-btn-ink: #000000;
+  --ak-accent: #ff2d78;
+  --ak-accent-2: #ff4d8d;
+  --ak-accent-strong: #e0115f;
+  --ak-accent-ink: #ffffff;
+  color-scheme: dark;
+
+  /* Plan gradients, dark. Dark enough that white type stays readable. */
+  --ak-grad-0-1: #5e2b2c; --ak-grad-0-2: #3d1c08;
+  --ak-grad-1-1: #5d2f18; --ak-grad-1-2: #372100;
+  --ak-grad-2-1: #553503; --ak-grad-2-2: #2d2700;
+  --ak-grad-3-1: #483d00; --ak-grad-3-2: #1e2c07;
+  --ak-grad-4-1: #364310; --ak-grad-4-2: #092f18;
+  --ak-grad-5-1: #1d4826; --ak-grad-5-2: #003027;
+  --ak-grad-6-1: #00493a; --ak-grad-6-2: #002e34;
+  --ak-grad-7-1: #00484d; --ak-grad-7-2: #002b3e;
+  --ak-grad-8-1: #00445b; --ak-grad-8-2: #112743;
+  --ak-grad-9-1: #1c3f63; --ak-grad-9-2: #222243;
+  --ak-grad-10-1: #343864; --ak-grad-10-2: #2e1e3d;
+  --ak-grad-11-1: #45325d; --ak-grad-11-2: #371a33;
+  --ak-grad-12-1: #522e51; --ak-grad-12-2: #3d1826;
+  --ak-grad-13-1: #5b2b40; --ak-grad-13-2: #3f1917;
+
+  /* Names the v0.1.0 install prompt reads. */
+  --ak-ink: var(--ak-text);
+  --ak-line: var(--ak-hairline);
+
+  /* Font. Override per app. */
+  --ak-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --ak-font-article: var(--ak-font);
+
+  /* Type */
+  --ak-fs-xs: 11px;
+  --ak-fs-sm: 13px;
+  --ak-fs-md: 14px;
+  --ak-fs-lg: 16px;
+  --ak-fs-xl: 17px;
+  --ak-fs-display: clamp(32px, 9vw, 40px);
+  --ak-fw: 650;
+  --ak-fw-bold: 700;
+  --ak-lh: 1.35;
+
+  /* Space */
+  --ak-s1: 4px;
+  --ak-s2: 8px;
+  --ak-s3: 12px;
+  --ak-s4: 16px;
+  --ak-s5: 24px;
+  --ak-s15: 15px;
+  --ak-s25: 25px;
+  --ak-s35: 35px;
+  --ak-gutter: 16px;
+
+  /* Radii */
+  --ak-radius-sm: 10px;
+  --ak-radius-md: 14px;
+  --ak-radius-lg: 16px;
+  --ak-radius-xl: 22px;
+  --ak-radius-hero: 28px;
+  --ak-radius-pill: 999px;
+
+  /* Chrome */
+  --ak-phone: 480px;
+  --ak-tab: calc(64px + env(safe-area-inset-bottom, 0px));
+  --ak-tap: 44px;
+  --ak-sheet-margin: 12px;
+
+  /* Motion */
+  --ak-ease-spring: cubic-bezier(0.3, 1.45, 0.6, 1);
+  --ak-duration: 120ms;
+  --ak-duration-press: 80ms;
+  --ak-duration-sheet: 220ms;
+}
+
+/* Light phone. Colours only. */
+@media (prefers-color-scheme: light) {
+  :root {
+    --ak-bg: #ffffff;
+    --ak-text: #000000;
+    --ak-muted: #8e8e93;
+    --ak-faint: #aeaeb2;
+    --ak-hairline: rgba(0, 0, 0, 0.12);
+    --ak-surface: #ffffff;
+    --ak-surface-2: #f2f2f7;
+    --ak-surface-3: #e5e5ea;
+    --ak-panel: #f2f2f7;
+    --ak-danger: #ff3b30;
+    --ak-warning: #ff9f0a;
+    --ak-success: #34c759;
+    --ak-badge: #9f1239;
+    --ak-scrim: rgba(0, 0, 0, 0.45);
+    --ak-tabbar: rgba(255, 255, 255, 0.92);
+    --ak-overlay: rgba(255, 255, 255, 0.78);
+    --ak-btn-fill: #000000;
+    --ak-btn-ink: #ffffff;
+    --ak-accent: #c2185b;
+    --ak-accent-2: #c2185b;
+    --ak-accent-strong: #c2185b;
+    --ak-accent-ink: #ffffff;
+    color-scheme: light;
+
+    --ak-grad-0-1: #763638; --ak-grad-0-2: #53280c;
+    --ak-grad-1-1: #743b1f; --ak-grad-1-2: #4b2f00;
+    --ak-grad-2-1: #6b4300; --ak-grad-2-2: #3e3600;
+    --ak-grad-3-1: #5b4c00; --ak-grad-3-2: #2b3c0b;
+    --ak-grad-4-1: #445514; --ak-grad-4-2: #0d4022;
+    --ak-grad-5-1: #245a30; --ak-grad-5-2: #004136;
+    --ak-grad-6-1: #005c4a; --ak-grad-6-2: #004047;
+    --ak-grad-7-1: #005b60; --ak-grad-7-2: #003b54;
+    --ak-grad-8-1: #005672; --ak-grad-8-2: #19365b;
+    --ak-grad-9-1: #234f7c; --ak-grad-9-2: #2f2f5b;
+    --ak-grad-10-1: #41477d; --ak-grad-10-2: #402a53;
+    --ak-grad-11-1: #574075; --ak-grad-11-2: #4b2546;
+    --ak-grad-12-1: #673a65; --ak-grad-12-2: #532335;
+    --ak-grad-13-1: #723650; --ak-grad-13-2: #562422;
+  }
+}
+
+/*
+ * Forced schemes. They come after the media block and are more specific
+ * (html + attribute), so they win over the phone setting.
+ */
+html[data-ak-scheme="dark"] {
+  --ak-bg: #000000;
+  --ak-text: #ffffff;
+  --ak-muted: #8e8e93;
+  --ak-faint: #636366;
+  --ak-hairline: rgba(255, 255, 255, 0.12);
+  --ak-surface: #1c1c1e;
+  --ak-surface-2: #2c2c2e;
+  --ak-surface-3: #3a3a3c;
+  --ak-panel: #141416;
+  --ak-danger: #ff453a;
+  --ak-warning: #ffd60a;
+  --ak-success: #30d158;
+  --ak-badge: #9f1239;
+  --ak-scrim: rgba(0, 0, 0, 0.72);
+  --ak-tabbar: rgba(0, 0, 0, 0.92);
+  --ak-overlay: rgba(28, 28, 30, 0.72);
+  --ak-btn-fill: #ffffff;
+  --ak-btn-ink: #000000;
+  --ak-accent: #ff2d78;
+  --ak-accent-2: #ff4d8d;
+  --ak-accent-strong: #e0115f;
+  --ak-accent-ink: #ffffff;
+  color-scheme: dark;
+
+  --ak-grad-0-1: #5e2b2c; --ak-grad-0-2: #3d1c08;
+  --ak-grad-1-1: #5d2f18; --ak-grad-1-2: #372100;
+  --ak-grad-2-1: #553503; --ak-grad-2-2: #2d2700;
+  --ak-grad-3-1: #483d00; --ak-grad-3-2: #1e2c07;
+  --ak-grad-4-1: #364310; --ak-grad-4-2: #092f18;
+  --ak-grad-5-1: #1d4826; --ak-grad-5-2: #003027;
+  --ak-grad-6-1: #00493a; --ak-grad-6-2: #002e34;
+  --ak-grad-7-1: #00484d; --ak-grad-7-2: #002b3e;
+  --ak-grad-8-1: #00445b; --ak-grad-8-2: #112743;
+  --ak-grad-9-1: #1c3f63; --ak-grad-9-2: #222243;
+  --ak-grad-10-1: #343864; --ak-grad-10-2: #2e1e3d;
+  --ak-grad-11-1: #45325d; --ak-grad-11-2: #371a33;
+  --ak-grad-12-1: #522e51; --ak-grad-12-2: #3d1826;
+  --ak-grad-13-1: #5b2b40; --ak-grad-13-2: #3f1917;
+}
+
+html[data-ak-scheme="light"] {
+  --ak-bg: #ffffff;
+  --ak-text: #000000;
+  --ak-muted: #8e8e93;
+  --ak-faint: #aeaeb2;
+  --ak-hairline: rgba(0, 0, 0, 0.12);
+  --ak-surface: #ffffff;
+  --ak-surface-2: #f2f2f7;
+  --ak-surface-3: #e5e5ea;
+  --ak-panel: #f2f2f7;
+  --ak-danger: #ff3b30;
+  --ak-warning: #ff9f0a;
+  --ak-success: #34c759;
+  --ak-badge: #9f1239;
+  --ak-scrim: rgba(0, 0, 0, 0.45);
+  --ak-tabbar: rgba(255, 255, 255, 0.92);
+  --ak-overlay: rgba(255, 255, 255, 0.78);
+  --ak-btn-fill: #000000;
+  --ak-btn-ink: #ffffff;
+  --ak-accent: #c2185b;
+  --ak-accent-2: #c2185b;
+  --ak-accent-strong: #c2185b;
+  --ak-accent-ink: #ffffff;
+  color-scheme: light;
+
+  --ak-grad-0-1: #763638; --ak-grad-0-2: #53280c;
+  --ak-grad-1-1: #743b1f; --ak-grad-1-2: #4b2f00;
+  --ak-grad-2-1: #6b4300; --ak-grad-2-2: #3e3600;
+  --ak-grad-3-1: #5b4c00; --ak-grad-3-2: #2b3c0b;
+  --ak-grad-4-1: #445514; --ak-grad-4-2: #0d4022;
+  --ak-grad-5-1: #245a30; --ak-grad-5-2: #004136;
+  --ak-grad-6-1: #005c4a; --ak-grad-6-2: #004047;
+  --ak-grad-7-1: #005b60; --ak-grad-7-2: #003b54;
+  --ak-grad-8-1: #005672; --ak-grad-8-2: #19365b;
+  --ak-grad-9-1: #234f7c; --ak-grad-9-2: #2f2f5b;
+  --ak-grad-10-1: #41477d; --ak-grad-10-2: #402a53;
+  --ak-grad-11-1: #574075; --ak-grad-11-2: #4b2546;
+  --ak-grad-12-1: #673a65; --ak-grad-12-2: #532335;
+  --ak-grad-13-1: #723650; --ak-grad-13-2: #562422;
+}

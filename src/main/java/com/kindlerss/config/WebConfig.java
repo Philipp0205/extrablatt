@@ -68,7 +68,7 @@ public class WebConfig implements WebMvcConfigurer {
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(new LayoutInterceptor())
-                .excludePathPatterns("/js/**", "/css/**", "/fonts/**",
+                .excludePathPatterns("/js/**", "/css/**", "/app-kit/**", "/fonts/**",
                         "/icons/**", "/favicon.ico", "/favicon.svg",
                         "/apple-touch-icon.png", "/manifest.webmanifest");
     }
@@ -97,6 +97,12 @@ public class WebConfig implements WebMvcConfigurer {
                 .addResolver(new VersionResourceResolver().addContentVersionStrategy("/**"));
         registry.addResourceHandler("/css/**")
                 .addResourceLocations("classpath:/static/css/")
+                .setCacheControl(FOREVER)
+                .resourceChain(true)
+                .addResolver(new VersionResourceResolver().addContentVersionStrategy("/**"));
+        // The vendored app-kit (see static/app-kit/VERSION), hashed like /css and /js.
+        registry.addResourceHandler("/app-kit/**")
+                .addResourceLocations("classpath:/static/app-kit/")
                 .setCacheControl(FOREVER)
                 .resourceChain(true)
                 .addResolver(new VersionResourceResolver().addContentVersionStrategy("/**"));

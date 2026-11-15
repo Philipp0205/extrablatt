@@ -133,7 +133,7 @@ public class SecurityConfig {
     @Order(0)
     SecurityFilterChain staticAssetFilterChain(HttpSecurity http) throws Exception {
         http
-                .securityMatcher("/js/**", "/css/**", "/fonts/**",
+                .securityMatcher("/js/**", "/css/**", "/app-kit/**", "/fonts/**",
                         // Icons and the web app manifest: same for everyone, stable
                         // names, so WebConfig gives them a short public cache.
                         "/icons/**", "/favicon.ico", "/favicon.svg",

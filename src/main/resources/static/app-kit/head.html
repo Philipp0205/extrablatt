@@ -1,0 +1,50 @@
+<!--
+  Copy-paste snippet for the <head> of every page. Not a full document.
+  The colours are placeholders. Use your own page colours.
+
+  Also put this viewport in the head. viewport-fit=cover lets the page paint
+  under the status bar and gives env(safe-area-inset-*) real values:
+
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+-->
+
+<meta name="color-scheme" content="light dark">
+
+<!--
+  Four theme-color metas, in this order:
+
+    1. dark phone    2. light phone    3. dark    4. light
+
+  The phone ones (max-width: 719px) come first because on a phone the page
+  fills the screen, so the bar should match the page. Wider screens fall
+  through to the plain dark and light ones.
+
+  Chrome uses the first meta whose media matches.
+
+  The DARK phone colour is first because some browsers ignore media and take
+  the first meta in the file. If your app is dark by default, that is the
+  safer colour to land on.
+
+  These four are the no-JS default. AppKit.themeColor.start() replaces them
+  with one meta that has the colour the page really paints.
+-->
+<meta name="theme-color" content="#17140f" media="(prefers-color-scheme: dark) and (max-width: 719px)">
+<meta name="theme-color" content="#f4eee1" media="(prefers-color-scheme: light) and (max-width: 719px)">
+<meta name="theme-color" content="#141412" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#faf8f4" media="(prefers-color-scheme: light)">
+
+<!-- Android Chrome and other Chromium browsers. -->
+<meta name="mobile-web-app-capable" content="yes">
+
+<!--
+  iOS. black-translucent lets the page paint under the status bar. Pad the top
+  with var(--ak-safe-top) from app-kit.css.
+-->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+<!--
+  Bump ?v= whenever manifest.webmanifest changes. It is a new cache key, so
+  browsers holding an old copy fetch the current one. See docs/pwa-bars.md.
+-->
+<link rel="manifest" href="/manifest.webmanifest?v=1">

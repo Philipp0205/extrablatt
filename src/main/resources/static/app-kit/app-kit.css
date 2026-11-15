@@ -1,0 +1,31 @@
+/*
+ * app-kit base CSS.
+ *
+ * Safe-area tokens. They are 0px wherever the device has no inset.
+ */
+:root {
+  --ak-safe-top: env(safe-area-inset-top, 0px);
+  --ak-safe-right: env(safe-area-inset-right, 0px);
+  --ak-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --ak-safe-left: env(safe-area-inset-left, 0px);
+}
+
+/*
+ * Optional. Add class "ak-status-strip" to <html>.
+ * In an installed app, a fixed strip as tall as the status bar, in the page
+ * colour, so scrolling text never runs under the clock. Set --ak-bg to your
+ * page colour. The page needs viewport-fit=cover for the inset to be non-zero.
+ */
+@media (display-mode: standalone) {
+  html.ak-status-strip body::before {
+    content: "";
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: var(--ak-safe-top);
+    background: var(--ak-bg, canvas);
+    z-index: 60;
+    pointer-events: none;
+  }
+}

@@ -1,0 +1,678 @@
+/*
+ * app-kit components (the Hangry look, tokenized).
+ *
+ * Needs ak-tokens.css. Every class starts with "ak-". Nothing here styles a
+ * bare element, so including this file never changes existing markup.
+ * The only element-rooted rules are html.ak-sheet-open and the html.eink layer.
+ */
+
+/* ---------- Buttons ---------- */
+
+.ak-btn {
+  appearance: none;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 52px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: var(--ak-radius-pill);
+  background: var(--ak-btn-fill);
+  color: var(--ak-btn-ink);
+  font: inherit;
+  font-size: var(--ak-fs-lg);
+  font-weight: var(--ak-fw);
+  text-decoration: none;
+  cursor: pointer;
+}
+.ak-btn:disabled { opacity: 0.55; cursor: default; }
+.ak-btn-secondary {
+  background: transparent;
+  color: var(--ak-text);
+  box-shadow: inset 0 0 0 1px var(--ak-hairline);
+}
+.ak-btn-ghost { background: transparent; color: var(--ak-muted); }
+.ak-btn-danger {
+  background: transparent;
+  color: var(--ak-danger);
+  box-shadow: inset 0 0 0 1px var(--ak-danger);
+}
+.ak-btn-text {
+  width: auto;
+  min-height: var(--ak-tap);
+  padding: 8px 0;
+  background: transparent;
+  color: var(--ak-muted);
+  font-size: 15px;
+  font-weight: 400;
+}
+.ak-btn-accent { background: var(--ak-accent); color: var(--ak-accent-ink); }
+
+.ak-icon-btn {
+  appearance: none;
+  display: grid;
+  place-items: center;
+  position: relative;
+  width: var(--ak-tap);
+  height: var(--ak-tap);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ak-text);
+  font: inherit;
+  cursor: pointer;
+}
+.ak-icon-btn-on { background: var(--ak-surface-2); border-radius: var(--ak-radius-pill); }
+
+.ak-toggle {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 48px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: var(--ak-radius-pill);
+  background: transparent;
+  color: var(--ak-text);
+  box-shadow: inset 0 0 0 1.5px var(--ak-text);
+  font: inherit;
+  font-size: var(--ak-fs-lg);
+  font-weight: var(--ak-fw);
+  cursor: pointer;
+}
+.ak-toggle-on {
+  background: var(--ak-btn-fill);
+  color: var(--ak-btn-ink);
+  box-shadow: none;
+}
+
+.ak-chip {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-height: var(--ak-tap);
+  padding: 0 14px;
+  border: 0;
+  border-radius: var(--ak-radius-pill);
+  background: var(--ak-surface-2);
+  color: var(--ak-text);
+  font: inherit;
+  font-size: var(--ak-fs-md);
+  cursor: pointer;
+}
+.ak-chip-on { background: var(--ak-btn-fill); color: var(--ak-btn-ink); }
+
+.ak-pill {
+  display: inline-flex;
+  align-items: center;
+  box-sizing: border-box;
+  min-height: 40px;
+  padding: 8px 16px;
+  border: 0;
+  border-radius: var(--ak-radius-pill);
+  background: var(--ak-overlay);
+  color: var(--ak-text);
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.ak-badge {
+  display: inline-grid;
+  place-items: center;
+  box-sizing: border-box;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 99px;
+  background: var(--ak-badge);
+  color: #ffffff;
+  font-size: var(--ak-fs-xs);
+  font-weight: var(--ak-fw-bold);
+  line-height: 1;
+}
+
+/* ---------- Cards, panels, lists ---------- */
+
+.ak-card {
+  box-sizing: border-box;
+  border-radius: var(--ak-radius-xl);
+  background: var(--ak-surface);
+  color: var(--ak-text);
+  padding: var(--ak-s4);
+}
+
+.ak-card-hero {
+  position: relative;
+  box-sizing: border-box;
+  height: 214px;
+  border-radius: var(--ak-radius-hero);
+  overflow: hidden;
+  isolation: isolate;
+  background: var(--ak-surface);
+  color: #ffffff;
+  padding: var(--ak-s4);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+.ak-card-menu {
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  min-width: min(220px, calc(100vw - 48px));
+  padding: 6px;
+  border-radius: var(--ak-radius-md);
+  background: var(--ak-surface);
+  color: var(--ak-text);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+}
+.ak-card-menu[hidden] { display: none; }
+.ak-card-menu-item {
+  appearance: none;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-height: var(--ak-tap);
+  padding: 12px;
+  border: 0;
+  border-radius: var(--ak-radius-sm);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: var(--ak-fs-lg);
+  text-align: left;
+  cursor: pointer;
+}
+.ak-card-menu-item-on { background: var(--ak-hairline); }
+.ak-card-menu-item-danger { color: var(--ak-danger); }
+.ak-card-menu-item-muted { color: var(--ak-muted); }
+
+.ak-panel {
+  box-sizing: border-box;
+  padding: var(--ak-s4);
+  border-radius: var(--ak-radius-xl);
+  background: var(--ak-panel);
+  color: var(--ak-text);
+}
+
+.ak-list { display: flex; flex-direction: column; }
+.ak-row {
+  appearance: none;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: var(--ak-s3);
+  min-height: var(--ak-tap);
+  padding: var(--ak-s3);
+  border: 0;
+  border-bottom: 1px solid var(--ak-hairline);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+.ak-row-grow { flex: 1; min-width: 0; }
+.ak-row-title { margin: 0; font-size: var(--ak-fs-lg); font-weight: 600; }
+.ak-row-sub { margin: 2px 0 0; color: var(--ak-muted); font-size: var(--ak-fs-md); }
+
+.ak-or {
+  display: flex;
+  align-items: center;
+  gap: var(--ak-s3);
+  color: var(--ak-faint);
+  font-size: var(--ak-fs-sm);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.ak-or::before,
+.ak-or::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--ak-hairline);
+}
+
+/* ---------- Sheet ---------- */
+
+html.ak-sheet-open,
+html.ak-sheet-open body {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+.ak-scrim {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: var(--ak-scrim);
+  z-index: 30;
+}
+
+.ak-sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  box-sizing: border-box;
+  width: min(var(--ak-phone), 100%);
+  max-height: calc(100vh - var(--ak-sheet-margin) - var(--ak-safe-top));
+  max-height: calc(100dvh - var(--ak-sheet-margin) - var(--ak-safe-top));
+  margin: 0 auto;
+  padding: 8px 20px calc(20px + var(--ak-safe-bottom));
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border-radius: 22px 22px 0 0;
+  background: var(--ak-surface);
+  color: var(--ak-text);
+  z-index: 31;
+}
+.ak-sheet:has(> .ak-sheet-scroll) {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.ak-grabber {
+  width: 36px;
+  height: 5px;
+  margin: 6px auto 14px;
+  border-radius: 99px;
+  background: var(--ak-surface-3);
+  touch-action: none;
+}
+.ak-sheet-head {
+  position: relative;
+  z-index: 3;
+  flex-shrink: 0;
+  background: var(--ak-surface);
+  touch-action: none;
+}
+.ak-sheet-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 16px 6px 12px;
+}
+.ak-sheet-dock {
+  position: sticky;
+  bottom: 0;
+  flex-shrink: 0;
+  z-index: 2;
+  padding-top: 16px;
+  background: var(--ak-surface);
+}
+
+/* AppKit.sheet adds these. */
+.ak-sheet-layer { position: fixed; top: 0; left: 0; width: 0; height: 0; }
+.ak-sheet-layer .ak-sheet { animation: ak-sheet-in var(--ak-duration-sheet) ease-out; }
+.ak-sheet-layer .ak-scrim { animation: ak-fade-in var(--ak-duration-sheet) ease-out; }
+.ak-sheet-layer.ak-closing .ak-sheet {
+  transform: translateY(100%);
+  transition: transform var(--ak-duration-sheet) ease-in;
+}
+.ak-sheet-layer.ak-closing .ak-scrim {
+  opacity: 0;
+  transition: opacity var(--ak-duration-sheet) ease-in;
+}
+.ak-sheet.ak-dragging { transition: none; }
+@keyframes ak-sheet-in { from { transform: translateY(100%); } to { transform: translateY(0); } }
+@keyframes ak-fade-in { from { opacity: 0; } to { opacity: 1; } }
+
+/* ---------- Tab bar and screen head ---------- */
+
+.ak-tabbar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  box-sizing: border-box;
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  width: min(var(--ak-phone), 100%);
+  height: var(--ak-tab);
+  margin: 0 auto;
+  padding-bottom: var(--ak-safe-bottom);
+  background: var(--ak-tabbar);
+  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
+  border-top: 0.5px solid var(--ak-hairline);
+  z-index: 20;
+}
+.ak-tab {
+  appearance: none;
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  height: 52px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ak-muted);
+  font: inherit;
+  cursor: pointer;
+}
+.ak-tab[aria-current="page"] { color: var(--ak-text); }
+.ak-tab-label { font-size: 12px; font-weight: var(--ak-fw); letter-spacing: -0.01em; }
+.ak-tab .ak-badge { position: absolute; top: 4px; right: 6px; }
+
+.ak-screen-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ak-s3);
+  padding: 14px 20px 6px;
+}
+.ak-screen-title {
+  margin: 0;
+  font-size: var(--ak-fs-display);
+  font-weight: var(--ak-fw-bold);
+  letter-spacing: -0.045em;
+  line-height: 1.05;
+}
+
+/* ---------- Forms ---------- */
+
+.ak-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--ak-muted);
+  font-size: var(--ak-fs-sm);
+}
+.ak-label { color: var(--ak-muted); font-size: var(--ak-fs-sm); font-weight: var(--ak-fw); line-height: 1.2; }
+
+.ak-input {
+  box-sizing: border-box;
+  display: block;
+  width: 100%;
+  min-height: 52px;
+  padding: 16px;
+  border: 0;
+  border-radius: var(--ak-radius-md);
+  background: var(--ak-surface-2);
+  color: var(--ak-text);
+  font: inherit;
+  font-size: var(--ak-fs-lg);
+}
+.ak-input::placeholder { color: var(--ak-faint); }
+.ak-input:focus { outline: none; box-shadow: inset 0 0 0 2px var(--ak-accent-2); }
+/* A multi-line field: put ak-input on a textarea. */
+.ak-input:where(textarea) { min-height: 132px; resize: none; line-height: 1.4; }
+
+.ak-segment {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 4px;
+  border-radius: var(--ak-radius-md);
+  background: var(--ak-surface-2);
+}
+.ak-segment-btn {
+  appearance: none;
+  min-height: var(--ak-tap);
+  border: 0;
+  border-radius: var(--ak-radius-sm);
+  background: transparent;
+  color: var(--ak-text);
+  font: inherit;
+  font-size: var(--ak-fs-lg);
+  font-weight: var(--ak-fw);
+  cursor: pointer;
+}
+.ak-segment-btn-on,
+.ak-segment-btn[aria-pressed="true"],
+.ak-segment-btn.ak-on {
+  background: var(--ak-btn-fill);
+  color: var(--ak-btn-ink);
+}
+
+/* ---------- Feedback ---------- */
+
+.ak-toast {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: calc(var(--ak-tab) + 12px);
+  box-sizing: border-box;
+  width: min(440px, calc(100% - 24px));
+  margin: 0 auto;
+  padding: 12px 14px;
+  border-radius: var(--ak-radius-md);
+  background: var(--ak-surface-2);
+  color: var(--ak-text);
+  font-size: var(--ak-fs-md);
+  z-index: 60;
+}
+.ak-toast + .ak-toast { bottom: calc(var(--ak-tab) + 12px + 56px); }
+.ak-toast-error, .ak-toast-danger { color: var(--ak-danger); }
+.ak-toast-success { color: var(--ak-success); }
+.ak-toast-warning { color: var(--ak-warning); }
+
+.ak-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  border-radius: var(--ak-radius-lg);
+  background: var(--ak-surface);
+  color: var(--ak-text);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.4);
+}
+
+.ak-empty {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 112px;
+  padding: 22px;
+  border: 1px dashed var(--ak-hairline);
+  border-radius: var(--ak-radius-hero);
+  background: transparent;
+  color: var(--ak-muted);
+  font-size: var(--ak-fs-lg);
+}
+
+/* ---------- Avatars ---------- */
+
+.ak-avatar {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  box-sizing: border-box;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--ak-surface-3);
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: var(--ak-fw-bold);
+  letter-spacing: -0.03em;
+}
+.ak-avatar-lg { width: 72px; height: 72px; font-size: 28px; }
+.ak-avatar-wrap { display: flex; align-items: center; }
+.ak-avatar-wrap > .ak-avatar { border: 2px solid var(--ak-bg); }
+.ak-avatar-wrap > .ak-avatar + .ak-avatar { margin-left: -8px; }
+
+/* ---------- Gradients ---------- */
+
+.ak-grad { background: linear-gradient(155deg, var(--g1), var(--g2)); color: #ffffff; }
+.ak-grad-0 { --g1: var(--ak-grad-0-1); --g2: var(--ak-grad-0-2); }
+.ak-grad-1 { --g1: var(--ak-grad-1-1); --g2: var(--ak-grad-1-2); }
+.ak-grad-2 { --g1: var(--ak-grad-2-1); --g2: var(--ak-grad-2-2); }
+.ak-grad-3 { --g1: var(--ak-grad-3-1); --g2: var(--ak-grad-3-2); }
+.ak-grad-4 { --g1: var(--ak-grad-4-1); --g2: var(--ak-grad-4-2); }
+.ak-grad-5 { --g1: var(--ak-grad-5-1); --g2: var(--ak-grad-5-2); }
+.ak-grad-6 { --g1: var(--ak-grad-6-1); --g2: var(--ak-grad-6-2); }
+.ak-grad-7 { --g1: var(--ak-grad-7-1); --g2: var(--ak-grad-7-2); }
+.ak-grad-8 { --g1: var(--ak-grad-8-1); --g2: var(--ak-grad-8-2); }
+.ak-grad-9 { --g1: var(--ak-grad-9-1); --g2: var(--ak-grad-9-2); }
+.ak-grad-10 { --g1: var(--ak-grad-10-1); --g2: var(--ak-grad-10-2); }
+.ak-grad-11 { --g1: var(--ak-grad-11-1); --g2: var(--ak-grad-11-2); }
+.ak-grad-12 { --g1: var(--ak-grad-12-1); --g2: var(--ak-grad-12-2); }
+.ak-grad-13 { --g1: var(--ak-grad-13-1); --g2: var(--ak-grad-13-2); }
+.ak-grad-0, .ak-grad-1, .ak-grad-2, .ak-grad-3, .ak-grad-4, .ak-grad-5, .ak-grad-6,
+.ak-grad-7, .ak-grad-8, .ak-grad-9, .ak-grad-10, .ak-grad-11, .ak-grad-12, .ak-grad-13 {
+  background: linear-gradient(155deg, var(--g1), var(--g2));
+  color: #ffffff;
+}
+
+/* ---------- Press feel ---------- */
+/*
+ * Tappable kit controls dip and dim while held, then spring back. :where keeps
+ * the specificity at zero, so a component rule still wins. Only kit classes,
+ * never bare button or a. A disabled control and the scrim do not move.
+ */
+:where(.ak-btn, .ak-icon-btn, .ak-chip, .ak-toggle, .ak-tab, .ak-row, .ak-pill,
+  .ak-segment-btn, .ak-card-menu-item, .ak-card-hero) {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform var(--ak-duration) var(--ak-ease-spring), filter var(--ak-duration) ease-out;
+}
+:where(.ak-btn, .ak-icon-btn, .ak-chip, .ak-toggle, .ak-tab, .ak-row, .ak-pill,
+  .ak-segment-btn, .ak-card-menu-item):where(:not(:disabled, .ak-scrim)):where(:active) {
+  transform: scale(0.96);
+  filter: brightness(0.88);
+  transition-duration: var(--ak-duration-press);
+  transition-timing-function: ease-out;
+}
+:where(.ak-card-hero):where(:active) {
+  transform: scale(0.98);
+  filter: brightness(0.92);
+  transition-duration: var(--ak-duration-press);
+  transition-timing-function: ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :where(.ak-btn, .ak-icon-btn, .ak-chip, .ak-toggle, .ak-tab, .ak-row, .ak-pill,
+    .ak-segment-btn, .ak-card-menu-item, .ak-card-hero) {
+    transition: none;
+  }
+  :where(.ak-btn, .ak-icon-btn, .ak-chip, .ak-toggle, .ak-tab, .ak-row, .ak-pill,
+    .ak-segment-btn, .ak-card-menu-item, .ak-card-hero):where(:active) {
+    transform: none;
+    filter: none;
+  }
+  .ak-sheet-layer .ak-sheet,
+  .ak-sheet-layer .ak-scrim { animation: none; }
+  .ak-sheet-layer.ak-closing .ak-sheet,
+  .ak-sheet-layer.ak-closing .ak-scrim { transition: none; }
+}
+
+/* ---------- E-ink ---------- */
+/*
+ * html.eink (Extrablatt on a Kindle): greyscale, high contrast, no blur, no
+ * shadow, no press motion, small radii, big tap targets. Kept last so it wins.
+ */
+html.eink {
+  --ak-bg: #ffffff;
+  --ak-text: #000000;
+  --ak-muted: #333333;
+  --ak-faint: #555555;
+  --ak-hairline: #000000;
+  --ak-surface: #ffffff;
+  --ak-surface-2: #ffffff;
+  --ak-surface-3: #cccccc;
+  --ak-panel: #ffffff;
+  --ak-danger: #000000;
+  --ak-warning: #000000;
+  --ak-success: #000000;
+  --ak-badge: #000000;
+  --ak-scrim: rgba(255, 255, 255, 0.9);
+  --ak-tabbar: #ffffff;
+  --ak-overlay: #ffffff;
+  --ak-btn-fill: #000000;
+  --ak-btn-ink: #ffffff;
+  --ak-accent: #000000;
+  --ak-accent-2: #000000;
+  --ak-accent-strong: #000000;
+  --ak-accent-ink: #ffffff;
+  --ak-radius-sm: 4px;
+  --ak-radius-md: 6px;
+  --ak-radius-lg: 6px;
+  --ak-radius-xl: 8px;
+  --ak-radius-hero: 8px;
+  --ak-tap: 52px;
+  color-scheme: light;
+}
+html.eink .ak-btn,
+html.eink .ak-toggle { min-height: 56px; border-radius: var(--ak-radius-md); }
+html.eink .ak-btn-secondary,
+html.eink .ak-btn-danger,
+html.eink .ak-toggle { box-shadow: inset 0 0 0 2px #000000; }
+html.eink .ak-chip,
+html.eink .ak-segment-btn,
+html.eink .ak-card-menu-item,
+html.eink .ak-icon-btn { min-height: 52px; }
+html.eink .ak-icon-btn { width: 52px; height: 52px; }
+html.eink .ak-chip,
+html.eink .ak-pill { border-radius: var(--ak-radius-md); box-shadow: inset 0 0 0 1px #000000; }
+html.eink .ak-chip-on,
+html.eink .ak-segment-btn-on,
+html.eink .ak-segment-btn[aria-pressed="true"],
+html.eink .ak-segment-btn.ak-on { box-shadow: none; }
+html.eink .ak-tab { height: 56px; }
+html.eink .ak-input { min-height: 56px; box-shadow: inset 0 0 0 2px #000000; }
+html.eink .ak-input:focus { box-shadow: inset 0 0 0 4px #000000; }
+html.eink .ak-card,
+html.eink .ak-panel,
+html.eink .ak-banner,
+html.eink .ak-toast,
+html.eink .ak-card-menu { box-shadow: inset 0 0 0 1px #000000; }
+html.eink .ak-card-hero { box-shadow: inset 0 0 0 2px #000000; }
+html.eink .ak-pill,
+html.eink .ak-tabbar,
+html.eink .ak-scrim {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+html.eink .ak-grad,
+html.eink .ak-grad-0, html.eink .ak-grad-1, html.eink .ak-grad-2, html.eink .ak-grad-3,
+html.eink .ak-grad-4, html.eink .ak-grad-5, html.eink .ak-grad-6, html.eink .ak-grad-7,
+html.eink .ak-grad-8, html.eink .ak-grad-9, html.eink .ak-grad-10, html.eink .ak-grad-11,
+html.eink .ak-grad-12, html.eink .ak-grad-13 {
+  background: #ffffff;
+  color: #000000;
+}
+html.eink .ak-badge { box-shadow: none; }
+html.eink :where(.ak-btn, .ak-icon-btn, .ak-chip, .ak-toggle, .ak-tab, .ak-row, .ak-pill,
+  .ak-segment-btn, .ak-card-menu-item, .ak-card-hero),
+html.eink .ak-sheet-layer .ak-sheet,
+html.eink .ak-sheet-layer .ak-scrim {
+  transition: none;
+  animation: none;
+}
+html.eink :where(.ak-btn, .ak-icon-btn, .ak-chip, .ak-toggle, .ak-tab, .ak-row, .ak-pill,
+  .ak-segment-btn, .ak-card-menu-item, .ak-card-hero):where(:active) {
+  transform: none;
+  filter: none;
+}
+html.eink .ak-btn:active,
+html.eink .ak-chip:active,
+html.eink .ak-toggle:active { transform: none; filter: none; }
