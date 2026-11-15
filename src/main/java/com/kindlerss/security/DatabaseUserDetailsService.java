@@ -6,6 +6,8 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
+import java.util.Optional;
+
 /** Loads accounts from the database by e-mail for form login and remember-me. */
 @Service
 public class DatabaseUserDetailsService implements UserDetailsService {
@@ -23,5 +25,11 @@ public class DatabaseUserDetailsService implements UserDetailsService {
         return userRepository.findByEmail(username)
                 .map(user -> new AppUserDetails(user, adminAccess.isAdmin(user.email())))
                 .orElseThrow(() -> new UsernameNotFoundException("No account for " + username));
+    }
+
+    /** The account a recovery code hash belongs to, loaded the same way as by e-mail. */
+    public Optional<UserDetails> findByRecoveryHash(String recoveryHash) {
+        return userRepository.findByRecoveryHash(recoveryHash)
+                .map(user -> new AppUserDetails(user, adminAccess.isAdmin(user.email())));
     }
 }

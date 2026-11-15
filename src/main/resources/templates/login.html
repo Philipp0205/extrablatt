@@ -17,6 +17,7 @@
     Confirm your e-mail address before logging in. Use the confirmation link in your inbox.
   </div>
   <div th:if="${param.error}" class="flash error">Invalid e-mail or password.</div>
+  <div th:if="${param.recoveryError}" class="flash error">Invalid recovery code.</div>
   <div th:if="${param.logout}" class="flash">You have been logged out.</div>
   <div th:if="${param.deleted}" class="flash">Your account has been deleted.</div>
 
@@ -42,6 +43,27 @@
       <button class="btn primary" type="submit">Log in</button>
     </div>
   </form>
+
+  <details class="tools space-top" th:open="${param.recoveryError}">
+    <summary>Sign in with a recovery code</summary>
+    <div class="tools-body">
+      <form th:action="@{/login/recovery}" method="post">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <label for="recovery-code">Recovery code</label>
+        <input id="recovery-code" name="code" type="text" autocomplete="off"
+               autocapitalize="characters" spellcheck="false" placeholder="ABCD-EFGH-JKLM" required/>
+
+        <label class="check space-top-sm">
+          <input type="checkbox" name="remember-me" value="true"/>
+          Remember me for 1 year
+        </label>
+
+        <div class="row space-top">
+          <button class="btn" type="submit">Log in with recovery code</button>
+        </div>
+      </form>
+    </div>
+  </details>
 
   <p class="meta space-top">
     <a th:href="@{/register}">Create an account</a> ·
