@@ -52,11 +52,11 @@ public class AuthController {
             redirectAttributes.addFlashAttribute("email", email);
             return "redirect:/register";
         } catch (RuntimeException e) {
-            // Registration is transactional, so a failed verification e-mail also
-            // rolls back the account: the address stays free to try again.
+            // The confirmation e-mail is sent in the background and cannot fail the
+            // sign-up, so what lands here is a failure to create the account itself,
+            // which is rolled back: the address stays free to try again.
             redirectAttributes.addFlashAttribute("error",
-                    "We could not send the confirmation e-mail, so the account was not created. "
-                            + "Please try again in a moment.");
+                    "We could not create the account. Please try again in a moment.");
             redirectAttributes.addFlashAttribute("email", email);
             return "redirect:/register";
         }

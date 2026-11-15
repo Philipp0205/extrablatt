@@ -71,6 +71,17 @@ class UserServiceTest {
     }
 
     @Test
+    void aFailedVerificationMailDoesNotFailTheRegistration() {
+        when(userRepository.insert(anyString(), anyString())).thenReturn(user(1L, "new@example.com"));
+        org.mockito.Mockito.doThrow(new IllegalStateException("Could not send e-mail"))
+                .when(mailService).sendVerification(anyString(), anyString());
+
+        assertDoesNotThrow(() -> service.register("new@example.com", "supersecret"));
+
+        verify(tokenRepository).insert(anyString(), eq(1L), eq(EmailToken.Purpose.VERIFY), any());
+    }
+
+    @Test
     void registrationMarksTheCurrentReleaseSeenSoTheNoticeWaitsForTheNextOne() {
         when(userRepository.insert(anyString(), anyString())).thenReturn(user(1L, "new@example.com"));
 

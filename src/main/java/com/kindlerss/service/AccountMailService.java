@@ -1,29 +1,137 @@
 package com.kindlerss.service;
 
 import com.kindlerss.config.AppProperties;
+import jakarta.annotation.PreDestroy;
 import jakarta.mail.internet.MimeMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.StringUtils;
+
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Sends account e-mails (verification and password reset) through the shared
  * outbound sender. The same SMTP provider (Resend) delivers Kindle documents.
+ *
+ * <p>The sign-up and confirmation mails ({@link #sendVerification},
+ * {@link #sendVerificationReminder}, {@link #sendAccountExists},
+ * {@link #sendWelcome}) are handed to a small background executor, because an SMTP
+ * round trip is over a second and nobody should wait for it to see "check your
+ * inbox". They never throw: a failure is logged and nothing else. When called
+ * inside a transaction the hand-off waits for the commit, so a rolled-back
+ * sign-up sends nothing. Password reset and billing mail stay synchronous.
  */
 @Service
 public class AccountMailService {
 
     private static final Logger log = LoggerFactory.getLogger(AccountMailService.class);
 
+    private static final int MAIL_THREADS = 2;
+    private static final int MAIL_QUEUE_CAPACITY = 100;
+
     private final JavaMailSender mailSender;
     private final AppProperties properties;
+    private final Executor mailExecutor;
+    /** Set only when this service created the executor, so only then does it shut it down. */
+    private final ExecutorService ownedMailExecutor;
 
+    @Autowired
     public AccountMailService(JavaMailSender mailSender, AppProperties properties) {
+        this(mailSender, properties, newMailExecutor(), true);
+    }
+
+    /** For tests: background mail runs on the given executor, which the test controls. */
+    AccountMailService(JavaMailSender mailSender, AppProperties properties, Executor mailExecutor) {
+        this(mailSender, properties, mailExecutor, false);
+    }
+
+    private AccountMailService(JavaMailSender mailSender, AppProperties properties,
+                               Executor mailExecutor, boolean owned) {
         this.mailSender = mailSender;
         this.properties = properties;
+        this.mailExecutor = mailExecutor;
+        this.ownedMailExecutor = owned ? (ExecutorService) mailExecutor : null;
+    }
+
+    private static ExecutorService newMailExecutor() {
+        AtomicInteger counter = new AtomicInteger();
+        // A short queue and two daemon threads. When the queue is full, execute()
+        // rejects the task and it is logged and dropped rather than piling up
+        // behind a slow SMTP server.
+        return new ThreadPoolExecutor(MAIL_THREADS, MAIL_THREADS, 0L, TimeUnit.MILLISECONDS,
+                new ArrayBlockingQueue<>(MAIL_QUEUE_CAPACITY),
+                runnable -> {
+                    Thread thread = new Thread(runnable, "account-mail-" + counter.incrementAndGet());
+                    thread.setDaemon(true);
+                    return thread;
+                },
+                new ThreadPoolExecutor.AbortPolicy());
+    }
+
+    /** Lets mail already queued go out before the application stops, for a few seconds at most. */
+    @PreDestroy
+    void shutdownMailExecutor() {
+        if (ownedMailExecutor == null) {
+            return;
+        }
+        ownedMailExecutor.shutdown();
+        try {
+            if (!ownedMailExecutor.awaitTermination(5, TimeUnit.SECONDS)) {
+                ownedMailExecutor.shutdownNow();
+            }
+        } catch (InterruptedException e) {
+            ownedMailExecutor.shutdownNow();
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    /**
+     * Sends in the background and never throws. Inside a transaction the send is
+     * queued only once it has committed; if it rolls back, nothing is sent.
+     */
+    private void sendInBackground(String toEmail, String subject, String body) {
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    submit(toEmail, subject, body);
+                }
+            });
+        } else {
+            submit(toEmail, subject, body);
+        }
+    }
+
+    private void submit(String toEmail, String subject, String body) {
+        try {
+            mailExecutor.execute(() -> deliverQuietly(toEmail, subject, body));
+        } catch (RuntimeException e) {
+            // Rejected (queue full or shutting down), or a synchronous executor failed.
+            log.warn("Account e-mail ({}) was not sent: {}", subject, e.getMessage());
+        }
+    }
+
+    private void deliverQuietly(String toEmail, String subject, String body) {
+        try {
+            send(toEmail, subject, body);
+        } catch (RuntimeException e) {
+            // send() has already logged an SMTP failure; only a configuration
+            // problem arrives here unlogged.
+            if (e.getCause() == null) {
+                log.warn("Account e-mail ({}) was not sent: {}", subject, e.getMessage());
+            }
+        }
     }
 
     public void sendVerification(String toEmail, String token) {
@@ -38,7 +146,7 @@ public class AccountMailService {
 
                 If you did not create this account, you can ignore this message.
                 """.formatted(link);
-        send(toEmail, "Confirm your Extrablatt account", body);
+        sendInBackground(toEmail, "Confirm your Extrablatt account", body);
     }
 
     /**
@@ -62,7 +170,7 @@ public class AccountMailService {
 
                 If you did not create this account, you can ignore this message.
                 """.formatted(link, appUrl);
-        send(toEmail, "Confirm your Extrablatt account", body);
+        sendInBackground(toEmail, "Confirm your Extrablatt account", body);
     }
 
     /**
@@ -83,7 +191,7 @@ public class AccountMailService {
                 If that was not you, you can ignore this message. The sign-up changed
                 nothing and your password is unchanged.
                 """.formatted(appUrl, appUrl);
-        send(toEmail, "You already have an Extrablatt account", body);
+        sendInBackground(toEmail, "You already have an Extrablatt account", body);
     }
 
     /**
@@ -109,7 +217,7 @@ public class AccountMailService {
 
                 Thanks for trying it out.
                 """.formatted(appUrl);
-        send(toEmail, "Welcome to Extrablatt", body);
+        sendInBackground(toEmail, "Welcome to Extrablatt", body);
     }
 
     public void sendPasswordReset(String toEmail, String token) {

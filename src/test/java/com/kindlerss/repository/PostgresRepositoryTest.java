@@ -67,6 +67,17 @@ class PostgresRepositoryTest {
         assertEquals(0, savedAtColumns);
     }
 
+    /** V20: the article list's composite index exists and matches the list ordering. */
+    @Test
+    void theArticleListIndexIsCreatedByMigration() {
+        String definition = jdbc.queryForObject("""
+                SELECT indexdef FROM pg_indexes
+                WHERE schemaname = 'public' AND tablename = 'articles' AND indexname = 'idx_articles_list'
+                """, String.class);
+        assertEquals("CREATE INDEX idx_articles_list ON public.articles USING btree "
+                + "(feed_id, read, published_at DESC NULLS LAST, id DESC)", definition);
+    }
+
     @Test
     void marksAWholePageOfArticlesReadInOneStatement() {
         var feed = feeds.insert(userId, "Bulk", "https://bulk.example.com/feed.xml",

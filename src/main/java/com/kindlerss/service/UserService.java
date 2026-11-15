@@ -139,8 +139,18 @@ public class UserService {
                 .ifPresent(id -> userRepository.updateLastSeenChangelogId(user.id(), id));
     }
 
+    /**
+     * The mail goes out in the background, after the sign-up commits. Whatever
+     * happens to it, the account already exists, so a failure here is logged and
+     * never fails or rolls back the registration.
+     */
     private void issueVerification(AppUser user) {
-        mailService.sendVerification(user.email(), newVerificationToken(user));
+        String token = newVerificationToken(user);
+        try {
+            mailService.sendVerification(user.email(), token);
+        } catch (RuntimeException e) {
+            log.warn("Verification e-mail failed: {}", e.getMessage());
+        }
     }
 
     /** Issues a confirmation token, retiring any earlier one so only the newest link works. */
