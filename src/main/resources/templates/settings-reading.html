@@ -11,24 +11,30 @@
   <p class="meta">Choose whether Extrablatt keeps track of what you have read.</p>
   <form th:action="@{/settings/reading}" method="post">
     <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-    <label class="check">
-      <input type="checkbox" name="markReadOnNextPage" value="true"
-             th:checked="${account.markReadOnNextPage}"/>
-      <span>Keep track of unread articles</span>
-    </label>
-    <p class="meta">When this is on, new articles arrive unread and stay that way until
-      you open one or press Mark all as read under the list. Scrolling and loading
-      more articles never mark anything read unless you turn on the option below.</p>
-    <p class="meta">When it is off, new articles arrive already marked read, so the
-      Unread filter stays empty and the list simply shows everything, newest first.</p>
-    <label class="check space-top">
-      <input type="checkbox" name="markReadOnScroll" value="true"
-             th:checked="${account.markReadOnScroll}"/>
-      <span>Mark articles read as I scroll past them</span>
-    </label>
-    <p class="meta">Off by default. When on, an article in the list is marked read once
-      you have seen it and scrolled it off the top of the screen. It does not apply
-      on e-ink pages.</p>
+    <fieldset class="boxed-fieldset">
+      <legend>Mark articles as read</legend>
+      <label class="check">
+        <input type="radio" name="readTracking" value="open"
+               th:checked="${readTracking == 'open'}"/>
+        <span>When I open an article</span>
+      </label>
+      <p class="meta">New articles arrive unread and stay that way until you open one or
+        press Mark all as read under the list.</p>
+      <label class="check space-top">
+        <input type="radio" name="readTracking" value="scroll"
+               th:checked="${readTracking == 'scroll'}"/>
+        <span>As I scroll past them</span>
+      </label>
+      <p class="meta">Like the option above, and an article is also marked read once you have
+        scrolled it off the top of the list. This does not apply on e-ink pages.</p>
+      <label class="check space-top">
+        <input type="radio" name="readTracking" value="none"
+               th:checked="${readTracking == 'none'}"/>
+        <span>Don't keep track</span>
+      </label>
+      <p class="meta">New articles arrive already marked read, so the Unread filter stays
+        empty and the list shows everything, newest first.</p>
+    </fieldset>
     <div class="row space-top">
       <button class="btn primary" type="submit">Save</button>
     </div>

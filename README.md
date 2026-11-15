@@ -143,9 +143,9 @@ Dependabot (`.github/dependabot.yml`) opens weekly update PRs against
 3. Open **Articles** and filter by feed, category, or the **Unread** toggle in the
    filter bar.
 4. Scroll through the list and press **Load more articles** at its end for the next
-   batch. Scrolling and loading never mark anything read unless you turn on
-   **Mark articles read as I scroll past them** under Settings, Reading (off by
-   default, not used on e-ink); **Mark all as read** under the list marks the
+   batch. Scrolling and loading never mark anything read unless you choose
+   **As I scroll past them** under Settings, Reading, Mark articles as read (not
+   used on e-ink); **Mark all as read** under the list marks the
    articles you have loaded.
 5. Tap an article's title to mark it read and view extracted content (images off by default).
    An unread list keeps articles opened during that visit in place, so returning
@@ -186,21 +186,23 @@ The article list is one continuous, scrolling column, laid out for a phone first
   links stay reachable. The address keeps track of how much was loaded, so
   reloading the page, or reading an entry and going back with the browser, shows
   the same articles in the same place.
-- Loading and scrolling never mark anything read, unless the account opted in to
-  **Mark articles read as I scroll past them** (Settings, Reading; off by default,
-  never on the e-ink layout). Then a row that was seen and has fully left the top of
-  the screen is marked read, in batches through `POST /items/scroll-read`, which
-  refuses accounts that have not opted in. An article is marked read when
-  you open it, or when you press **Mark all as read** under the list, which marks
-  exactly the articles you have loaded and no others. An unread list then starts
+- Loading and scrolling never mark anything read, unless the account chose
+  **As I scroll past them** (Settings, Reading, Mark articles as read; the default
+  is **When I open an article**, and scrolling never counts on the e-ink layout).
+  Then a row that was seen and has fully left the top of the screen is marked read,
+  in batches through `POST /items/scroll-read`, which refuses accounts that have not
+  opted in. An article is marked read when you open it, or when you press
+  **Mark all as read** under the list, which marks exactly the articles you have
+  loaded and no others. An unread list then starts
   afresh. An article opened by mistake takes **Mark unread** under **More** on its
   own page.
 - An unread list keeps the articles read during that visit in place, so the rows
   on screen do not jump while you read and load more.
 - On a phone, **Articles**, **Feeds** and **Settings** sit in a tab bar at the
   bottom of the screen; on a wider screen they move into the top bar.
-- **Settings → Reading → Keep track of unread articles** is on by default. Turn it
-  off and new feed articles arrive already read, so a refresh does not fill Unread
+- **Settings → Reading → Mark articles as read** offers **When I open an article**
+  (the default), **As I scroll past them** and **Don't keep track**. The last one
+  makes new feed articles arrive already read, so a refresh does not fill Unread
   with a backlog and the list simply shows everything, newest first.
 
 On an e-ink Kindle the list and articles turn page by page instead: tap the right
