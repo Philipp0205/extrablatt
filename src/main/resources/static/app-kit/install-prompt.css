@@ -1,0 +1,147 @@
+/*
+ * Install prompt: a slim card at the top of the page. It sits in the normal
+ * flow, so it never covers the page, tab bars or action bars.
+ *
+ * Colours come from kit variables with fallbacks, so it looks fine on a page
+ * that defines none. Override --ak-ip-* for this banner only, or define
+ * --ak-surface, --ak-ink, --ak-line and --ak-accent for the whole kit
+ * (ak-tokens.css does that). The last fallbacks are the Hangry tokens: dark
+ * first, and light on a light phone. --ak-ip-* always wins.
+ */
+.ak-ip {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  box-sizing: border-box;
+  width: calc(100% - 24px);
+  max-width: 608px;
+  margin: 12px auto 0;
+  padding: 12px;
+  background: var(--ak-ip-bg, var(--ak-surface, #1c1c1e));
+  color: var(--ak-ip-fg, var(--ak-ink, #ffffff));
+  border: 1px solid var(--ak-ip-border, var(--ak-line, rgba(255, 255, 255, 0.12)));
+  border-radius: var(--ak-ip-radius, 14px);
+  font: 15px/1.4 var(--ak-font, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif);
+}
+
+@media (prefers-color-scheme: light) {
+  .ak-ip {
+    background: var(--ak-ip-bg, var(--ak-surface, #ffffff));
+    color: var(--ak-ip-fg, var(--ak-ink, #000000));
+    border-color: var(--ak-ip-border, var(--ak-line, rgba(0, 0, 0, 0.12)));
+  }
+}
+
+.ak-ip-mark {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+}
+
+.ak-ip-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.ak-ip-title {
+  margin: 0;
+  font-size: 1.05em;
+  font-weight: 650;
+}
+
+.ak-ip-text {
+  margin: 2px 0 8px;
+  font-size: 0.93em;
+}
+
+.ak-ip-hint {
+  margin: 0;
+  font-size: 0.93em;
+  font-weight: 500;
+  color: var(--ak-ip-accent, var(--ak-accent, inherit));
+}
+
+.ak-ip-steps {
+  margin: 0;
+  padding-left: 20px;
+  font-size: 0.93em;
+  line-height: 1.5;
+  font-weight: 500;
+}
+
+.ak-ip-share {
+  display: inline-block;
+  vertical-align: -5px;
+}
+
+.ak-ip-share svg {
+  display: block;
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: var(--ak-ip-accent, var(--ak-accent, currentColor));
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.ak-ip .ak-ip-install {
+  min-height: 40px;
+  padding: 0 20px;
+  border: 1px solid var(--ak-ip-accent, var(--ak-accent, #ff2d78));
+  border-radius: 10px;
+  background: var(--ak-ip-accent, var(--ak-accent, #ff2d78));
+  color: var(--ak-ip-accent-fg, var(--ak-accent-ink, #ffffff));
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+@media (prefers-color-scheme: light) {
+  .ak-ip .ak-ip-install {
+    border-color: var(--ak-ip-accent, var(--ak-accent, #c2185b));
+    background: var(--ak-ip-accent, var(--ak-accent, #c2185b));
+  }
+}
+
+.ak-ip .ak-ip-install:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.ak-ip .ak-ip-close {
+  flex: none;
+  width: 44px;
+  min-height: 44px;
+  margin: -8px -8px 0 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+}
+
+.ak-ip .ak-ip-close svg {
+  display: block;
+  width: 22px;
+  height: 22px;
+  margin: 0 auto;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+/* Text for screen readers only. */
+.ak-ip-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

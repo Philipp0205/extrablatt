@@ -1,0 +1,39 @@
+/*
+ * Optional reset. Including this file changes nothing by itself.
+ * A page opts in by adding the class "ak-base" to <html>.
+ * Needs ak-tokens.css.
+ */
+html.ak-base,
+html.ak-base *,
+html.ak-base *::before,
+html.ak-base *::after {
+  box-sizing: border-box;
+}
+
+html.ak-base,
+html.ak-base body {
+  margin: 0;
+  font-family: var(--ak-font);
+  background: var(--ak-bg);
+  color: var(--ak-text);
+}
+
+/*
+ * Only body inherits the scheme. Setting it on html here would beat the
+ * :root rule in ak-tokens.css (html.ak-base is more specific) and undo it.
+ */
+html.ak-base body {
+  color-scheme: inherit;
+}
+
+html.ak-base :focus-visible {
+  outline: 2px solid var(--ak-accent-2);
+  outline-offset: 2px;
+}
+
+/* 16px stops iOS from zooming the page when a field is focused. */
+html.ak-base input,
+html.ak-base textarea,
+html.ak-base select {
+  font-size: 16px;
+}
