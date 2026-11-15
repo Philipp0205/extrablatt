@@ -126,7 +126,7 @@ class ArticleWarmingTest {
                 "from@example.com", null, "remember",
                 new AppProperties.Http(Duration.ofSeconds(2), Duration.ofSeconds(5), 2_097_152,
                         Duration.ofSeconds(10)),
-                null, null, null, null, null, null);
+                null, null, null, null, null);
         httpClient = new SafeHttpClient(props, host -> new InetAddress[] {LOOPBACK},
                 address -> !address.isLoopbackAddress() && SafeHttpClient.isBlockedAddress(address));
         warmExecutor = new TrackingExecutor();

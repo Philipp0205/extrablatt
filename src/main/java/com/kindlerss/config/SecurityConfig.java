@@ -190,9 +190,6 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
                         .requestMatchers(PUBLIC_PATHS).permitAll()
-                        // Called by the inbound e-mail provider, not a browser; guarded by its
-                        // own shared secret instead of a session (see NewsletterInboundController).
-                        .requestMatchers("/inbound/newsletters").permitAll()
                         // Called by the payment provider, not a browser; authenticated by
                         // its HMAC signature (see BillingWebhookController).
                         .requestMatchers("/webhooks/billing").permitAll()
@@ -223,10 +220,9 @@ public class SecurityConfig {
                 .addFilterAfter(new StaleSessionFilter(userService, rememberMeServices),
                         RememberMeAuthenticationFilter.class)
                 .csrf(csrf -> csrf
-                        // A mail provider cannot carry a CSRF token; the shared secret is its
-                        // authentication instead. Nor can a payment provider, which signs the
+                        // A payment provider cannot carry a CSRF token; it signs the
                         // request body instead.
-                        .ignoringRequestMatchers("/inbound/newsletters", "/webhooks/billing"))
+                        .ignoringRequestMatchers("/webhooks/billing"))
                 .headers(headers -> headers
                         .contentSecurityPolicy(csp -> csp.policyDirectives(contentSecurityPolicy()))
                         .frameOptions(HeadersConfigurer.FrameOptionsConfig::deny)

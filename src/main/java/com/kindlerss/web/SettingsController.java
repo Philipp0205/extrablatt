@@ -81,7 +81,6 @@ public class SettingsController {
         AppUser user = requireAccount();
         model.addAttribute("account", user);
         model.addAttribute("mailFrom", properties.mailFrom());
-        addNewsletterAttributes(model, user);
         return "settings-kindle";
     }
 
@@ -164,20 +163,6 @@ public class SettingsController {
         }
     }
 
-    private void addNewsletterAttributes(Model model, AppUser user) {
-        Entitlement entitlement = entitlementService.forUser(user.id());
-        // A newsletter inbox needs a second provider on top of the outbound one, so it
-        // belongs to the paid plan. An address already handed out keeps working —
-        // losing a subscription changes allowances, it does not take things away.
-        boolean newslettersEnabled = properties.newsletters().enabled()
-                && (entitlement.newsletters() || user.newsletterInboundToken() != null);
-        model.addAttribute("newslettersEnabled", newslettersEnabled);
-        if (newslettersEnabled) {
-            String token = userService.ensureNewsletterInboundToken(user.id());
-            model.addAttribute("newsletterAddress", token + "@" + properties.newsletters().inboundDomain());
-        }
-    }
-
     private AppUser requireAccount() {
         return userService.findById(currentUser.requireId())
                 .orElseThrow(() -> new IllegalStateException("Account not found"));
@@ -250,18 +235,6 @@ public class SettingsController {
                                         HttpServletRequest request) {
         request.getSession().setAttribute(AccountAdvice.TRIAL_ENDED_ACK, Boolean.TRUE);
         return "redirect:" + AppController.safeRedirect(redirect);
-    }
-
-    @PostMapping("/settings/newsletter-address/regenerate")
-    public String regenerateNewsletterAddress(RedirectAttributes redirectAttributes) {
-        if (!properties.newsletters().enabled()) {
-            redirectAttributes.addFlashAttribute("error", "Newsletters are not configured on this server");
-            return "redirect:/settings/kindle";
-        }
-        String token = userService.regenerateNewsletterInboundToken(currentUser.requireId());
-        redirectAttributes.addFlashAttribute("message",
-                "New newsletter address: " + token + "@" + properties.newsletters().inboundDomain());
-        return "redirect:/settings/kindle";
     }
 
     /**

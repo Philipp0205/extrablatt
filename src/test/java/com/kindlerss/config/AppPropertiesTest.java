@@ -16,7 +16,7 @@ class AppPropertiesTest {
     @Test
     void readingSettingsFallBackToTheirDefaults() {
         AppProperties properties = new AppProperties("from@example.com", null, null,
-                null, null, null, null, null, null, null);
+                null, null, null, null, null, null);
 
         assertEquals(AppProperties.Feeds.DEFAULT_MAX_ENTRIES, properties.feeds().maxEntries());
         assertEquals(AppProperties.Articles.DEFAULT_PAGE_SIZE, properties.articles().pageSize());
@@ -31,7 +31,7 @@ class AppPropertiesTest {
     @Test
     void billingIsOffUntilAnOperatorTurnsItOn() {
         AppProperties properties = new AppProperties("from@example.com", null, null,
-                null, null, null, null, null, null, null);
+                null, null, null, null, null, null);
 
         assertFalse(properties.billing().enabled());
         assertFalse(properties.billing().checkoutConfigured());
@@ -45,7 +45,7 @@ class AppPropertiesTest {
     @Test
     void retentionPeriodsExistWithoutBeingConfigured() {
         AppProperties properties = new AppProperties("from@example.com", null, null,
-                null, null, null, null, null, null, null);
+                null, null, null, null, null, null);
 
         assertEquals(730, properties.retention().sendEventDays());
         assertEquals(90, properties.retention().billingPayloadDays());
@@ -114,22 +114,17 @@ class AppPropertiesTest {
     }
 
     /**
-     * Http and Newsletters have a convenience constructor next to the canonical one;
+     * Http has a convenience constructor next to the canonical one;
      * binding must still go through the canonical one, or new settings are ignored.
      */
     @Test
     void recordsWithAConvenienceConstructorStillBindEveryField() {
         Binder binder = new Binder(new MapConfigurationPropertySource(Map.of(
                 "app.mail-from", "from@example.com",
-                "app.http.total-timeout", "7s",
-                "app.newsletters.inbound-domain", "news.example.com",
-                "app.newsletters.max-body-bytes", "4096")));
+                "app.http.total-timeout", "7s")));
 
         AppProperties properties = binder.bind("app", AppProperties.class).get();
 
         assertEquals(Duration.ofSeconds(7), properties.http().totalTimeout());
-        assertEquals(4096, properties.newsletters().maxBodyBytes());
-        assertEquals(AppProperties.Newsletters.DEFAULT_MAX_BODY_BYTES,
-                new AppProperties.Newsletters("news.example.com", "s").maxBodyBytes());
     }
 }

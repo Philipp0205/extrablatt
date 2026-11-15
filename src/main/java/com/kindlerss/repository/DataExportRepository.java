@@ -32,7 +32,7 @@ public class DataExportRepository {
     public Map<String, Object> account(long userId) {
         return single("""
                 SELECT email, kindle_email, email_verified_at, disabled_at,
-                       newsletter_inbound_token, created_at, updated_at
+                       created_at, updated_at
                 FROM users WHERE id = ?
                 """, userId);
     }

@@ -37,7 +37,7 @@ class BillingWebhookServiceTest {
                 "https://pay/monthly", "https://pay/yearly", null, null, null,
                 null, null, null, null, null, null);
         AppProperties properties = new AppProperties("from@example.com", null, null, null, null,
-                null, null, null, billing, null);
+                null, null, billing, null);
         return new BillingWebhookService(events, subscriptions, users, properties);
     }
 
@@ -277,7 +277,7 @@ class BillingWebhookServiceTest {
     @Test
     void theSweepDoesNothingWithoutAConfiguredWebhook() {
         AppProperties properties = new AppProperties("from@example.com", null, null, null, null,
-                null, null, null, null, null);
+                null, null, null, null);
 
         new BillingWebhookService(events, subscriptions, users, properties).retryFailedEvents();
 
