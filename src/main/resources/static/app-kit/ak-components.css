@@ -263,7 +263,7 @@ html.ak-sheet-open body {
   padding: 0;
   border: 0;
   background: var(--ak-scrim);
-  z-index: 30;
+  z-index: var(--ak-z-scrim, 30);
 }
 
 .ak-sheet {
@@ -283,7 +283,7 @@ html.ak-sheet-open body {
   border-radius: 22px 22px 0 0;
   background: var(--ak-surface);
   color: var(--ak-text);
-  z-index: 31;
+  z-index: var(--ak-z-sheet, 31);
 }
 .ak-sheet:has(> .ak-sheet-scroll) {
   display: flex;
@@ -323,8 +323,19 @@ html.ak-sheet-open body {
   background: var(--ak-surface);
 }
 
-/* AppKit.sheet adds these. */
-.ak-sheet-layer { position: fixed; top: 0; left: 0; width: 0; height: 0; }
+/*
+ * AppKit.sheet adds these. The layer has its own z-index, so the whole sheet
+ * (scrim and sheet inside it) paints above the tab bar. Without it, the 30
+ * and 31 below only count inside the layer and the tab bar eats the taps.
+ */
+.ak-sheet-layer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  z-index: var(--ak-z-sheet-layer, 40);
+}
 .ak-sheet-layer .ak-sheet { animation: ak-sheet-in var(--ak-duration-sheet) ease-out; }
 .ak-sheet-layer .ak-scrim { animation: ak-fade-in var(--ak-duration-sheet) ease-out; }
 .ak-sheet-layer.ak-closing .ak-sheet {
@@ -358,7 +369,7 @@ html.ak-sheet-open body {
   -webkit-backdrop-filter: blur(20px);
   backdrop-filter: blur(20px);
   border-top: 0.5px solid var(--ak-hairline);
-  z-index: 20;
+  z-index: var(--ak-z-tabbar, 20);
 }
 .ak-tab {
   appearance: none;
@@ -468,9 +479,13 @@ html.ak-sheet-open body {
   background: var(--ak-surface-2);
   color: var(--ak-text);
   font-size: var(--ak-fs-md);
-  z-index: 60;
+  z-index: var(--ak-z-toast, 60);
 }
 .ak-toast + .ak-toast { bottom: calc(var(--ak-tab) + 12px + 56px); }
+/*
+ * Error text uses --ak-danger. Both schemes reach 4.5:1 on the toast
+ * background (--ak-surface-2), so no toast-only colour is needed.
+ */
 .ak-toast-error, .ak-toast-danger { color: var(--ak-danger); }
 .ak-toast-success { color: var(--ak-success); }
 .ak-toast-warning { color: var(--ak-warning); }

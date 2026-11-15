@@ -47,16 +47,23 @@
   --ak-safe-left: env(safe-area-inset-left, 0px);
 
   /* Colour, dark (the default). */
+  /*
+   * Text colours (muted, danger, accent + accent-ink) reach WCAG AA (4.5:1)
+   * on the page surfaces in both schemes. The error toast reuses --ak-danger
+   * on --ak-surface-2, which passes too, so it needs no toast-only colour.
+   * The dark accent is a little deeper than before so white ink on an accent
+   * fill reaches 4.5:1 (it was 3.56:1 with #ff2d78).
+   */
   --ak-bg: #000000;
   --ak-text: #ffffff;
-  --ak-muted: #8e8e93;
+  --ak-muted: #a6a6aa;
   --ak-faint: #636366;
   --ak-hairline: rgba(255, 255, 255, 0.12);
   --ak-surface: #1c1c1e;
   --ak-surface-2: #2c2c2e;
   --ak-surface-3: #3a3a3c;
   --ak-panel: #141416;
-  --ak-danger: #ff453a;
+  --ak-danger: #ff7f77;
   --ak-warning: #ffd60a;
   --ak-success: #30d158;
   --ak-badge: #9f1239;
@@ -65,9 +72,9 @@
   --ak-overlay: rgba(28, 28, 30, 0.72);
   --ak-btn-fill: #ffffff;
   --ak-btn-ink: #000000;
-  --ak-accent: #ff2d78;
+  --ak-accent: #e3166b;
   --ak-accent-2: #ff4d8d;
-  --ak-accent-strong: #e0115f;
+  --ak-accent-strong: #c40e52;
   --ak-accent-ink: #ffffff;
   color-scheme: dark;
 
@@ -131,6 +138,18 @@
   --ak-tap: 44px;
   --ak-sheet-margin: 12px;
 
+  /*
+   * Stacking order: tab bar < sheet layer < toast. Inside the sheet layer
+   * the scrim sits under the sheet. A sheet layer is its own stacking
+   * context, so the scrim and sheet numbers only count inside it. If an app
+   * has its own fixed bars, keep them below --ak-z-sheet-layer.
+   */
+  --ak-z-tabbar: 20;
+  --ak-z-sheet-layer: 40;
+  --ak-z-scrim: 30;
+  --ak-z-sheet: 31;
+  --ak-z-toast: 60;
+
   /* Motion */
   --ak-ease-spring: cubic-bezier(0.3, 1.45, 0.6, 1);
   --ak-duration: 120ms;
@@ -143,14 +162,14 @@
   :root {
     --ak-bg: #ffffff;
     --ak-text: #000000;
-    --ak-muted: #8e8e93;
+    --ak-muted: #636366;
     --ak-faint: #aeaeb2;
     --ak-hairline: rgba(0, 0, 0, 0.12);
     --ak-surface: #ffffff;
     --ak-surface-2: #f2f2f7;
     --ak-surface-3: #e5e5ea;
     --ak-panel: #f2f2f7;
-    --ak-danger: #ff3b30;
+    --ak-danger: #c0281f;
     --ak-warning: #ff9f0a;
     --ak-success: #34c759;
     --ak-badge: #9f1239;
@@ -189,14 +208,14 @@
 html[data-ak-scheme="dark"] {
   --ak-bg: #000000;
   --ak-text: #ffffff;
-  --ak-muted: #8e8e93;
+  --ak-muted: #a6a6aa;
   --ak-faint: #636366;
   --ak-hairline: rgba(255, 255, 255, 0.12);
   --ak-surface: #1c1c1e;
   --ak-surface-2: #2c2c2e;
   --ak-surface-3: #3a3a3c;
   --ak-panel: #141416;
-  --ak-danger: #ff453a;
+  --ak-danger: #ff7f77;
   --ak-warning: #ffd60a;
   --ak-success: #30d158;
   --ak-badge: #9f1239;
@@ -205,9 +224,9 @@ html[data-ak-scheme="dark"] {
   --ak-overlay: rgba(28, 28, 30, 0.72);
   --ak-btn-fill: #ffffff;
   --ak-btn-ink: #000000;
-  --ak-accent: #ff2d78;
+  --ak-accent: #e3166b;
   --ak-accent-2: #ff4d8d;
-  --ak-accent-strong: #e0115f;
+  --ak-accent-strong: #c40e52;
   --ak-accent-ink: #ffffff;
   color-scheme: dark;
 
@@ -230,14 +249,14 @@ html[data-ak-scheme="dark"] {
 html[data-ak-scheme="light"] {
   --ak-bg: #ffffff;
   --ak-text: #000000;
-  --ak-muted: #8e8e93;
+  --ak-muted: #636366;
   --ak-faint: #aeaeb2;
   --ak-hairline: rgba(0, 0, 0, 0.12);
   --ak-surface: #ffffff;
   --ak-surface-2: #f2f2f7;
   --ak-surface-3: #e5e5ea;
   --ak-panel: #f2f2f7;
-  --ak-danger: #ff3b30;
+  --ak-danger: #c0281f;
   --ak-warning: #ff9f0a;
   --ak-success: #34c759;
   --ak-badge: #9f1239;

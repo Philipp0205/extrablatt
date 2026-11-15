@@ -6,6 +6,7 @@
  *     active: 'now',
  *     onSelect: function (id) { ... },     // the kit does no routing
  *     badge: { alerts: 3 },                // or function (id) { return count; }
+ *     badgeLabel: 'new',                   // word after the badge in its aria-label
  *     label: 'Main'                        // aria-label of the nav
  *   });
  *   document.body.appendChild(bar.el);
@@ -13,6 +14,10 @@
  *
  * tabs[].icon is optional: a DOM node, or a short string shown as text.
  * A badge shows when its value is truthy. A number over 99 shows as "99+".
+ * The badge has role="img" and an aria-label. A count is named
+ * "{text} {badgeLabel}", for example "3 new" or "99+ new". badgeLabel defaults
+ * to 'new'. Pass '' for no extra word. Custom text such as "new" is used as
+ * the label as it is. With role="img" the visible text is not read twice.
  * update() changes the selected tab and the badges in place, it does not
  * rebuild the nav. Pass only what changed.
  *
@@ -41,6 +46,7 @@
     var tabs = o.tabs || [];
     var active = o.active;
     var badge = o.badge;
+    var badgeWord = typeof o.badgeLabel === 'string' ? o.badgeLabel : 'new';
     var nav = document.createElement('nav');
     nav.className = 'ak-tabbar';
     nav.setAttribute('aria-label', o.label || 'Main');
@@ -52,6 +58,14 @@
         return badge(id);
       }
       return badge && typeof badge === 'object' ? badge[id] : null;
+    }
+
+    function badgeName(text) {
+      // Only a count takes the extra word. Custom text such as "new" speaks as it is.
+      if (!badgeWord || !/^\d+\+?$/.test(text)) {
+        return text;
+      }
+      return text + ' ' + badgeWord;
     }
 
     function make(tab) {
@@ -98,9 +112,12 @@
         if (!item.badgeEl) {
           item.badgeEl = document.createElement('span');
           item.badgeEl.className = 'ak-badge';
+          // role=img lets the aria-label name the badge, and hides the raw text.
+          item.badgeEl.setAttribute('role', 'img');
           item.button.appendChild(item.badgeEl);
         }
         item.badgeEl.textContent = text;
+        item.badgeEl.setAttribute('aria-label', badgeName(text));
       }
     }
 

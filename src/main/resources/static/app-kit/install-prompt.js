@@ -10,6 +10,11 @@
  *   install  A native Install button, from the captured beforeinstallprompt.
  *   generic  A hint to use the browser menu.
  *
+ * Option iosNonSafari: 'open-in-safari' (default) or 'share-steps'. It only
+ * changes what other iOS browsers (Chrome, Firefox, Edge, in-app browsers)
+ * show. With 'share-steps' they get the same Share steps as Safari instead of
+ * the "open in Safari" hint. Safari is unchanged either way.
+ *
  * "Installed" is read from the browser every time (display-mode or
  * navigator.standalone). Nothing about it is stored, so an uninstall brings
  * the prompt back. Only the close button is remembered, under opts.storageKey.
@@ -212,7 +217,10 @@
       return button;
     }
     if (variant === 'ios') {
-      return isIosSafari() ? steps() : make('p', 'ak-ip-hint', text('iosSafariHint'));
+      if (isIosSafari() || state.opts.iosNonSafari === 'share-steps') {
+        return steps();
+      }
+      return make('p', 'ak-ip-hint', text('iosSafariHint'));
     }
     return make('p', 'ak-ip-hint', text('genericHint'));
   }

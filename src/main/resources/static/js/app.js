@@ -73,7 +73,7 @@
       AppKit.themeColor.start({ skip: 'html.eink', media: ['(max-width: 719px)'] });
     }
     if (AppKit.installPrompt) {
-      AppKit.installPrompt.init({ appName: 'Extrablatt', iconUrl: '/icons/icon-192.png' });
+      AppKit.installPrompt.init({ appName: 'Extrablatt', iconUrl: '/icons/icon-192.png', iosNonSafari: 'share-steps' });
     }
   }
 
