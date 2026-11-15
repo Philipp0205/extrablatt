@@ -136,15 +136,14 @@ class GlobalExceptionHandlerTest {
     void aMissingStaticResourceIsNotFound() throws Exception {
         mockMvc.perform(get("/missing-file"))
                 .andExpect(status().isNotFound())
-                .andExpect(view().name("error"))
-                .andExpect(model().attribute("message", GlobalExceptionHandler.NOT_FOUND_MESSAGE));
+                .andExpect(view().name("error/404"));
     }
 
     @Test
     void anUnknownPathIsNotFound() throws Exception {
         mockMvc.perform(get("/no-such-page"))
                 .andExpect(status().isNotFound())
-                .andExpect(view().name("error"));
+                .andExpect(view().name("error/404"));
     }
 
     @Test

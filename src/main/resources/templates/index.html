@@ -216,11 +216,11 @@
               <input type="hidden" name="redirect" th:value="@{/(category=${selectedCategory})}"/>
               <button type="submit" aria-label="Mark this feed as read">Mark read</button>
             </form>
-            <form class="inline" th:action="@{/feeds/{id}/delete(id=${feed.id})}" method="post">
-              <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-              <input type="hidden" name="redirect" th:value="@{/(category=${selectedCategory})}"/>
-              <button type="submit">Delete</button>
-            </form>
+            <!-- Deleting is irreversible, so this is a plain link to a confirm page that
+                 names the feed; only the form on that page deletes. It needs no script,
+                 which matters on an e-ink browser. -->
+            <a class="btn" th:href="@{/feeds/{id}/delete(id=${feed.id},redirect=@{/(category=${selectedCategory})})}"
+               th:aria-label="'Delete ' + ${feed.title}">Delete</a>
           </div>
         </div>
       </details>

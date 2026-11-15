@@ -308,6 +308,26 @@ public class AppController {
         return "redirect:" + safeRedirect(redirect);
     }
 
+    /**
+     * The step before {@link #deleteFeed}: names the feed and asks. A page rather than a
+     * script prompt, so it also works where scripts do not (e-ink browsers). Changes nothing.
+     */
+    @GetMapping("/feeds/{id}/delete")
+    public String confirmDeleteFeed(@PathVariable("id") long id,
+                                    @RequestParam(value = "redirect", defaultValue = "/") String redirect,
+                                    Model model,
+                                    RedirectAttributes redirectAttributes) {
+        String target = safeRedirect(redirect);
+        java.util.Optional<Feed> feed = feedService.findById(currentUser.requireId(), id);
+        if (feed.isEmpty()) {
+            redirectAttributes.addFlashAttribute("error", "Feed not found");
+            return "redirect:" + target;
+        }
+        model.addAttribute("feed", feed.get());
+        model.addAttribute("redirect", target);
+        return "delete-feed-confirm";
+    }
+
     @PostMapping("/feeds/{id}/delete")
     public String deleteFeed(@PathVariable("id") long id,
                              @RequestParam(value = "redirect", defaultValue = "/") String redirect,

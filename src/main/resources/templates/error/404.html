@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" th:classappend="${einkLayout} ? ('eink' + ${einkTypeClasses})">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+  <title>Not found — Extrablatt</title>
+  <th:block th:replace="~{fragments/page-styles :: assets}"></th:block>
+</head>
+<body>
+<th:block th:replace="~{fragments/app-shell :: brandBar}"></th:block>
+<main id="main" class="wrap">
+  <div class="error-box">
+    <h1>Not found</h1>
+    <p>This page was not found. It may have moved, or the address may be mistyped.</p>
+    <p><a class="btn" th:href="@{/}">Back to feeds</a></p>
+  </div>
+</main>
+</body>
+</html>
