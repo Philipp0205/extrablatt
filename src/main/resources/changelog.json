@@ -1,6 +1,21 @@
 {
   "releases": [
     {
+      "id": "2026-11-15-newsletter-inbox",
+      "date": "15 November 2026",
+      "title": "The newsletter inbox is gone",
+      "highlights": [
+        "The e-mail address for forwarding newsletters has been removed. No new issues arrive by e-mail.",
+        "Newsletters you already received stay readable, and their feeds stay in your list."
+      ],
+      "changes": [
+        "The newsletter address is gone from Settings, Kindle, and the \"Add a newsletter instead\" option is gone from the feed list.",
+        "Anything sent to an old newsletter address is no longer received.",
+        "Feeds that were created from newsletters keep their articles. You can still read them, send them to Kindle, recategorize them or delete them. They just get no new issues.",
+        "A newsletter that publishes an RSS feed can still be followed like any other feed, with Follow a site."
+      ]
+    },
+    {
       "id": "2026-11-15",
       "date": "15 November 2026",
       "title": "Recovery codes, a sign-in link and an install banner",

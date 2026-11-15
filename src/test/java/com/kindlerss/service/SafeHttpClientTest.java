@@ -86,7 +86,7 @@ class SafeHttpClientTest {
     void rejectsNonHttpSchemesWithoutDns() {
         AppProperties props = new AppProperties(
                 "from@example.com", null, "remember",
-                new AppProperties.Http(null, null, 1024), null, null, null, null,
+                new AppProperties.Http(null, null, 1024), null, null, null,
                 null, null
         );
         SafeHttpClient client = track(new SafeHttpClient(props));
@@ -159,7 +159,7 @@ class SafeHttpClientTest {
         AppProperties props = new AppProperties(
                 "from@example.com", null, "remember",
                 new AppProperties.Http(Duration.ofSeconds(2), Duration.ofSeconds(2), 1024, Duration.ofSeconds(5)),
-                null, null, null, null, null, null);
+                null, null, null, null, null);
         SafeHttpClient client = track(new SafeHttpClient(props));
 
         for (String url : List.of("http://127.0.0.1:" + port() + "/", "http://[::1]:" + port() + "/",
@@ -310,7 +310,7 @@ class SafeHttpClientTest {
         AppProperties props = new AppProperties(
                 "from@example.com", null, "remember",
                 new AppProperties.Http(Duration.ofSeconds(2), Duration.ofSeconds(2), maxBytes, totalTimeout),
-                null, null, null, null, null, null);
+                null, null, null, null, null);
         // Loopback stands in for "the public internet" here; everything else keeps the real rules.
         return track(new SafeHttpClient(props, dns,
                 address -> !address.isLoopbackAddress() && SafeHttpClient.isBlockedAddress(address)));

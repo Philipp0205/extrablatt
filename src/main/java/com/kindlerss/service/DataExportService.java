@@ -1,7 +1,6 @@
 package com.kindlerss.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.kindlerss.config.AppProperties;
 import com.kindlerss.repository.DataExportRepository;
 import org.springframework.stereotype.Service;
 
@@ -26,11 +25,9 @@ public class DataExportService {
 
     private final ObjectMapper mapper = new ObjectMapper();
     private final DataExportRepository exports;
-    private final AppProperties properties;
 
-    public DataExportService(DataExportRepository exports, AppProperties properties) {
+    public DataExportService(DataExportRepository exports) {
         this.exports = exports;
-        this.properties = properties;
     }
 
     public byte[] exportJson(long userId) {
@@ -39,15 +36,6 @@ public class DataExportService {
             throw new IllegalStateException("Account not found");
         }
         String email = String.valueOf(account.get("email"));
-
-        // Newsletter inboxes are shown as the full address, since the bare token means
-        // nothing to a reader and the address is the thing they handed out.
-        Object token = account.remove("newsletter_inbound_token");
-        if (token != null && properties.newsletters().enabled()) {
-            account.put("newsletter_inbox_address", token + "@" + properties.newsletters().inboundDomain());
-        } else if (token != null) {
-            account.put("newsletter_inbox_token", token);
-        }
 
         Map<String, Object> export = new LinkedHashMap<>();
         export.put("exported_at", Instant.now().toString());

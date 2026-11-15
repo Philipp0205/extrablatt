@@ -26,7 +26,6 @@ public class UserRepository {
             toInstant(rs.getTimestamp("disabled_at")),
             toInstant(rs.getTimestamp("created_at")),
             toInstant(rs.getTimestamp("updated_at")),
-            rs.getString("newsletter_inbound_token"),
             rs.getBoolean("mark_read_on_next_page"),
             rs.getString("last_seen_changelog_id"),
             rs.getBoolean("mark_read_on_scroll")
@@ -137,31 +136,6 @@ public class UserRepository {
         return jdbc.query("SELECT user_id FROM feeds WHERE id = ?",
                         (rs, row) -> rs.getLong("user_id"), feedId)
                 .stream().findFirst();
-    }
-
-    /** Finds the account whose newsletter inbox address this token belongs to. */
-    public Optional<AppUser> findByNewsletterInboundToken(String token) {
-        return jdbc.query("SELECT * FROM users WHERE newsletter_inbound_token = ?", MAPPER, token)
-                .stream().findFirst();
-    }
-
-    /**
-     * Sets the newsletter inbox token only if the account does not already have
-     * one, so two concurrent requests generating a first token cannot clobber
-     * each other; the loser should re-read whichever token won.
-     */
-    public boolean setNewsletterInboundTokenIfAbsent(long id, String token) {
-        return jdbc.update("""
-                UPDATE users SET newsletter_inbound_token = ?, updated_at = NOW()
-                WHERE id = ? AND newsletter_inbound_token IS NULL
-                """, token, id) > 0;
-    }
-
-    /** Unconditionally replaces the newsletter inbox token, e.g. to shed spam. */
-    public void updateNewsletterInboundToken(long id, String token) {
-        jdbc.update("""
-                UPDATE users SET newsletter_inbound_token = ?, updated_at = NOW() WHERE id = ?
-                """, token, id);
     }
 
     /** Sets or replaces the hash of the account's recovery code. */

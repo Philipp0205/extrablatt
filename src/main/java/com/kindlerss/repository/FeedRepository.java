@@ -123,17 +123,6 @@ public class FeedRepository {
     }
 
     /**
-     * Finds the account's feed for a newsletter sender (keyed by the synthetic
-     * {@code newsletter:<sender>} URL), creating it on first delivery. A race
-     * between two concurrent first issues from the same new sender is resolved by
-     * letting the unique (user_id, url) constraint reject the loser, who then just
-     * re-reads what the winner inserted.
-     */
-    public Feed findOrCreateNewsletterFeed(long userId, String senderUrl, String title, String category) {
-        return findOrCreateSyntheticFeed(userId, senderUrl, title, category, FeedSource.NEWSLETTER);
-    }
-
-    /**
      * The one feed that holds pages sent by pasting a URL. Created on first paste
      * and reused afterwards; it is never polled.
      */

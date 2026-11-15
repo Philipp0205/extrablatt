@@ -331,7 +331,7 @@ class AppControllerSecurityTest {
         String latest = ChangelogCatalog.instance().latestId().orElseThrow();
         when(userService.findById(UID)).thenReturn(Optional.of(new AppUser(UID, "user@example.com",
                 "hash", "reader@kindle.com", Instant.now(), null, Instant.now(), Instant.now(),
-                null, true, latest)));
+                true, latest)));
         mockMvc.perform(get("/"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(not(containsString("id=\"whats-new-dialog\""))));

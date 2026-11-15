@@ -15,12 +15,11 @@ import java.util.Map;
  * The payment provider's callback, and the only thing in the app that can turn an
  * account into a subscriber.
  *
- * <p>It follows the shape of {@link NewsletterInboundController} — no session, no
- * CSRF token, unauthenticated as far as Spring Security is concerned — with one
- * difference: a shared secret in the URL is not good enough for money, so the
- * caller is authenticated by its HMAC signature over the raw body. The body is
- * therefore taken as bytes and hashed before anything parses it; re-serializing
- * parsed JSON would change the bytes and break every signature.
+ * <p>It is unauthenticated as far as Spring Security is concerned — no session,
+ * no CSRF token — and the caller is authenticated by its HMAC signature over
+ * the raw body. The body is therefore taken as bytes and hashed before anything
+ * parses it; re-serializing parsed JSON would change the bytes and break every
+ * signature.
  *
  * <p>The body is read only once a signature header is present, and never past
  * {@link #MAX_BODY_BYTES}: payment events are a few kilobytes, so anything bigger

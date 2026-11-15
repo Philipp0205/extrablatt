@@ -45,7 +45,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-/** Settings covers account options, optional newsletters, and admin-only telemetry. */
+/** Settings covers account options and admin-only telemetry. */
 @WebMvcTest(controllers = SettingsController.class)
 @Import({com.kindlerss.config.SecurityConfig.class, GlobalExceptionHandler.class,
         RateLimiter.class, RateLimitingFilter.class})
@@ -231,7 +231,7 @@ class SettingsControllerTest {
 
     @Test
     @WithMockUser
-    void newslettersSectionIsHiddenWhenNotConfigured() throws Exception {
+    void kindleSettingsShowTheSenderAddressAndNoNewsletterInbox() throws Exception {
         mockMvc.perform(get("/settings/kindle"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("from@example.com")))
@@ -239,7 +239,6 @@ class SettingsControllerTest {
                 .andExpect(content().string(not(containsString("New address"))))
                 .andExpect(content().string(not(containsString("action=\"/refresh\""))))
                 .andExpect(content().string(not(containsString(">Refresh</button>"))));
-        verify(userService, never()).ensureNewsletterInboundToken(UID);
     }
 
     @Test
@@ -251,16 +250,6 @@ class SettingsControllerTest {
                 .andExpect(redirectedUrl("/settings/kindle"))
                 .andExpect(flash().attribute("message", "Kindle e-mail updated"));
         verify(userService).updateKindleEmail(UID, "me@kindle.com");
-    }
-
-    @Test
-    @WithMockUser
-    void regeneratingTheNewsletterAddressWithoutConfigurationFailsGracefully() throws Exception {
-        mockMvc.perform(post("/settings/newsletter-address/regenerate").with(csrf()))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/settings/kindle"))
-                .andExpect(flash().attribute("error", containsString("not configured")));
-        verify(userService, never()).regenerateNewsletterInboundToken(UID);
     }
 
     @Test
@@ -412,7 +401,7 @@ class SettingsControllerTest {
 
     private void showAccountWithFlags(boolean track, boolean scroll) {
         AppUser user = new AppUser(UID, "user@example.com", "hash", "reader@kindle.com",
-                Instant.now(), null, Instant.now(), Instant.now(), null, track, null, scroll);
+                Instant.now(), null, Instant.now(), Instant.now(), track, null, scroll);
         when(userService.findById(UID)).thenReturn(Optional.of(user));
     }
 
@@ -448,7 +437,7 @@ class SettingsControllerTest {
     void alreadySeenReleaseDoesNotOpenTheWhatsNewNotice() throws Exception {
         String latest = ChangelogCatalog.instance().latestId().orElseThrow();
         AppUser seen = new AppUser(UID, "user@example.com", "hash", "reader@kindle.com",
-                Instant.now(), null, Instant.now(), Instant.now(), null, true, latest);
+                Instant.now(), null, Instant.now(), Instant.now(), true, latest);
         when(userService.findById(UID)).thenReturn(Optional.of(seen));
 
         mockMvc.perform(get("/settings"))

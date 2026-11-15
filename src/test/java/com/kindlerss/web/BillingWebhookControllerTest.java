@@ -27,10 +27,10 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
- * The webhook has to work the way the newsletter webhook does — no session, no CSRF
- * token — while being the one endpoint that can hand out a paid plan. These tests
- * are about the plumbing around it; {@link com.kindlerss.service.BillingWebhookServiceTest}
- * covers what it makes of a payload.
+ * The webhook has no session and no CSRF token, while being the one endpoint
+ * that can hand out a paid plan. These tests are about the plumbing around it;
+ * {@link com.kindlerss.service.BillingWebhookServiceTest} covers what it makes
+ * of a payload.
  */
 @WebMvcTest(controllers = BillingWebhookController.class)
 @Import({com.kindlerss.config.SecurityConfig.class, GlobalExceptionHandler.class,

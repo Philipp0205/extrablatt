@@ -5,7 +5,6 @@ import com.kindlerss.domain.Article;
 import com.kindlerss.domain.Feed;
 import com.kindlerss.security.CurrentUser;
 import com.kindlerss.service.ArticleService;
-import com.kindlerss.service.EntitlementService;
 import com.kindlerss.service.FeedService;
 import com.kindlerss.service.KindleMailService;
 import com.kindlerss.service.ReadableTime;
@@ -62,8 +61,6 @@ public class AppController {
     private final KindleMailService kindleMailService;
     private final UserService userService;
     private final CurrentUser currentUser;
-    private final EntitlementService entitlementService;
-    private final AppProperties properties;
     private final int pageSize;
     private final String mailFrom;
     private final ReadableTime readableTime = new ReadableTime();
@@ -73,15 +70,12 @@ public class AppController {
                          KindleMailService kindleMailService,
                          UserService userService,
                          CurrentUser currentUser,
-                         EntitlementService entitlementService,
                          AppProperties properties) {
         this.feedService = feedService;
         this.articleService = articleService;
         this.kindleMailService = kindleMailService;
         this.userService = userService;
         this.currentUser = currentUser;
-        this.entitlementService = entitlementService;
-        this.properties = properties;
         this.pageSize = properties.articles().pageSize();
         this.mailFrom = properties.mailFrom();
     }
@@ -131,15 +125,6 @@ public class AppController {
                 selectedFeeds.stream().mapToLong(Feed::unreadCount).sum());
         model.addAttribute("kindleConfigured", isKindleConfigured(userId));
         model.addAttribute("mailFrom", mailFrom);
-        var user = userService.findById(userId).orElse(null);
-        var entitlement = entitlementService.forUser(userId);
-        boolean newslettersEnabled = properties.newsletters().enabled()
-                && (entitlement.newsletters() || (user != null && user.newsletterInboundToken() != null));
-        model.addAttribute("newslettersEnabled", newslettersEnabled);
-        if (newslettersEnabled && user != null) {
-            String token = userService.ensureNewsletterInboundToken(userId);
-            model.addAttribute("newsletterAddress", token + "@" + properties.newsletters().inboundDomain());
-        }
         return "index";
     }
 
