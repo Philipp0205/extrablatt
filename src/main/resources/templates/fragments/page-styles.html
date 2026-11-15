@@ -19,6 +19,12 @@
   else, so the block opens and closes on the script lines. reader.js is deferred
   like app.js and runs after it.
 
+  The app-kit files (/app-kit/..., vendored, same hashing as /css and /js) are
+  linked for every other device only: four stylesheets before app.css, and
+  theme-color.js and install-prompt.js, deferred, before app.js so that app.js
+  stays the last shared script and can start them. An e-ink page links none of
+  them.
+
   App bars and icons: there are four theme-color metas because the phone layout
   (max-width 719px) paints the page in the Papier --bg (#f4eee1 light, #17140f
   dark), and the bar of an installed app should match it. Wider screens keep the
@@ -53,6 +59,13 @@
   <meta name="mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <th:block th:unless="${einkLayout}">
+  <link rel="stylesheet" th:href="@{/app-kit/ak-tokens.css}"/>
+  <link rel="stylesheet" th:href="@{/app-kit/ak-components.css}"/>
+  <link rel="stylesheet" th:href="@{/app-kit/app-kit.css}"/>
+  <link rel="stylesheet" th:href="@{/app-kit/install-prompt.css}"/>
+  <script th:src="@{/app-kit/theme-color.js}" defer></script>
+  <script th:src="@{/app-kit/install-prompt.js}" defer></script></th:block>
   <link rel="stylesheet" th:href="@{/css/app.css}"/>
   <script th:src="@{/js/app.js}" defer></script><th:block th:if="${einkLayout}">
   <link rel="stylesheet" th:href="@{/css/eink.css}"/>

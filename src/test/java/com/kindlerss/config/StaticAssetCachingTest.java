@@ -133,6 +133,57 @@ class StaticAssetCachingTest {
     }
 
     /**
+     * The vendored app-kit is served like /css and /js: the name carries a hash
+     * of the file, so a year-long immutable cache is safe, and it starts no session.
+     */
+    @Test
+    void anAppKitStylesheetIsCacheableForAYearAndStartsNoSession() throws Exception {
+        mockMvc.perform(get("/app-kit/ak-tokens.css"))
+                .andExpect(status().isOk())
+                .andExpect(header().string(HttpHeaders.CACHE_CONTROL, containsString("max-age=31536000")))
+                .andExpect(header().string(HttpHeaders.CACHE_CONTROL, containsString("public")))
+                .andExpect(header().string(HttpHeaders.CACHE_CONTROL, containsString("immutable")))
+                .andExpect(header().string(HttpHeaders.CACHE_CONTROL, not(containsString("no-store"))))
+                .andExpect(header().doesNotExist(HttpHeaders.SET_COOKIE));
+    }
+
+    @Test
+    void anAppKitScriptIsCacheableForAYearAndStartsNoSession() throws Exception {
+        mockMvc.perform(get("/app-kit/theme-color.js"))
+                .andExpect(status().isOk())
+                .andExpect(header().string(HttpHeaders.CACHE_CONTROL, containsString("max-age=31536000")))
+                .andExpect(header().string(HttpHeaders.CACHE_CONTROL, containsString("public")))
+                .andExpect(header().string(HttpHeaders.CACHE_CONTROL, containsString("immutable")))
+                .andExpect(header().string(HttpHeaders.CACHE_CONTROL, not(containsString("no-store"))))
+                .andExpect(header().doesNotExist(HttpHeaders.SET_COOKIE));
+    }
+
+    /**
+     * The scrolling layouts link the kit under hashed names, ahead of app.css, and
+     * its two scripts ahead of app.js, which stays the last shared script.
+     */
+    @Test
+    void theLoginPageLinksTheHashedAppKitFilesBeforeTheAppFiles() throws Exception {
+        String html = mockMvc.perform(get("/login"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        String[] inOrder = {
+                "href=\"/app-kit/ak-tokens-", "href=\"/app-kit/ak-components-",
+                "href=\"/app-kit/app-kit-", "href=\"/app-kit/install-prompt-",
+                "src=\"/app-kit/theme-color-", "src=\"/app-kit/install-prompt-",
+                "href=\"/css/app-", "src=\"/js/app-"};
+        int from = 0;
+        for (String part : inOrder) {
+            int at = html.indexOf(part, from);
+            org.junit.jupiter.api.Assertions.assertTrue(at >= 0, part + " missing or out of order in " + html);
+            from = at;
+        }
+        org.junit.jupiter.api.Assertions.assertTrue(html.contains("app-kit/theme-color-"), "theme-color.js");
+        org.junit.jupiter.api.Assertions.assertFalse(html.contains("/app-kit/ak-dom"), "ak-dom.js is not loaded yet");
+        org.junit.jupiter.api.Assertions.assertFalse(html.contains("/app-kit/ak-sheet"), "ak-sheet.js is not loaded yet");
+    }
+
+    /**
      * The manifest is revalidated on every use (a week-long copy kept the old light
      * colours on installed apps), and must be served with the manifest media type,
      * not octet-stream.

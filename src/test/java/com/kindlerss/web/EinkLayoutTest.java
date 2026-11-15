@@ -189,6 +189,37 @@ class EinkLayoutTest {
         }
     }
 
+    /** The e-ink layout loads nothing from the app-kit, neither CSS nor JS. */
+    @Test
+    void theEinkLayoutLoadsNothingFromTheAppKit() throws Exception {
+        for (String ua : List.of(PAPERWHITE, KINDLE_CHROMIUM)) {
+            String page = mockMvc.perform(get("/login").header(HttpHeaders.USER_AGENT, ua))
+                    .andExpect(status().isOk())
+                    .andReturn().getResponse().getContentAsString();
+            assertTrue(page.contains(EINK_HTML), "an e-ink page");
+            assertFalse(page.contains("/app-kit/"), "no app-kit file for " + ua);
+        }
+        String forced = mockMvc.perform(get("/login?layout=kindle").header(HttpHeaders.USER_AGENT, PIXEL))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        assertFalse(forced.contains("/app-kit/"), "no app-kit file with ?layout=kindle");
+    }
+
+    /** Phones and desktops get the kit's stylesheets and its two deferred scripts. */
+    @ParameterizedTest
+    @ValueSource(strings = {PIXEL, IPHONE, DESKTOP, ""})
+    void theScrollingLayoutsLoadTheAppKit(String ua) throws Exception {
+        mockMvc.perform(get("/login").header(HttpHeaders.USER_AGENT, ua))
+                .andExpect(status().isOk())
+                .andExpect(content().string(matchesPattern("(?s).*/app-kit/ak-tokens-[0-9a-f]+\\.css.*")))
+                .andExpect(content().string(matchesPattern("(?s).*/app-kit/ak-components-[0-9a-f]+\\.css.*")))
+                .andExpect(content().string(matchesPattern("(?s).*/app-kit/app-kit-[0-9a-f]+\\.css.*")))
+                .andExpect(content().string(matchesPattern("(?s).*/app-kit/install-prompt-[0-9a-f]+\\.css.*")))
+                .andExpect(content().string(matchesPattern("(?s).*/app-kit/theme-color-[0-9a-f]+\\.js\" defer></script>.*")))
+                .andExpect(content().string(matchesPattern("(?s).*/app-kit/install-prompt-[0-9a-f]+\\.js\" defer></script>.*")))
+                .andExpect(content().string(matchesPattern("(?s).*/js/app-[0-9a-f]+\\.js\" defer></script>\\s*</head>.*")));
+    }
+
     @ParameterizedTest
     @ValueSource(strings = {PIXEL, IPHONE, DESKTOP, FIRE, ""})
     @WithMockUser
