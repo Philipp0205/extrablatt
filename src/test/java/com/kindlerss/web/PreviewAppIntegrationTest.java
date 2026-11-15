@@ -160,7 +160,7 @@ class PreviewAppIntegrationTest {
 
     @Test
     void theScriptsAndTheStylesheetArePartOfTheBuild() {
-        for (String path : new String[] {"static/js/preview/api.js", "static/js/preview/articles.js",
+        for (String path : new String[] {"static/js/preview/api.js", "static/js/preview/send.js", "static/js/preview/articles.js",
                 "static/js/preview/app.js", "static/css/preview.css"}) {
             assertTrue(new ClassPathResource(path).exists(), path + " is on the classpath");
         }

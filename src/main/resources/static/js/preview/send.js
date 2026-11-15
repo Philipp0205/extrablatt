@@ -1,0 +1,129 @@
+/*
+ * Preview.send.openSetup: the "Add your Kindle address" bottom sheet.
+ *
+ *   Preview.send.openSetup({
+ *     onSaved: function (result, stillOpen) { ... }   // result: the API's {kindleEmail}
+ *   });
+ *
+ * Saves the address with PUT /api/v1/account/kindle-email. The API's error text (a 400 for
+ * a bad address, or any other failure) is shown inside the sheet, which stays open.
+ * After a save, onSaved runs. stillOpen is false if the reader dismissed the sheet while
+ * the save was in flight: the address is saved, but they no longer asked to send.
+ * Returns null when a sheet is already open. The phone's Back button closes the sheet.
+ *
+ * Plain ES5. The only global it adds is window.Preview.
+ */
+(function () {
+  'use strict';
+
+  var Preview = window.Preview = window.Preview || {};
+  var h = AppKit.h;
+  var SAVE_LABEL = 'Save and send';
+  var open = null;   // the AppKit.sheet handle while the sheet is up
+
+  function syncHistory() {
+    AppKit.nav.syncOverlayHistory({
+      depth: function () { return open ? 1 : 0; },
+      onPop: function () { if (open) { open.close(); } }
+    });
+  }
+
+  function openSetup(opts) {
+    var saving = false;
+    var input = h('input', {
+      id: 'pv-kindle-email',
+      class: 'ak-input',
+      type: 'email',
+      name: 'kindleEmail',
+      autocomplete: 'off',
+      autocapitalize: 'none',
+      spellcheck: 'false',
+      placeholder: 'name@kindle.com',
+      'aria-describedby': 'pv-kindle-error'
+    });
+    var errorEl = h('p', { id: 'pv-kindle-error', class: 'pv-sheet-error', role: 'alert' });
+    var saveBtn = h('button', { type: 'submit', class: 'ak-btn' }, SAVE_LABEL);
+    var cancelBtn = h('button', {
+      type: 'button',
+      class: 'ak-btn ak-btn-ghost',
+      onclick: function () { if (opened) { opened.close(); } }
+    }, 'Cancel');
+
+    // novalidate: the API's message is the one error text, wherever it comes from.
+    var form = h('form', {
+      class: 'pv-sheet',
+      role: 'dialog',
+      'aria-modal': 'true',
+      'aria-labelledby': 'pv-setup-title',
+      novalidate: true,
+      onsubmit: function (event) {
+        event.preventDefault();
+        save();
+      }
+    },
+      h('div', { class: 'ak-sheet-head' }, h('div', { class: 'ak-grabber' })),
+      h('h2', { id: 'pv-setup-title', class: 'pv-sheet-title' }, 'Add your Kindle address'),
+      h('p', { class: 'pv-sheet-help' },
+        'Enter the Send-to-Kindle e-mail address Amazon gave your device. It ends in @kindle.com. ',
+        h('a', { class: 'pv-link', href: '/settings/kindle', target: '_blank', rel: 'noopener noreferrer' },
+          'Where do I find it?')),
+      h('div', { class: 'ak-field' },
+        h('label', { class: 'ak-label', for: 'pv-kindle-email' }, 'Kindle e-mail address'),
+        input),
+      errorEl,
+      h('div', { class: 'pv-sheet-actions' }, saveBtn, cancelBtn));
+
+    var opened = AppKit.sheet.show(form, {
+      focus: input,
+      onClose: function () {
+        open = null;
+        syncHistory();
+      }
+    });
+    if (!opened) {
+      return null;
+    }
+    open = opened;
+    syncHistory();
+
+    function setSaving(on) {
+      saving = on;
+      saveBtn.disabled = on;
+      cancelBtn.disabled = on;
+      saveBtn.textContent = on ? 'Saving\u2026' : SAVE_LABEL;
+    }
+
+    function fail(message) {
+      setSaving(false);
+      errorEl.textContent = message;
+      input.focus();
+    }
+
+    function save() {
+      if (saving) {
+        return;
+      }
+      var address = input.value.trim();
+      errorEl.textContent = '';
+      if (!address) {
+        // The API treats a blank address as "clear it", which is not what this sheet is for.
+        fail('Enter your Kindle address.');
+        return;
+      }
+      setSaving(true);
+      Preview.api.put('/api/v1/account/kindle-email', { kindleEmail: address }).then(function (result) {
+        var stillOpen = open === opened;
+        if (stillOpen) {
+          opened.close();
+        }
+        opts.onSaved(result, stillOpen);
+      }, function (error) {
+        fail(error.message);
+      });
+    }
+
+    return opened;
+  }
+
+  Preview.send = { openSetup: openSetup };
+})();

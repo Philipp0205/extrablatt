@@ -1,11 +1,13 @@
 /*
- * Preview.articles: the Articles screen of the preview app, read-only.
+ * Preview.articles: the Articles screen of the preview app.
  *
  *   Preview.articles.mount(element);   // once
  *   Preview.articles.show();           // whenever the tab is shown; the first call loads
  *
- * Reads /api/v1/account (trial banner), /api/v1/categories (chips) and /api/v1/items.
- * Every title links to the server's own article page.
+ * Reads /api/v1/account (trial banner, Kindle address), /api/v1/categories (chips) and
+ * /api/v1/items. Every title links to the server's own article page. Every row has a
+ * Send button (POST /api/v1/articles/{id}/send); without a Kindle address it opens the
+ * setup sheet from send.js first.
  *
  * Plain ES5. The only global it adds is window.Preview.
  */
@@ -52,6 +54,7 @@
       error: '',
       loadingMore: false,
       account: null,
+      sending: {},         // article ids with a send in flight; survives a reload of the list
       categories: [],
       started: false,
       request: 0           // lets a late answer to an old filter be ignored
@@ -140,17 +143,103 @@
     function row(item, now) {
       var when = relativeTime(item.publishedAt, now);
       var meta = [item.feedTitle, when].filter(function (part) { return !!part; }).join(' \u00b7 ');
-      return h('li', { class: 'pv-row' },
-        h('div', { class: 'pv-meta' },
-          h('span', { class: 'pv-meta-text' }, meta),
-          item.sentAt ? h('span', { class: 'pv-tag' }, 'Sent') : null),
-        h('div', { class: 'pv-title-line' },
-          item.read ? null : h('span', { class: 'pv-dot', 'aria-hidden': 'true' }),
-          item.read ? null : h('span', { class: 'pv-sr' }, 'Unread: '),
-          h('a', {
-            class: item.read ? 'pv-title' : 'pv-title pv-title-unread',
-            href: '/articles/' + item.id
-          }, item.title)));
+      var sending = !!state.sending[item.id];
+      return h('li', { class: 'pv-row', 'data-id': item.id },
+        h('div', { class: 'pv-row-text' },
+          h('div', { class: 'pv-meta' },
+            h('span', { class: 'pv-meta-text' }, meta),
+            item.sentAt ? h('span', { class: 'pv-tag' }, 'Sent') : null),
+          h('div', { class: 'pv-title-line' },
+            item.read ? null : h('span', { class: 'pv-dot', 'aria-hidden': 'true' }),
+            item.read ? null : h('span', { class: 'pv-sr' }, 'Unread: '),
+            h('a', {
+              class: item.read ? 'pv-title' : 'pv-title pv-title-unread',
+              href: '/articles/' + item.id
+            }, item.title))),
+        h('button', {
+          type: 'button',
+          class: 'ak-btn ak-btn-secondary pv-send',
+          'aria-label': 'Send ' + item.title + ' to Kindle',
+          'aria-busy': sending ? 'true' : null,
+          disabled: sending,
+          onclick: function () { onSend(item); }
+        }, sending ? 'Sending\u2026' : 'Send'));
+    }
+
+    // Redraws one row, so a send in progress does not rebuild the whole list.
+    function refreshRow(id) {
+      var old = listEl.querySelector('li[data-id="' + id + '"]');
+      var item = findItem(id);
+      if (!old || !item) {
+        return;
+      }
+      var fresh = row(item, Date.now());
+      old.parentNode.replaceChild(fresh, old);
+      // A disabled button drops focus; give it back when the page has nowhere else to put it.
+      if (document.activeElement === document.body && !state.sending[id]) {
+        fresh.querySelector('.pv-send').focus({ preventScroll: true });
+      }
+    }
+
+    function findItem(id) {
+      for (var i = 0; i < state.items.length; i++) {
+        if (state.items[i].id === id) {
+          return state.items[i];
+        }
+      }
+      return null;
+    }
+
+    function onSend(item) {
+      if (state.sending[item.id]) {
+        return;
+      }
+      if (state.account && state.account.kindleConfigured === false) {
+        askForAddress(item);
+      } else {
+        send(item);
+      }
+    }
+
+    function send(item) {
+      var id = item.id;
+      state.sending[id] = true;
+      refreshRow(id);
+      Preview.api.post('/api/v1/articles/' + id + '/send', { images: false }).then(function (data) {
+        delete state.sending[id];
+        var current = findItem(id);
+        if (current) {
+          current.sentAt = new Date().toISOString();
+        }
+        refreshRow(id);
+        AppKit.toast((data && data.message) || 'Sent to Kindle', { kind: 'success' });
+      }, function (error) {
+        delete state.sending[id];
+        refreshRow(id);
+        if (error.status === 409 && error.data && error.data.setup === true) {
+          // The address was removed elsewhere since the account was loaded.
+          if (state.account) {
+            state.account.kindleConfigured = false;
+          }
+          askForAddress(item);
+        } else {
+          AppKit.toast(error.message, { kind: 'error' });
+        }
+      });
+    }
+
+    function askForAddress(item) {
+      Preview.send.openSetup({
+        onSaved: function (result, stillOpen) {
+          if (state.account) {
+            state.account.kindleConfigured = true;
+            state.account.kindleEmail = result && result.kindleEmail;
+          }
+          if (stillOpen) {
+            send(item);
+          }
+        }
+      });
     }
 
     function renderList() {

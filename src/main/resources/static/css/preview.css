@@ -226,6 +226,9 @@ button:focus-visible {
 .pv-count { margin: 0; color: var(--ak-muted); font-size: var(--ak-fs-md); }
 
 .pv-controls { display: flex; flex-direction: column; gap: var(--ak-s3); padding-bottom: var(--ak-s3); }
+/* Content width, left-aligned: the two labels do not need the whole row. */
+.pv-segment { display: inline-grid; align-self: flex-start; }
+.pv-segment .ak-segment-btn { padding: 0 var(--ak-s5); }
 .pv-chips {
   display: flex;
   gap: var(--ak-s2);
@@ -241,8 +244,19 @@ button:focus-visible {
 
 .pv-rows { margin: 0; padding: 0; list-style: none; }
 .pv-row {
+  display: flex;
+  align-items: center;
+  gap: var(--ak-s3);
   padding: var(--ak-s3) 0;
   border-bottom: 1px solid var(--ak-hairline);
+}
+.pv-row-text { flex: 1; min-width: 0; }
+.pv-send {
+  flex: none;
+  width: auto;
+  min-height: var(--ak-tap);
+  padding: 0 var(--ak-s4);
+  font-size: var(--ak-fs-md);
 }
 .pv-meta {
   display: flex;
@@ -303,3 +317,12 @@ button:focus-visible {
 
 .pv-placeholder { padding: var(--ak-s4) 0; }
 .pv-placeholder p { color: var(--ak-muted); font-size: var(--ak-fs-lg); }
+
+/* ---------- Kindle address sheet ---------- */
+
+.pv-sheet-title { margin: 0 0 var(--ak-s2); font-size: var(--ak-fs-display); font-weight: var(--ak-fw-bold); line-height: 1.1; }
+.pv-sheet-help { margin: 0 0 var(--ak-s4); color: var(--ak-muted); font-size: var(--ak-fs-md); }
+.pv-sheet-error { margin: 0; color: var(--ak-danger); font-size: var(--ak-fs-md); }
+/* The alert element stays rendered so screen readers announce the text when it appears. */
+.pv-sheet-error:not(:empty) { margin-top: var(--ak-s2); }
+.pv-sheet-actions { display: flex; flex-direction: column; gap: var(--ak-s2); margin-top: var(--ak-s4); }
