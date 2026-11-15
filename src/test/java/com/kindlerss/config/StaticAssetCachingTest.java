@@ -174,18 +174,19 @@ class StaticAssetCachingTest {
 
     /**
      * Home-screen icons are cached hard by iOS and Android, so the manifest points at
-     * versioned icon addresses. The bar colour comes only from the per-scheme meta
-     * tags: a fixed theme_color in the manifest would always be the light one.
+     * versioned icon addresses. The manifest also carries the dark theme_color and
+     * background_color, the fallback an installed Android app keeps until the page's
+     * own colour is applied.
      */
     @Test
-    void theManifestVersionsItsIconsAndLeavesTheThemeColourToTheMetas() throws Exception {
+    void theManifestVersionsItsIconsAndSetsTheDarkFallbackColours() throws Exception {
         mockMvc.perform(get("/manifest.webmanifest"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("\"/icons/icon-192.png?v=2\"")))
                 .andExpect(content().string(containsString("\"/icons/icon-512.png?v=2\"")))
                 .andExpect(content().string(containsString("\"/icons/maskable-512.png?v=2\"")))
-                .andExpect(content().string(not(containsString("theme_color"))))
-                .andExpect(content().string(containsString("background_color")));
+                .andExpect(content().string(containsString("\"theme_color\": \"#17140f\"")))
+                .andExpect(content().string(containsString("\"background_color\": \"#17140f\"")));
     }
 
     @Test

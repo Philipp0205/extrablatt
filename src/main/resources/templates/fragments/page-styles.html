@@ -27,6 +27,12 @@
   status bar, and the CSS pads the top with env(safe-area-inset-top). The ?v= on
   the icon links (and in manifest.webmanifest) exists because iOS and Android
   cache home-screen icons hard: bump it whenever an icon changes.
+
+  The four metas are the no-JS default. app.js replaces them with one meta that
+  carries the painted page background, kept in sync on colour-scheme and width
+  changes (not on the e-ink layout). The manifest theme_color/background_color
+  (#17140f) is only the baked fallback of an installed Android app, which Chrome
+  re-reads after a 24h check, so reinstalling the app applies it at once.
 -->
 <th:block th:fragment="assets">
   <meta name="color-scheme" content="light dark"/>
