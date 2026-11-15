@@ -321,6 +321,42 @@ class SettingsControllerTest {
 
     @Test
     @WithMockUser
+    void readingSettingsOffersMarkReadOnScrollUncheckedByDefault() throws Exception {
+        mockMvc.perform(get("/settings/reading"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("name=\"markReadOnScroll\"")))
+                .andExpect(content().string(containsString("Mark articles read as I scroll past them")))
+                .andExpect(content().string(not(containsString("name=\"markReadOnScroll\" value=\"true\" checked"))));
+    }
+
+    @Test
+    @WithMockUser
+    void readingSettingsCanTurnMarkReadOnScrollOnAndOff() throws Exception {
+        mockMvc.perform(post("/settings/reading").with(csrf())
+                        .param("markReadOnScroll", "true"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/settings/reading"));
+        verify(userService).updateMarkReadOnScroll(UID, true);
+
+        mockMvc.perform(post("/settings/reading").with(csrf()))
+                .andExpect(status().is3xxRedirection());
+        verify(userService).updateMarkReadOnScroll(UID, false);
+    }
+
+    @Test
+    @WithMockUser
+    void readingSettingsShowsMarkReadOnScrollCheckedWhenOn() throws Exception {
+        AppUser on = new AppUser(UID, "user@example.com", "hash", "reader@kindle.com",
+                Instant.now(), null, Instant.now(), Instant.now(), null, true, null, true);
+        when(userService.findById(UID)).thenReturn(Optional.of(on));
+
+        mockMvc.perform(get("/settings/reading"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("name=\"markReadOnScroll\" value=\"true\" checked=\"checked\"")));
+    }
+
+    @Test
+    @WithMockUser
     void readingSettingsCanTurnMarkOnNextPageOn() throws Exception {
         mockMvc.perform(post("/settings/reading").with(csrf())
                         .param("markReadOnNextPage", "true"))

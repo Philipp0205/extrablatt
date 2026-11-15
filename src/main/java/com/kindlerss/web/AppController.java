@@ -423,6 +423,7 @@ public class AppController {
         if (snapshotMinted) {
             model.addAttribute("stablePath", listPath);
         }
+        model.addAttribute("markReadOnScroll", userService.markReadOnScroll(userId));
         addFilterBar(model, feedService.listFeeds(userId), feedId, category, unreadByDefault);
         articleService.warmExtractedContent(userId,
                 articles.stream().filter(a -> !a.read()).limit(5).map(Article::id).toList());
@@ -558,6 +559,27 @@ public class AppController {
         int first = Math.max(page, 1);
         return "redirect:" + itemsPath(feedId, category, false, first,
                 through == null ? first : Math.max(first, through), null);
+    }
+
+    /**
+     * Marks the rows a reader has scrolled past, for accounts that asked for it
+     * (Settings, Reading). Batched by app.js from IntersectionObserver reports, and
+     * answered in JSON because the list stays where it is. An account that has not
+     * turned the option on gets a 409 and nothing is marked, so the option is
+     * enforced here and not only by the script not asking.
+     */
+    @PostMapping("/items/scroll-read")
+    public ResponseEntity<Map<String, Object>> markScrolledRead(
+            @RequestParam(value = "id", required = false) List<Long> ids) {
+        long userId = currentUser.requireId();
+        if (!userService.markReadOnScroll(userId)) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(Map.of("error", "Marking articles read by scrolling is off", "marked", 0));
+        }
+        List<Long> distinct = ids == null ? List.of()
+                : ids.stream().filter(java.util.Objects::nonNull).distinct().limit(MAX_MARK_READ).toList();
+        int marked = distinct.isEmpty() ? 0 : articleService.markRead(userId, distinct, true);
+        return ResponseEntity.ok(Map.of("marked", marked));
     }
 
     private int totalPages(long total) {

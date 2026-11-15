@@ -145,6 +145,24 @@ class EinkLayoutTest {
         when(articleService.getReaderHtml(any(Article.class), eq(false))).thenReturn("<p>Body</p>");
     }
 
+    @Test
+    @WithMockUser
+    void theEinkListIsNeverArmedToMarkReadByScrolling() throws Exception {
+        when(userService.markReadOnScroll(UID)).thenReturn(true);
+        when(articleService.findPage(eq(UID), isNull(), isNull(), eq(1), anyInt()))
+                .thenReturn(List.of(new Article(4L, 1L, "guid-4", "Article 4", null, null,
+                        null, null, null, null, false, null, null, null, "Example Feed")));
+        when(articleService.count(eq(UID), isNull(), isNull())).thenReturn(1L);
+
+        mockMvc.perform(get("/items?unread=false").header(HttpHeaders.USER_AGENT, PAPERWHITE))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("data-article-id=\"4\"")))
+                .andExpect(content().string(not(containsString("data-scroll-read"))));
+        mockMvc.perform(get("/items?unread=false").header(HttpHeaders.USER_AGENT, PIXEL))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("data-scroll-read=\"/items/scroll-read\"")));
+    }
+
     @ParameterizedTest
     @ValueSource(strings = {"/items?unread=false", "/articles/7", "/", "/settings"})
     @WithMockUser

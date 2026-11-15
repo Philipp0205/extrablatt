@@ -254,6 +254,20 @@ class UserServiceTest {
     }
 
     @Test
+    void markReadOnScrollIsOffWhenTheAccountIsMissingOrHasNotChosen() {
+        when(userRepository.findById(99L)).thenReturn(Optional.empty());
+        assertFalse(service.markReadOnScroll(99L));
+        when(userRepository.findById(3L)).thenReturn(Optional.of(user(3L, "s@example.com")));
+        assertFalse(service.markReadOnScroll(3L));
+    }
+
+    @Test
+    void markReadOnScrollIsSavedOnTheAccount() {
+        service.updateMarkReadOnScroll(3L, true);
+        verify(userRepository).updateMarkReadOnScroll(3L, true);
+    }
+
+    @Test
     void markReadOnNextPageDefaultsToOnWhenTheAccountIsMissing() {
         when(userRepository.findById(99L)).thenReturn(Optional.empty());
         assertTrue(service.markReadOnNextPage(99L));

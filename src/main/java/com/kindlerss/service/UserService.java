@@ -231,6 +231,16 @@ public class UserService {
         return userRepository.findById(userId).map(AppUser::markReadOnNextPage).orElse(true);
     }
 
+    @Transactional
+    public void updateMarkReadOnScroll(long userId, boolean markReadOnScroll) {
+        userRepository.updateMarkReadOnScroll(userId, markReadOnScroll);
+    }
+
+    /** Whether the article list marks rows read as they are scrolled past. Off unless asked for. */
+    public boolean markReadOnScroll(long userId) {
+        return userRepository.findById(userId).map(AppUser::markReadOnScroll).orElse(false);
+    }
+
     /**
      * Whether a session signed in with {@code passwordHash} has gone stale: the
      * account has been deleted or switched off, or its password has changed since

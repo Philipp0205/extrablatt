@@ -388,6 +388,18 @@ class PostgresRepositoryTest {
     }
 
     @Test
+    void markReadOnScrollIsOffByDefaultAndStoredPerAccount() {
+        assertFalse(users.findById(userId).orElseThrow().markReadOnScroll());
+
+        users.updateMarkReadOnScroll(userId, true);
+        assertTrue(users.findById(userId).orElseThrow().markReadOnScroll());
+        assertFalse(users.findById(otherUserId).orElseThrow().markReadOnScroll());
+
+        users.updateMarkReadOnScroll(userId, false);
+        assertFalse(users.findById(userId).orElseThrow().markReadOnScroll());
+    }
+
+    @Test
     void lastSeenChangelogIdIsStoredOnTheAccount() {
         assertNull(users.findById(userId).orElseThrow().lastSeenChangelogId());
         users.updateLastSeenChangelogId(userId, "2026-08-31");
