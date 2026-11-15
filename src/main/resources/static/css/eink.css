@@ -609,3 +609,95 @@ html.eink h2 {
 html.eink .site-legal {
   border-top: 2px solid #000000;
 }
+
+/*
+ * ----- Narrow, high-density panels (Paperwhite 6.8/7 in, Kindle Basic) -----
+ * These give a CSS viewport of about 600-632px wide and 800-840px tall (the 618x824 size
+ * was checked in a browser, 632x840 is assumed), so the sizes tuned for 758x1024 above leave
+ * only about 4 list rows per page. The values below target 7 full list rows and a tab bar
+ * of about 56px in total at 618x824 (not yet re-measured). Shrink
+ * the chrome and the list only; the root font size and the article body text are left
+ * alone, so the reading size setting still works.
+ */
+@media (max-width: 700px) {
+  html.eink .tabbar {
+    min-height: 3.1rem;
+  }
+  html.eink body.has-tabbar {
+    padding-bottom: 3.1rem;
+  }
+  html.eink .tabbar a {
+    min-height: 2.6rem;
+    font-size: 0.85rem;
+  }
+  html.eink .tabbar .icon {
+    width: 1.4rem;
+    height: 1.4rem;
+  }
+  html.eink .appbar .brand {
+    font-size: 1.15rem;
+  }
+  html.eink .btn,
+  html.eink button {
+    min-height: 44px;
+  }
+  html.eink input[type="text"],
+  html.eink input[type="email"],
+  html.eink input[type="password"],
+  html.eink input[type="url"],
+  html.eink select,
+  html.eink textarea {
+    min-height: 44px;
+  }
+  html.eink.reader-paged .pager .btn {
+    min-width: 6rem;
+    min-height: 44px;
+  }
+  html.eink .list-head h1 {
+    font-size: 1.5rem;
+  }
+  html.eink .article-head h1 {
+    font-size: 1.6rem;
+  }
+  html.eink .chip {
+    min-height: 2.5rem;
+    padding: 0 0.6rem;
+    font-size: 0.95rem;
+  }
+  html.eink .filter-mode-group .chip {
+    min-height: 2.5rem;
+  }
+  html.eink .item-list > li,
+  html.eink.reader-paged .item-list > li {
+    min-height: 3.4rem;
+  }
+  html.eink .item-main {
+    padding: 0.35rem 0.5rem 0.35rem 0.8rem;
+    border-left: 8px solid #000000;
+  }
+  html.eink li[data-read="true"] .item-main {
+    border-left: 8px solid #ffffff;
+  }
+  html.eink .item-title {
+    font-size: 1.1rem;
+    line-height: 1.2;
+  }
+  html.eink .item-meta {
+    font-size: 0.75rem;
+  }
+  html.eink .send-btn {
+    min-width: 4.2rem;
+    font-size: 0.8rem;
+  }
+  html.eink .send-btn .icon {
+    width: 1.3rem;
+    height: 1.3rem;
+  }
+  html.eink .category-list > li,
+  html.eink .feed-list > li {
+    min-height: 3.4rem;
+  }
+  html.eink .row .chip {
+    min-height: 2.8rem;
+  }
+}
