@@ -1,0 +1,477 @@
+[
+  {
+    "n": "phone: article list loaded first (20 rows)",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "phone: categories A-Z with Uncategorized last",
+    "pass": true,
+    "x": "Culture|News|Tech|Uncategorized"
+  },
+  {
+    "n": "phone: subline",
+    "pass": true,
+    "x": "4 categories · 20 unread"
+  },
+  {
+    "n": "phone: category meta",
+    "pass": true,
+    "x": "2 feeds · 3 unread"
+  },
+  {
+    "n": "phone: Follow a site button shown, side form hidden",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "phone: tab bar visible, Feeds current",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "phone: Send a single page button",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "phone: category route",
+    "pass": true,
+    "x": "http://127.0.0.1:8494/app?continue#/feeds/c/Tech"
+  },
+  {
+    "n": "phone: category heading and count",
+    "pass": true,
+    "x": "2 feeds · 5 unread"
+  },
+  {
+    "n": "phone: feed error line on Byte Weekly only",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "phone: Rename shown",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "phone: side form preselects the viewed category",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "phone: edit sheet shows the source address",
+    "pass": true,
+    "x": "https://example.org/byte-19.xml"
+  },
+  {
+    "n": "phone: mark read in db",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "phone: category unread count follows",
+    "pass": true,
+    "x": "2 feeds · 4 unread"
+  },
+  {
+    "n": "phone: edit sheet closed",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "phone: delete confirm wording",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "phone: Cancel goes back to the edit step",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "phone: nothing deleted yet",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "phone: feed deleted in db",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "phone: row gone from the screen",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "phone: Articles list reloaded without the deleted feed",
+    "pass": true,
+    "x": "15"
+  },
+  {
+    "n": "phone: newsletter badge",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "phone: newsletter source text",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "phone: moved to the new category in db",
+    "pass": true,
+    "x": "Letters|NEWSLETTER"
+  },
+  {
+    "n": "phone: new category listed",
+    "pass": true,
+    "x": "Culture|Letters|News|Tech|Uncategorized"
+  },
+  {
+    "n": "phone: rename in db",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "phone: route moved to the new name",
+    "pass": true,
+    "x": "http://127.0.0.1:8494/app?continue#/feeds/c/World"
+  },
+  {
+    "n": "phone: Uncategorized has no Rename",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "phone: pasted URLs badge",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "phone: clipping source text",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "phone: blank address inline error",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "phone: API error shown inline",
+    "pass": true,
+    "x": "That address is not allowed"
+  },
+  {
+    "n": "phone: typed address kept after an error",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "phone: follow posts the typed new category (stubbed server)",
+    "pass": true,
+    "x": "https://hnrss.org/frontpage"
+  },
+  {
+    "n": "phone: list shows the new category",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "phone: sheet closed after adding",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "phone: blank page address inline error",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "phone: real fetch error shown inline, sheet stays",
+    "pass": true,
+    "x": "That address is not allowed"
+  },
+  {
+    "n": "phone: 409 setup closes the page sheet and opens the Kindle address sheet",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "phone: sends again after saving; images flag and url kept",
+    "pass": true,
+    "x": "[{\"url\":\"https://example.com/\",\"images\":true},{\"url\":\"https://example.com/\",\"images\":true}]"
+  },
+  {
+    "n": "phone: address saved",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "phone: no page or console errors",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "desktop: article list loaded first (20 rows)",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "desktop: categories A-Z with Uncategorized last",
+    "pass": true,
+    "x": "Culture|News|Tech|Uncategorized"
+  },
+  {
+    "n": "desktop: subline",
+    "pass": true,
+    "x": "4 categories · 20 unread"
+  },
+  {
+    "n": "desktop: category meta",
+    "pass": true,
+    "x": "2 feeds · 3 unread"
+  },
+  {
+    "n": "desktop: form always visible, button hidden",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "desktop: side nav Feeds current",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "desktop: Send a single page button",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "desktop: category route",
+    "pass": true,
+    "x": "http://127.0.0.1:8494/app?continue#/feeds/c/Tech"
+  },
+  {
+    "n": "desktop: category heading and count",
+    "pass": true,
+    "x": "2 feeds · 5 unread"
+  },
+  {
+    "n": "desktop: feed error line on Byte Weekly only",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "desktop: Rename shown",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "desktop: side form preselects the viewed category",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "desktop: edit sheet shows the source address",
+    "pass": true,
+    "x": "https://example.org/byte-21.xml"
+  },
+  {
+    "n": "desktop: mark read in db",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "desktop: category unread count follows",
+    "pass": true,
+    "x": "2 feeds · 4 unread"
+  },
+  {
+    "n": "desktop: edit sheet closed",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "desktop: delete confirm wording",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "desktop: Cancel goes back to the edit step",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "desktop: nothing deleted yet",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "desktop: feed deleted in db",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "desktop: row gone from the screen",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "desktop: Articles list reloaded without the deleted feed",
+    "pass": true,
+    "x": "15"
+  },
+  {
+    "n": "desktop: newsletter badge",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "desktop: newsletter source text",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "desktop: moved to the new category in db",
+    "pass": true,
+    "x": "Letters|NEWSLETTER"
+  },
+  {
+    "n": "desktop: new category listed",
+    "pass": true,
+    "x": "Culture|Letters|News|Tech|Uncategorized"
+  },
+  {
+    "n": "desktop: rename in db",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "desktop: route moved to the new name",
+    "pass": true,
+    "x": "http://127.0.0.1:8494/app?continue#/feeds/c/World"
+  },
+  {
+    "n": "desktop: Uncategorized has no Rename",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "desktop: pasted URLs badge",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "desktop: clipping source text",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "desktop: blank address inline error",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "desktop: API error shown inline",
+    "pass": true,
+    "x": "That address is not allowed"
+  },
+  {
+    "n": "desktop: typed address kept after an error",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "desktop: follow posts the typed new category (stubbed server)",
+    "pass": true,
+    "x": "https://hnrss.org/frontpage"
+  },
+  {
+    "n": "desktop: list shows the new category",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "desktop: blank page address inline error",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "desktop: real fetch error shown inline, sheet stays",
+    "pass": true,
+    "x": "That address is not allowed"
+  },
+  {
+    "n": "desktop: 409 setup closes the page sheet and opens the Kindle address sheet",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "desktop: sends again after saving; images flag and url kept",
+    "pass": true,
+    "x": "[{\"url\":\"https://example.com/\",\"images\":true},{\"url\":\"https://example.com/\",\"images\":true}]"
+  },
+  {
+    "n": "desktop: address saved",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "desktop: no page or console errors",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "phone: quick start shown for an empty account",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "phone: empty text",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "phone: nothing ticked is an inline error",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "phone: quick start real failure is shown inline, button usable again",
+    "pass": true,
+    "x": "BBC World News: That address is not allowed"
+  },
+  {
+    "n": "phone: quick start toast and the categories screen replaces it",
+    "pass": true,
+    "x": "Your feeds\n\n1 category · 0 unread\n\nFollow a site\nNews\n1 feed · 0 unread\n›\nSend a single page"
+  },
+  {
+    "n": "desktop: quick start shown for an empty account",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "desktop: empty text",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "desktop: nothing ticked is an inline error",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "desktop: quick start real failure is shown inline, button usable again",
+    "pass": true,
+    "x": "BBC World News: That address is not allowed"
+  },
+  {
+    "n": "desktop: quick start toast and the categories screen replaces it",
+    "pass": true,
+    "x": "Your feeds\n\n1 category · 0 unread\n\nNews\n1 feed · 0 unread\n›\nSend a single page"
+  }
+]
