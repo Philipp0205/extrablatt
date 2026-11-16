@@ -11,6 +11,7 @@ import com.kindlerss.repository.SubscriptionRepository;
 import com.kindlerss.repository.UserRepository;
 import com.kindlerss.service.ApiTokenService;
 import com.kindlerss.service.KindleMailService;
+import com.kindlerss.service.RecoveryCodeService;
 import com.kindlerss.service.SafeHttpClient;
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres;
 import jakarta.servlet.http.Cookie;
@@ -44,6 +45,7 @@ import static org.hamcrest.Matchers.nullValue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyBoolean;
@@ -51,6 +53,7 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -95,6 +98,7 @@ class ApiSessionAuthIntegrationTest {
     @Autowired ArticleRepository articles;
     @Autowired SubscriptionRepository subscriptions;
     @Autowired ApiTokenService tokenService;
+    @Autowired RecoveryCodeService recoveryCodeService;
     @Autowired PasswordEncoder passwordEncoder;
 
     @MockitoBean SafeHttpClient httpClient;
@@ -375,6 +379,226 @@ class ApiSessionAuthIntegrationTest {
         assertEquals(0, articles.count(userA, feed.id(), Boolean.TRUE));
     }
 
+    // --- the Settings screen: session-only endpoints ---
+
+    private static String jsonField(MvcResult result, String path) throws Exception {
+        return com.jayway.jsonpath.JsonPath.read(result.getResponse().getContentAsString(), path);
+    }
+
+    private long activeTokens(long userId) {
+        return jdbc.queryForObject("SELECT COUNT(*) FROM api_tokens WHERE user_id = ? AND revoked_at IS NULL",
+                Long.class, userId);
+    }
+
+    @Test
+    void theRecoveryCodeNeedsCsrfIsShownOnceAndReplacesTheOldOne() throws Exception {
+        MockHttpSession session = signIn(emailA);
+        String token = xsrfTokenFor(session);
+        mockMvc.perform(get("/api/v1/account").session(session))
+                .andExpect(jsonPath("$.hasRecoveryCode").value(false));
+
+        mockMvc.perform(post("/api/v1/account/recovery-code").session(session))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.error").isNotEmpty());
+        assertFalse(recoveryCodeService.hasCode(userA));
+
+        MvcResult first = mockMvc.perform(withCsrf(post("/api/v1/account/recovery-code"), session, token))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Cache-Control", containsString("no-store")))
+                .andExpect(jsonPath("$.code").isNotEmpty())
+                .andReturn();
+        String firstCode = jsonField(first, "$.code");
+        assertTrue(firstCode.matches("[A-Z2-9]{4}-[A-Z2-9]{4}-[A-Z2-9]{4}"), firstCode);
+        assertTrue(recoveryCodeService.hasCode(userA));
+        assertEquals(RecoveryCodeService.hash(firstCode), users.findRecoveryHash(userA).orElseThrow());
+        mockMvc.perform(get("/api/v1/account").session(session))
+                .andExpect(jsonPath("$.hasRecoveryCode").value(true))
+                .andExpect(content().string(not(containsString(firstCode))));
+
+        MvcResult second = mockMvc.perform(withCsrf(post("/api/v1/account/recovery-code"), session, token))
+                .andExpect(status().isOk())
+                .andReturn();
+        String secondCode = jsonField(second, "$.code");
+        assertNotEquals(firstCode, secondCode);
+        assertEquals(RecoveryCodeService.hash(secondCode), users.findRecoveryHash(userA).orElseThrow());
+        assertNotEquals(RecoveryCodeService.hash(firstCode), users.findRecoveryHash(userA).orElseThrow());
+        // Another account's code is not touched.
+        assertFalse(recoveryCodeService.hasCode(userB));
+    }
+
+    @Test
+    void aTokenCanBeCreatedListedUsedAndRevokedFromASession() throws Exception {
+        MockHttpSession session = signIn(emailA);
+        String csrf = xsrfTokenFor(session);
+
+        // Without the CSRF header nothing is created.
+        mockMvc.perform(post("/api/v1/tokens").session(session)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"name\":\"laptop\"}"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.error").isNotEmpty());
+        assertEquals(0, activeTokens(userA));
+
+        MvcResult created = mockMvc.perform(withCsrf(post("/api/v1/tokens"), session, csrf)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"name\":\" laptop \"}"))
+                .andExpect(status().isCreated())
+                .andExpect(header().string("Cache-Control", containsString("no-store")))
+                .andExpect(jsonPath("$.token.name").value("laptop"))
+                .andExpect(jsonPath("$.token.id").isNumber())
+                .andExpect(jsonPath("$.token.tokenPrefix").isNotEmpty())
+                .andExpect(jsonPath("$.token.createdAt").isNotEmpty())
+                .andExpect(jsonPath("$.token.lastUsedAt").value(nullValue()))
+                .andExpect(jsonPath("$.secret").value(org.hamcrest.Matchers.startsWith("eb_")))
+                .andReturn();
+        String secret = jsonField(created, "$.secret");
+        long id = ((Number) com.jayway.jsonpath.JsonPath.read(
+                created.getResponse().getContentAsString(), "$.token.id")).longValue();
+        assertEquals(1, activeTokens(userA));
+        assertEquals(ApiTokenService.hashToken(secret), jdbc.queryForObject(
+                "SELECT token_hash FROM api_tokens WHERE id = ?", String.class, id));
+
+        // The list never repeats the secret or shows a hash.
+        mockMvc.perform(get("/api/v1/tokens").session(session))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.tokens.length()").value(1))
+                .andExpect(jsonPath("$.tokens[0].id").value(id))
+                .andExpect(jsonPath("$.tokens[0].name").value("laptop"))
+                .andExpect(jsonPath("$.tokens[0].tokenPrefix").value(secret.substring(0, 8)))
+                .andExpect(jsonPath("$.tokens[0].secret").doesNotExist())
+                .andExpect(jsonPath("$.tokens[0].tokenHash").doesNotExist())
+                .andExpect(content().string(not(containsString(secret))))
+                .andExpect(content().string(not(containsString(ApiTokenService.hashToken(secret)))));
+
+        // The new token works as a bearer token, but is refused on the session-only paths.
+        mockMvc.perform(get("/api/v1/account").header("Authorization", "Bearer " + secret))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.email").value(emailA));
+        mockMvc.perform(get("/api/v1/tokens").header("Authorization", "Bearer " + secret))
+                .andExpect(status().isForbidden());
+
+        // Revoking needs CSRF too, then the token stops working.
+        mockMvc.perform(delete("/api/v1/tokens/" + id).session(session))
+                .andExpect(status().isForbidden());
+        assertEquals(1, activeTokens(userA));
+        mockMvc.perform(withCsrf(delete("/api/v1/tokens/" + id), session, csrf))
+                .andExpect(status().isNoContent());
+        assertEquals(0, activeTokens(userA));
+        mockMvc.perform(get("/api/v1/account").header("Authorization", "Bearer " + secret))
+                .andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api/v1/tokens").session(session))
+                .andExpect(jsonPath("$.tokens.length()").value(0));
+        mockMvc.perform(withCsrf(delete("/api/v1/tokens/" + id), session, csrf))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error").value("Token not found"));
+    }
+
+    @Test
+    void anotherAccountsTokenIsA404OnRevokeAndTokenNamesAreChecked() throws Exception {
+        String secretB = tokenService.create(userB, "B's").secret();
+        long idB = jdbc.queryForObject("SELECT id FROM api_tokens WHERE user_id = ?", Long.class, userB);
+        MockHttpSession session = signIn(emailA);
+        String csrf = xsrfTokenFor(session);
+
+        mockMvc.perform(withCsrf(delete("/api/v1/tokens/" + idB), session, csrf))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error").value("Token not found"));
+        assertEquals(1, activeTokens(userB));
+        mockMvc.perform(get("/api/v1/account").header("Authorization", "Bearer " + secretB))
+                .andExpect(status().isOk());
+        mockMvc.perform(get("/api/v1/tokens").session(session))
+                .andExpect(jsonPath("$.tokens.length()").value(0));
+
+        mockMvc.perform(withCsrf(post("/api/v1/tokens"), session, csrf)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"name\":\"  \"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("Give the token a name"));
+        mockMvc.perform(withCsrf(post("/api/v1/tokens"), session, csrf)
+                        .contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .andExpect(status().isBadRequest());
+        assertEquals(0, activeTokens(userA));
+    }
+
+    @Test
+    void aValidTokenCannotRedirectSendsMintTokensOrReplaceTheRecoveryCode() throws Exception {
+        String secret = tokenService.create(userA, "A").secret();
+        String bearer = "Bearer " + secret;
+        users.updateKindleEmail(userA, "mine@kindle.com");
+        long tokenId = jdbc.queryForObject("SELECT id FROM api_tokens WHERE user_id = ?", Long.class, userA);
+        String error = "This needs a signed-in browser session, not an API token";
+
+        mockMvc.perform(put("/api/v1/account/kindle-email").header("Authorization", bearer)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"kindleEmail\":\"evil@kindle.com\"}"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.error").value(error));
+        mockMvc.perform(post("/api/v1/account/recovery-code").header("Authorization", bearer))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.error").value(error));
+        mockMvc.perform(post("/api/v1/tokens").header("Authorization", bearer)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"name\":\"minted\"}"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.error").value(error));
+        mockMvc.perform(get("/api/v1/tokens").header("Authorization", bearer))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(delete("/api/v1/tokens/" + tokenId).header("Authorization", bearer))
+                .andExpect(status().isForbidden());
+
+        assertEquals("mine@kindle.com", users.findById(userA).orElseThrow().kindleEmail());
+        assertFalse(recoveryCodeService.hasCode(userA));
+        assertEquals(1, activeTokens(userA));
+        // Still a valid token afterwards, and an invalid one is refused too.
+        mockMvc.perform(get("/api/v1/account").header("Authorization", bearer)).andExpect(status().isOk());
+        mockMvc.perform(put("/api/v1/account/kindle-email").header("Authorization", "Bearer eb_nope")
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"kindleEmail\":\"evil@kindle.com\"}"))
+                .andExpect(status().is(org.hamcrest.Matchers.anyOf(
+                        org.hamcrest.Matchers.is(401), org.hamcrest.Matchers.is(403))));
+        mockMvc.perform(post("/api/v1/tokens").header("Authorization", "Bearer eb_nope")
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"name\":\"minted\"}"))
+                .andExpect(status().is(org.hamcrest.Matchers.anyOf(
+                        org.hamcrest.Matchers.is(401), org.hamcrest.Matchers.is(403))));
+        assertEquals(1, activeTokens(userA));
+    }
+
+    @Test
+    void theReadingChoiceNeedsCsrfWithASessionAndIsSaved() throws Exception {
+        MockHttpSession session = signIn(emailA);
+        String csrf = xsrfTokenFor(session);
+
+        mockMvc.perform(put("/api/v1/account/reading").session(session)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"readTracking\":\"none\"}"))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/v1/account").session(session))
+                .andExpect(jsonPath("$.readTracking").value("open"));
+
+        for (String mode : new String[] {"scroll", "none", "open"}) {
+            mockMvc.perform(withCsrf(put("/api/v1/account/reading"), session, csrf)
+                            .contentType(MediaType.APPLICATION_JSON).content("{\"readTracking\":\"" + mode + "\"}"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.readTracking").value(mode));
+            mockMvc.perform(get("/api/v1/account").session(session))
+                    .andExpect(jsonPath("$.readTracking").value(mode));
+        }
+        mockMvc.perform(withCsrf(put("/api/v1/account/reading"), session, csrf)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"readTracking\":\"sometimes\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("Choose how articles are marked as read"));
+    }
+
+    @Test
+    void aboutAndTheExtraAccountFieldsWorkWithASession() throws Exception {
+        MockHttpSession session = signIn(emailA);
+
+        mockMvc.perform(get("/api/v1/about").session(session))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.version.number").isNotEmpty())
+                .andExpect(jsonPath("$.releases[0].title").isNotEmpty())
+                .andExpect(jsonPath("$.releases[0].changes").isNotEmpty());
+        mockMvc.perform(get("/api/v1/account").session(session))
+                .andExpect(jsonPath("$.senderAddress").value("noreply@example.com"))
+                .andExpect(jsonPath("$.billingEnabled").isBoolean())
+                .andExpect(jsonPath("$.hasRecoveryCode").value(false));
+        mockMvc.perform(get("/api/v1/about"))
+                .andExpect(status().isUnauthorized());
+    }
+
     // --- bearer tokens are unchanged ---
 
     @Test
@@ -387,14 +611,24 @@ class ApiSessionAuthIntegrationTest {
                 .andReturn();
         assertNull(read.getRequest().getSession(false));
 
-        MvcResult write = mockMvc.perform(put("/api/v1/account/kindle-email")
+        MvcResult write = mockMvc.perform(put("/api/v1/account/reading")
                         .header("Authorization", "Bearer " + token)
-                        .contentType(MediaType.APPLICATION_JSON).content("{\"kindleEmail\":\"tok@kindle.com\"}"))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"readTracking\":\"scroll\"}"))
                 .andExpect(status().isOk())
                 .andExpect(header().doesNotExist("Set-Cookie"))
                 .andReturn();
         assertNull(write.getRequest().getSession(false));
-        assertEquals("tok@kindle.com", users.findById(userA).orElseThrow().kindleEmail());
+        assertTrue(users.findById(userA).orElseThrow().markReadOnScroll());
+
+        // The Kindle address is session-only: a token does not get to change it.
+        MvcResult denied = mockMvc.perform(put("/api/v1/account/kindle-email")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"kindleEmail\":\"tok@kindle.com\"}"))
+                .andExpect(status().isForbidden())
+                .andExpect(header().doesNotExist("Set-Cookie"))
+                .andReturn();
+        assertNull(denied.getRequest().getSession(false));
+        assertNull(users.findById(userA).orElseThrow().kindleEmail());
     }
 
     @Test

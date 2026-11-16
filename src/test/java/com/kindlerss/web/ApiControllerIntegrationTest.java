@@ -92,6 +92,7 @@ class ApiControllerIntegrationTest {
     @Autowired FeedRepository feeds;
     @Autowired ArticleRepository articles;
     @Autowired ApiTokenService tokenService;
+    @Autowired com.kindlerss.service.RecoveryCodeService recoveryCodeService;
     @Autowired com.kindlerss.service.DataExportService dataExportService;
 
     @MockitoBean SafeHttpClient httpClient;
@@ -749,6 +750,135 @@ class ApiControllerIntegrationTest {
                 .andExpect(jsonPath("$.feeds[?(@.id == " + rss.id() + ")].unreadCount").value(0));
         mockMvc.perform(json(put("/api/v1/feeds/" + rss.id() + "/category"), tokenA, "{\"category\":\"X\"}"))
                 .andExpect(jsonPath("$.newsletterSender").value(nullValue()));
+    }
+
+    // --- the Settings screen: session-only rule and the endpoints a token may use ---
+
+    private long tokenCount(long userId) {
+        return jdbc.queryForObject("SELECT COUNT(*) FROM api_tokens WHERE user_id = ? AND revoked_at IS NULL",
+                Long.class, userId);
+    }
+
+    @Test
+    void aValidTokenIsRefusedOnEverySessionOnlyPathAndNothingChanges() throws Exception {
+        users.updateKindleEmail(userA, "keep@kindle.com");
+        long before = tokenCount(userA);
+        long tokenId = jdbc.queryForObject("SELECT id FROM api_tokens WHERE user_id = ?", Long.class, userA);
+        String error = "This needs a signed-in browser session, not an API token";
+
+        mockMvc.perform(json(put("/api/v1/account/kindle-email"), tokenA, "{\"kindleEmail\":\"evil@kindle.com\"}"))
+                .andExpect(status().isForbidden())
+                .andExpect(header().string("Content-Type", containsString("application/json")))
+                .andExpect(jsonPath("$.error").value(error));
+        mockMvc.perform(bearer(post("/api/v1/account/recovery-code"), tokenA))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.error").value(error));
+        mockMvc.perform(bearer(get("/api/v1/tokens"), tokenA))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.error").value(error));
+        mockMvc.perform(json(post("/api/v1/tokens"), tokenA, "{\"name\":\"minted\"}"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.error").value(error))
+                .andExpect(content().string(not(containsString("eb_"))));
+        mockMvc.perform(bearer(delete("/api/v1/tokens/" + tokenId), tokenA))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.error").value(error));
+        // Whatever the method, a path on the list is denied.
+        mockMvc.perform(bearer(get("/api/v1/account/recovery-code"), tokenA))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(bearer(put("/api/v1/tokens/" + tokenId), tokenA))
+                .andExpect(status().isForbidden());
+
+        assertEquals("keep@kindle.com", users.findById(userA).orElseThrow().kindleEmail());
+        assertFalse(recoveryCodeService.hasCode(userA));
+        assertEquals(before, tokenCount(userA));
+        // The token itself still works elsewhere.
+        mockMvc.perform(bearer(get("/api/v1/feeds"), tokenA)).andExpect(status().isOk());
+    }
+
+    @Test
+    void anInvalidTokenIsRefusedOnTheSessionOnlyPathsToo() throws Exception {
+        for (var request : new MockHttpServletRequestBuilder[] {
+                put("/api/v1/account/kindle-email"), post("/api/v1/account/recovery-code"),
+                get("/api/v1/tokens"), post("/api/v1/tokens"), delete("/api/v1/tokens/1")}) {
+            mockMvc.perform(json(request, "eb_notatoken", "{\"name\":\"x\"}"))
+                    .andExpect(status().is(org.hamcrest.Matchers.anyOf(
+                            org.hamcrest.Matchers.is(401), org.hamcrest.Matchers.is(403))));
+        }
+        assertFalse(recoveryCodeService.hasCode(userA));
+        assertEquals(1, tokenCount(userA));
+    }
+
+    @Test
+    void theReadingChoiceIsSavedInAllThreeModesWithAToken() throws Exception {
+        for (String mode : new String[] {"scroll", "none", "open"}) {
+            mockMvc.perform(json(put("/api/v1/account/reading"), tokenA, "{\"readTracking\":\"" + mode + "\"}"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.readTracking").value(mode));
+            mockMvc.perform(bearer(get("/api/v1/account"), tokenA))
+                    .andExpect(jsonPath("$.readTracking").value(mode));
+        }
+        mockMvc.perform(json(put("/api/v1/account/reading"), tokenA, "{\"readTracking\":\"none\"}"))
+                .andExpect(status().isOk());
+        var saved = users.findById(userA).orElseThrow();
+        assertFalse(saved.markReadOnNextPage());
+        assertFalse(saved.markReadOnScroll());
+        // The other account is untouched.
+        assertEquals(true, users.findById(userB).orElseThrow().markReadOnNextPage());
+    }
+
+    @Test
+    void aBadReadingChoiceIsA400AndChangesNothing() throws Exception {
+        for (String body : new String[] {"{\"readTracking\":\"always\"}", "{\"readTracking\":\"OPEN\"}",
+                "{\"readTracking\":null}", "{}"}) {
+            mockMvc.perform(json(put("/api/v1/account/reading"), tokenA, body))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.error").value("Choose how articles are marked as read"));
+        }
+        mockMvc.perform(bearer(put("/api/v1/account/reading"), tokenA))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(bearer(get("/api/v1/account"), tokenA))
+                .andExpect(jsonPath("$.readTracking").value("open"));
+    }
+
+    @Test
+    void theAccountCarriesTheSenderAddressBillingFlagAndRecoveryCodeState() throws Exception {
+        mockMvc.perform(bearer(get("/api/v1/account"), tokenA))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.senderAddress").value("noreply@example.com"))
+                .andExpect(jsonPath("$.billingEnabled").value(billingEnabled()))
+                .andExpect(jsonPath("$.hasRecoveryCode").value(false))
+                .andExpect(jsonPath("$.email").isNotEmpty())
+                .andExpect(jsonPath("$.entitlement.plan").isNotEmpty())
+                .andExpect(content().string(not(containsString("recoveryHash"))));
+
+        recoveryCodeService.createOrRotate(userA);
+
+        mockMvc.perform(bearer(get("/api/v1/account"), tokenA))
+                .andExpect(jsonPath("$.hasRecoveryCode").value(true));
+        mockMvc.perform(bearer(get("/api/v1/account"), tokenB))
+                .andExpect(jsonPath("$.hasRecoveryCode").value(false));
+    }
+
+    @Autowired com.kindlerss.config.AppProperties appProperties;
+
+    private boolean billingEnabled() {
+        return appProperties.billing().enabled();
+    }
+
+    @Test
+    void aboutAnswersWithTheVersionAndTheReleaseNotesForATokenToo() throws Exception {
+        mockMvc.perform(bearer(get("/api/v1/about"), tokenA))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.version.number").isNotEmpty())
+                .andExpect(jsonPath("$.version.revision").isNotEmpty())
+                .andExpect(jsonPath("$.version.builtAt").isNotEmpty())
+                .andExpect(jsonPath("$.releases[0].id").isNotEmpty())
+                .andExpect(jsonPath("$.releases[0].date").isNotEmpty())
+                .andExpect(jsonPath("$.releases[0].title").isNotEmpty())
+                .andExpect(jsonPath("$.releases[0].highlights").isArray())
+                .andExpect(jsonPath("$.releases[0].changes").isNotEmpty());
+        mockMvc.perform(get("/api/v1/about")).andExpect(status().isUnauthorized());
     }
 
     @Test

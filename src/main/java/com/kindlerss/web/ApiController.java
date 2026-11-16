@@ -1,15 +1,20 @@
 package com.kindlerss.web;
 
 import com.kindlerss.config.AppProperties;
+import com.kindlerss.domain.ApiToken;
 import com.kindlerss.domain.Article;
 import com.kindlerss.domain.Entitlement;
 import com.kindlerss.domain.Feed;
 import com.kindlerss.security.CurrentUser;
+import com.kindlerss.service.ApiTokenService;
 import com.kindlerss.service.ArticleService;
+import com.kindlerss.service.ChangelogCatalog;
 import com.kindlerss.service.EntitlementService;
 import com.kindlerss.service.FeedService;
 import com.kindlerss.service.KindleMailService;
+import com.kindlerss.service.RecoveryCodeService;
 import com.kindlerss.service.UserService;
+import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -43,7 +48,11 @@ public class ApiController {
     private final KindleMailService kindleMailService;
     private final UserService userService;
     private final EntitlementService entitlementService;
+    private final ApiTokenService apiTokenService;
+    private final RecoveryCodeService recoveryCodeService;
+    private final BuildInfoAdvice buildInfo;
     private final CurrentUser currentUser;
+    private final AppProperties properties;
     private final int maxPageSize;
 
     public ApiController(FeedService feedService,
@@ -51,6 +60,9 @@ public class ApiController {
                          KindleMailService kindleMailService,
                          UserService userService,
                          EntitlementService entitlementService,
+                         ApiTokenService apiTokenService,
+                         RecoveryCodeService recoveryCodeService,
+                         BuildInfoAdvice buildInfo,
                          CurrentUser currentUser,
                          AppProperties properties) {
         this.feedService = feedService;
@@ -58,7 +70,11 @@ public class ApiController {
         this.kindleMailService = kindleMailService;
         this.userService = userService;
         this.entitlementService = entitlementService;
+        this.apiTokenService = apiTokenService;
+        this.recoveryCodeService = recoveryCodeService;
+        this.buildInfo = buildInfo;
         this.currentUser = currentUser;
+        this.properties = properties;
         this.maxPageSize = properties.articles().pageSize();
     }
 
@@ -267,7 +283,63 @@ public class ApiController {
         account.put("readTracking",
                 ReadTracking.fromFlags(user.markReadOnNextPage(), user.markReadOnScroll()).parameter());
         account.put("entitlement", plan);
+        account.put("senderAddress", properties.mailFrom());
+        account.put("billingEnabled", properties.billing().enabled());
+        account.put("hasRecoveryCode", recoveryCodeService.hasCode(userId));
         return account;
+    }
+
+    /** The Settings, Reading choice, as the website saves it. Open to tokens. */
+    @PutMapping("/account/reading")
+    public Map<String, Object> updateReading(@RequestBody(required = false) ReadingRequest request) {
+        ReadTracking mode = ReadTracking.fromParameter(request == null ? null : request.readTracking())
+                .orElseThrow(() -> new IllegalArgumentException("Choose how articles are marked as read"));
+        long userId = currentUser.requireId();
+        userService.updateMarkReadOnNextPage(userId, mode.track());
+        userService.updateMarkReadOnScroll(userId, mode.scroll());
+        return Map.of("readTracking", mode.parameter());
+    }
+
+    /** Session-only (see {@code SecurityConfig.SESSION_ONLY_PATHS}). The plain code goes out once. */
+    @PostMapping("/account/recovery-code")
+    public ResponseEntity<Map<String, Object>> createRecoveryCode() {
+        String code = recoveryCodeService.createOrRotate(currentUser.requireId());
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(Map.of("code", code));
+    }
+
+    /** Session-only. Metadata only: never a secret or a hash. */
+    @GetMapping("/tokens")
+    public Map<String, Object> tokens() {
+        List<TokenView> tokens = apiTokenService.list(currentUser.requireId()).stream()
+                .map(TokenView::of).toList();
+        return Map.of("tokens", tokens);
+    }
+
+    /** Session-only. The secret is in this answer and nowhere else, ever again. */
+    @PostMapping("/tokens")
+    public ResponseEntity<Map<String, Object>> createToken(@RequestBody(required = false) TokenRequest request) {
+        ApiTokenService.Created created = apiTokenService.create(currentUser.requireId(),
+                request == null ? null : request.name());
+        Map<String, Object> body = new java.util.LinkedHashMap<>();
+        body.put("token", TokenView.of(created.token()));
+        body.put("secret", created.secret());
+        return ResponseEntity.status(HttpStatus.CREATED).cacheControl(CacheControl.noStore()).body(body);
+    }
+
+    /** Session-only. */
+    @DeleteMapping("/tokens/{id}")
+    public ResponseEntity<Void> revokeToken(@PathVariable("id") long id) {
+        if (!apiTokenService.revoke(currentUser.requireId(), id)) {
+            throw new ArticleService.NotFoundException("Token not found");
+        }
+        return ResponseEntity.noContent().build();
+    }
+
+    /** The running version and the release notes: nothing personal. */
+    @GetMapping("/about")
+    public Map<String, Object> about() {
+        return Map.of("version", buildInfo.version(),
+                "releases", ChangelogCatalog.instance().releases());
     }
 
     /** Same validation as the settings form; a blank or missing address clears it. */
@@ -306,6 +378,19 @@ public class ApiController {
     }
 
     public record KindleEmailRequest(String kindleEmail) {
+    }
+
+    public record ReadingRequest(String readTracking) {
+    }
+
+    public record TokenRequest(String name) {
+    }
+
+    public record TokenView(long id, String name, String tokenPrefix, Instant createdAt, Instant lastUsedAt) {
+        static TokenView of(ApiToken token) {
+            return new TokenView(token.id(), token.name(), token.tokenPrefix(), token.createdAt(),
+                    token.lastUsedAt());
+        }
     }
 
     public record CategoryRequest(String category) {
