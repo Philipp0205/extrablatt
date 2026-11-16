@@ -94,6 +94,72 @@ public class ApiController {
         return ResponseEntity.noContent().build();
     }
 
+    /** A blank or missing category means Uncategorized, as on the website. */
+    @PutMapping("/feeds/{id}/category")
+    public FeedView categorize(@PathVariable("id") long id,
+                               @RequestBody(required = false) CategoryRequest request) {
+        long userId = currentUser.requireId();
+        String category = AppController.resolveCategory(request == null ? null : request.category(), null);
+        if (!feedService.categorizeFeed(userId, id, category)) {
+            throw new ArticleService.NotFoundException("Feed not found");
+        }
+        return feedService.findById(userId, id)
+                .map(FeedView::of)
+                .orElseThrow(() -> new ArticleService.NotFoundException("Feed not found"));
+    }
+
+    @PostMapping("/categories/rename")
+    public Map<String, Object> renameCategory(@RequestBody RenameCategoryRequest request) {
+        int result = feedService.renameCategory(currentUser.requireId(),
+                request.oldCategory(), request.newCategory());
+        Map<String, Object> body = new java.util.LinkedHashMap<>();
+        body.put("updated", Math.max(result, 0));
+        body.put("unchanged", result == FeedService.CATEGORY_NAME_UNCHANGED);
+        body.put("message", AppController.renameResult(result));
+        return body;
+    }
+
+    @PostMapping("/feeds/{id}/read")
+    public Map<String, Object> markFeedRead(@PathVariable("id") long id) {
+        return Map.of("marked", articleService.markFeedRead(currentUser.requireId(), id));
+    }
+
+    /** The quick-start sites not followed yet. The address stays on the server. */
+    @GetMapping("/feeds/suggestions")
+    public Map<String, Object> suggestions() {
+        List<SuggestionView> suggestions = feedService.defaultFeeds(currentUser.requireId()).stream()
+                .map(feed -> new SuggestionView(feed.key(), feed.title(), feed.category()))
+                .toList();
+        return Map.of("suggestions", suggestions);
+    }
+
+    /** The website's loop: an unknown key or a site that fails is reported, the others still go in. */
+    @PostMapping("/feeds/defaults")
+    public Map<String, Object> followDefaults(@RequestBody(required = false) DefaultsRequest request) {
+        List<String> keys = request == null ? null : request.keys();
+        if (keys == null || keys.isEmpty()) {
+            throw new IllegalArgumentException("Choose at least one newspaper or site");
+        }
+        long userId = currentUser.requireId();
+        int added = 0;
+        List<String> errors = new ArrayList<>();
+        for (String key : keys) {
+            var suggestion = feedService.defaultFeed(key);
+            if (suggestion.isEmpty()) {
+                errors.add("Unknown suggestion: " + key);
+                continue;
+            }
+            try {
+                var feed = suggestion.get();
+                feedService.addFeed(userId, feed.url(), feed.category());
+                added++;
+            } catch (Exception e) {
+                errors.add(suggestion.get().title() + ": " + UserMessages.of(e, "could not be added"));
+            }
+        }
+        return Map.of("added", added, "errors", errors);
+    }
+
     @GetMapping("/items")
     public Map<String, Object> items(@RequestParam(value = "unread", defaultValue = "false") boolean unread,
                                      @RequestParam(value = "feed", required = false) Long feedId,
@@ -242,11 +308,24 @@ public class ApiController {
     public record KindleEmailRequest(String kindleEmail) {
     }
 
+    public record CategoryRequest(String category) {
+    }
+
+    public record RenameCategoryRequest(String oldCategory, String newCategory) {
+    }
+
+    public record DefaultsRequest(List<String> keys) {
+    }
+
+    public record SuggestionView(String key, String title, String category) {
+    }
+
     public record FeedView(Long id, String title, String url, String siteUrl, String category,
-                           String source, long unreadCount, boolean hasError) {
+                           String source, long unreadCount, boolean hasError, String newsletterSender) {
         static FeedView of(Feed feed) {
             return new FeedView(feed.id(), feed.title(), feed.url(), feed.siteUrl(), feed.categoryName(),
-                    feed.source().name(), feed.unreadCount(), feed.lastError() != null);
+                    feed.source().name(), feed.unreadCount(), feed.lastError() != null,
+                    feed.newsletterSender());
         }
     }
 

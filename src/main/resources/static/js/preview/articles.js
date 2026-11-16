@@ -9,6 +9,7 @@
  * a Send button; Preview.send.send does the work and opens the setup sheet when needed.
  *
  *   Preview.articles.update(id, { read, sentAt });   // the reader keeps the list true
+ *   Preview.articles.invalidate();                   // feeds changed: reload when next shown
  *
  * Plain ES5. The only global it adds is window.Preview.
  */
@@ -58,6 +59,7 @@
       sending: {},         // article ids with a send in flight; survives a reload of the list
       categories: [],
       started: false,
+      stale: false,        // feeds changed elsewhere: reload on the next show()
       request: 0           // lets a late answer to an old filter be ignored
     };
 
@@ -353,23 +355,43 @@
       loadFirst();
     }
 
-    function start() {
-      state.started = true;
-      renderControls();
-      loadFirst();
-      // The banner and the chips are extras: if either call fails the list still works.
-      Preview.account.get().then(function (account) {
-        state.account = account;
-        renderBanner();
-      }, function () {});
+    // The chips are an extra: if the call fails the list still works.
+    function loadCategories() {
       Preview.api.get('/api/v1/categories').then(function (data) {
         state.categories = (data && data.categories) || [];
+        if (state.category !== null && state.categories.indexOf(state.category) < 0) {
+          // The filtered category was renamed or emptied elsewhere.
+          state.category = null;
+          loadFirst();
+        }
         renderControls();
       }, function () {});
     }
 
+    function start() {
+      state.started = true;
+      renderControls();
+      loadFirst();
+      // The banner is an extra too.
+      Preview.account.get().then(function (account) {
+        state.account = account;
+        renderBanner();
+      }, function () {});
+      loadCategories();
+    }
+
     return {
-      show: function () { if (!state.started) { start(); } },
+      show: function () {
+        if (!state.started) {
+          start();
+        } else if (state.stale) {
+          state.stale = false;
+          loadFirst();
+          loadCategories();
+        }
+      },
+      // Another screen changed feeds or articles: reload the next time the list is shown.
+      invalidate: function () { if (state.started) { state.stale = true; } },
       update: update
     };
   }
@@ -380,6 +402,8 @@
     show: function () { if (screen) { screen.show(); } },
     // A no-op until the list has loaded (the reader opened by direct URL).
     update: function (id, patch) { if (screen) { screen.update(id, patch); } },
+    // A no-op until the list has loaded.
+    invalidate: function () { if (screen) { screen.invalidate(); } },
     relativeTime: relativeTime
   };
 })();

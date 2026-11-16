@@ -29,9 +29,11 @@ import java.util.UUID;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.not;
+import static org.hamcrest.Matchers.nullValue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
@@ -42,6 +44,7 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -559,6 +562,193 @@ class ApiControllerIntegrationTest {
         assertFalse(export.contains(tokenA), export);
         assertFalse(export.contains(ApiTokenService.hashToken(tokenA)), export);
         assertFalse(export.contains(ApiTokenService.hashToken(tokenB)), export);
+    }
+
+    // --- the Feeds screen ---
+
+    @Test
+    void aFeedsCategoryCanBeChangedAndIsScopedToTheAccount() throws Exception {
+        Feed feed = feeds.insert(userA, "Blog", "https://cat.example/feed", "https://cat.example", "News");
+        Feed foreign = feeds.insert(userB, "Theirs", "https://cat2.example/feed", "https://cat2.example", "News");
+
+        mockMvc.perform(json(put("/api/v1/feeds/" + feed.id() + "/category"), tokenA, "{\"category\":\" Tech \"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(feed.id()))
+                .andExpect(jsonPath("$.title").value("Blog"))
+                .andExpect(jsonPath("$.category").value("Tech"));
+        assertEquals("Tech", feeds.findById(userA, feed.id()).orElseThrow().category());
+
+        mockMvc.perform(json(put("/api/v1/feeds/" + foreign.id() + "/category"), tokenA, "{\"category\":\"Mine\"}"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error").value("Feed not found"));
+        assertEquals("News", feeds.findById(userB, foreign.id()).orElseThrow().category());
+    }
+
+    @Test
+    void aBlankOrMissingCategoryMakesTheFeedUncategorized() throws Exception {
+        Feed feed = feeds.insert(userA, "Blog", "https://cat3.example/feed", "https://cat3.example", "News");
+
+        mockMvc.perform(json(put("/api/v1/feeds/" + feed.id() + "/category"), tokenA, "{\"category\":\"  \"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.category").value("Uncategorized"));
+        assertNull(feeds.findById(userA, feed.id()).orElseThrow().category());
+
+        feeds.updateCategory(userA, feed.id(), "News");
+        mockMvc.perform(json(put("/api/v1/feeds/" + feed.id() + "/category"), tokenA, "{}"))
+                .andExpect(jsonPath("$.category").value("Uncategorized"));
+        assertNull(feeds.findById(userA, feed.id()).orElseThrow().category());
+    }
+
+    @Test
+    void renamingACategoryMovesAllItsFeedsAndOnlyTheOwners() throws Exception {
+        Feed one = feeds.insert(userA, "One", "https://r1.example/feed", "https://r1.example", "Tech");
+        Feed two = feeds.insert(userA, "Two", "https://r2.example/feed", "https://r2.example", "Tech");
+        Feed other = feeds.insert(userA, "Other", "https://r3.example/feed", "https://r3.example", "News");
+        Feed foreign = feeds.insert(userB, "Theirs", "https://r4.example/feed", "https://r4.example", "Tech");
+
+        mockMvc.perform(json(post("/api/v1/categories/rename"), tokenA,
+                        "{\"oldCategory\":\"Tech\",\"newCategory\":\"Technology\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.updated").value(2))
+                .andExpect(jsonPath("$.unchanged").value(false))
+                .andExpect(jsonPath("$.message").value("Renamed category for 2 feeds"));
+        assertEquals("Technology", feeds.findById(userA, one.id()).orElseThrow().category());
+        assertEquals("Technology", feeds.findById(userA, two.id()).orElseThrow().category());
+        assertEquals("News", feeds.findById(userA, other.id()).orElseThrow().category());
+        assertEquals("Tech", feeds.findById(userB, foreign.id()).orElseThrow().category());
+    }
+
+    @Test
+    void renamingToTheSameNameIsUnchangedAndBadNamesAreA400() throws Exception {
+        Feed feed = feeds.insert(userA, "One", "https://r5.example/feed", "https://r5.example", "Tech");
+
+        mockMvc.perform(json(post("/api/v1/categories/rename"), tokenA,
+                        "{\"oldCategory\":\"Tech\",\"newCategory\":\"Tech\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.updated").value(0))
+                .andExpect(jsonPath("$.unchanged").value(true))
+                .andExpect(jsonPath("$.message").value("That is already the name of this category"));
+        mockMvc.perform(json(post("/api/v1/categories/rename"), tokenA,
+                        "{\"oldCategory\":\"Uncategorized\",\"newCategory\":\"Misc\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("Choose a category to rename"));
+        mockMvc.perform(json(post("/api/v1/categories/rename"), tokenA,
+                        "{\"oldCategory\":\"Tech\",\"newCategory\":\"  \"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("New category name is required"));
+        mockMvc.perform(json(post("/api/v1/categories/rename"), tokenA,
+                        "{\"oldCategory\":\"Nothing\",\"newCategory\":\"Else\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.updated").value(0))
+                .andExpect(jsonPath("$.unchanged").value(false))
+                .andExpect(jsonPath("$.message").value("No feeds found in that category"));
+        assertEquals("Tech", feeds.findById(userA, feed.id()).orElseThrow().category());
+    }
+
+    @Test
+    void markingAFeedReadTouchesOnlyThatFeedAndOnlyTheOwners() throws Exception {
+        Feed feed = feeds.insert(userA, "Blog", "https://m1.example/feed", "https://m1.example", null);
+        Feed sibling = feeds.insert(userA, "Sibling", "https://m2.example/feed", "https://m2.example", null);
+        Feed foreign = feeds.insert(userB, "Theirs", "https://m3.example/feed", "https://m3.example", null);
+        article(feed, "k1", 1);
+        article(feed, "k2", 2);
+        article(sibling, "k3", 1);
+        article(foreign, "k4", 1);
+
+        mockMvc.perform(bearer(post("/api/v1/feeds/" + feed.id() + "/read"), tokenA))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.marked").value(2));
+        assertEquals(0, articles.count(userA, feed.id(), Boolean.TRUE));
+        assertEquals(1, articles.count(userA, sibling.id(), Boolean.TRUE));
+        mockMvc.perform(bearer(post("/api/v1/feeds/" + feed.id() + "/read"), tokenA))
+                .andExpect(jsonPath("$.marked").value(0));
+
+        mockMvc.perform(bearer(post("/api/v1/feeds/" + foreign.id() + "/read"), tokenA))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error").value("Feed not found"));
+        assertEquals(1, articles.count(userB, foreign.id(), Boolean.TRUE));
+    }
+
+    @Test
+    void suggestionsListTheDefaultsWithoutTheirAddressesAndOmitTheFollowedOnes() throws Exception {
+        mockMvc.perform(bearer(get("/api/v1/feeds/suggestions"), tokenA))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.suggestions", hasSize(5)))
+                .andExpect(jsonPath("$.suggestions[0].key").value("bbc-world"))
+                .andExpect(jsonPath("$.suggestions[0].title").value("BBC World News"))
+                .andExpect(jsonPath("$.suggestions[0].category").value("News"))
+                .andExpect(jsonPath("$.suggestions[0].url").doesNotExist())
+                .andExpect(content().string(not(containsString("bbci.co.uk"))));
+
+        feeds.insert(userA, "BBC", "https://feeds.bbci.co.uk/news/world/rss.xml", "https://www.bbc.com", null);
+
+        mockMvc.perform(bearer(get("/api/v1/feeds/suggestions"), tokenA))
+                .andExpect(jsonPath("$.suggestions", hasSize(4)))
+                .andExpect(jsonPath("$.suggestions[?(@.key == 'bbc-world')]", hasSize(0)));
+        mockMvc.perform(bearer(get("/api/v1/feeds/suggestions"), tokenB))
+                .andExpect(jsonPath("$.suggestions", hasSize(5)));
+    }
+
+    @Test
+    void followingDefaultsNeedsAKeyAndReportsUnknownOnesAndFailures() throws Exception {
+        mockMvc.perform(json(post("/api/v1/feeds/defaults"), tokenA, "{\"keys\":[]}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("Choose at least one newspaper or site"));
+        mockMvc.perform(json(post("/api/v1/feeds/defaults"), tokenA, "{}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("Choose at least one newspaper or site"));
+        mockMvc.perform(bearer(post("/api/v1/feeds/defaults"), tokenA))
+                .andExpect(status().isBadRequest());
+
+        mockMvc.perform(json(post("/api/v1/feeds/defaults"), tokenA, "{\"keys\":[\"nope\"]}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.added").value(0))
+                .andExpect(jsonPath("$.errors", hasSize(1)))
+                .andExpect(jsonPath("$.errors[0]").value("Unknown suggestion: nope"));
+        assertEquals(0, feeds.countByUser(userA));
+    }
+
+    @Test
+    void followingDefaultsAddsTheValidOnesAndCollectsPerSiteFailures() throws Exception {
+        when(httpClient.get("https://feeds.bbci.co.uk/news/world/rss.xml"))
+                .thenReturn(new SafeHttpClient.FetchedContent(
+                        URI.create("https://feeds.bbci.co.uk/news/world/rss.xml"), FEED_XML, "application/rss+xml"));
+        when(httpClient.get("https://feeds.npr.org/1001/rss.xml")).thenThrow(new SafeHttpClient.FetchException(
+                "timeout", "The site did not answer", null));
+
+        mockMvc.perform(json(post("/api/v1/feeds/defaults"), tokenA,
+                        "{\"keys\":[\"bbc-world\",\"npr\",\"nope\"]}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.added").value(1))
+                .andExpect(jsonPath("$.errors", hasSize(2)))
+                .andExpect(jsonPath("$.errors[0]").value("NPR: The site did not answer"))
+                .andExpect(jsonPath("$.errors[1]").value("Unknown suggestion: nope"));
+        var followed = feeds.findAll(userA);
+        assertEquals(1, followed.size());
+        assertEquals("https://feeds.bbci.co.uk/news/world/rss.xml", followed.get(0).url());
+        assertEquals("News", followed.get(0).category());
+        mockMvc.perform(bearer(get("/api/v1/feeds/suggestions"), tokenA))
+                .andExpect(jsonPath("$.suggestions", hasSize(4)));
+    }
+
+    @Test
+    void aNewsletterFeedShowsItsSenderAndOtherFeedsHaveNone() throws Exception {
+        Feed rss = feeds.insert(userA, "Blog", "https://n1.example/feed", "https://n1.example", null);
+        jdbc.update("""
+                INSERT INTO feeds (user_id, title, url, category, source)
+                VALUES (?, 'Weekly Digest', 'newsletter:weekly@example.com', 'Newsletters', 'NEWSLETTER')
+                """, userA);
+
+        mockMvc.perform(bearer(get("/api/v1/feeds"), tokenA))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.feeds[?(@.source == 'NEWSLETTER')].newsletterSender")
+                        .value("weekly@example.com"))
+                .andExpect(jsonPath("$.feeds[?(@.id == " + rss.id() + ")].newsletterSender")
+                        .value(org.hamcrest.Matchers.contains(nullValue())))
+                .andExpect(jsonPath("$.feeds[?(@.id == " + rss.id() + ")].hasError").value(false))
+                .andExpect(jsonPath("$.feeds[?(@.id == " + rss.id() + ")].unreadCount").value(0));
+        mockMvc.perform(json(put("/api/v1/feeds/" + rss.id() + "/category"), tokenA, "{\"category\":\"X\"}"))
+                .andExpect(jsonPath("$.newsletterSender").value(nullValue()));
     }
 
     @Test

@@ -318,6 +318,88 @@ button:focus-visible {
 .pv-placeholder { padding: var(--ak-s4) 0; }
 .pv-placeholder p { color: var(--ak-muted); font-size: var(--ak-fs-lg); }
 
+/* ---------- Feeds ---------- */
+
+/* ak-input and ak-btn set display, which would beat the hidden attribute. */
+.pv-feeds [hidden], .pv-sheet [hidden] { display: none; }
+
+.pv-feeds-side { display: none; }
+.pv-follow-form { display: flex; flex-direction: column; gap: var(--ak-s4); }
+.pv-follow-form .ak-field { gap: var(--ak-s2); }
+.pv-side-title { margin: 0 0 var(--ak-s3); font-size: var(--ak-fs-xl); font-weight: var(--ak-fw-bold); line-height: 1.2; }
+.pv-field-help { margin: 0; color: var(--ak-muted); font-size: var(--ak-fs-md); }
+.pv-select { appearance: auto; }
+.pv-add-btn { width: auto; align-self: flex-start; min-height: var(--ak-tap); padding: 0 var(--ak-s5); }
+.pv-feeds .pv-sheet-error:not(:empty) { margin-top: 0; }
+.ak-sheet .pv-follow-form .pv-add-btn { width: 100%; }
+
+.pv-feeds-head { align-items: flex-start; }
+.pv-feeds-btn {
+  flex: none;
+  width: auto;
+  min-height: var(--ak-tap);
+  padding: 0 var(--ak-s4);
+  font-size: var(--ak-fs-md);
+}
+.pv-feeds-extra { padding: var(--ak-s4) 0; }
+
+.pv-cats, .pv-feed-rows { margin: 0; padding: 0; list-style: none; }
+.pv-cats > li { border-bottom: 1px solid var(--ak-hairline); }
+.pv-cat {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ak-s3);
+  min-height: var(--ak-tap);
+  padding: var(--ak-s3) 0;
+  text-decoration: none;
+}
+.pv-cat:hover .pv-cat-name { text-decoration: underline; }
+.pv-cat-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.pv-cat-name { font-size: var(--ak-fs-xl); overflow-wrap: anywhere; }
+.pv-cat-meta { color: var(--ak-muted); font-size: var(--ak-fs-md); }
+.pv-chevron { flex: none; color: var(--ak-muted); font-size: 24px; line-height: 1; }
+
+.pv-feed {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ak-s2) var(--ak-s3);
+  padding: var(--ak-s3) 0;
+  border-bottom: 1px solid var(--ak-hairline);
+}
+.pv-feed-text { flex: 1; min-width: 0; }
+.pv-feed-title-line { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ak-s2); }
+.pv-feed-title { font-size: var(--ak-fs-xl); overflow-wrap: anywhere; }
+.pv-feed-meta { margin: 2px 0 0; color: var(--ak-muted); font-size: var(--ak-fs-md); }
+.pv-feed-error { flex-basis: 100%; margin: 0; color: var(--ak-muted); font-size: var(--ak-fs-sm); }
+
+.pv-section-title { margin: var(--ak-s5) 0 var(--ak-s2); font-size: var(--ak-fs-xl); font-weight: var(--ak-fw-bold); line-height: 1.2; }
+.pv-quick { display: flex; flex-direction: column; gap: var(--ak-s2); }
+.pv-check {
+  display: flex;
+  align-items: center;
+  gap: var(--ak-s3);
+  min-height: var(--ak-tap);
+  font-size: var(--ak-fs-lg);
+}
+.pv-check input { flex: none; width: 22px; height: 22px; margin: 0; }
+.pv-source { overflow-wrap: anywhere; }
+
+/* Phone: the form lives in a sheet. A wide screen shows it beside the list instead. */
+@media (min-width: 720px) {
+  .pv-wide .pv-screens { max-width: 66rem; }
+  .pv-feeds {
+    display: grid;
+    grid-template-columns: minmax(0, 40rem) minmax(14rem, 22rem);
+    gap: var(--ak-s5);
+    align-items: start;
+  }
+  .pv-feeds-side { display: block; padding-top: var(--ak-s4); }
+  .pv-follow-open { display: none; }
+}
+
 /* ---------- Reader ---------- */
 
 /* Immersive on a phone: no tab bar, so the bottom padding it needed goes too. */
