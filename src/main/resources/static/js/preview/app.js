@@ -3,6 +3,7 @@
  * #/settings), so the server needs no extra route and the back button works.
  * #/articles/{id} opens the article reader (reader.js) under the Articles tab; the list
  * stays mounted, hidden, so it comes back as it was.
+ * The Feeds screen (feeds.js) also owns #/feeds/c/{category}, one category's feeds.
  * A phone gets the app-kit tab bar; a wide screen gets the side nav in the template.
  *
  * Plain ES5. Adds nothing to the page's globals.
@@ -55,6 +56,9 @@
 
   function currentRoute() {
     var name = window.location.hash.replace(/^#\/?/, '');
+    if (name === 'feeds' || name.indexOf('feeds/') === 0) {
+      return 'feeds';   // #/feeds/c/{category} is part of Feeds
+    }
     return ROUTES.indexOf(name) >= 0 ? name : 'articles';   // the reader is part of Articles
   }
 
@@ -67,14 +71,16 @@
   var screensEl = document.getElementById('pv-screens');
   var articlesEl = h('section', { class: 'pv-screen', 'data-screen': 'articles' });
   var readerEl = h('section', { class: 'pv-screen', 'data-screen': 'reader', hidden: true });
+  var feedsEl = h('section', { class: 'pv-screen', 'data-screen': 'feeds' });
   var screens = {
     articles: articlesEl,
-    feeds: h('div', { class: 'pv-screen', 'data-screen': 'feeds' }, placeholder('Feeds', '/')),
+    feeds: feedsEl,
     settings: h('div', { class: 'pv-screen', 'data-screen': 'settings' }, placeholder('Settings', '/settings'))
   };
   ROUTES.forEach(function (route) { screensEl.appendChild(screens[route]); });
   screensEl.appendChild(readerEl);
   Preview.articles.mount(articlesEl);
+  Preview.feeds.mount(feedsEl);
   Preview.reader.mount(readerEl);
 
   var tabbar = AppKit.tabbar({
@@ -107,6 +113,7 @@
     ROUTES.forEach(function (name) { screens[name].hidden = name !== route || view === 'reader'; });
     readerEl.hidden = view !== 'reader';
     document.body.classList.toggle('pv-reading', view === 'reader');
+    document.body.classList.toggle('pv-wide', route === 'feeds');   // room for the form column
     tabbar.update({ active: route });
     for (var i = 0; i < sideLinks.length; i++) {
       if (sideLinks[i].getAttribute('data-route') === route) {
@@ -130,6 +137,8 @@
       if (shown === 'reader') {
         window.scrollTo(0, listScroll);
       }
+    } else if (route === 'feeds') {
+      Preview.feeds.show();
     }
     shown = view;
   }
