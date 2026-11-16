@@ -16,6 +16,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import com.kindlerss.service.SafeHttpClient;
+import com.kindlerss.service.ApiTokenService;
 
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -63,6 +64,7 @@ class PreviewAppIntegrationTest {
     @Autowired MockMvc mockMvc;
     @Autowired UserRepository users;
     @Autowired PasswordEncoder passwordEncoder;
+    @Autowired ApiTokenService apiTokens;
 
     @MockitoBean SafeHttpClient httpClient;
 
@@ -161,7 +163,8 @@ class PreviewAppIntegrationTest {
     @Test
     void theScriptsAndTheStylesheetArePartOfTheBuild() {
         for (String path : new String[] {"static/js/preview/api.js", "static/js/preview/send.js", "static/js/preview/articles.js",
-                "static/js/preview/reader.js", "static/js/preview/feeds.js", "static/js/preview/app.js",
+                "static/js/preview/reader.js", "static/js/preview/feeds.js", "static/js/preview/settings.js",
+                "static/js/preview/app.js",
                 "static/css/preview.css"}) {
             assertTrue(new ClassPathResource(path).exists(), path + " is on the classpath");
         }
@@ -213,5 +216,90 @@ class PreviewAppIntegrationTest {
         assertFalse(source.matches("(?s).*['\"]/feeds/['\"]\\s*\\+[^;]*Uncategorized.*"),
                 "feeds.js never sends the literal Uncategorized category");
         assertFalse(source.contains("/feeds/Uncategorized"), "feeds.js has no /feeds/Uncategorized path");
+    }
+
+    @Test
+    void theSettingsScriptIsReferencedServedAndStaysSafe() throws Exception {
+        MockHttpSession session = signIn();
+
+        String page = mockMvc.perform(get("/app").session(session))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        java.util.regex.Matcher script = java.util.regex.Pattern
+                .compile("/js/preview/settings-[0-9a-f]{32}\\.js").matcher(page);
+        assertTrue(script.find(), "the page references settings.js");
+        assertTrue(page.indexOf("/js/preview/settings-") < page.indexOf("/js/preview/app-"),
+                "settings.js loads before app.js");
+
+        mockMvc.perform(get(script.group()).session(session))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Type", containsString("javascript")))
+                .andExpect(content().string(containsString("Preview.settings")));
+
+        String source = classpathText("static/js/preview/settings.js");
+        assertFalse(source.contains(".innerHTML ="), "settings.js never assigns innerHTML");
+        assertFalse(source.contains(".innerHTML="), "settings.js never assigns innerHTML");
+        // The session-only endpoints are for the signed-in browser: no bearer token here.
+        assertFalse(source.contains("Authorization"), "settings.js never sends an Authorization header");
+    }
+
+    @Test
+    void theAppPageCarriesTheCsrfTokenForTheRealFormPosts() throws Exception {
+        MockHttpSession session = signIn();
+
+        String page = mockMvc.perform(get("/app").session(session))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        assertTrue(page.matches("(?s).*<meta name=\"csrf-token\" content=\"[^\"]+\".*"),
+                "a csrf-token meta with a value");
+    }
+
+    @Test
+    void theKindleSetupSheetOpensTheInAppKindleGroup() throws Exception {
+        String source = classpathText("static/js/preview/send.js");
+
+        assertTrue(source.contains("#/settings/kindle"), "send.js links to the in-app Kindle group");
+        assertFalse(source.contains("href: '/settings/kindle'"), "send.js no longer links to the old page");
+        assertFalse(source.contains("href=\"/settings/kindle\""), "send.js no longer links to the old page");
+        assertFalse(source.contains("_blank"), "the link no longer opens a new tab");
+        assertTrue(source.contains("Where do I find it?"), "the visible link text is kept");
+    }
+
+    @Test
+    void deletingTheAccountNeedsTheCsrfTokenAndASession() throws Exception {
+        MockHttpSession session = signIn();
+        long id = users.findByEmail(email).orElseThrow().id();
+
+        mockMvc.perform(post("/account/delete").session(session))
+                .andExpect(status().isForbidden());
+        assertTrue(users.findById(id).isPresent(), "no CSRF token: the account is still there");
+
+        // A bearer token is not a session. Even with a valid CSRF token the request is
+        // not signed in, so it is sent to the login page and nothing is deleted.
+        String secret = apiTokens.create(id, "settings test").secret();
+        mockMvc.perform(post("/account/delete").with(csrf())
+                        .header("Authorization", "Bearer " + secret))
+                .andExpect(status().is3xxRedirection());
+        mockMvc.perform(post("/account/delete")
+                        .header("Authorization", "Bearer " + secret))
+                .andExpect(status().isForbidden());
+        assertTrue(users.findById(id).isPresent(), "bearer auth only: the account is still there");
+    }
+
+    @Test
+    void signingOutNeedsTheCsrfToken() throws Exception {
+        MockHttpSession session = signIn();
+
+        mockMvc.perform(post("/logout").session(session))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(get("/app").session(session))
+                .andExpect(status().isOk());
+    }
+
+    private static String classpathText(String path) throws java.io.IOException {
+        return new String(new ClassPathResource(path).getInputStream().readAllBytes(),
+                java.nio.charset.StandardCharsets.UTF_8);
     }
 }

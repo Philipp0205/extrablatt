@@ -4,6 +4,7 @@
  * #/articles/{id} opens the article reader (reader.js) under the Articles tab; the list
  * stays mounted, hidden, so it comes back as it was.
  * The Feeds screen (feeds.js) also owns #/feeds/c/{category}, one category's feeds.
+ * The Settings screen (settings.js) owns #/settings and #/settings/{kindle,reading,account,about}.
  * A phone gets the app-kit tab bar; a wide screen gets the side nav in the template.
  *
  * Plain ES5. Adds nothing to the page's globals.
@@ -47,17 +48,13 @@
     return svg;
   }
 
-  function placeholder(title, href) {
-    return h('section', { class: 'pv-placeholder' },
-      h('h1', { class: 'ak-screen-title' }, title),
-      h('p', null, title + ' is coming to this preview. For now, use ',
-        h('a', { class: 'pv-link', href: href }, 'the current app'), '.'));
-  }
-
   function currentRoute() {
     var name = window.location.hash.replace(/^#\/?/, '');
     if (name === 'feeds' || name.indexOf('feeds/') === 0) {
       return 'feeds';   // #/feeds/c/{category} is part of Feeds
+    }
+    if (name === 'settings' || name.indexOf('settings/') === 0) {
+      return 'settings';   // #/settings/{group} is part of Settings
     }
     return ROUTES.indexOf(name) >= 0 ? name : 'articles';   // the reader is part of Articles
   }
@@ -72,15 +69,17 @@
   var articlesEl = h('section', { class: 'pv-screen', 'data-screen': 'articles' });
   var readerEl = h('section', { class: 'pv-screen', 'data-screen': 'reader', hidden: true });
   var feedsEl = h('section', { class: 'pv-screen', 'data-screen': 'feeds' });
+  var settingsEl = h('section', { class: 'pv-screen', 'data-screen': 'settings' });
   var screens = {
     articles: articlesEl,
     feeds: feedsEl,
-    settings: h('div', { class: 'pv-screen', 'data-screen': 'settings' }, placeholder('Settings', '/settings'))
+    settings: settingsEl
   };
   ROUTES.forEach(function (route) { screensEl.appendChild(screens[route]); });
   screensEl.appendChild(readerEl);
   Preview.articles.mount(articlesEl);
   Preview.feeds.mount(feedsEl);
+  Preview.settings.mount(settingsEl);
   Preview.reader.mount(readerEl);
 
   var tabbar = AppKit.tabbar({
@@ -113,7 +112,8 @@
     ROUTES.forEach(function (name) { screens[name].hidden = name !== route || view === 'reader'; });
     readerEl.hidden = view !== 'reader';
     document.body.classList.toggle('pv-reading', view === 'reader');
-    document.body.classList.toggle('pv-wide', route === 'feeds');   // room for the form column
+    // Room for the form column (Feeds) or the list beside the detail (Settings).
+    document.body.classList.toggle('pv-wide', route === 'feeds' || route === 'settings');
     tabbar.update({ active: route });
     for (var i = 0; i < sideLinks.length; i++) {
       if (sideLinks[i].getAttribute('data-route') === route) {
@@ -139,6 +139,8 @@
       }
     } else if (route === 'feeds') {
       Preview.feeds.show();
+    } else if (route === 'settings') {
+      Preview.settings.show();
     }
     shown = view;
   }
