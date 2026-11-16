@@ -148,6 +148,7 @@
 
   window.addEventListener('hashchange', render);
   render();
+  Preview.whatsNew.start();
 
   AppKit.themeColor.start({ media: ['(max-width: 719px)'] });
 })();

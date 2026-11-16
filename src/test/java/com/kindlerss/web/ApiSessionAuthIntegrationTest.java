@@ -599,6 +599,167 @@ class ApiSessionAuthIntegrationTest {
                 .andExpect(status().isUnauthorized());
     }
 
+    // --- the "What's new" notice ---
+
+    private String lastSeenChangelog(long userId) {
+        return jdbc.queryForObject("SELECT last_seen_changelog_id FROM users WHERE id = ?", String.class, userId);
+    }
+
+    @Test
+    void whatsNewIsTheNewestReleaseUntilItIsAcknowledged() throws Exception {
+        var latest = com.kindlerss.service.ChangelogCatalog.instance().latest().orElseThrow();
+        String[] items = latest.popupItems().toArray(new String[0]);
+        MockHttpSession session = signIn(emailA);
+
+        mockMvc.perform(get("/api/v1/account").session(session))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.whatsNew.id").value(latest.id()))
+                .andExpect(jsonPath("$.whatsNew.date").value(latest.date()))
+                .andExpect(jsonPath("$.whatsNew.title").value(latest.title()))
+                .andExpect(jsonPath("$.whatsNew.items").value(org.hamcrest.Matchers.contains(items)));
+
+        // An account that last saw some older release is shown the newest one.
+        jdbc.update("UPDATE users SET last_seen_changelog_id = ? WHERE id = ?", "1999-01-01-older", userA);
+        mockMvc.perform(get("/api/v1/account").session(session))
+                .andExpect(jsonPath("$.whatsNew.id").value(latest.id()))
+                .andExpect(jsonPath("$.whatsNew.items").value(org.hamcrest.Matchers.contains(items)));
+
+        jdbc.update("UPDATE users SET last_seen_changelog_id = ? WHERE id = ?", latest.id(), userA);
+        mockMvc.perform(get("/api/v1/account").session(session))
+                .andExpect(jsonPath("$.whatsNew").value(nullValue()));
+    }
+
+    @Test
+    void acknowledgingTheChangelogNeedsCsrfAndClearsWhatsNew() throws Exception {
+        String latestId = com.kindlerss.service.ChangelogCatalog.instance().latestId().orElseThrow();
+        MockHttpSession session = signIn(emailA);
+        String token = xsrfTokenFor(session);
+
+        mockMvc.perform(post("/api/v1/account/changelog/ack").session(session))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.error").isNotEmpty());
+        assertNull(lastSeenChangelog(userA));
+
+        mockMvc.perform(withCsrf(post("/api/v1/account/changelog/ack"), session, token))
+                .andExpect(status().isNoContent());
+        assertEquals(latestId, lastSeenChangelog(userA));
+        mockMvc.perform(get("/api/v1/account").session(session))
+                .andExpect(jsonPath("$.whatsNew").value(nullValue()));
+        // Only the caller's own account.
+        assertNull(lastSeenChangelog(userB));
+    }
+
+    @Test
+    void aTokenCannotAcknowledgeTheChangelog() throws Exception {
+        String secret = tokenService.create(userA, "A").secret();
+
+        mockMvc.perform(post("/api/v1/account/changelog/ack").header("Authorization", "Bearer " + secret))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.error").value("This needs a signed-in browser session, not an API token"));
+
+        assertNull(lastSeenChangelog(userA));
+    }
+
+    // --- marking read by scrolling ---
+
+    private static final String SCROLL_READ = "/api/v1/articles/scroll-read";
+
+    private void chooseScroll(long userId, boolean scroll) {
+        users.updateMarkReadOnScroll(userId, scroll);
+    }
+
+    @Test
+    void scrollReadIsRefusedAndMarksNothingUnlessTheChoiceIsScroll() throws Exception {
+        Feed feed = feeds.insert(userA, "Blog", "https://sr1.example/feed", "https://sr1.example", null);
+        long id = article(feed, "sr1");
+        MockHttpSession session = signIn(emailA);
+        String token = xsrfTokenFor(session);
+
+        mockMvc.perform(withCsrf(post(SCROLL_READ), session, token)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"ids\":[" + id + "]}"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error").value("Marking articles read by scrolling is off"))
+                .andExpect(jsonPath("$.marked").value(0));
+        assertEquals(1, articles.count(userA, feed.id(), Boolean.TRUE));
+    }
+
+    @Test
+    void scrollReadMarksOnlyTheCallersOwnArticlesAndToleratesDuplicatesAndNulls() throws Exception {
+        Feed feedA = feeds.insert(userA, "Blog", "https://sr2.example/feed", "https://sr2.example", null);
+        Feed feedB = feeds.insert(userB, "Other", "https://sr3.example/feed", "https://sr3.example", null);
+        long mine = article(feedA, "sr2");
+        long theirs = article(feedB, "sr3");
+        chooseScroll(userA, true);
+        MockHttpSession session = signIn(emailA);
+        String token = xsrfTokenFor(session);
+
+        // No CSRF header, nothing happens.
+        mockMvc.perform(post(SCROLL_READ).session(session)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"ids\":[" + mine + "]}"))
+                .andExpect(status().isForbidden());
+        assertEquals(1, articles.count(userA, feedA.id(), Boolean.TRUE));
+
+        mockMvc.perform(withCsrf(post(SCROLL_READ), session, token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"ids\":[" + mine + "," + mine + ",null," + theirs + "]}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.marked").value(1));
+        assertEquals(0, articles.count(userA, feedA.id(), Boolean.TRUE), "mine was marked");
+        assertEquals(1, articles.count(userB, feedB.id(), Boolean.TRUE), "another account's article stays unread");
+
+        mockMvc.perform(withCsrf(post(SCROLL_READ), session, token)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"ids\":[]}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.marked").value(0));
+        mockMvc.perform(withCsrf(post(SCROLL_READ), session, token)
+                        .contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.marked").value(0));
+        assertEquals(0, articles.count(userA, feedA.id(), Boolean.TRUE));
+    }
+
+    @Test
+    void scrollReadUsesNoMoreThanTheMarkReadLimit() throws Exception {
+        Feed feed = feeds.insert(userA, "Blog", "https://sr4.example/feed", "https://sr4.example", null);
+        long first = article(feed, "sr4a");
+        long last = article(feed, "sr4b");
+        chooseScroll(userA, true);
+        MockHttpSession session = signIn(emailA);
+        String token = xsrfTokenFor(session);
+
+        // The limit counts ids after duplicates and nulls are dropped; the rest is cut off.
+        StringBuilder ids = new StringBuilder("[").append(first);
+        for (int i = 1; i < AppController.MAX_MARK_READ; i++) {
+            ids.append(',').append(Long.MAX_VALUE - i);
+        }
+        ids.append(',').append(last).append(']');
+
+        mockMvc.perform(withCsrf(post(SCROLL_READ), session, token)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"ids\":" + ids + "}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.marked").value(1));
+        assertEquals(1, articles.count(userA, feed.id(), Boolean.TRUE), "the id past the limit stays unread");
+    }
+
+    @Test
+    void scrollReadWorksWithABearerTokenWithoutCsrf() throws Exception {
+        Feed feed = feeds.insert(userA, "Blog", "https://sr5.example/feed", "https://sr5.example", null);
+        long id = article(feed, "sr5");
+        String secret = tokenService.create(userA, "A").secret();
+
+        mockMvc.perform(post(SCROLL_READ).header("Authorization", "Bearer " + secret)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"ids\":[" + id + "]}"))
+                .andExpect(status().isConflict());
+        assertEquals(1, articles.count(userA, feed.id(), Boolean.TRUE));
+
+        chooseScroll(userA, true);
+        mockMvc.perform(post(SCROLL_READ).header("Authorization", "Bearer " + secret)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"ids\":[" + id + "]}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.marked").value(1));
+        assertEquals(0, articles.count(userA, feed.id(), Boolean.TRUE));
+    }
+
     // --- bearer tokens are unchanged ---
 
     @Test

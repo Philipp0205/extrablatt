@@ -221,6 +221,25 @@ public class ApiController {
     }
 
     /**
+     * The website's mark-read-by-scrolling (see {@code AppController.markScrolledRead}): only for
+     * accounts whose Reading choice is "scroll", otherwise 409 and nothing is marked.
+     */
+    @PostMapping("/articles/scroll-read")
+    public ResponseEntity<Map<String, Object>> markScrolledRead(@RequestBody(required = false) ScrollReadRequest request) {
+        long userId = currentUser.requireId();
+        if (!userService.markReadOnScroll(userId)) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(Map.of("error", "Marking articles read by scrolling is off", "marked", 0));
+        }
+        List<Long> ids = request == null ? null : request.ids();
+        List<Long> distinct = ids == null ? List.of()
+                : ids.stream().filter(java.util.Objects::nonNull).distinct()
+                        .limit(AppController.MAX_MARK_READ).toList();
+        int marked = distinct.isEmpty() ? 0 : articleService.markRead(userId, distinct, true);
+        return ResponseEntity.ok(Map.of("marked", marked));
+    }
+
+    /**
      * Marks the unread articles of a feed or category (or of everything) read, up to
      * {@link AppController#MAX_MARK_READ} at a time; {@code hasMore} says whether to ask again.
      */
@@ -289,6 +308,8 @@ public class ApiController {
         account.put("billingEnabled", properties.billing().enabled());
         account.put("hasRecoveryCode", recoveryCodeService.hasCode(userId));
         account.put("trialEndedPrompt", trialEndedPrompt(entitlement, request));
+        account.put("whatsNew", ChangelogCatalog.instance().unseenSince(user.lastSeenChangelogId())
+                .map(ApiController::whatsNewView).orElse(null));
         return account;
     }
 
@@ -309,6 +330,26 @@ public class ApiController {
     @PostMapping("/account/trial-ended/ack")
     public ResponseEntity<Void> acknowledgeTrialEnded(HttpServletRequest request) {
         request.getSession().setAttribute(AccountAdvice.TRIAL_ENDED_ACK, Boolean.TRUE);
+        return ResponseEntity.noContent().build();
+    }
+
+    private static Map<String, Object> whatsNewView(ChangelogCatalog.Release release) {
+        Map<String, Object> view = new java.util.LinkedHashMap<>();
+        view.put("id", release.id());
+        view.put("date", release.date());
+        view.put("title", release.title());
+        view.put("items", release.popupItems());
+        return view;
+    }
+
+    /**
+     * Dismisses the "what's new" notice, as the website's form does. Session-only (see
+     * {@code SecurityConfig.SESSION_ONLY_PATHS}).
+     */
+    @PostMapping("/account/changelog/ack")
+    public ResponseEntity<Void> acknowledgeChangelog() {
+        ChangelogCatalog.instance().latestId()
+                .ifPresent(id -> userService.acknowledgeChangelog(currentUser.requireId(), id));
         return ResponseEntity.noContent().build();
     }
 
@@ -389,6 +430,9 @@ public class ApiController {
     }
 
     public record ReadRequest(Boolean read) {
+    }
+
+    public record ScrollReadRequest(List<Long> ids) {
     }
 
     public record MarkReadRequest(Long feed, String category) {

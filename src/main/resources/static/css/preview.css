@@ -526,6 +526,9 @@ button:focus-visible {
 /* The alert element stays rendered so screen readers announce the text when it appears. */
 .pv-sheet-error:not(:empty) { margin-top: var(--ak-s2); }
 .pv-sheet-actions { display: flex; flex-direction: column; gap: var(--ak-s2); margin-top: var(--ak-s4); }
+.pv-whatsnew-headline { margin: 0 0 var(--ak-s2); font-weight: var(--ak-fw-bold); }
+.pv-whatsnew-list { margin: 0; padding-left: var(--ak-s4); }
+.pv-sheet a.ak-btn { text-align: center; text-decoration: none; }
 
 .pv-sheet-text { margin: 0 0 var(--ak-s2); font-size: var(--ak-fs-md); }
 .pv-sheet-actions a.ak-btn { text-decoration: none; text-align: center; }
