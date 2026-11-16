@@ -123,7 +123,9 @@ public class ApiController {
                                @RequestParam(value = "images", defaultValue = "false") boolean images) {
         Article article = articleService.findById(currentUser.requireId(), id)
                 .orElseThrow(() -> new ArticleService.NotFoundException("Article not found"));
-        return new ArticleView(ItemView.of(article), articleService.getReaderHtml(article, images));
+        return new ArticleView(ItemView.of(article), articleService.getReaderHtml(article, images),
+                AppController.safeHttpUrl(article.url()),
+                articleService.findCommentsUrl(article).map(AppController::safeHttpUrl).orElse(null));
     }
 
     @PostMapping("/articles/{id}/read")
@@ -196,6 +198,8 @@ public class ApiController {
         account.put("kindleEmail", user.kindleEmail());
         account.put("kindleConfigured", user.kindleEmail() != null && !user.kindleEmail().isBlank());
         account.put("markReadOnNextPage", user.markReadOnNextPage());
+        account.put("readTracking",
+                ReadTracking.fromFlags(user.markReadOnNextPage(), user.markReadOnScroll()).parameter());
         account.put("entitlement", plan);
         return account;
     }
@@ -254,6 +258,6 @@ public class ApiController {
         }
     }
 
-    public record ArticleView(ItemView article, String contentHtml) {
+    public record ArticleView(ItemView article, String contentHtml, String originalUrl, String commentsUrl) {
     }
 }

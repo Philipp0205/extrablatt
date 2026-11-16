@@ -309,6 +309,52 @@ class ApiControllerIntegrationTest {
                 .andExpect(jsonPath("$.contentHtml").value(containsString("Summary c1")));
     }
 
+    @Test
+    void anArticleCarriesItsOriginalAndCommentsLinksAndNullWhenNotHttp() throws Exception {
+        Feed feed = feeds.insert(userA, "Blog", "https://l.example/feed", "https://l.example", null);
+        long withLinks = articles.insert(feed.id(), "l1", "Linked", "https://example.com/l1", "Ann", Instant.now(),
+                "<p>Summary</p><a href=\"https://news.ycombinator.com/item?id=42\">Comments</a>", null);
+        long plain = article(feed, "l2", 1);
+        long notHttp = articles.insert(feed.id(), "l3", "Odd", "ftp://example.com/l3", "Ann", Instant.now(),
+                "<p>Summary</p><a href=\"javascript:alert(1)\">Comments</a>", null);
+
+        mockMvc.perform(bearer(get("/api/v1/articles/" + withLinks), tokenA))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.article.id").value(withLinks))
+                .andExpect(jsonPath("$.originalUrl").value("https://example.com/l1"))
+                .andExpect(jsonPath("$.commentsUrl").value("https://news.ycombinator.com/item?id=42"));
+        mockMvc.perform(bearer(get("/api/v1/articles/" + plain), tokenA))
+                .andExpect(jsonPath("$.originalUrl").value("https://example.com/l2"))
+                .andExpect(jsonPath("$.commentsUrl").value(org.hamcrest.Matchers.nullValue()));
+        mockMvc.perform(bearer(get("/api/v1/articles/" + notHttp), tokenA))
+                .andExpect(jsonPath("$.article.url").value("ftp://example.com/l3"))
+                .andExpect(jsonPath("$.originalUrl").value(org.hamcrest.Matchers.nullValue()))
+                .andExpect(jsonPath("$.commentsUrl").value(org.hamcrest.Matchers.nullValue()));
+    }
+
+    @Test
+    void theArticleHtmlIsSanitizedForTheReader() throws Exception {
+        Feed feed = feeds.insert(userA, "Blog", "https://m.example/feed", "https://m.example", null);
+        long id = articles.insert(feed.id(), "m1", "Hostile", "https://example.com/m1", "Ann", Instant.now(),
+                "<p>Summary</p>", "<p>Safe text</p><script>alert(1)</script>"
+                        + "<img src=\"https://example.com/i.png\" onerror=\"alert(2)\">"
+                        + "<a href=\"javascript:alert(3)\">bad link</a>"
+                        + "<p style=\"color:red\">styled</p>");
+
+        for (String images : new String[] {"false", "true"}) {
+            mockMvc.perform(bearer(get("/api/v1/articles/" + id).param("images", images), tokenA))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.contentHtml").value(containsString("Safe text")))
+                    .andExpect(jsonPath("$.contentHtml").value(containsString("bad link")))
+                    .andExpect(jsonPath("$.contentHtml").value(not(containsString("<script"))))
+                    .andExpect(jsonPath("$.contentHtml").value(not(containsString("alert"))))
+                    .andExpect(jsonPath("$.contentHtml").value(not(containsString("onerror"))))
+                    .andExpect(jsonPath("$.contentHtml").value(not(containsString("javascript:"))))
+                    .andExpect(jsonPath("$.contentHtml").value(not(containsString("style="))))
+                    .andExpect(jsonPath("$.contentHtml").value(not(containsString("color:red"))));
+        }
+    }
+
     // --- changing read state ---
 
     @Test
@@ -467,9 +513,30 @@ class ApiControllerIntegrationTest {
                 .andExpect(jsonPath("$.kindleEmail").value("reader@kindle.com"))
                 .andExpect(jsonPath("$.kindleConfigured").value(true))
                 .andExpect(jsonPath("$.markReadOnNextPage").value(true))
+                .andExpect(jsonPath("$.readTracking").value("open"))
                 .andExpect(jsonPath("$.entitlement.plan").value("SUPPORTER"))
                 .andExpect(content().string(not(containsString("hash"))))
                 .andExpect(content().string(not(containsString(tokenA))));
+    }
+
+    @Test
+    void theAccountReportsTheReadTrackingMode() throws Exception {
+        mockMvc.perform(bearer(get("/api/v1/account"), tokenA))
+                .andExpect(jsonPath("$.readTracking").value("open"));
+
+        users.updateMarkReadOnScroll(userA, true);
+        mockMvc.perform(bearer(get("/api/v1/account"), tokenA))
+                .andExpect(jsonPath("$.readTracking").value("scroll"))
+                .andExpect(jsonPath("$.markReadOnNextPage").value(true));
+
+        users.updateMarkReadOnNextPage(userA, false);
+        mockMvc.perform(bearer(get("/api/v1/account"), tokenA))
+                .andExpect(jsonPath("$.readTracking").value("none"))
+                .andExpect(jsonPath("$.markReadOnNextPage").value(false));
+
+        users.updateMarkReadOnScroll(userA, false);
+        mockMvc.perform(bearer(get("/api/v1/account"), tokenA))
+                .andExpect(jsonPath("$.readTracking").value("none"));
     }
 
     @Test
