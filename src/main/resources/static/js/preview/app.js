@@ -81,6 +81,7 @@
   Preview.feeds.mount(feedsEl);
   Preview.settings.mount(settingsEl);
   Preview.reader.mount(readerEl);
+  Preview.legal.mount(screensEl);   // the footer under every screen (hidden in the reader), and the trial-ended notice
 
   var tabbar = AppKit.tabbar({
     label: 'Main',

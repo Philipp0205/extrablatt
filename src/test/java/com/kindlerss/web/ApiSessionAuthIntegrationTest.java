@@ -742,4 +742,48 @@ class ApiSessionAuthIntegrationTest {
                 .andExpect(jsonPath("$.entitlement.onTrial").value(false))
                 .andExpect(jsonPath("$.entitlement.trialEndsOn").doesNotExist());
     }
+
+    // --- the post-trial notice: the flag and its acknowledgement ---
+
+    @Test
+    void withBillingOffTheTrialEndedPromptIsFalseAndTheAckNeedsCsrf() throws Exception {
+        MockHttpSession session = signIn(emailA);
+        String token = xsrfTokenFor(session);
+
+        mockMvc.perform(get("/api/v1/account").session(session))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.trialEndedPrompt").value(false));
+
+        mockMvc.perform(post("/api/v1/account/trial-ended/ack").session(session))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.error").isNotEmpty());
+        assertNull(session.getAttribute(AccountAdvice.TRIAL_ENDED_ACK), "no CSRF header: nothing recorded");
+
+        mockMvc.perform(withCsrf(post("/api/v1/account/trial-ended/ack"), session, token))
+                .andExpect(status().isNoContent());
+        assertEquals(Boolean.TRUE, session.getAttribute(AccountAdvice.TRIAL_ENDED_ACK));
+    }
+
+    @Test
+    void aTokenCannotAcknowledgeTheNoticeAndSeesNoPrompt() throws Exception {
+        String bearer = "Bearer " + tokenService.create(userA, "A").secret();
+
+        mockMvc.perform(post("/api/v1/account/trial-ended/ack").header("Authorization", bearer))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.error").value("This needs a signed-in browser session, not an API token"));
+        mockMvc.perform(post("/api/v1/account/trial-ended/ack").header("Authorization", "Bearer eb_nope"))
+                .andExpect(status().is(org.hamcrest.Matchers.anyOf(
+                        org.hamcrest.Matchers.is(401), org.hamcrest.Matchers.is(403))));
+
+        mockMvc.perform(get("/api/v1/account").header("Authorization", bearer))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.trialEndedPrompt").value(false));
+    }
+
+    @Test
+    void theAckWithoutASessionIsRefused() throws Exception {
+        mockMvc.perform(post("/api/v1/account/trial-ended/ack"))
+                .andExpect(status().is(org.hamcrest.Matchers.anyOf(
+                        org.hamcrest.Matchers.is(401), org.hamcrest.Matchers.is(403))));
+    }
 }

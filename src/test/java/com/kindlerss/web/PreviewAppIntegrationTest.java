@@ -164,7 +164,7 @@ class PreviewAppIntegrationTest {
     void theScriptsAndTheStylesheetArePartOfTheBuild() {
         for (String path : new String[] {"static/js/preview/api.js", "static/js/preview/send.js", "static/js/preview/articles.js",
                 "static/js/preview/reader.js", "static/js/preview/feeds.js", "static/js/preview/settings.js",
-                "static/js/preview/app.js",
+                "static/js/preview/legal.js", "static/js/preview/app.js",
                 "static/css/preview.css"}) {
             assertTrue(new ClassPathResource(path).exists(), path + " is on the classpath");
         }
@@ -241,6 +241,30 @@ class PreviewAppIntegrationTest {
         assertFalse(source.contains(".innerHTML="), "settings.js never assigns innerHTML");
         // The session-only endpoints are for the signed-in browser: no bearer token here.
         assertFalse(source.contains("Authorization"), "settings.js never sends an Authorization header");
+    }
+
+    @Test
+    void theLegalScriptIsReferencedBeforeAppServedAndStaysSafe() throws Exception {
+        MockHttpSession session = signIn();
+
+        String page = mockMvc.perform(get("/app").session(session))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        java.util.regex.Matcher script = java.util.regex.Pattern
+                .compile("/js/preview/legal-[0-9a-f]{32}\\.js").matcher(page);
+        assertTrue(script.find(), "the page references legal.js");
+        assertTrue(page.indexOf("/js/preview/legal-") < page.indexOf("/js/preview/app-"),
+                "legal.js loads before app.js");
+
+        mockMvc.perform(get(script.group()).session(session))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Type", containsString("javascript")))
+                .andExpect(content().string(containsString("Preview.legal")));
+
+        String source = classpathText("static/js/preview/legal.js");
+        assertFalse(source.contains(".innerHTML ="), "legal.js never assigns innerHTML");
+        assertFalse(source.contains(".innerHTML="), "legal.js never assigns innerHTML");
+        assertFalse(source.contains("Authorization"), "legal.js never sends an Authorization header");
     }
 
     @Test
