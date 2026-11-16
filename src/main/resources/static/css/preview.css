@@ -526,3 +526,160 @@ button:focus-visible {
 /* The alert element stays rendered so screen readers announce the text when it appears. */
 .pv-sheet-error:not(:empty) { margin-top: var(--ak-s2); }
 .pv-sheet-actions { display: flex; flex-direction: column; gap: var(--ak-s2); margin-top: var(--ak-s4); }
+
+/* ---------- Settings ---------- */
+
+/* One DOM, two layouts. data-group is the route ("" is the index); data-active is the group
+   a wide screen shows beside the list. A phone shows the index or one group; a wide screen
+   shows the list and the active group. */
+.pv-settings [hidden] { display: none; }
+.pv-set-status { padding: var(--ak-s4) 0; }
+
+.pv-set-rows, .pv-token-rows, .pv-legal-rows, .pv-release-list { margin: 0; padding: 0; list-style: none; }
+.pv-set-rows > li { border-bottom: 1px solid var(--ak-hairline); }
+.pv-set-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ak-s3);
+  min-height: var(--ak-tap);
+  padding: var(--ak-s3) 0;
+  text-decoration: none;
+}
+.pv-set-row:hover .pv-set-name { text-decoration: underline; }
+.pv-set-row:focus-visible { outline: 2px solid var(--ak-accent-2); outline-offset: 2px; }
+.pv-set-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.pv-set-name { font-size: var(--ak-fs-xl); }
+.pv-set-meta { color: var(--ak-muted); font-size: var(--ak-fs-md); overflow-wrap: anywhere; }
+
+.pv-set-detail { display: none; }
+.pv-set-panel { display: none; padding-bottom: var(--ak-s5); }
+.pv-set-title { padding: var(--ak-s2) 0 var(--ak-s3); }
+.pv-set-title:focus { outline: none; }
+.pv-set-panel > .pv-field-help { margin-bottom: var(--ak-s3); }
+
+.pv-set-form { display: flex; flex-direction: column; gap: var(--ak-s4); margin-bottom: var(--ak-s4); }
+.pv-set-btn {
+  width: auto;
+  min-height: var(--ak-tap);
+  padding: 0 var(--ak-s5);
+  font-size: var(--ak-fs-md);
+}
+.pv-set-actions { display: flex; margin: 0 0 var(--ak-s3); }
+.pv-set-section { margin-top: var(--ak-s5); padding-top: var(--ak-s2); border-top: 1px solid var(--ak-hairline); }
+.pv-set-section > .pv-section-title:first-child { margin-top: var(--ak-s3); }
+.pv-set-section > .pv-field-help { margin-bottom: var(--ak-s3); }
+.pv-set-section > .pv-set-btn { display: inline-flex; }
+.pv-set-note { margin-top: var(--ak-s5); }
+.pv-warn { color: var(--ak-danger); }
+.pv-link:focus-visible,
+.pv-set-link:focus-visible,
+.pv-set-summary:focus-visible { outline: 2px solid var(--ak-accent-2); outline-offset: 2px; }
+
+.pv-set-details { margin-top: var(--ak-s4); }
+.pv-set-summary {
+  display: flex;
+  align-items: center;
+  min-height: var(--ak-tap);
+  font-size: var(--ak-fs-lg);
+  font-weight: var(--ak-fw-bold);
+  cursor: pointer;
+}
+.pv-set-details-body { padding-top: var(--ak-s2); }
+.pv-set-steps { margin: 0 0 var(--ak-s3); padding-left: var(--ak-s5); color: var(--ak-muted); font-size: var(--ak-fs-md); }
+.pv-set-steps li { margin-bottom: var(--ak-s2); }
+
+.pv-fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
+.pv-legend { padding: 0; margin-bottom: var(--ak-s2); font-size: var(--ak-fs-lg); font-weight: var(--ak-fw-bold); }
+.pv-choice { margin-bottom: var(--ak-s3); }
+.pv-choice-help { padding-left: calc(22px + var(--ak-s3)); }
+.pv-check input:focus-visible { outline: 2px solid var(--ak-accent-2); outline-offset: 2px; }
+
+.pv-copybox {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ak-s3);
+  margin: var(--ak-s3) 0;
+}
+.pv-secret {
+  flex: 1 1 12rem;
+  min-width: 0;
+  padding: var(--ak-s3);
+  border-radius: var(--ak-radius-sm);
+  background: var(--ak-surface-2);
+  font-size: var(--ak-fs-lg);
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+
+.pv-token {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ak-s2) var(--ak-s3);
+  padding: var(--ak-s3) 0;
+  border-bottom: 1px solid var(--ak-hairline);
+}
+.pv-token-text { flex: 1; min-width: 0; }
+.pv-token-line { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--ak-s2); }
+.pv-token-name { font-size: var(--ak-fs-lg); overflow-wrap: anywhere; }
+
+.pv-release { margin-bottom: var(--ak-s4); }
+.pv-release-title { margin: 0; font-size: var(--ak-fs-lg); font-weight: var(--ak-fw-bold); }
+.pv-release-list { margin-top: var(--ak-s2); padding-left: var(--ak-s4); list-style: disc; color: var(--ak-muted); font-size: var(--ak-fs-md); }
+.pv-release-list li { margin-bottom: var(--ak-s1); }
+
+.pv-legal { margin-top: var(--ak-s5); border-top: 1px solid var(--ak-hairline); }
+.pv-legal-rows li { border-bottom: 1px solid var(--ak-hairline); }
+.pv-set-link {
+  display: flex;
+  align-items: center;
+  min-height: var(--ak-tap);
+  font-size: var(--ak-fs-lg);
+  text-decoration: none;
+}
+.pv-set-link:hover { text-decoration: underline; }
+
+/* Phone: the index, or one group with a way back. */
+@media (max-width: 719px) {
+  .pv-settings:not([data-group=""]) .pv-set-list { display: none; }
+  .pv-settings:not([data-group=""]) .pv-set-detail { display: block; }
+  .pv-settings[data-group="kindle"] .pv-set-panel[data-panel="kindle"],
+  .pv-settings[data-group="reading"] .pv-set-panel[data-panel="reading"],
+  .pv-settings[data-group="account"] .pv-set-panel[data-panel="account"],
+  .pv-settings[data-group="about"] .pv-set-panel[data-panel="about"] { display: block; }
+}
+
+/* Wide: the list on the left, the active group on the right. */
+@media (min-width: 720px) {
+  .pv-settings {
+    display: grid;
+    grid-template-columns: 14rem minmax(0, 40rem);
+    gap: var(--ak-s5);
+    align-items: start;
+  }
+  .pv-set-detail { display: block; }
+  .pv-set-back { display: none; }
+  .pv-set-list .ak-screen-title { padding: var(--ak-s4) 0 var(--ak-s3); }
+  .pv-set-row {
+    padding: 0 var(--ak-s3);
+    border-left: 3px solid transparent;
+  }
+  .pv-set-rows > li { border-bottom: 0; }
+  .pv-set-row[aria-current="page"] {
+    border-left-color: var(--ak-accent);
+    background: var(--ak-surface-2);
+  }
+  .pv-set-meta { display: none; }
+  .pv-set-name { font-size: var(--ak-fs-lg); }
+  .pv-set-row .pv-chevron { display: none; }
+  .pv-settings[data-active="kindle"] .pv-set-panel[data-panel="kindle"],
+  .pv-settings[data-active="reading"] .pv-set-panel[data-panel="reading"],
+  .pv-settings[data-active="account"] .pv-set-panel[data-panel="account"],
+  .pv-settings[data-active="about"] .pv-set-panel[data-panel="about"] { display: block; }
+  .pv-set-panel { padding-top: var(--ak-s4); }
+  .pv-set-form .pv-add-btn { align-self: flex-start; }
+}
+

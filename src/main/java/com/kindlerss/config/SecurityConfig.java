@@ -100,6 +100,21 @@ public class SecurityConfig {
     private static final RequestMatcher HAS_AUTHORIZATION_HEADER =
             request -> request.getHeader(HttpHeaders.AUTHORIZATION) != null;
 
+    /**
+     * API paths that only a signed-in browser session may use, for every method: a leaked
+     * API token must not be able to redirect sends (Kindle address), mint more tokens or
+     * replace the recovery code. The bearer chain denies them; the session chain, which
+     * enforces CSRF, serves them. Add a path here to make it session-only.
+     */
+    static final String[] SESSION_ONLY_PATHS = {
+            "/api/v1/account/kindle-email",
+            "/api/v1/account/recovery-code",
+            "/api/v1/tokens",
+            "/api/v1/tokens/**"
+    };
+
+    static final String SESSION_ONLY_MESSAGE = "This needs a signed-in browser session, not an API token";
+
     /** Session attribute holding the e-mail from a failed login, so the form can keep it. */
     public static final String LAST_LOGIN_USERNAME = "LAST_LOGIN_USERNAME";
 
@@ -177,11 +192,18 @@ public class SecurityConfig {
                                        RateLimiter rateLimiter) throws Exception {
         http
                 .securityMatcher(new AndRequestMatcher(API_PATH, HAS_AUTHORIZATION_HEADER))
-                .authorizeHttpRequests(auth -> auth.anyRequest().authenticated())
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(SESSION_ONLY_PATHS).denyAll()
+                        .anyRequest().authenticated())
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .requestCache(RequestCacheConfigurer::disable)
                 .csrf(AbstractHttpConfigurer::disable)
+                // Only the session-only rule can deny in this chain: a valid token that
+                // asks for one of those paths.
+                .exceptionHandling(handling -> handling
+                        .accessDeniedHandler((request, response, exception) ->
+                                writeJsonError(response, 403, SESSION_ONLY_MESSAGE)))
                 .addFilterBefore(new ApiTokenAuthenticationFilter(apiTokens, rateLimiter,
                                 ClientIpResolver.fromSettings(appProperties.trustedProxies(),
                                         appProperties.trustCloudflare())),

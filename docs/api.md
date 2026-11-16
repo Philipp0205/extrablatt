@@ -38,14 +38,36 @@ header. Without it, or with a different value, the answer is `403` and
 
 A request that has an `Authorization` header is always a token request: the session
 is ignored and no CSRF header is needed, even if a session cookie is sent along.
-Bearer tokens work exactly as described above.
+Bearer tokens work exactly as described above, except on the session-only endpoints below.
+
+## Session-only endpoints
+
+A few endpoints change things a stolen token must not be able to change: where sends
+go, which tokens exist, and how you can sign in. They work only from the signed-in
+browser session (with the CSRF header above). With an API token, valid or not, the
+answer is `403`:
+
+```
+{"error": "This needs a signed-in browser session, not an API token"}
+```
+
+An `Authorization` header of any kind makes the request a token request, so sending a
+token along with a session cookie does not help. The session-only endpoints are marked
+**Session-only** in the table: `PUT /api/v1/account/kindle-email`,
+`POST /api/v1/account/recovery-code`, and everything under `/api/v1/tokens`.
 
 ## Endpoints
 
 | Method and path | What it does |
 |---|---|
-| `GET /api/v1/account` | Your e-mail, whether it is confirmed, your Kindle address, the "mark read on next page" preference, `readTracking` (`open`, `scroll` or `none`, the Settings, Reading choice) and your plan limits, including `onTrial` and `trialEndsOn` (for example "22 November 2026") while a trial runs. |
-| `PUT /api/v1/account/kindle-email` | Saves your Kindle address: `{"kindleEmail": "you@kindle.com"}`. A blank or missing value clears it. Returns `kindleEmail` and `kindleConfigured`. |
+| `GET /api/v1/account` | Your e-mail, whether it is confirmed, your Kindle address, the "mark read on next page" preference, `readTracking` (`open`, `scroll` or `none`, the Settings, Reading choice) and your plan limits, including `onTrial` and `trialEndsOn` (for example "22 November 2026") while a trial runs. Also `senderAddress` (the address Extrablatt sends from, which you allow-list at Amazon; `null` when none is set), `billingEnabled` (whether this site has plans and billing) and `hasRecoveryCode` (whether you have made a recovery code; the code itself is never shown again). |
+| `PUT /api/v1/account/kindle-email` | **Session-only.** Saves your Kindle address: `{"kindleEmail": "you@kindle.com"}`. A blank or missing value clears it. Returns `kindleEmail` and `kindleConfigured`. |
+| `PUT /api/v1/account/reading` | How articles are marked as read: `{"readTracking": "open"}`, `"scroll"` or `"none"`, the same choice as Settings, Reading. Returns `{"readTracking": "open"}`. `400` ("Choose how articles are marked as read") for anything else. Tokens may use it. |
+| `POST /api/v1/account/recovery-code` | **Session-only.** Makes a recovery code, or replaces the one you have so the old one stops working. Returns `{"code": "ABCD-EFGH-JKLM"}`, once, with `Cache-Control: no-store`. Extrablatt keeps only a hash. |
+| `GET /api/v1/tokens` | **Session-only.** Your active API tokens: `{"tokens": [{"id", "name", "tokenPrefix", "createdAt", "lastUsedAt"}]}`, newest first. Never the secret or its hash. |
+| `POST /api/v1/tokens` | **Session-only.** Makes a token: `{"name": "my agent"}`. Returns `201` and `{"token": {"id", "name", "tokenPrefix", "createdAt", "lastUsedAt"}, "secret": "eb_..."}` with `Cache-Control: no-store`. The `secret` is in this answer only. `400` for a blank or too long name. |
+| `DELETE /api/v1/tokens/{id}` | **Session-only.** Revokes a token at once. Returns `204`; `404` ("Token not found") if it is not yours or is already revoked. |
+| `GET /api/v1/about` | The running build and the release notes: `{"version": {"number", "revision", "builtAt"}, "releases": [{"id", "date", "title", "highlights", "changes"}]}`, newest first. Nothing personal; tokens may use it. |
 | `GET /api/v1/categories` | The categories your feeds are in. |
 | `GET /api/v1/feeds` | Your feeds, with unread counts. Each feed has `newsletterSender`, the sender address of a leftover newsletter feed (show it as "From <sender>"), and `null` for every other feed. |
 | `POST /api/v1/feeds` | Follow a site: `{"url": "https://example.com", "category": "Tech"}`. `category` is optional. Returns `201` and the feed. |
@@ -73,7 +95,7 @@ Every error is JSON: `{"error": "a sentence you can show"}`.
 |---|---|
 | 400 | The request was not valid, or the site could not be followed or fetched. |
 | 401 | Token missing, wrong or revoked, or the account is switched off or not confirmed. Without a token: no signed-in session. |
-| 403 | Sending was refused (for example the daily send limit), or a session request had no valid `X-XSRF-TOKEN`. |
+| 403 | Sending was refused (for example the daily send limit), a session request had no valid `X-XSRF-TOKEN`, or an API token asked for a session-only endpoint. |
 | 404 | No such feed or article for your account. Other people's items look the same. |
 | 409 | No Kindle address saved yet. The body also has `"setup": true`. |
 | 429 | Too many requests. |

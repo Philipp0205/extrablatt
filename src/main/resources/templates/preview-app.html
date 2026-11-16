@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
   <meta name="robots" content="noindex"/>
   <title>Extrablatt</title>
+  <!-- For the real form posts (sign out, delete account); read by settings.js. -->
+  <meta name="csrf-token" th:content="${_csrf.token}"/>
   <meta name="color-scheme" content="light dark"/>
   <meta name="theme-color" content="#17140f" media="(prefers-color-scheme: dark) and (max-width: 719px)"/>
   <meta name="theme-color" content="#f4eee1" media="(prefers-color-scheme: light) and (max-width: 719px)"/>
@@ -25,6 +27,7 @@
   <script th:src="@{/js/preview/articles.js}" defer></script>
   <script th:src="@{/js/preview/reader.js}" defer></script>
   <script th:src="@{/js/preview/feeds.js}" defer></script>
+  <script th:src="@{/js/preview/settings.js}" defer></script>
   <script th:src="@{/js/preview/app.js}" defer></script>
 </head>
 <body>

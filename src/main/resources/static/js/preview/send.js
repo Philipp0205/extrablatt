@@ -39,6 +39,27 @@
     });
   }
 
+  // Runs fn once the history entry of a sheet that was just closed is gone. Moving the
+  // route before that would let the kit's history.go(-1) undo the move (as in feeds.js).
+  function afterSheetHistory(fn) {
+    var state = window.history && window.history.state;
+    if (!state || !state.akOverlay) {
+      fn();
+      return;
+    }
+    var done = false;
+    function run() {
+      if (done) {
+        return;
+      }
+      done = true;
+      window.removeEventListener('popstate', run);
+      fn();
+    }
+    window.addEventListener('popstate', run);
+    setTimeout(run, 500);
+  }
+
   function openSetup(opts) {
     var saving = false;
     var input = h('input', {
@@ -76,8 +97,22 @@
       h('h2', { id: 'pv-setup-title', class: 'pv-sheet-title' }, 'Add your Kindle address'),
       h('p', { class: 'pv-sheet-help' },
         'Enter the Send-to-Kindle e-mail address Amazon gave your device. It ends in @kindle.com. ',
-        h('a', { class: 'pv-link', href: '/settings/kindle', target: '_blank', rel: 'noopener noreferrer' },
-          'Where do I find it?')),
+        h('a', {
+          class: 'pv-link',
+          href: '#/settings/kindle',
+          onclick: function (event) {
+            // The in-app Kindle group. The sheet goes first; the route moves once the
+            // history entry the kit pushed for the sheet is gone, or its go(-1) would undo it.
+            event.preventDefault();
+            if (saving) {
+              return;
+            }
+            if (opened) {
+              opened.close();
+            }
+            afterSheetHistory(function () { window.location.hash = '#/settings/kindle'; });
+          }
+        }, 'Where do I find it?')),
       h('div', { class: 'ak-field' },
         h('label', { class: 'ak-label', for: 'pv-kindle-email' }, 'Kindle e-mail address'),
         input),
