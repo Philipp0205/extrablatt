@@ -47,9 +47,14 @@ Bearer tokens work exactly as described above.
 | `GET /api/v1/account` | Your e-mail, whether it is confirmed, your Kindle address, the "mark read on next page" preference, `readTracking` (`open`, `scroll` or `none`, the Settings, Reading choice) and your plan limits, including `onTrial` and `trialEndsOn` (for example "22 November 2026") while a trial runs. |
 | `PUT /api/v1/account/kindle-email` | Saves your Kindle address: `{"kindleEmail": "you@kindle.com"}`. A blank or missing value clears it. Returns `kindleEmail` and `kindleConfigured`. |
 | `GET /api/v1/categories` | The categories your feeds are in. |
-| `GET /api/v1/feeds` | Your feeds, with unread counts. |
+| `GET /api/v1/feeds` | Your feeds, with unread counts. Each feed has `newsletterSender`, the sender address of a leftover newsletter feed (show it as "From <sender>"), and `null` for every other feed. |
 | `POST /api/v1/feeds` | Follow a site: `{"url": "https://example.com", "category": "Tech"}`. `category` is optional. Returns `201` and the feed. |
 | `DELETE /api/v1/feeds/{id}` | Unfollow a feed. Returns `204`. |
+| `PUT /api/v1/feeds/{id}/category` | Moves a feed to a category: `{"category": "Tech"}`. A blank or missing value means Uncategorized. Returns the updated feed; `404` if it is not yours. |
+| `POST /api/v1/categories/rename` | Renames a category across all your feeds: `{"oldCategory": "Tech", "newCategory": "Technology"}`. Returns `updated` (feeds moved, 0 when unchanged), `unchanged` (true when both names are the same) and `message`. `400` for "Uncategorized" or a blank name. |
+| `POST /api/v1/feeds/{id}/read` | Marks every unread article of one feed read. Returns `{"marked": 3}`; `404` if the feed is not yours. |
+| `GET /api/v1/feeds/suggestions` | The quick-start sites you do not follow yet: `{"suggestions": [{"key": "bbc-world", "title": "BBC World News", "category": "News"}]}`. |
+| `POST /api/v1/feeds/defaults` | Follows quick-start sites by key: `{"keys": ["bbc-world", "npr"]}`. Returns `added` and `errors`, a list of sentences for unknown keys and sites that could not be added; the others are still followed. `400` when `keys` is empty or missing. |
 | `GET /api/v1/items` | Articles, newest first. Query: `unread` (true/false, default false), `feed` (id), `category`, `page` (from 1), `pageSize` (at most the site's page size). |
 | `GET /api/v1/articles/{id}` | One article with `contentHtml`, the readable text, plus `originalUrl` and `commentsUrl` (each `null` when there is none). Add `?images=true` to keep images. |
 | `POST /api/v1/articles/{id}/read` | `{"read": true}` or `{"read": false}`. |

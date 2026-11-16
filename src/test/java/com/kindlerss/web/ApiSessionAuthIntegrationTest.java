@@ -324,6 +324,57 @@ class ApiSessionAuthIntegrationTest {
         assertEquals(1, articles.count(userA, feed.id(), Boolean.TRUE));
     }
 
+    // --- the Feeds screen ---
+
+    @Test
+    void theFeedsScreenWritesNeedTheCsrfHeaderAndWorkWithIt() throws Exception {
+        Feed feed = feeds.insert(userA, "Blog", "https://fs.example/feed", "https://fs.example", "Tech");
+        article(feed, "fs1");
+        MockHttpSession session = signIn(emailA);
+        String token = xsrfTokenFor(session);
+
+        mockMvc.perform(put("/api/v1/feeds/" + feed.id() + "/category").session(session)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"category\":\"News\"}"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.error").isNotEmpty());
+        mockMvc.perform(post("/api/v1/categories/rename").session(session)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"oldCategory\":\"Tech\",\"newCategory\":\"News\"}"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.error").isNotEmpty());
+        mockMvc.perform(post("/api/v1/feeds/" + feed.id() + "/read").session(session))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.error").isNotEmpty());
+        mockMvc.perform(post("/api/v1/feeds/defaults").session(session)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"keys\":[\"nope\"]}"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.error").isNotEmpty());
+        assertEquals("Tech", feeds.findById(userA, feed.id()).orElseThrow().category());
+        assertEquals(1, articles.count(userA, feed.id(), Boolean.TRUE));
+
+        mockMvc.perform(withCsrf(put("/api/v1/feeds/" + feed.id() + "/category"), session, token)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"category\":\"News\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.category").value("News"));
+        mockMvc.perform(withCsrf(post("/api/v1/categories/rename"), session, token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"oldCategory\":\"News\",\"newCategory\":\"World\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.updated").value(1));
+        mockMvc.perform(withCsrf(post("/api/v1/feeds/" + feed.id() + "/read"), session, token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.marked").value(1));
+        mockMvc.perform(withCsrf(post("/api/v1/feeds/defaults"), session, token)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"keys\":[\"nope\"]}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.added").value(0));
+        mockMvc.perform(get("/api/v1/feeds/suggestions").session(session))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.suggestions[0].key").value("bbc-world"));
+        assertEquals("World", feeds.findById(userA, feed.id()).orElseThrow().category());
+        assertEquals(0, articles.count(userA, feed.id(), Boolean.TRUE));
+    }
+
     // --- bearer tokens are unchanged ---
 
     @Test
