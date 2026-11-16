@@ -161,8 +161,29 @@ class PreviewAppIntegrationTest {
     @Test
     void theScriptsAndTheStylesheetArePartOfTheBuild() {
         for (String path : new String[] {"static/js/preview/api.js", "static/js/preview/send.js", "static/js/preview/articles.js",
-                "static/js/preview/app.js", "static/css/preview.css"}) {
+                "static/js/preview/reader.js", "static/js/preview/app.js", "static/css/preview.css"}) {
             assertTrue(new ClassPathResource(path).exists(), path + " is on the classpath");
         }
+    }
+
+    @Test
+    void theReaderScriptIsReferencedServedAndNeverAssignsInnerHtml() throws Exception {
+        MockHttpSession session = signIn();
+
+        String page = mockMvc.perform(get("/app").session(session))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        java.util.regex.Matcher script = java.util.regex.Pattern
+                .compile("/js/preview/reader-[0-9a-f]{32}\\.js").matcher(page);
+        assertTrue(script.find(), "the page references reader.js");
+
+        mockMvc.perform(get(script.group()).session(session))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("Preview.reader")));
+
+        String source = new String(new ClassPathResource("static/js/preview/reader.js").getInputStream().readAllBytes(),
+                java.nio.charset.StandardCharsets.UTF_8);
+        assertFalse(source.contains(".innerHTML ="), "reader.js never assigns innerHTML");
+        assertFalse(source.contains(".innerHTML="), "reader.js never assigns innerHTML");
     }
 }

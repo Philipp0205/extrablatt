@@ -1,5 +1,15 @@
 /*
- * Preview.send.openSetup: the "Add your Kindle address" bottom sheet.
+ * Preview.send: sending an article to the Kindle, and the "Add your Kindle address" sheet.
+ *
+ *   Preview.send.send({
+ *     id: 5,
+ *     images: false,
+ *     onState: function (sending) { ... },   // true when the request starts, false when it ends
+ *     onDone: function (data) { ... }        // after a successful send
+ *   });
+ *
+ * POSTs /api/v1/articles/{id}/send and toasts the result. With no Kindle address (see
+ * Preview.account) it opens the setup sheet first and sends after the address is saved.
  *
  *   Preview.send.openSetup({
  *     onSaved: function (result, stillOpen) { ... }   // result: the API's {kindleEmail}
@@ -20,6 +30,7 @@
   var h = AppKit.h;
   var SAVE_LABEL = 'Save and send';
   var open = null;   // the AppKit.sheet handle while the sheet is up
+  var sending = {};  // article ids with a send in flight
 
   function syncHistory() {
     AppKit.nav.syncOverlayHistory({
@@ -125,5 +136,54 @@
     return opened;
   }
 
-  Preview.send = { openSetup: openSetup };
+  // The one send, for the list's rows and the reader. Without a Kindle address (known from
+  // Preview.account, or from a 409 with setup: true) the setup sheet opens first, and the send
+  // goes ahead once it saves. At most one send per article is in flight, whichever screen asked.
+  function send(opts) {
+    var id = opts.id;
+    if (sending[id]) {
+      return;
+    }
+    var account = Preview.account.current();
+    if (account && account.kindleConfigured === false) {
+      askForAddress(opts);
+    } else {
+      post(opts);
+    }
+  }
+
+  function post(opts) {
+    var id = opts.id;
+    sending[id] = true;
+    opts.onState(true);
+    Preview.api.post('/api/v1/articles/' + id + '/send', { images: !!opts.images }).then(function (data) {
+      delete sending[id];
+      opts.onState(false);
+      opts.onDone(data);
+      AppKit.toast((data && data.message) || 'Sent to Kindle', { kind: 'success' });
+    }, function (error) {
+      delete sending[id];
+      opts.onState(false);
+      if (error.status === 409 && error.data && error.data.setup === true) {
+        // The address was removed elsewhere since the account was loaded.
+        Preview.account.patch({ kindleConfigured: false });
+        askForAddress(opts);
+      } else {
+        AppKit.toast(error.message, { kind: 'error' });
+      }
+    });
+  }
+
+  function askForAddress(opts) {
+    openSetup({
+      onSaved: function (result, stillOpen) {
+        Preview.account.patch({ kindleConfigured: true, kindleEmail: result && result.kindleEmail });
+        if (stillOpen) {
+          post(opts);
+        }
+      }
+    });
+  }
+
+  Preview.send = { openSetup: openSetup, send: send };
 })();
