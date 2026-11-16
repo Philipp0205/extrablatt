@@ -1,0 +1,412 @@
+[
+  {
+    "n": "phone: list starts at 5 unread",
+    "pass": true,
+    "x": "5 unread"
+  },
+  {
+    "n": "phone: rows link to the in-app reader",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "phone: tab bar visible on the list",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "phone: hash route is #/articles/id",
+    "pass": true,
+    "x": "http://127.0.0.1:8394/app?continue#/articles/1"
+  },
+  {
+    "n": "phone: reader shows the title",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "phone: reader meta has feed name",
+    "pass": true,
+    "x": "Nordlicht Magazin · 16 min ago"
+  },
+  {
+    "n": "phone: author line",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "phone: phone is immersive (tab bar hidden)",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "phone: side nav hidden on phone",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "phone: list screen hidden while reading",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "phone: injected script did not run (document.title unchanged)",
+    "pass": true,
+    "x": "Extrablatt"
+  },
+  {
+    "n": "phone: article body has no script/handlers/style",
+    "pass": true,
+    "x": "[]"
+  },
+  {
+    "n": "phone: article links are http(s), noopener, new tab",
+    "pass": true,
+    "x": "[[\"https://example.org/more\",\"noopener noreferrer\",\"_blank\"],[null,\"noopener noreferrer\",\"_blank\"]]"
+  },
+  {
+    "n": "phone: article body rendered",
+    "pass": true,
+    "x": "2483"
+  },
+  {
+    "n": "phone: read-on-open marked it read in the db",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "phone: bottom Send and Back buttons are there",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "phone: More menu items",
+    "pass": true,
+    "x": "Original|Comments|Show images|Mark unread"
+  },
+  {
+    "n": "phone: Escape closes the menu",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "phone: top send reached the sink",
+    "pass": true,
+    "x": "19 -> 20"
+  },
+  {
+    "n": "phone: meta says Sent to Kindle",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "phone: bottom send reached the sink",
+    "pass": true,
+    "x": "20 -> 21"
+  },
+  {
+    "n": "phone: Mark unread sticks in the db",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "phone: menu now offers Mark read",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "phone: back at #/articles",
+    "pass": true,
+    "x": "http://127.0.0.1:8394/app?continue"
+  },
+  {
+    "n": "phone: list is visible again",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "phone: list row 0 shows unread dot and Sent tag without a reload",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "phone: tab bar is back",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "phone: opened article loses its unread dot without a reload",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "phone: unread count follows (5 unread -> 4 unread)",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "phone: row 2 unread before row send",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "phone: row send clears the dot and updates the count",
+    "pass": true,
+    "x": "4 unread -> 3 unread"
+  },
+  {
+    "n": "phone: deep link opens the reader",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "phone: placeholder instead of image by default",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "phone: Show images brings the picture",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "phone: deep link Back goes to the list",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "phone: unknown article says not found",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "phone: tracking 'none': opening does not mark read",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "phone: tracking 'scroll': opening marks read",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "phone: setup sheet opens from the reader",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "phone: nothing sent before an address exists",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "phone: saved and sent from the reader",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "phone: no page errors, console errors or dialogs",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "desktop: list starts at 5 unread",
+    "pass": true,
+    "x": "5 unread"
+  },
+  {
+    "n": "desktop: rows link to the in-app reader",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "desktop: hash route is #/articles/id",
+    "pass": true,
+    "x": "http://127.0.0.1:8394/app?continue#/articles/1"
+  },
+  {
+    "n": "desktop: reader shows the title",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "desktop: reader meta has feed name",
+    "pass": true,
+    "x": "Nordlicht Magazin · 17 min ago"
+  },
+  {
+    "n": "desktop: author line",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "desktop: desktop keeps the side nav",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "desktop: side nav marks Articles current",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "desktop: list screen hidden while reading",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "desktop: injected script did not run (document.title unchanged)",
+    "pass": true,
+    "x": "Extrablatt"
+  },
+  {
+    "n": "desktop: article body has no script/handlers/style",
+    "pass": true,
+    "x": "[]"
+  },
+  {
+    "n": "desktop: article links are http(s), noopener, new tab",
+    "pass": true,
+    "x": "[[\"https://example.org/more\",\"noopener noreferrer\",\"_blank\"],[null,\"noopener noreferrer\",\"_blank\"]]"
+  },
+  {
+    "n": "desktop: article body rendered",
+    "pass": true,
+    "x": "2483"
+  },
+  {
+    "n": "desktop: read-on-open marked it read in the db",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "desktop: bottom Send and Back buttons are there",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "desktop: More menu items",
+    "pass": true,
+    "x": "Original|Comments|Show images|Mark unread"
+  },
+  {
+    "n": "desktop: Escape closes the menu",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "desktop: top send reached the sink",
+    "pass": true,
+    "x": "23 -> 24"
+  },
+  {
+    "n": "desktop: meta says Sent to Kindle",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "desktop: bottom send reached the sink",
+    "pass": true,
+    "x": "24 -> 25"
+  },
+  {
+    "n": "desktop: Mark unread sticks in the db",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "desktop: menu now offers Mark read",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "desktop: back at #/articles",
+    "pass": true,
+    "x": "http://127.0.0.1:8394/app?continue"
+  },
+  {
+    "n": "desktop: list is visible again",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "desktop: list row 0 shows unread dot and Sent tag without a reload",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "desktop: opened article loses its unread dot without a reload",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "desktop: unread count follows (5 unread -> 4 unread)",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "desktop: row 2 unread before row send",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "desktop: row send clears the dot and updates the count",
+    "pass": true,
+    "x": "4 unread -> 3 unread"
+  },
+  {
+    "n": "desktop: deep link opens the reader",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "desktop: placeholder instead of image by default",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "desktop: Show images brings the picture",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "desktop: deep link Back goes to the list",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "desktop: unknown article says not found",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "desktop: tracking 'none': opening does not mark read",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "desktop: tracking 'scroll': opening marks read",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "desktop: setup sheet opens from the reader",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "desktop: nothing sent before an address exists",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "desktop: saved and sent from the reader",
+    "pass": true,
+    "x": ""
+  },
+  {
+    "n": "desktop: no page errors, console errors or dialogs",
+    "pass": true,
+    "x": ""
+  }
+]
