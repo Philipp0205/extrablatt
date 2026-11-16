@@ -40,6 +40,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.not;
+import static org.hamcrest.Matchers.nullValue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -271,6 +272,56 @@ class ApiSessionAuthIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.kindleConfigured").value(false));
         assertNull(users.findById(userA).orElseThrow().kindleEmail());
+    }
+
+    // --- the in-app reader ---
+
+    @Test
+    void aSessionReadsASanitizedArticleWithItsLinks() throws Exception {
+        Feed feed = feeds.insert(userA, "Blog", "https://r.example/feed", "https://r.example", null);
+        long id = articles.insert(feed.id(), "r1", "Hostile", "https://example.com/r1", "Ann", Instant.now(),
+                "<p>Summary</p>", "<p>Safe text</p><script>alert(1)</script>"
+                        + "<img src=\"https://example.com/i.png\" onerror=\"alert(2)\">"
+                        + "<a href=\"javascript:alert(3)\">bad link</a>"
+                        + "<p style=\"color:red\">styled</p>");
+        MockHttpSession session = signIn(emailA);
+
+        mockMvc.perform(get("/api/v1/articles/" + id).param("images", "true").session(session))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.originalUrl").value("https://example.com/r1"))
+                .andExpect(jsonPath("$.commentsUrl").value(nullValue()))
+                .andExpect(jsonPath("$.contentHtml").value(containsString("Safe text")))
+                .andExpect(jsonPath("$.contentHtml").value(not(containsString("<script"))))
+                .andExpect(jsonPath("$.contentHtml").value(not(containsString("alert"))))
+                .andExpect(jsonPath("$.contentHtml").value(not(containsString("onerror"))))
+                .andExpect(jsonPath("$.contentHtml").value(not(containsString("javascript:"))))
+                .andExpect(jsonPath("$.contentHtml").value(not(containsString("style="))))
+                .andExpect(jsonPath("$.contentHtml").value(not(containsString("color:red"))));
+    }
+
+    @Test
+    void aSessionCanMarkAnArticleReadAndUnreadWithCsrf() throws Exception {
+        Feed feed = feeds.insert(userA, "Blog", "https://u.example/feed", "https://u.example", null);
+        long id = article(feed, "u1");
+        MockHttpSession session = signIn(emailA);
+        String token = xsrfTokenFor(session);
+
+        mockMvc.perform(post("/api/v1/articles/" + id + "/read").session(session)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"read\":true}"))
+                .andExpect(status().isForbidden());
+        assertEquals(1, articles.count(userA, feed.id(), Boolean.TRUE));
+
+        mockMvc.perform(withCsrf(post("/api/v1/articles/" + id + "/read"), session, token)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"read\":true}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.read").value(true));
+        assertEquals(0, articles.count(userA, feed.id(), Boolean.TRUE));
+
+        mockMvc.perform(withCsrf(post("/api/v1/articles/" + id + "/read"), session, token)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"read\":false}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.read").value(false));
+        assertEquals(1, articles.count(userA, feed.id(), Boolean.TRUE));
     }
 
     // --- bearer tokens are unchanged ---

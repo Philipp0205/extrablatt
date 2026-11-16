@@ -318,6 +318,124 @@ button:focus-visible {
 .pv-placeholder { padding: var(--ak-s4) 0; }
 .pv-placeholder p { color: var(--ak-muted); font-size: var(--ak-fs-lg); }
 
+/* ---------- Reader ---------- */
+
+/* Immersive on a phone: no tab bar, so the bottom padding it needed goes too. */
+.pv-reading .ak-tabbar { display: none; }
+.pv-reading .pv-main { padding-bottom: calc(var(--ak-safe-bottom) + var(--ak-s5)); }
+.pv-reading .pv-screens { max-width: 42rem; }
+
+.pv-tools {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ak-s3);
+  padding: var(--ak-s2) 0 var(--ak-s3);
+}
+.pv-tool-actions { display: flex; align-items: center; gap: var(--ak-s2); }
+.pv-tool-actions[hidden], .pv-article[hidden], .pv-reader-status[hidden] { display: none; }
+.pv-back {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ak-s1);
+  min-height: var(--ak-tap);
+  font-size: var(--ak-fs-lg);
+  text-decoration: none;
+}
+.pv-back:hover { text-decoration: underline; }
+.pv-tool-btn {
+  width: auto;
+  min-height: var(--ak-tap);
+  padding: 0 var(--ak-s4);
+  font-size: var(--ak-fs-md);
+}
+.pv-tool-btn[aria-busy="true"] { cursor: progress; }
+
+.pv-menu { position: relative; }
+.pv-menu > summary { list-style: none; }
+.pv-menu > summary::-webkit-details-marker { display: none; }
+.pv-menu > summary:focus-visible { outline: 2px solid var(--ak-accent-2); outline-offset: 2px; }
+.pv-menu-items {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  min-width: 12rem;
+  margin-top: var(--ak-s1);
+  padding: var(--ak-s1);
+  border: 1px solid var(--ak-hairline);
+  border-radius: var(--ak-radius-md);
+  background: var(--ak-surface);
+}
+.pv-menu:not([open]) > .pv-menu-items { display: none; }
+.pv-menu-item {
+  appearance: none;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  min-height: var(--ak-tap);
+  padding: 0 var(--ak-s3);
+  border: 0;
+  border-radius: var(--ak-radius-sm);
+  background: transparent;
+  color: var(--ak-text);
+  font: inherit;
+  font-size: var(--ak-fs-lg);
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+.pv-menu-item:hover { background: var(--ak-surface-2); }
+.pv-menu-item:disabled { opacity: 0.55; cursor: default; }
+.pv-menu-item:focus-visible { outline: 2px solid var(--ak-accent-2); outline-offset: -2px; }
+
+.pv-article-meta { margin: var(--ak-s2) 0 var(--ak-s1); color: var(--ak-muted); font-size: var(--ak-fs-md); }
+.pv-article-title { font-size: var(--ak-fs-display); overflow-wrap: anywhere; }
+.pv-article-title:focus { outline: none; }
+.pv-article-author { margin: var(--ak-s2) 0 0; color: var(--ak-muted); font-size: var(--ak-fs-lg); }
+.pv-article-author[hidden] { display: none; }
+.pv-article-end { display: flex; flex-wrap: wrap; gap: var(--ak-s2); margin-top: var(--ak-s5); }
+
+.pv-article-body {
+  margin-top: var(--ak-s5);
+  font-family: var(--ak-font-article);
+  font-size: 1.125rem;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+.pv-article-body[aria-busy="true"] { opacity: 0.6; }
+.pv-article-body > :first-child { margin-top: 0; }
+.pv-article-body p, .pv-article-body ul, .pv-article-body ol { margin: 0 0 1em; }
+.pv-article-body h1, .pv-article-body h2, .pv-article-body h3,
+.pv-article-body h4, .pv-article-body h5, .pv-article-body h6 {
+  margin: 1.4em 0 0.5em;
+  line-height: 1.25;
+}
+.pv-article-body a { text-decoration: underline; }
+.pv-article-body img, .pv-article-body video { max-width: 100%; height: auto; }
+.pv-article-body figure { margin: 1em 0; }
+.pv-article-body figcaption { color: var(--ak-muted); font-size: var(--ak-fs-md); }
+.pv-article-body pre {
+  padding: var(--ak-s3);
+  overflow-x: auto;
+  border-radius: var(--ak-radius-sm);
+  background: var(--ak-surface-2);
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+.pv-article-body code { font-size: 0.9em; }
+.pv-article-body table { display: block; max-width: 100%; overflow-x: auto; border-collapse: collapse; }
+.pv-article-body th, .pv-article-body td { padding: var(--ak-s1) var(--ak-s2); border: 1px solid var(--ak-hairline); }
+.pv-article-body blockquote {
+  margin: 1em 0;
+  padding: 0 0 0 var(--ak-s4);
+  border-left: 3px solid var(--ak-hairline);
+  color: var(--ak-muted);
+}
+.pv-article-body .image-placeholder { color: var(--ak-muted); font-style: italic; }
+
 /* ---------- Kindle address sheet ---------- */
 
 .pv-sheet-title { margin: 0 0 var(--ak-s2); font-size: var(--ak-fs-display); font-weight: var(--ak-fw-bold); line-height: 1.1; }

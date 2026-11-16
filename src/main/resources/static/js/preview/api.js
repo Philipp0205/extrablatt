@@ -84,4 +84,41 @@
     put: function (path, body) { return request('PUT', path, body); },
     del: function (path) { return request('DELETE', path); }
   };
+
+  // Preview.account: /api/v1/account, fetched once and shared by every screen.
+  //   Preview.account.get().then(function (account) { ... });   // a failure is not cached
+  //   Preview.account.current();                                // the loaded account, or null
+  //   Preview.account.patch({ kindleConfigured: true });        // after the app itself changed it
+  var accountPromise = null;
+  var account = null;
+  var patches = {};
+
+  function merge(target, fields) {
+    Object.keys(fields).forEach(function (key) { target[key] = fields[key]; });
+  }
+
+  Preview.account = {
+    get: function () {
+      if (!accountPromise) {
+        var promise = accountPromise = Preview.api.get('/api/v1/account').then(function (data) {
+          account = data || {};
+          merge(account, patches);
+          return account;
+        });
+        promise.then(null, function () {
+          if (accountPromise === promise) {
+            accountPromise = null;
+          }
+        });
+      }
+      return accountPromise;
+    },
+    current: function () { return account; },
+    patch: function (fields) {
+      merge(patches, fields);
+      if (account) {
+        merge(account, fields);
+      }
+    }
+  };
 })();

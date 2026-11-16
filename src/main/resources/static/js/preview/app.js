@@ -1,6 +1,8 @@
 /*
  * The preview app's shell: three screens, routed by URL hash (#/articles, #/feeds,
  * #/settings), so the server needs no extra route and the back button works.
+ * #/articles/{id} opens the article reader (reader.js) under the Articles tab; the list
+ * stays mounted, hidden, so it comes back as it was.
  * A phone gets the app-kit tab bar; a wide screen gets the side nav in the template.
  *
  * Plain ES5. Adds nothing to the page's globals.
@@ -53,18 +55,27 @@
 
   function currentRoute() {
     var name = window.location.hash.replace(/^#\/?/, '');
-    return ROUTES.indexOf(name) >= 0 ? name : 'articles';
+    return ROUTES.indexOf(name) >= 0 ? name : 'articles';   // the reader is part of Articles
+  }
+
+  // The article id when the hash is #/articles/{digits}, else null.
+  function readerId() {
+    var match = /^#\/?articles\/(\d+)$/.exec(window.location.hash);
+    return match ? Number(match[1]) : null;
   }
 
   var screensEl = document.getElementById('pv-screens');
   var articlesEl = h('section', { class: 'pv-screen', 'data-screen': 'articles' });
+  var readerEl = h('section', { class: 'pv-screen', 'data-screen': 'reader', hidden: true });
   var screens = {
     articles: articlesEl,
     feeds: h('div', { class: 'pv-screen', 'data-screen': 'feeds' }, placeholder('Feeds', '/')),
     settings: h('div', { class: 'pv-screen', 'data-screen': 'settings' }, placeholder('Settings', '/settings'))
   };
   ROUTES.forEach(function (route) { screensEl.appendChild(screens[route]); });
+  screensEl.appendChild(readerEl);
   Preview.articles.mount(articlesEl);
+  Preview.reader.mount(readerEl);
 
   var tabbar = AppKit.tabbar({
     label: 'Main',
@@ -80,9 +91,22 @@
 
   var sideLinks = document.querySelectorAll('.pv-side a[data-route]');
 
+  // What the last render showed: 'list' (the Articles list), 'reader' or 'other'.
+  var shown = null;
+  var openedId = null;         // the article the reader has open
+  var openedFromList = false;  // the reader was reached from the list, so Back can use history
+  var listScroll = 0;          // where the list was scrolled to when the reader opened
+
   function render() {
     var route = currentRoute();
-    ROUTES.forEach(function (name) { screens[name].hidden = name !== route; });
+    var id = readerId();
+    var view = id !== null ? 'reader' : (route === 'articles' ? 'list' : 'other');
+    if (view === 'reader' && shown === 'list') {
+      listScroll = window.scrollY;
+    }
+    ROUTES.forEach(function (name) { screens[name].hidden = name !== route || view === 'reader'; });
+    readerEl.hidden = view !== 'reader';
+    document.body.classList.toggle('pv-reading', view === 'reader');
     tabbar.update({ active: route });
     for (var i = 0; i < sideLinks.length; i++) {
       if (sideLinks[i].getAttribute('data-route') === route) {
@@ -91,9 +115,23 @@
         sideLinks[i].removeAttribute('aria-current');
       }
     }
-    if (route === 'articles') {
-      Preview.articles.show();
+    if (shown === 'reader' && (view !== 'reader' || id !== openedId)) {
+      Preview.reader.close();
+      openedId = null;
     }
+    if (view === 'reader') {
+      if (id !== openedId) {
+        openedFromList = shown === 'list' || (shown === 'reader' && openedFromList);
+        openedId = id;
+        Preview.reader.open(id, openedFromList);
+      }
+    } else if (route === 'articles') {
+      Preview.articles.show();
+      if (shown === 'reader') {
+        window.scrollTo(0, listScroll);
+      }
+    }
+    shown = view;
   }
 
   window.addEventListener('hashchange', render);

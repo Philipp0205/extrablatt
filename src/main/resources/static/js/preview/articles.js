@@ -5,9 +5,10 @@
  *   Preview.articles.show();           // whenever the tab is shown; the first call loads
  *
  * Reads /api/v1/account (trial banner, Kindle address), /api/v1/categories (chips) and
- * /api/v1/items. Every title links to the server's own article page. Every row has a
- * Send button (POST /api/v1/articles/{id}/send); without a Kindle address it opens the
- * setup sheet from send.js first.
+ * /api/v1/items. Every title links to the reader (#/articles/{id}, reader.js). Every row has
+ * a Send button; Preview.send.send does the work and opens the setup sheet when needed.
+ *
+ *   Preview.articles.update(id, { read, sentAt });   // the reader keeps the list true
  *
  * Plain ES5. The only global it adds is window.Preview.
  */
@@ -154,7 +155,7 @@
             item.read ? null : h('span', { class: 'pv-sr' }, 'Unread: '),
             h('a', {
               class: item.read ? 'pv-title' : 'pv-title pv-title-unread',
-              href: '/articles/' + item.id
+              href: '#/articles/' + item.id
             }, item.title))),
         h('button', {
           type: 'button',
@@ -194,52 +195,42 @@
       if (state.sending[item.id]) {
         return;
       }
-      if (state.account && state.account.kindleConfigured === false) {
-        askForAddress(item);
-      } else {
-        send(item);
+      Preview.send.send({
+        id: item.id,
+        images: false,
+        onState: function (on) {
+          if (on) {
+            state.sending[item.id] = true;
+          } else {
+            delete state.sending[item.id];
+          }
+          refreshRow(item.id);
+        },
+        onDone: function () {
+          // The server marks a sent article read, so the list does the same.
+          update(item.id, { read: true, sentAt: new Date().toISOString() });
+        }
+      });
+    }
+
+    // The reader's way to keep the list true: patch is {read, sentAt}, either or both.
+    // Rows stay where they are, so an article just read does not vanish from Unread.
+    function update(id, patch) {
+      var item = findItem(id);
+      if (!item) {
+        return;
       }
-    }
-
-    function send(item) {
-      var id = item.id;
-      state.sending[id] = true;
+      if (typeof patch.read === 'boolean' && patch.read !== item.read) {
+        item.read = patch.read;
+        if (state.unread && state.total !== null) {
+          state.total = Math.max(0, state.total + (patch.read ? -1 : 1));
+          renderHead();
+        }
+      }
+      if (patch.sentAt) {
+        item.sentAt = patch.sentAt;
+      }
       refreshRow(id);
-      Preview.api.post('/api/v1/articles/' + id + '/send', { images: false }).then(function (data) {
-        delete state.sending[id];
-        var current = findItem(id);
-        if (current) {
-          current.sentAt = new Date().toISOString();
-        }
-        refreshRow(id);
-        AppKit.toast((data && data.message) || 'Sent to Kindle', { kind: 'success' });
-      }, function (error) {
-        delete state.sending[id];
-        refreshRow(id);
-        if (error.status === 409 && error.data && error.data.setup === true) {
-          // The address was removed elsewhere since the account was loaded.
-          if (state.account) {
-            state.account.kindleConfigured = false;
-          }
-          askForAddress(item);
-        } else {
-          AppKit.toast(error.message, { kind: 'error' });
-        }
-      });
-    }
-
-    function askForAddress(item) {
-      Preview.send.openSetup({
-        onSaved: function (result, stillOpen) {
-          if (state.account) {
-            state.account.kindleConfigured = true;
-            state.account.kindleEmail = result && result.kindleEmail;
-          }
-          if (stillOpen) {
-            send(item);
-          }
-        }
-      });
     }
 
     function renderList() {
@@ -367,7 +358,7 @@
       renderControls();
       loadFirst();
       // The banner and the chips are extras: if either call fails the list still works.
-      Preview.api.get('/api/v1/account').then(function (account) {
+      Preview.account.get().then(function (account) {
         state.account = account;
         renderBanner();
       }, function () {});
@@ -377,12 +368,18 @@
       }, function () {});
     }
 
-    return { show: function () { if (!state.started) { start(); } } };
+    return {
+      show: function () { if (!state.started) { start(); } },
+      update: update
+    };
   }
 
   var screen = null;
   Preview.articles = {
     mount: function (root) { screen = mount(root); },
-    show: function () { if (screen) { screen.show(); } }
+    show: function () { if (screen) { screen.show(); } },
+    // A no-op until the list has loaded (the reader opened by direct URL).
+    update: function (id, patch) { if (screen) { screen.update(id, patch); } },
+    relativeTime: relativeTime
   };
 })();

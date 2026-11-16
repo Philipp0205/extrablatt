@@ -44,14 +44,14 @@ Bearer tokens work exactly as described above.
 
 | Method and path | What it does |
 |---|---|
-| `GET /api/v1/account` | Your e-mail, whether it is confirmed, your Kindle address, the "mark read on next page" preference and your plan limits, including `onTrial` and `trialEndsOn` (for example "22 November 2026") while a trial runs. |
+| `GET /api/v1/account` | Your e-mail, whether it is confirmed, your Kindle address, the "mark read on next page" preference, `readTracking` (`open`, `scroll` or `none`, the Settings, Reading choice) and your plan limits, including `onTrial` and `trialEndsOn` (for example "22 November 2026") while a trial runs. |
 | `PUT /api/v1/account/kindle-email` | Saves your Kindle address: `{"kindleEmail": "you@kindle.com"}`. A blank or missing value clears it. Returns `kindleEmail` and `kindleConfigured`. |
 | `GET /api/v1/categories` | The categories your feeds are in. |
 | `GET /api/v1/feeds` | Your feeds, with unread counts. |
 | `POST /api/v1/feeds` | Follow a site: `{"url": "https://example.com", "category": "Tech"}`. `category` is optional. Returns `201` and the feed. |
 | `DELETE /api/v1/feeds/{id}` | Unfollow a feed. Returns `204`. |
 | `GET /api/v1/items` | Articles, newest first. Query: `unread` (true/false, default false), `feed` (id), `category`, `page` (from 1), `pageSize` (at most the site's page size). |
-| `GET /api/v1/articles/{id}` | One article with `contentHtml`, the readable text. Add `?images=true` to keep images. |
+| `GET /api/v1/articles/{id}` | One article with `contentHtml`, the readable text, plus `originalUrl` and `commentsUrl` (each `null` when there is none). Add `?images=true` to keep images. |
 | `POST /api/v1/articles/{id}/read` | `{"read": true}` or `{"read": false}`. |
 | `POST /api/v1/items/mark-read` | Marks the unread articles read. Optional `{"feed": 3}` or `{"category": "Tech"}` narrows it. Handles up to 1000 at a time; `hasMore: true` means call it again. |
 | `POST /api/v1/articles/{id}/send` | Sends the article to your Kindle. Optional `{"images": true}`. |
