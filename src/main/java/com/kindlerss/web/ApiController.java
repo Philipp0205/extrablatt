@@ -14,6 +14,8 @@ import com.kindlerss.service.FeedService;
 import com.kindlerss.service.KindleMailService;
 import com.kindlerss.service.RecoveryCodeService;
 import com.kindlerss.service.UserService;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpSession;
 import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -260,7 +262,7 @@ public class ApiController {
     }
 
     @GetMapping("/account")
-    public Map<String, Object> account() {
+    public Map<String, Object> account(HttpServletRequest request) {
         long userId = currentUser.requireId();
         var user = userService.findById(userId)
                 .orElseThrow(() -> new ArticleService.NotFoundException("Account not found"));
@@ -286,7 +288,28 @@ public class ApiController {
         account.put("senderAddress", properties.mailFrom());
         account.put("billingEnabled", properties.billing().enabled());
         account.put("hasRecoveryCode", recoveryCodeService.hasCode(userId));
+        account.put("trialEndedPrompt", trialEndedPrompt(entitlement, request));
         return account;
+    }
+
+    /**
+     * The website's post-trial notice: the complimentary trial has ended and the reader has not
+     * closed the notice in this session. A token request has no session and nothing to close,
+     * so it is always false there.
+     */
+    private boolean trialEndedPrompt(Entitlement entitlement, HttpServletRequest request) {
+        if (!properties.billing().enabled() || !entitlement.trialExpired()) {
+            return false;
+        }
+        HttpSession session = request.getSession(false);
+        return session != null && session.getAttribute(AccountAdvice.TRIAL_ENDED_ACK) == null;
+    }
+
+    /** Session-only (see {@code SecurityConfig.SESSION_ONLY_PATHS}). The same flag the website's Close button sets. */
+    @PostMapping("/account/trial-ended/ack")
+    public ResponseEntity<Void> acknowledgeTrialEnded(HttpServletRequest request) {
+        request.getSession().setAttribute(AccountAdvice.TRIAL_ENDED_ACK, Boolean.TRUE);
+        return ResponseEntity.noContent().build();
     }
 
     /** The Settings, Reading choice, as the website saves it. Open to tokens. */

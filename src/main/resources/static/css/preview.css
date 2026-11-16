@@ -527,6 +527,27 @@ button:focus-visible {
 .pv-sheet-error:not(:empty) { margin-top: var(--ak-s2); }
 .pv-sheet-actions { display: flex; flex-direction: column; gap: var(--ak-s2); margin-top: var(--ak-s4); }
 
+.pv-sheet-text { margin: 0 0 var(--ak-s2); font-size: var(--ak-fs-md); }
+.pv-sheet-actions a.ak-btn { text-decoration: none; text-align: center; }
+
+/* ---------- Legal footer ---------- */
+
+.pv-legal-footer {
+  margin-top: var(--ak-s5);
+  padding-top: var(--ak-s3);
+  border-top: 1px solid var(--ak-hairline);
+}
+.pv-legal-footer nav { display: flex; flex-wrap: wrap; gap: 0 var(--ak-s4); }
+.pv-legal-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--ak-tap);
+  color: var(--ak-muted);
+  font-size: var(--ak-fs-sm);
+}
+/* The reader is a page of its own; the footer belongs under the lists and Settings. */
+.pv-reading .pv-legal-footer { display: none; }
+
 /* ---------- Settings ---------- */
 
 /* One DOM, two layouts. data-group is the route ("" is the index); data-active is the group

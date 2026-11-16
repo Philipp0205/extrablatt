@@ -54,13 +54,14 @@ answer is `403`:
 An `Authorization` header of any kind makes the request a token request, so sending a
 token along with a session cookie does not help. The session-only endpoints are marked
 **Session-only** in the table: `PUT /api/v1/account/kindle-email`,
-`POST /api/v1/account/recovery-code`, and everything under `/api/v1/tokens`.
+`POST /api/v1/account/recovery-code`, `POST /api/v1/account/trial-ended/ack`, and everything under `/api/v1/tokens`.
 
 ## Endpoints
 
 | Method and path | What it does |
 |---|---|
-| `GET /api/v1/account` | Your e-mail, whether it is confirmed, your Kindle address, the "mark read on next page" preference, `readTracking` (`open`, `scroll` or `none`, the Settings, Reading choice) and your plan limits, including `onTrial` and `trialEndsOn` (for example "22 November 2026") while a trial runs. Also `senderAddress` (the address Extrablatt sends from, which you allow-list at Amazon; `null` when none is set), `billingEnabled` (whether this site has plans and billing) and `hasRecoveryCode` (whether you have made a recovery code; the code itself is never shown again). |
+| `GET /api/v1/account` | Your e-mail, whether it is confirmed, your Kindle address, the "mark read on next page" preference, `readTracking` (`open`, `scroll` or `none`, the Settings, Reading choice) and your plan limits, including `onTrial` and `trialEndsOn` (for example "22 November 2026") while a trial runs. Also `senderAddress` (the address Extrablatt sends from, which you allow-list at Amazon; `null` when none is set), `billingEnabled` (whether this site has plans and billing) and `hasRecoveryCode` (whether you have made a recovery code; the code itself is never shown again). Also `trialEndedPrompt`: `true` only in a browser session, with billing on, after the free trial has ended and before the "Your trial has ended" notice was closed in this session; always `false` for a token. |
+| `POST /api/v1/account/trial-ended/ack` | **Session-only.** Records that the "Your trial has ended" notice was closed, as the website's Close button does. `trialEndedPrompt` is `false` for the rest of the session; a new sign-in shows the notice again. Returns `204`. |
 | `PUT /api/v1/account/kindle-email` | **Session-only.** Saves your Kindle address: `{"kindleEmail": "you@kindle.com"}`. A blank or missing value clears it. Returns `kindleEmail` and `kindleConfigured`. |
 | `PUT /api/v1/account/reading` | How articles are marked as read: `{"readTracking": "open"}`, `"scroll"` or `"none"`, the same choice as Settings, Reading. Returns `{"readTracking": "open"}`. `400` ("Choose how articles are marked as read") for anything else. Tokens may use it. |
 | `POST /api/v1/account/recovery-code` | **Session-only.** Makes a recovery code, or replaces the one you have so the old one stops working. Returns `{"code": "ABCD-EFGH-JKLM"}`, once, with `Cache-Control: no-store`. Extrablatt keeps only a hash. |
