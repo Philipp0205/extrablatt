@@ -326,11 +326,12 @@ button:focus-visible {
 .pv-feeds-side { display: none; }
 .pv-follow-form { display: flex; flex-direction: column; gap: var(--ak-s4); }
 .pv-follow-form .ak-field { gap: var(--ak-s2); }
-.pv-side-title { margin: 0 0 var(--ak-s3); font-size: var(--ak-fs-display); font-weight: var(--ak-fw-bold); line-height: 1.1; }
+.pv-side-title { margin: 0 0 var(--ak-s3); font-size: var(--ak-fs-xl); font-weight: var(--ak-fw-bold); line-height: 1.2; }
 .pv-field-help { margin: 0; color: var(--ak-muted); font-size: var(--ak-fs-md); }
 .pv-select { appearance: auto; }
 .pv-add-btn { width: auto; align-self: flex-start; min-height: var(--ak-tap); padding: 0 var(--ak-s5); }
 .pv-feeds .pv-sheet-error:not(:empty) { margin-top: 0; }
+.ak-sheet .pv-follow-form .pv-add-btn { width: 100%; }
 
 .pv-feeds-head { align-items: flex-start; }
 .pv-feeds-btn {
@@ -374,7 +375,7 @@ button:focus-visible {
 .pv-feed-meta { margin: 2px 0 0; color: var(--ak-muted); font-size: var(--ak-fs-md); }
 .pv-feed-error { flex-basis: 100%; margin: 0; color: var(--ak-muted); font-size: var(--ak-fs-sm); }
 
-.pv-section-title { margin: var(--ak-s5) 0 var(--ak-s2); font-size: var(--ak-fs-display); font-weight: var(--ak-fw-bold); line-height: 1.1; }
+.pv-section-title { margin: var(--ak-s5) 0 var(--ak-s2); font-size: var(--ak-fs-xl); font-weight: var(--ak-fw-bold); line-height: 1.2; }
 .pv-quick { display: flex; flex-direction: column; gap: var(--ak-s2); }
 .pv-check {
   display: flex;
