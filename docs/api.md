@@ -54,14 +54,15 @@ answer is `403`:
 An `Authorization` header of any kind makes the request a token request, so sending a
 token along with a session cookie does not help. The session-only endpoints are marked
 **Session-only** in the table: `PUT /api/v1/account/kindle-email`,
-`POST /api/v1/account/recovery-code`, `POST /api/v1/account/trial-ended/ack`, and everything under `/api/v1/tokens`.
+`POST /api/v1/account/recovery-code`, `POST /api/v1/account/trial-ended/ack`, `POST /api/v1/account/changelog/ack`, and everything under `/api/v1/tokens`.
 
 ## Endpoints
 
 | Method and path | What it does |
 |---|---|
-| `GET /api/v1/account` | Your e-mail, whether it is confirmed, your Kindle address, the "mark read on next page" preference, `readTracking` (`open`, `scroll` or `none`, the Settings, Reading choice) and your plan limits, including `onTrial` and `trialEndsOn` (for example "22 November 2026") while a trial runs. Also `senderAddress` (the address Extrablatt sends from, which you allow-list at Amazon; `null` when none is set), `billingEnabled` (whether this site has plans and billing) and `hasRecoveryCode` (whether you have made a recovery code; the code itself is never shown again). Also `trialEndedPrompt`: `true` only in a browser session, with billing on, after the free trial has ended and before the "Your trial has ended" notice was closed in this session; always `false` for a token. |
+| `GET /api/v1/account` | Your e-mail, whether it is confirmed, your Kindle address, the "mark read on next page" preference, `readTracking` (`open`, `scroll` or `none`, the Settings, Reading choice) and your plan limits, including `onTrial` and `trialEndsOn` (for example "22 November 2026") while a trial runs. Also `senderAddress` (the address Extrablatt sends from, which you allow-list at Amazon; `null` when none is set), `billingEnabled` (whether this site has plans and billing) and `hasRecoveryCode` (whether you have made a recovery code; the code itself is never shown again). Also `trialEndedPrompt`: `true` only in a browser session, with billing on, after the free trial has ended and before the "Your trial has ended" notice was closed in this session; always `false` for a token. Also `whatsNew`: `null`, or `{"id", "date", "title", "items"}` for the newest release you have not acknowledged yet (the website's "What's new" notice; `items` are its popup lines). |
 | `POST /api/v1/account/trial-ended/ack` | **Session-only.** Records that the "Your trial has ended" notice was closed, as the website's Close button does. `trialEndedPrompt` is `false` for the rest of the session; a new sign-in shows the notice again. Returns `204`. |
+| `POST /api/v1/account/changelog/ack` | **Session-only.** Marks the latest release as seen, as the website's "Got it" does, so `whatsNew` is `null` until the next release. Returns `204`. |
 | `PUT /api/v1/account/kindle-email` | **Session-only.** Saves your Kindle address: `{"kindleEmail": "you@kindle.com"}`. A blank or missing value clears it. Returns `kindleEmail` and `kindleConfigured`. |
 | `PUT /api/v1/account/reading` | How articles are marked as read: `{"readTracking": "open"}`, `"scroll"` or `"none"`, the same choice as Settings, Reading. Returns `{"readTracking": "open"}`. `400` ("Choose how articles are marked as read") for anything else. Tokens may use it. |
 | `POST /api/v1/account/recovery-code` | **Session-only.** Makes a recovery code, or replaces the one you have so the old one stops working. Returns `{"code": "ABCD-EFGH-JKLM"}`, once, with `Cache-Control: no-store`. Extrablatt keeps only a hash. |
@@ -81,6 +82,7 @@ token along with a session cookie does not help. The session-only endpoints are 
 | `GET /api/v1/items` | Articles, newest first. Query: `unread` (true/false, default false), `feed` (id), `category`, `page` (from 1), `pageSize` (at most the site's page size). |
 | `GET /api/v1/articles/{id}` | One article with `contentHtml`, the readable text, plus `originalUrl` and `commentsUrl` (each `null` when there is none). Add `?images=true` to keep images. |
 | `POST /api/v1/articles/{id}/read` | `{"read": true}` or `{"read": false}`. |
+| `POST /api/v1/articles/scroll-read` | Marks the articles a reader has scrolled past read: `{"ids": [12, 15]}`. Only for accounts whose `readTracking` is `scroll`; otherwise `409` with `{"error": "Marking articles read by scrolling is off", "marked": 0}` and nothing is marked. Duplicate and `null` ids are ignored, at most 1000 ids are used, and only your own articles are marked. Returns `{"marked": 2}`. Tokens may use it. |
 | `POST /api/v1/items/mark-read` | Marks the unread articles read. Optional `{"feed": 3}` or `{"category": "Tech"}` narrows it. Handles up to 1000 at a time; `hasMore: true` means call it again. |
 | `POST /api/v1/articles/{id}/send` | Sends the article to your Kindle. Optional `{"images": true}`. |
 | `POST /api/v1/articles/from-url` | Fetches a page and sends it: `{"url": "https://...", "images": false}`. The article is kept even if the send fails. |

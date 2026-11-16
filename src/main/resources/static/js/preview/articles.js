@@ -63,6 +63,15 @@
       request: 0           // lets a late answer to an old filter be ignored
     };
 
+    // Mark read by scrolling (Settings, Reading, "scroll"): the website's script, ported.
+    var scroll = {
+      observer: null,
+      seen: {},     // ids that have been on screen
+      done: {},     // ids already queued once: never watched again, so a refusal cannot loop
+      queued: {},   // ids marked read in the list and waiting to be sent
+      timer: null
+    };
+
     var bannerEl = h('div');
     var headEl = h('div', { class: 'pv-head' });
     var controlsEl = h('div', { class: 'pv-controls' });
@@ -169,17 +178,21 @@
         }, sending ? 'Sending\u2026' : 'Send'));
     }
 
-    // Redraws one row, so a send in progress does not rebuild the whole list.
-    function refreshRow(id) {
+    // Redraws one row, so a send in progress does not rebuild the whole list. quiet is for a
+    // row marked read by scrolling: focus is not moved to it.
+    function refreshRow(id, quiet) {
       var old = listEl.querySelector('li[data-id="' + id + '"]');
       var item = findItem(id);
       if (!old || !item) {
         return;
       }
+      // Taking the old row out of the page must not look like it was scrolled past.
+      scrollUnwatch(old);
       var fresh = row(item, Date.now());
       old.parentNode.replaceChild(fresh, old);
+      scrollWatch(fresh, item);
       // A disabled button drops focus; give it back when the page has nowhere else to put it.
-      if (document.activeElement === document.body && !state.sending[id]) {
+      if (!quiet && document.activeElement === document.body && !state.sending[id]) {
         fresh.querySelector('.pv-send').focus({ preventScroll: true });
       }
     }
@@ -217,7 +230,8 @@
 
     // The reader's way to keep the list true: patch is {read, sentAt}, either or both.
     // Rows stay where they are, so an article just read does not vanish from Unread.
-    function update(id, patch) {
+    // quiet: the change was not asked for by the reader (scrolling), so focus stays put.
+    function update(id, patch, quiet) {
       var item = findItem(id);
       if (!item) {
         return;
@@ -228,12 +242,171 @@
           state.total = Math.max(0, state.total + (patch.read ? -1 : 1));
           renderHead();
         }
+        if (!patch.read && !quiet) {
+          // Unread again by the reader's own choice: it may be scrolled past again.
+          delete scroll.seen[id];
+          delete scroll.done[id];
+        }
       }
       if (patch.sentAt) {
         item.sentAt = patch.sentAt;
       }
-      refreshRow(id);
+      refreshRow(id, quiet);
     }
+
+    // ---------- Mark read by scrolling ----------
+
+    function scrollOn() {
+      var account = Preview.account.current();
+      return !!(account && account.readTracking === 'scroll' && window.IntersectionObserver && window.fetch);
+    }
+
+    function xsrfToken() {
+      var match = /(?:^|;\s*)XSRF-TOKEN=([^;]*)/.exec(document.cookie);
+      return match ? decodeURIComponent(match[1]) : '';
+    }
+
+    function scrollWatch(el, item) {
+      if (scroll.observer && item && !item.read && !scroll.done[item.id]) {
+        scroll.observer.observe(el);
+      }
+    }
+
+    function scrollUnwatch(el) {
+      if (scroll.observer) {
+        scroll.observer.unobserve(el);
+      }
+    }
+
+    function putBack(ids) {
+      for (var i = 0; i < ids.length; i++) {
+        update(ids[i], { read: false }, true);
+      }
+    }
+
+    function flushScroll() {
+      scroll.timer = null;
+      var ids = Object.keys(scroll.queued).map(Number);
+      if (ids.length === 0) {
+        return;
+      }
+      scroll.queued = {};
+      // Not Preview.api: it has no keepalive, which lets this survive the page going away.
+      fetch('/api/v1/articles/scroll-read', {
+        method: 'POST',
+        credentials: 'same-origin',
+        keepalive: true,
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+          'X-XSRF-TOKEN': xsrfToken()
+        },
+        body: JSON.stringify({ ids: ids })
+      }).then(function (response) {
+        if (!response.ok) {
+          throw new Error('not marked');
+        }
+      }).then(null, function () {
+        // The server did not take them, so the list must not claim they are read.
+        putBack(ids);
+      });
+    }
+
+    function queueScrolled(id) {
+      var item = findItem(id);
+      if (!item || item.read || !scrollOn()) {
+        return;
+      }
+      scroll.done[id] = true;
+      scroll.queued[id] = true;
+      update(id, { read: true }, true);
+      if (!scroll.timer) {
+        scroll.timer = setTimeout(flushScroll, 1500);
+      }
+    }
+
+    // A row counts once it has been seen on screen and then leaves through the top edge.
+    function onScrollEntries(entries) {
+      for (var i = 0; i < entries.length; i++) {
+        var entry = entries[i];
+        var el = entry.target;
+        var id = Number(el.getAttribute('data-id'));
+        var rect = entry.boundingClientRect;
+        // A hidden screen or a row taken out of the page reports an empty box: not a scroll.
+        if (root.hidden || !root.contains(el) || (rect.width === 0 && rect.height === 0)) {
+          continue;
+        }
+        if (entry.isIntersecting) {
+          scroll.seen[id] = true;
+          continue;
+        }
+        var top = entry.rootBounds ? entry.rootBounds.top : 0;
+        if (scroll.seen[id] && !scroll.done[id] && rect.bottom <= top) {
+          scroll.observer.unobserve(el);
+          queueScrolled(id);
+        }
+      }
+    }
+
+    function scrollStop() {
+      if (scroll.observer) {
+        scroll.observer.disconnect();
+        scroll.observer = null;
+      }
+      if (scroll.timer) {
+        clearTimeout(scroll.timer);
+        scroll.timer = null;
+      }
+      // Not sent, so not read: the list goes back to what the server has.
+      var waiting = Object.keys(scroll.queued).map(Number);
+      scroll.queued = {};
+      scroll.seen = {};
+      scroll.done = {};
+      putBack(waiting);
+    }
+
+    // Follows the Reading choice. rebind: the rows were drawn again, so the observer starts
+    // over on them. Without it only rows not watched yet are added (observe is a no-op for
+    // a row already watched), so a screen shown again does not replay what it already saw.
+    function scrollSync(rebind) {
+      if (!scrollOn()) {
+        scrollStop();
+        return;
+      }
+      if (!scroll.observer) {
+        scroll.observer = new IntersectionObserver(onScrollEntries);
+      } else if (rebind) {
+        scroll.observer.disconnect();
+      }
+      if (state.status !== 'ready') {
+        return;
+      }
+      var els = listEl.querySelectorAll('li[data-id]');
+      for (var i = 0; i < els.length; i++) {
+        scrollWatch(els[i], findItem(Number(els[i].getAttribute('data-id'))));
+      }
+    }
+
+    // A new list from the server: nothing seen so far applies to it, and what is waiting goes now.
+    function scrollReset() {
+      if (scroll.timer) {
+        clearTimeout(scroll.timer);
+        flushScroll();
+      }
+      if (scroll.observer) {
+        scroll.observer.disconnect();
+      }
+      scroll.seen = {};
+      scroll.done = {};
+    }
+
+    // Leaving the page must not lose the last few.
+    document.addEventListener('visibilitychange', function () {
+      if (document.visibilityState === 'hidden' && scroll.timer) {
+        clearTimeout(scroll.timer);
+        flushScroll();
+      }
+    });
 
     function renderList() {
       if (state.status === 'loading') {
@@ -264,6 +437,8 @@
           onclick: loadMore
         }, state.loadingMore ? 'Loading\u2026' : 'Load more articles') : null
       ]);
+      // Rows are new elements each time, load-more's included: watch them all.
+      scrollSync(true);
     }
 
     function itemsPath(page) {
@@ -276,6 +451,7 @@
 
     function loadFirst() {
       var request = ++state.request;
+      scrollReset();
       state.status = 'loading';
       state.items = [];
       state.total = null;
@@ -376,6 +552,8 @@
       Preview.account.get().then(function (account) {
         state.account = account;
         renderBanner();
+        // The choice is known now: the rows may have been drawn before it was.
+        scrollSync(true);
       }, function () {});
       loadCategories();
     }
@@ -384,10 +562,14 @@
       show: function () {
         if (!state.started) {
           start();
-        } else if (state.stale) {
-          state.stale = false;
-          loadFirst();
-          loadCategories();
+        } else {
+          // Settings may have changed the Reading choice since the list was last shown.
+          scrollSync(false);
+          if (state.stale) {
+            state.stale = false;
+            loadFirst();
+            loadCategories();
+          }
         }
       },
       // Another screen changed feeds or articles: reload the next time the list is shown.

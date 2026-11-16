@@ -164,7 +164,8 @@ class PreviewAppIntegrationTest {
     void theScriptsAndTheStylesheetArePartOfTheBuild() {
         for (String path : new String[] {"static/js/preview/api.js", "static/js/preview/send.js", "static/js/preview/articles.js",
                 "static/js/preview/reader.js", "static/js/preview/feeds.js", "static/js/preview/settings.js",
-                "static/js/preview/legal.js", "static/js/preview/app.js",
+                "static/js/preview/legal.js", "static/js/preview/whatsnew.js",
+                "static/js/preview/app.js",
                 "static/css/preview.css"}) {
             assertTrue(new ClassPathResource(path).exists(), path + " is on the classpath");
         }
@@ -265,6 +266,40 @@ class PreviewAppIntegrationTest {
         assertFalse(source.contains(".innerHTML ="), "legal.js never assigns innerHTML");
         assertFalse(source.contains(".innerHTML="), "legal.js never assigns innerHTML");
         assertFalse(source.contains("Authorization"), "legal.js never sends an Authorization header");
+    }
+
+    @Test
+    void theWhatsNewScriptIsReferencedBeforeAppServedAndNeverAssignsInnerHtml() throws Exception {
+        MockHttpSession session = signIn();
+
+        String page = mockMvc.perform(get("/app").session(session))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        java.util.regex.Matcher script = java.util.regex.Pattern
+                .compile("/js/preview/whatsnew-[0-9a-f]{32}\\.js").matcher(page);
+        assertTrue(script.find(), "the page references whatsnew.js");
+        assertTrue(page.indexOf("/js/preview/whatsnew-") < page.indexOf("/js/preview/app-"),
+                "whatsnew.js loads before app.js");
+
+        mockMvc.perform(get(script.group()).session(session))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Type", containsString("javascript")))
+                .andExpect(content().string(containsString("Preview.whatsNew")));
+
+        for (String path : new String[] {"static/js/preview/whatsnew.js", "static/js/preview/articles.js"}) {
+            String source = classpathText(path);
+            assertFalse(source.contains(".innerHTML ="), path + " never assigns innerHTML");
+            assertFalse(source.contains(".innerHTML="), path + " never assigns innerHTML");
+        }
+    }
+
+    @Test
+    void theArticlesListMarksReadByScrollingInBatches() throws Exception {
+        String source = classpathText("static/js/preview/articles.js");
+
+        assertTrue(source.contains("1500"), "the batch is flushed 1500 ms after the first id");
+        assertTrue(source.contains("visibilitychange"), "the batch is flushed when the page is hidden");
+        assertTrue(source.contains("/api/v1/articles/scroll-read"), "the list posts to scroll-read");
     }
 
     @Test

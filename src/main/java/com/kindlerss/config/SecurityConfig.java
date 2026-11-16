@@ -110,6 +110,7 @@ public class SecurityConfig {
             "/api/v1/account/kindle-email",
             "/api/v1/account/recovery-code",
             "/api/v1/account/trial-ended/ack",
+            "/api/v1/account/changelog/ack",
             "/api/v1/tokens",
             "/api/v1/tokens/**"
     };
