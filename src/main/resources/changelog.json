@@ -1,6 +1,22 @@
 {
   "releases": [
     {
+      "id": "2026-11-17-eink-quiet-list",
+      "date": "17 November 2026",
+      "title": "A calmer article list on Kindle",
+      "highlights": [
+        "On a Kindle the article list is quieter and fits more articles on each page.",
+        "Each article shows its title first, with the source and time underneath.",
+        "The Send button now says Sent ✓ once an article has gone to your Kindle."
+      ],
+      "changes": [
+        "Kindle list: the title comes first and is always shown in full, with the source and the time in one small line below it.",
+        "An unread article has a bold title and a small black square in front of the source. The thick bar down the left edge is gone.",
+        "Send is an outlined button with the paper plane and the word Send. After an article was sent it reads Sent ✓ with a dashed outline, and you can still tap it to send the article again.",
+        "Phones and computers keep the list as it was."
+      ]
+    },
+    {
       "id": "2026-11-15-no-comment-threads",
       "date": "15 November 2026",
       "title": "Reddit and Hacker News posts come without comments",

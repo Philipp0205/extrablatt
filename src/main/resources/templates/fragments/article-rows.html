@@ -19,25 +19,43 @@
   <th:block th:replace="~{fragments/article-rows :: loadMore}"></th:block>
 </div>
 
+<!-- The source and the time of a row. On the e-ink layout an unread row also starts
+     with a small solid square, and the "Sent" tag is left out: the send button
+     carries that state there. -->
+<p class="item-meta" th:fragment="rowMeta">
+  <span class="unread-square" th:if="${eink and !a.read}" aria-hidden="true"></span>
+  <!-- On a list already filtered to one feed the name would repeat on every row. -->
+  <span class="source" th:if="${feedId == null}" th:text="${a.feedTitle}">Feed</span>
+  <th:block th:if="${a.publishedAt != null}">
+    <span class="sep" th:if="${feedId == null}" aria-hidden="true">·</span>
+    <time th:datetime="${a.publishedAt.toString()}"
+          th:text="${readableTime.describe(a.publishedAt)}">3 hours ago</time>
+  </th:block>
+  <span class="sent-mark" th:if="${a.sentAt != null and !eink}">Sent</span>
+</p>
+
+<a class="item-title" th:fragment="rowTitle" th:href="@{/articles/{id}(id=${a.id})}">
+  <span class="unread-mark" th:classappend="${a.read} ? 'read'" aria-hidden="true"></span>
+  <span class="offscreen" th:unless="${a.read}">Unread: </span>
+  <span th:text="${a.title}">Title</span>
+</a>
+
 <th:block th:fragment="rows">
+  <!-- `eink` is the e-ink layout. There the title comes first and the meta line
+       under it; everywhere else the meta line stays above the title as before.
+       `sentAgain`: on e-ink a sent article's button says so and sends again. -->
   <li th:each="a : ${articles}"
+      th:with="eink=${einkLayout == true}, sentAgain=${einkLayout == true and a.sentAt != null}"
       th:attr="data-article-id=${a.id}, data-read=${a.read} ? 'true' : 'false'">
     <div class="item-main">
-      <p class="item-meta">
-        <!-- On a list already filtered to one feed the name would repeat on every row. -->
-        <span class="source" th:if="${feedId == null}" th:text="${a.feedTitle}">Feed</span>
-        <th:block th:if="${a.publishedAt != null}">
-          <span class="sep" th:if="${feedId == null}" aria-hidden="true">·</span>
-          <time th:datetime="${a.publishedAt.toString()}"
-                th:text="${readableTime.describe(a.publishedAt)}">3 hours ago</time>
-        </th:block>
-        <span class="sent-mark" th:if="${a.sentAt != null}">Sent</span>
-      </p>
-      <a class="item-title" th:href="@{/articles/{id}(id=${a.id})}">
-        <span class="unread-mark" th:classappend="${a.read} ? 'read'" aria-hidden="true"></span>
-        <span class="offscreen" th:unless="${a.read}">Unread: </span>
-        <span th:text="${a.title}">Title</span>
-      </a>
+      <th:block th:if="${eink}">
+        <th:block th:replace="~{fragments/article-rows :: rowTitle}"></th:block>
+        <th:block th:replace="~{fragments/article-rows :: rowMeta}"></th:block>
+      </th:block>
+      <th:block th:unless="${eink}">
+        <th:block th:replace="~{fragments/article-rows :: rowMeta}"></th:block>
+        <th:block th:replace="~{fragments/article-rows :: rowTitle}"></th:block>
+      </th:block>
     </div>
     <form class="inline" data-send-form
           th:action="@{/articles/{id}/send(id=${a.id})}"
@@ -45,13 +63,13 @@
       <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
       <!-- Sending from the list comes back to the list instead of opening the article. -->
       <input type="hidden" name="redirect" th:value="${listPath}"/>
-      <button class="btn send-btn" type="submit"
-              th:attr="aria-label='Send to Kindle: ' + ${a.title}">
+      <button class="btn send-btn" type="submit" th:classappend="${sentAgain} ? 'sent'"
+              th:attr="aria-label=${sentAgain} ? ('Send to Kindle again: ' + ${a.title}) : ('Send to Kindle: ' + ${a.title})">
         <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
           <path d="M4 12l16-8-6 16-2.5-6.5z"/>
           <path d="M11.5 13.5L20 4"/>
         </svg>
-        <span class="send-word" data-send-label>Send</span>
+        <span class="send-word" data-send-label th:text="${sentAgain} ? 'Sent ✓' : 'Send'">Send</span>
       </button>
     </form>
   </li>

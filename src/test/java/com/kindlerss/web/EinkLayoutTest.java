@@ -166,6 +166,88 @@ class EinkLayoutTest {
                 .andExpect(content().string(containsString("data-scroll-read=\"/items/scroll-read\"")));
     }
 
+    private void stubQuietList() {
+        Instant now = Instant.now();
+        when(articleService.findPage(eq(UID), isNull(), isNull(), eq(1), anyInt()))
+                .thenReturn(List.of(
+                        new Article(1L, 1L, "g1", "Unread unsent", null, null, now, null, null, null,
+                                false, null, null, null, "Example Feed"),
+                        new Article(2L, 1L, "g2", "Read and sent", null, null, now, null, null, null,
+                                true, now, null, null, "Example Feed")));
+        when(articleService.count(eq(UID), isNull(), isNull())).thenReturn(2L);
+    }
+
+    /** The row for one article, from its opening li up to the next one. */
+    private static String row(String page, long id) {
+        int start = page.indexOf("data-article-id=\"" + id + "\"");
+        assertTrue(start >= 0, "row " + id + " is in the list");
+        int end = page.indexOf("data-article-id=\"", start + 10);
+        return page.substring(start, end < 0 ? page.length() : end);
+    }
+
+    @Test
+    @WithMockUser
+    void theEinkListMarksOnlyUnreadRowsWithTheSquareAndPutsTheTitleFirst() throws Exception {
+        stubQuietList();
+        String page = mockMvc.perform(get("/items?unread=false").header(HttpHeaders.USER_AGENT, PAPERWHITE))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        String unread = row(page, 1);
+        String read = row(page, 2);
+        assertTrue(unread.contains("class=\"unread-square\" aria-hidden=\"true\""), "unread row has the square");
+        assertTrue(unread.contains("Unread: "), "screen readers still hear Unread");
+        assertTrue(unread.indexOf("item-title") < unread.indexOf("item-meta"), "title comes before the meta line");
+        assertFalse(read.contains("unread-square"), "a read row has no square");
+        assertFalse(read.contains("Unread: "), "a read row is not announced as unread");
+    }
+
+    @Test
+    @WithMockUser
+    void aSentArticleOnEinkSaysSentOnTheButtonAndStillSendsAgain() throws Exception {
+        stubQuietList();
+        String page = mockMvc.perform(get("/items?unread=false").header(HttpHeaders.USER_AGENT, PAPERWHITE))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        String sent = row(page, 2);
+        assertTrue(sent.contains("Sent ✓"), "the button reads Sent ✓");
+        assertTrue(sent.contains("aria-label=\"Send to Kindle again: Read and sent\""), "the label says it sends again");
+        assertTrue(sent.contains("action=\"/articles/2/send\"") && sent.contains("method=\"post\"")
+                && sent.contains("type=\"submit\"") && sent.contains("data-send-url=\"/articles/2/send-async\""),
+                "it is still a working send form");
+        assertFalse(sent.contains("class=\"sent-mark\""), "no separate Sent tag on e-ink");
+
+        String unsent = row(page, 1);
+        assertTrue(unsent.contains(">Send</span>"), "an unsent article reads Send");
+        assertTrue(unsent.contains("aria-label=\"Send to Kindle: Unread unsent\""));
+        assertFalse(unsent.contains("Sent ✓"));
+    }
+
+    @Test
+    @WithMockUser
+    void aPhoneKeepsTheOldRowWithTheSentTagAndNoSquare() throws Exception {
+        stubQuietList();
+        String page = mockMvc.perform(get("/items?unread=false").header(HttpHeaders.USER_AGENT, PIXEL))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        String unread = row(page, 1);
+        String sent = row(page, 2);
+        assertFalse(unread.contains("unread-square"), "no e-ink square on a phone");
+        assertTrue(unread.indexOf("item-meta") < unread.indexOf("item-title"), "meta line stays above the title");
+        assertTrue(sent.contains("class=\"sent-mark\">Sent</span>"), "the Sent tag stays on a phone");
+        assertFalse(sent.contains("Sent ✓"));
+        assertTrue(sent.contains("aria-label=\"Send to Kindle: Read and sent\""));
+    }
+
+    @Test
+    @WithMockUser
+    void theEinkListChecksOutWithTheForcedLayoutParameterToo() throws Exception {
+        stubQuietList();
+        mockMvc.perform(get("/items?unread=false&layout=kindle").header(HttpHeaders.USER_AGENT, PIXEL))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("class=\"unread-square\"")))
+                .andExpect(content().string(containsString("Sent ✓")));
+    }
+
     @ParameterizedTest
     @ValueSource(strings = {"/items?unread=false", "/articles/7", "/", "/settings"})
     @WithMockUser

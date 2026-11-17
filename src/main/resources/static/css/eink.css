@@ -414,39 +414,39 @@ html.eink .chip .mode-dot {
 html.eink .filter-divide {
   display: none;
 }
+/* Quiet list: the title first, in full, then one small line with the source and
+   the time; the send button is an outlined box on the right. An unread row is a
+   bold title and a small solid square, not a bar down the side. */
+html.eink .item-list {
+  border-top: 2px solid #000000;
+}
 html.eink .item-list > li {
-  -webkit-box-align: stretch;
-  -webkit-align-items: stretch;
-  align-items: stretch;
-  padding: 0;
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: flex;
+  -webkit-box-align: start;
+  -webkit-align-items: flex-start;
+  align-items: flex-start;
+  padding: 0.55rem 0 0.35rem;
   border-bottom: 1px solid #000000;
-  min-height: 5.6rem;
+  min-height: 0;
 }
 html.eink .item-main {
-  padding: 0.7rem 0.6rem 0.7rem 1rem;
-  border-left: 10px solid #000000;
-}
-html.eink li[data-read="true"] .item-main {
-  border-left: 10px solid #ffffff;
-}
-html.eink .item-meta {
-  font-size: 0.8rem;
-  font-weight: 500;
-  margin-bottom: 0.15rem;
-}
-html.eink .item-meta .source {
-  color: #555555;
-  letter-spacing: 0.04em;
-}
-html.eink .item-meta .sent-mark {
-  border: 1px solid #555555;
-  border-radius: 3px;
+  -webkit-box-flex: 1;
+  -webkit-flex: 1 1 0;
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 0 0.6rem 0 0;
+  font-size: 1.25rem;
+  line-height: 1.22;
 }
 html.eink .item-title {
-  font-family: inherit;
-  font-size: 1.3rem;
-  line-height: 1.25;
-  font-weight: 800;
+  display: block;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.25rem;
+  line-height: 1.22;
+  font-weight: 700;
+  color: #000000;
   text-decoration: none;
 }
 html.eink li[data-read="true"] .item-title {
@@ -456,38 +456,92 @@ html.eink li[data-read="true"] .item-title {
 html.eink .unread-mark {
   display: none;
 }
+html.eink .item-meta {
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: flex;
+  -webkit-flex-wrap: wrap;
+  flex-wrap: wrap;
+  -webkit-box-align: center;
+  -webkit-align-items: center;
+  align-items: center;
+  -webkit-column-gap: 0;
+  column-gap: 0;
+  margin: 0.15rem 0 0;
+  font-size: 0.8rem;
+  line-height: 1.3;
+  font-weight: 400;
+  letter-spacing: 0;
+  color: #333333;
+}
+html.eink .item-meta .unread-square {
+  display: inline-block;
+  -webkit-box-flex: 0;
+  -webkit-flex: none;
+  flex: none;
+  width: 0.65rem;
+  height: 0.65rem;
+  margin-right: 0.4rem;
+  background: #000000;
+}
+html.eink .item-meta .source {
+  color: #333333;
+  letter-spacing: 0.02em;
+}
+html.eink .item-meta .sep {
+  margin: 0 0.4rem;
+  color: #333333;
+}
 html.eink .item-list > li > form.inline {
   display: -webkit-box;
   display: -webkit-flex;
   display: flex;
+  -webkit-box-flex: 0;
+  -webkit-flex: none;
+  flex: none;
   margin: 0;
-  border-left: 2px solid #000000;
+  border: 0;
 }
-html.eink .send-btn {
-  -webkit-box-orient: vertical;
-  -webkit-flex-direction: column;
-  flex-direction: column;
+html.eink .item-list .send-btn {
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: flex;
+  -webkit-box-orient: horizontal;
+  -webkit-flex-direction: row;
+  flex-direction: row;
+  -webkit-box-align: center;
+  -webkit-align-items: center;
+  align-items: center;
   -webkit-box-pack: center;
   -webkit-justify-content: center;
   justify-content: center;
-  min-width: 5.2rem;
-  height: 100%;
-  min-height: 0;
-  border: 0;
+  min-width: 6.2rem;
+  height: auto;
+  min-height: 52px;
+  border: 2px solid #000000;
   border-radius: 0;
+  background: #ffffff;
   color: #000000;
-  font-size: 0.9rem;
+  font-size: 0.95rem;
   font-weight: 700;
-  padding: 0 0.4rem;
+  padding: 0 0.5rem;
 }
 html.eink .send-btn .icon {
-  display: block;
-  width: 1.6rem;
-  height: 1.6rem;
-  margin: 0 auto 0.15rem;
+  display: inline-block;
+  width: 1.4rem;
+  height: 1.4rem;
+  margin: 0 0.35rem 0 0;
 }
 html.eink .send-btn .send-word {
-  display: block;
+  display: inline;
+}
+/* A sent article: the button says so, and still sends again. */
+html.eink .item-list .send-btn.sent {
+  border: 2px dashed #000000;
+  font-weight: 400;
+}
+html.eink .item-list .send-btn.sent .icon {
+  display: none;
 }
 html.eink .list-end .meta {
   color: #555555;
@@ -666,32 +720,6 @@ html.eink .site-legal {
   }
   html.eink .filter-mode-group .chip {
     min-height: 2.5rem;
-  }
-  html.eink .item-list > li,
-  html.eink.reader-paged .item-list > li {
-    min-height: 3.4rem;
-  }
-  html.eink .item-main {
-    padding: 0.35rem 0.5rem 0.35rem 0.8rem;
-    border-left: 8px solid #000000;
-  }
-  html.eink li[data-read="true"] .item-main {
-    border-left: 8px solid #ffffff;
-  }
-  html.eink .item-title {
-    font-size: 1.1rem;
-    line-height: 1.2;
-  }
-  html.eink .item-meta {
-    font-size: 0.75rem;
-  }
-  html.eink .send-btn {
-    min-width: 4.2rem;
-    font-size: 0.8rem;
-  }
-  html.eink .send-btn .icon {
-    width: 1.3rem;
-    height: 1.3rem;
   }
   html.eink .category-list > li,
   html.eink .feed-list > li {

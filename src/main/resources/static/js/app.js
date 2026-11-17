@@ -249,7 +249,24 @@
             throw sendFailure(data.error || SEND_FAILED, data.setup);
           }
           button.removeAttribute('aria-busy');
-          setLabel(button, 'Sent');
+          var einkRow = eink && button.className.indexOf('send-btn') >= 0
+              && button.closest && button.closest('li[data-article-id]');
+          if (einkRow) {
+            // Same look as a row the server rendered as sent: the button carries
+            // the state and stays a working button that sends again.
+            setLabel(button, 'Sent ✓');
+            if (button.className.indexOf(' sent') < 0) {
+              button.className += ' sent';
+            }
+            var rowTitle = einkRow.querySelector('.item-title span:last-child');
+            if (rowTitle) {
+              button.setAttribute('aria-label', 'Send to Kindle again: ' + rowTitle.textContent);
+            }
+            button.disabled = false;
+            button.style.minWidth = '';
+          } else {
+            setLabel(button, 'Sent');
+          }
           announce('Sent to Kindle');
         });
       }).catch(function (error) {
