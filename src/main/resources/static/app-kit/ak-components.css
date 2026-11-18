@@ -105,6 +105,7 @@
   color: var(--ak-text);
   font: inherit;
   font-size: var(--ak-fs-md);
+  text-decoration: none;
   cursor: pointer;
 }
 .ak-chip-on { background: var(--ak-btn-fill); color: var(--ak-btn-ink); }
@@ -349,6 +350,48 @@ html.ak-sheet-open body {
 .ak-sheet.ak-dragging { transition: none; }
 @keyframes ak-sheet-in { from { transform: translateY(100%); } to { transform: translateY(0); } }
 @keyframes ak-fade-in { from { opacity: 0; } to { opacity: 1; } }
+
+/*
+ * AppKit.sheet with opts.snaps. The sheet is as tall as its highest snap
+ * (--ak-sheet-max, a fraction of the viewport) and is moved with a transform
+ * (--ak-sheet-y), so a drag or a snap change never touches layout. While the
+ * finger is down (.ak-dragging) the transition is off.
+ */
+.ak-sheet.ak-sheet-snaps {
+  height: min(calc(var(--ak-sheet-max, 1) * 100vh), calc(100vh - var(--ak-sheet-margin) - var(--ak-safe-top)));
+  height: min(calc(var(--ak-sheet-max, 1) * 100dvh), calc(100dvh - var(--ak-sheet-margin) - var(--ak-safe-top)));
+  transform: translateY(var(--ak-sheet-y, 0px));
+  transition: transform var(--ak-duration-sheet) ease-out;
+}
+.ak-sheet-layer .ak-sheet.ak-sheet-snaps.ak-dragging { transition: none; }
+.ak-sheet-layer .ak-sheet.ak-sheet-snaps { animation-name: ak-sheet-in-snap; }
+@keyframes ak-sheet-in-snap { from { transform: translateY(100%); } to { transform: translateY(var(--ak-sheet-y, 0px)); } }
+
+/*
+ * AppKit.sheet with opts.scaleBackground. The app root scales down behind the
+ * sheet, iOS style. The sheet adds .ak-sheet-behind to that element while the
+ * sheet is open (and until it has slid out) and .ak-sheet-scaled to <html>
+ * while it is open. No background is set on html or body here, theme-color.js
+ * reads the page background. Reduced motion: no scale at all.
+ */
+.ak-sheet-behind {
+  transform-origin: 50% 0;
+  transition: transform 300ms cubic-bezier(0.2, 0.8, 0.2, 1), border-radius 300ms ease-out;
+}
+@media (prefers-reduced-motion: no-preference) {
+  :root.ak-sheet-scaled .ak-sheet-behind {
+    transform: scale(0.94);
+    border-radius: 14px;
+    overflow: hidden;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ak-sheet-behind { transition: none; }
+}
+
+/* AppKit.donate: the chip row wraps, the note has a bottom gap. */
+.ak-donate-amounts { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+.ak-donate-note { margin: 0 0 12px; }
 
 /* ---------- Tab bar and screen head ---------- */
 
@@ -598,6 +641,8 @@ html.ak-sheet-open body {
   .ak-sheet-layer .ak-scrim { animation: none; }
   .ak-sheet-layer.ak-closing .ak-sheet,
   .ak-sheet-layer.ak-closing .ak-scrim { transition: none; }
+  .ak-sheet.ak-sheet-snaps { transition: none; }
+  .ak-sheet-layer .ak-sheet.ak-sheet-snaps { animation: none; }
 }
 
 /* ---------- E-ink ---------- */
@@ -622,6 +667,7 @@ html.eink {
   --ak-scrim: rgba(255, 255, 255, 0.9);
   --ak-tabbar: #ffffff;
   --ak-overlay: #ffffff;
+  --ak-glass: #ffffff;
   --ak-btn-fill: #000000;
   --ak-btn-ink: #ffffff;
   --ak-accent: #000000;

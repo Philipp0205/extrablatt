@@ -120,6 +120,7 @@
       h('div', { class: 'pv-sheet-actions' }, saveBtn, cancelBtn));
 
     var opened = AppKit.sheet.show(form, {
+      scaleBackground: document.querySelector('.pv-shell'),
       focus: input,
       onClose: function () {
         open = null;

@@ -80,6 +80,7 @@
         closeBtn));
 
     var opened = AppKit.sheet.show(node, {
+      scaleBackground: document.querySelector('.pv-shell'),
       focus: closeBtn,
       onClose: function () {
         open = null;

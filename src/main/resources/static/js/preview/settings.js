@@ -107,6 +107,7 @@
   // still on the page. Returns null when a sheet is already open.
   function showSheet(node, focusEl, trigger) {
     var opened = AppKit.sheet.show(node, {
+      scaleBackground: document.querySelector('.pv-shell'),
       focus: focusEl,
       onClose: function () {
         open = null;
@@ -155,6 +156,10 @@
   }
 
   function submitForm(action) {
+    // The next sign-in must not see this account's saved lists.
+    if (window.AppKit && AppKit.swr) {
+      AppKit.swr.clear();
+    }
     var form = h('form', { method: 'post', action: action, hidden: true },
       h('input', { type: 'hidden', name: '_csrf', value: csrfToken() }));
     document.body.appendChild(form);
@@ -214,7 +219,7 @@
     }
 
     function drawStatus() {
-      var kids = [h('h1', { class: 'ak-screen-title' }, 'Settings')];
+      var kids = [h('h1', { class: 'ak-screen-title ak-large-title' }, 'Settings')];
       if (state.status === 'error') {
         kids.push(h('div', { class: 'ak-empty', role: 'alert' },
           h('p', { class: 'pv-empty-text' }, state.error || 'Could not load your settings.'),
@@ -289,7 +294,7 @@
       rows.push(groupRow('about', 'About', 'What\'s new, version, legal'));
 
       var list = h('nav', { class: 'pv-set-list', 'aria-label': 'Settings' },
-        h('h1', { class: 'ak-screen-title' }, 'Settings'),
+        h('h1', { class: 'ak-screen-title ak-large-title' }, 'Settings'),
         h('ul', { class: 'pv-set-rows' }, rows));
       var detail = h('div', { class: 'pv-set-detail' },
         h('a', { class: 'pv-back pv-set-back', href: '#/settings' }, '\u2190 Settings'),

@@ -70,6 +70,7 @@
   --ak-scrim: rgba(0, 0, 0, 0.72);
   --ak-tabbar: rgba(0, 0, 0, 0.92);
   --ak-overlay: rgba(28, 28, 30, 0.72);
+  --ak-glass: rgba(0, 0, 0, 0.72);
   --ak-btn-fill: #ffffff;
   --ak-btn-ink: #000000;
   --ak-accent: #e3166b;
@@ -176,6 +177,7 @@
     --ak-scrim: rgba(0, 0, 0, 0.45);
     --ak-tabbar: rgba(255, 255, 255, 0.92);
     --ak-overlay: rgba(255, 255, 255, 0.78);
+    --ak-glass: rgba(255, 255, 255, 0.72);
     --ak-btn-fill: #000000;
     --ak-btn-ink: #ffffff;
     --ak-accent: #c2185b;
@@ -222,6 +224,7 @@ html[data-ak-scheme="dark"] {
   --ak-scrim: rgba(0, 0, 0, 0.72);
   --ak-tabbar: rgba(0, 0, 0, 0.92);
   --ak-overlay: rgba(28, 28, 30, 0.72);
+  --ak-glass: rgba(0, 0, 0, 0.72);
   --ak-btn-fill: #ffffff;
   --ak-btn-ink: #000000;
   --ak-accent: #e3166b;
@@ -263,6 +266,7 @@ html[data-ak-scheme="light"] {
   --ak-scrim: rgba(0, 0, 0, 0.45);
   --ak-tabbar: rgba(255, 255, 255, 0.92);
   --ak-overlay: rgba(255, 255, 255, 0.78);
+  --ak-glass: rgba(255, 255, 255, 0.72);
   --ak-btn-fill: #000000;
   --ak-btn-ink: #ffffff;
   --ak-accent: #c2185b;

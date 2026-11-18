@@ -95,6 +95,7 @@
       h('div', { class: 'pv-sheet-actions' }, gotIt, allChanges));
 
     var opened = AppKit.sheet.show(node, {
+      scaleBackground: document.querySelector('.pv-shell'),
       focus: gotIt,
       onClose: function () {
         open = null;

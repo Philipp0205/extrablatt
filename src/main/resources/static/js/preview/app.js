@@ -83,9 +83,13 @@
   Preview.reader.mount(readerEl);
   Preview.legal.mount(screensEl);   // the footer under every screen (hidden in the reader), and the trial-ended notice
 
+  // The tab bar remembers each tab's scroll position and scrolls to the top when the tab
+  // that is already open is tapped again. The hash change stays the only router.
   var tabbar = AppKit.tabbar({
     label: 'Main',
     active: currentRoute(),
+    rememberScroll: true,
+    scrollTopOnReselect: true,
     tabs: [
       { id: 'articles', label: 'Articles', icon: icon('articles') },
       { id: 'feeds', label: 'Feeds', icon: icon('feeds') },
@@ -97,16 +101,166 @@
 
   var sideLinks = document.querySelectorAll('.pv-side a[data-route]');
 
+  // ---------- Phone title bar ----------
+  // On a phone the screen's heading is a large title; once it scrolls away, a small one shows
+  // in a glass bar (the navbar, hidden on a wide screen and in the reader). The headings are
+  // redrawn by their screens, so the binding follows whichever heading is on screen now.
+  var navTitleEl = h('span', { class: 'ak-navbar-title' });
+  var navbarEl = h('header', { class: 'ak-navbar', 'aria-hidden': 'true' }, navTitleEl);
+  var shellEl = document.querySelector('.pv-shell');
+  if (shellEl) {
+    shellEl.insertBefore(navbarEl, shellEl.firstChild);
+  }
+  var titleEl = null;       // the heading bound now
+  var titleBinding = null;
+
+  // The large title on screen for a place, or null (the reader, a Settings group).
+  function findTitle(place) {
+    if (place.view === 'reader') {
+      return null;
+    }
+    if (place.route === 'articles') {
+      return articlesEl.querySelector('.ak-large-title');
+    }
+    if (place.route === 'feeds') {
+      return feedsEl.querySelector('.ak-large-title');
+    }
+    return place.depth === 0 ? settingsEl.querySelector('.ak-large-title') : null;
+  }
+
+  function syncTitle() {
+    var el = applied ? findTitle(applied) : null;
+    document.body.classList.toggle('pv-titled', !!el);
+    if (el && navTitleEl.textContent !== el.textContent) {
+      navTitleEl.textContent = el.textContent;
+    }
+    if (el === titleEl) {
+      return;
+    }
+    if (titleBinding) {
+      titleBinding.destroy();
+      titleBinding = null;
+    }
+    titleEl = el;
+    if (el && AppKit.largeTitle) {
+      titleBinding = AppKit.largeTitle(el, { navbar: navbarEl });
+    } else {
+      navbarEl.classList.remove('ak-collapsed');
+    }
+  }
+
+  var titleQueued = false;
+  function queueTitleSync() {
+    if (titleQueued) {
+      return;
+    }
+    titleQueued = true;
+    (window.requestAnimationFrame || window.setTimeout)(function () {
+      titleQueued = false;
+      syncTitle();
+    });
+  }
+  if (window.MutationObserver) {
+    new MutationObserver(queueTitleSync).observe(screensEl, { childList: true, subtree: true });
+  }
+
+  // ---------- Pull to refresh (the Articles list and the Feeds screen) ----------
+  // One binding at a time: 'articles' while the Articles list is visible (not the reader),
+  // 'feeds' while the Feeds screen is visible (the categories and one category), none elsewhere.
+
+  var pull = null;
+  var pullKind = null;
+
+  function pullKindFor(place) {
+    if (place.view === 'list') {
+      return 'articles';
+    }
+    return place.view === 'other' && place.route === 'feeds' ? 'feeds' : null;
+  }
+
+  function syncPull(place) {
+    var kind = AppKit.pullToRefresh ? pullKindFor(place) : null;
+    if (kind === pullKind) {
+      return;
+    }
+    if (pull) {
+      pull.destroy();
+      pull = null;
+    }
+    pullKind = kind;
+    if (!kind) {
+      return;
+    }
+    pull = AppKit.pullToRefresh({
+      el: window,
+      onRefresh: function () {
+        // A sheet is open over the screen: a pull there is not meant for the list.
+        if (document.documentElement.classList.contains('ak-sheet-open')) {
+          return Promise.resolve();
+        }
+        return kind === 'feeds' ? Preview.feeds.refresh() : Preview.articles.refresh();
+      }
+    });
+  }
+
+
+  // ---------- Routing ----------
+
+  // Where the hash points: the route, the view ('list', 'reader' or 'other'), the article id
+  // and how deep it is (0 a tab's own screen, 1 a drill: the reader, a category, a Settings group).
+  function place() {
+    var route = currentRoute();
+    var id = readerId();
+    var name = window.location.hash.replace(/^#\/?/, '').replace(/\/+$/, '');
+    return {
+      hash: window.location.hash,
+      route: route,
+      id: id,
+      view: id !== null ? 'reader' : (route === 'articles' ? 'list' : 'other'),
+      depth: name.indexOf('/') >= 0 ? 1 : 0
+    };
+  }
+
+  function phone() {
+    return !!(window.matchMedia && window.matchMedia('(max-width: 719px)').matches);
+  }
+
+  // How the page moves. The list and the reader slide on every screen size. Inside a tab
+  // (a category, a Settings group) it slides on a phone only. Switching tabs does not slide.
+  function directionFor(from, to) {
+    if (!from) {
+      return 'none';
+    }
+    if (from.view === 'list' && to.view === 'reader') {
+      return 'push';
+    }
+    if (from.view === 'reader' && to.view === 'list') {
+      return 'pop';
+    }
+    if (!phone() || from.route !== to.route || from.view === 'reader' || to.view === 'reader') {
+      return 'none';
+    }
+    if (to.depth > from.depth) {
+      return 'push';
+    }
+    return to.depth < from.depth ? 'pop' : 'none';
+  }
+
   // What the last render showed: 'list' (the Articles list), 'reader' or 'other'.
   var shown = null;
+  var applied = null;          // the place the last render showed
+  var handled = null;          // the hash the last apply started on
   var openedId = null;         // the article the reader has open
   var openedFromList = false;  // the reader was reached from the list, so Back can use history
   var listScroll = 0;          // where the list was scrolled to when the reader opened
 
-  function render() {
-    var route = currentRoute();
-    var id = readerId();
-    var view = id !== null ? 'reader' : (route === 'articles' ? 'list' : 'other');
+  // Puts the page into the state of a place. The DOM changes here, inside the transition.
+  function apply(next) {
+    handled = next.hash;
+    var route = next.route;
+    var id = next.id;
+    var view = next.view;
+    var fromReader = shown === 'reader';
     if (view === 'reader' && shown === 'list') {
       listScroll = window.scrollY;
     }
@@ -115,7 +269,6 @@
     document.body.classList.toggle('pv-reading', view === 'reader');
     // Room for the form column (Feeds) or the list beside the detail (Settings).
     document.body.classList.toggle('pv-wide', route === 'feeds' || route === 'settings');
-    tabbar.update({ active: route });
     for (var i = 0; i < sideLinks.length; i++) {
       if (sideLinks[i].getAttribute('data-route') === route) {
         sideLinks[i].setAttribute('aria-current', 'page');
@@ -135,19 +288,59 @@
       }
     } else if (route === 'articles') {
       Preview.articles.show();
-      if (shown === 'reader') {
-        window.scrollTo(0, listScroll);
-      }
     } else if (route === 'feeds') {
       Preview.feeds.show();
     } else if (route === 'settings') {
       Preview.settings.show();
     }
+    // After the new tab is on screen: the tab bar puts back that tab's scroll position.
+    tabbar.update({ active: route });
+    if (view === 'list' && fromReader) {
+      window.scrollTo(0, listScroll);
+    }
     shown = view;
+    applied = next;
+    syncPull(next);
+    syncTitle();
+  }
+
+  function go(update, direction) {
+    if (AppKit.transition && typeof Promise !== 'undefined') {
+      return AppKit.transition.go(update, { direction: direction });
+    }
+    update();
+    return typeof Promise !== 'undefined' ? Promise.resolve() : { then: function () {} };
+  }
+
+  var busy = false;   // a transition is running: a newer hash waits for it to finish
+
+  function settle() {
+    busy = false;
+    // The hash moved on while the page was changing: show where it is now. handled is set
+    // at the start of apply, so an update that throws cannot make this run forever.
+    if (handled !== window.location.hash) {
+      render();
+    }
+  }
+
+  function render() {
+    if (busy) {
+      return;
+    }
+    var next = place();
+    var direction = directionFor(applied, next);
+    busy = true;
+    // The place is read again inside the update, so the page never shows a stale hash.
+    var moved = go(function () { apply(place()); }, direction);
+    if (moved && moved.then) {
+      moved.then(settle, settle);
+    } else {
+      settle();
+    }
   }
 
   window.addEventListener('hashchange', render);
-  render();
+  apply(place());   // the first draw is not animated
   Preview.whatsNew.start();
 
   AppKit.themeColor.start({ media: ['(max-width: 719px)'] });
