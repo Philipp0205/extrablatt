@@ -164,27 +164,45 @@
     new MutationObserver(queueTitleSync).observe(screensEl, { childList: true, subtree: true });
   }
 
-  // ---------- Pull to refresh (the Articles list only) ----------
+  // ---------- Pull to refresh (the Articles list and the Feeds screen) ----------
+  // One binding at a time: 'articles' while the Articles list is visible (not the reader),
+  // 'feeds' while the Feeds screen is visible (the categories and one category), none elsewhere.
 
   var pull = null;
+  var pullKind = null;
 
-  function syncPull(view) {
-    if (view === 'list' && !pull && AppKit.pullToRefresh) {
-      pull = AppKit.pullToRefresh({
-        el: window,
-        onRefresh: function () {
-          // A sheet is open over the list: a pull there is not meant for the list.
-          if (document.documentElement.classList.contains('ak-sheet-open')) {
-            return Promise.resolve();
-          }
-          return Preview.articles.refresh();
-        }
-      });
-    } else if (view !== 'list' && pull) {
+  function pullKindFor(place) {
+    if (place.view === 'list') {
+      return 'articles';
+    }
+    return place.view === 'other' && place.route === 'feeds' ? 'feeds' : null;
+  }
+
+  function syncPull(place) {
+    var kind = AppKit.pullToRefresh ? pullKindFor(place) : null;
+    if (kind === pullKind) {
+      return;
+    }
+    if (pull) {
       pull.destroy();
       pull = null;
     }
+    pullKind = kind;
+    if (!kind) {
+      return;
+    }
+    pull = AppKit.pullToRefresh({
+      el: window,
+      onRefresh: function () {
+        // A sheet is open over the screen: a pull there is not meant for the list.
+        if (document.documentElement.classList.contains('ak-sheet-open')) {
+          return Promise.resolve();
+        }
+        return kind === 'feeds' ? Preview.feeds.refresh() : Preview.articles.refresh();
+      }
+    });
   }
+
 
   // ---------- Routing ----------
 
@@ -282,7 +300,7 @@
     }
     shown = view;
     applied = next;
-    syncPull(view);
+    syncPull(next);
     syncTitle();
   }
 

@@ -352,6 +352,7 @@
       error: '',
       started: false,
       request: 0,           // lets a late answer to an old fetch be ignored
+      refreshing: null,     // the pull-to-refresh in flight (a Promise), or null
       viewed: null,         // the category on screen, null on the categories screen
       renderedKey: null,
       formKey: null,
@@ -382,14 +383,19 @@
 
     // ----- Loading -----
 
+    function ignore() {}
+
     // quiet: the screen is already showing something, so a failure or no change shows nothing.
+    // Returns a Promise: it resolves once the answer is applied (or a newer request took over),
+    // and rejects with the error when the fetch failed, whatever the screen shows. Callers that
+    // do not wait for it end with .then(null, ignore).
     function load(quiet) {
       var request = ++state.request;
       if (!quiet) {
         state.status = 'loading';
         render(false);
       }
-      Preview.api.get('/api/v1/feeds').then(function (data) {
+      return Preview.api.get('/api/v1/feeds').then(function (data) {
         if (request !== state.request) {
           return;
         }
@@ -406,13 +412,32 @@
           loadSuggestions();
         }
       }, function (error) {
-        if (request !== state.request || (quiet && state.status === 'ready')) {
+        if (request !== state.request) {
           return;
         }
-        state.status = 'error';
-        state.error = error.message;
-        render(false);
+        if (!(quiet && state.status === 'ready')) {
+          state.status = 'error';
+          state.error = error.message;
+          render(false);
+        }
+        throw error;
       });
+    }
+
+    // Pull to refresh: reload quietly, keep the list on a failure (toast instead). Always
+    // resolves. A pull while one is running gets the same Promise.
+    function refresh() {
+      if (state.refreshing) {
+        return state.refreshing;
+      }
+      var promise = state.refreshing = load(true).then(null, function (error) {
+        AppKit.toast((error && error.message) || 'Could not refresh.', { kind: 'error' });
+      }).then(function () {
+        if (state.refreshing === promise) {
+          state.refreshing = null;
+        }
+      });
+      return promise;
     }
 
     function loadSuggestions() {
@@ -441,7 +466,7 @@
       if (draw !== false) {
         render(true);
       }
-      load(true);
+      load(true).then(null, ignore);
     }
 
     // The category on screen has no feeds left (the last one moved or was deleted): go back
@@ -482,7 +507,7 @@
         kids = [h('div', { class: 'pv-head' }, heading('Your feeds')),
           h('div', { class: 'ak-empty', role: 'alert' },
             h('p', { class: 'pv-empty-text' }, state.error || 'Could not load your feeds.'),
-            button('Retry', 'ak-btn ak-btn-secondary', function () { load(false); }))];
+            button('Retry', 'ak-btn ak-btn-secondary', function () { load(false).then(null, ignore); }))];
       } else if (current) {
         kids = categoryView(current);
       } else {
@@ -630,7 +655,7 @@
           }
           state.picked = {};
           Preview.articles.invalidate();
-          load(true);
+          load(true).then(null, ignore);
           return;
         }
         btn.disabled = false;
@@ -713,7 +738,7 @@
           AppKit.toast((data && data.message) || 'Category renamed', { kind: moved ? 'success' : 'info' });
           opened.close();
           if (!moved) {
-            load(true);
+            load(true).then(null, ignore);
             return;
           }
           // The route moves to the new name once the sheet's history entry is gone.
@@ -976,7 +1001,7 @@
         key = key === null ? '' : key;
         if (!state.started) {
           state.started = true;
-          load(false);
+          load(false).then(null, ignore);
           return;
         }
         var moved = key !== state.renderedKey;
@@ -984,14 +1009,17 @@
         if (moved) {
           window.scrollTo(0, 0);
         }
-        load(state.status === 'ready');
-      }
+        load(state.status === 'ready').then(null, ignore);
+      },
+      refresh: refresh
     };
   }
 
   var screen = null;
   Preview.feeds = {
     mount: function (root) { screen = mount(root); },
-    show: function () { if (screen) { screen.show(); } }
+    show: function () { if (screen) { screen.show(); } },
+    // Pull to refresh: reloads the list, keeping it on screen. Always resolves.
+    refresh: function () { return screen ? screen.refresh() : Promise.resolve(); }
   };
 })();
