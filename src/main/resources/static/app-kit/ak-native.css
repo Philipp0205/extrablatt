@@ -1,0 +1,305 @@
+/*
+ * app-kit "native feel" (v0.6.0). Opt-in. Link it after ak-tokens.css and
+ * ak-components.css:
+ *
+ *   <link rel="stylesheet" href="/app-kit/ak-native.css">
+ *
+ * Linking the file changes nothing by itself. What is scoped to <html class="ak-native">
+ * (touch feel, translucent tab bar, the tab bar staying put in page transitions)
+ * only applies once the app adds that class. What is an explicit class
+ * (.ak-navbar, .ak-large-title, .ak-ptr, .ak-skeleton*, .ak-contain) only
+ * applies where the app uses it. The page transition animations only run while
+ * AppKit.transition.go has set data-ak-nav on <html>.
+ *
+ * This file never sets a background on html or body: theme-color.js reads the
+ * page background. Guide: docs/native-feel.md.
+ */
+
+/* ---------- 1. Page transitions (AppKit.transition.go) ---------- */
+/*
+ * iOS-like push and pop with the View Transitions API. The new screen slides in
+ * from the right and the old one slides back and dims. Pop is the mirror. Reduced
+ * motion turns the animations off (the script does not start a transition then).
+ */
+@keyframes ak-nav-in-right {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+@keyframes ak-nav-out-right {
+  from { transform: translateX(0); }
+  to { transform: translateX(100%); }
+}
+@keyframes ak-nav-out-left {
+  from { transform: translateX(0); filter: brightness(1); }
+  to { transform: translateX(-30%); filter: brightness(0.8); }
+}
+@keyframes ak-nav-in-left {
+  from { transform: translateX(-30%); filter: brightness(0.8); }
+  to { transform: translateX(0); filter: brightness(1); }
+}
+
+html[data-ak-nav]::view-transition-old(root),
+html[data-ak-nav]::view-transition-new(root) {
+  mix-blend-mode: normal;
+  animation-duration: 350ms;
+  animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
+  animation-fill-mode: both;
+}
+html[data-ak-nav="push"]::view-transition-old(root) { animation-name: ak-nav-out-left; }
+html[data-ak-nav="push"]::view-transition-new(root) { animation-name: ak-nav-in-right; z-index: 2; }
+html[data-ak-nav="pop"]::view-transition-old(root) { animation-name: ak-nav-out-right; z-index: 2; }
+html[data-ak-nav="pop"]::view-transition-new(root) { animation-name: ak-nav-in-left; }
+
+/* The tab bar stays put: it is its own transition group and does not slide. */
+html.ak-native .ak-tabbar { view-transition-name: ak-tabbar; }
+html[data-ak-nav]::view-transition-old(ak-tabbar),
+html[data-ak-nav]::view-transition-new(ak-tabbar) { animation: none; mix-blend-mode: normal; }
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-ak-nav]::view-transition-old(root),
+  html[data-ak-nav]::view-transition-new(root) {
+    animation: none;
+  }
+}
+
+/* ---------- 3. Touch feel ---------- */
+/* Everything here needs <html class="ak-native">. */
+
+html.ak-native button,
+html.ak-native a,
+html.ak-native [role="button"],
+html.ak-native .ak-tab,
+html.ak-native .ak-pressable,
+html.ak-native label,
+html.ak-native summary {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* No 300ms delay and no double-tap zoom. */
+html.ak-native button,
+html.ak-native a,
+html.ak-native [role="button"],
+html.ak-native .ak-tab,
+html.ak-native label {
+  touch-action: manipulation;
+}
+
+/* UI chrome is not selectable. Inputs, text areas, editable text and body text are left alone. */
+html.ak-native button,
+html.ak-native .ak-tab,
+html.ak-native .ak-tabbar,
+html.ak-native .ak-navbar,
+html.ak-native .ak-sheet-head,
+html.ak-native .ak-grabber,
+html.ak-native [role="button"] {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/*
+ * Instant press state. The control dims at once while it is held (no
+ * transition) and fades back after. The kit's own press motion (scale and
+ * brightness in ak-components.css) is replaced by this single opacity change,
+ * so a press is not dimmed twice. .ak-pressable (any element) dips instead.
+ */
+html.ak-native button,
+html.ak-native .ak-tab,
+html.ak-native [role="button"],
+html.ak-native .ak-pressable {
+  transition: opacity 180ms ease-out, transform 180ms ease-out;
+}
+html.ak-native button:not(:disabled, .ak-scrim):active,
+html.ak-native .ak-tab:active,
+html.ak-native [role="button"]:active {
+  opacity: 0.6;
+  transform: none;
+  filter: none;
+  transition: none;
+}
+html.ak-native .ak-pressable:active {
+  opacity: 0.85;
+  transform: scale(0.97);
+  transition: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html.ak-native button,
+  html.ak-native .ak-tab,
+  html.ak-native [role="button"],
+  html.ak-native .ak-pressable {
+    transition: none;
+  }
+  html.ak-native .ak-pressable:active { transform: none; }
+}
+
+/* Rubber-banding. Opt in per page, and per scroller. */
+html.ak-no-bounce,
+html.ak-no-bounce body {
+  overscroll-behavior: none;
+}
+.ak-contain { overscroll-behavior: contain; }
+
+/* ---------- 4. System look ---------- */
+
+/* For an app that overrides --ak-font but wants the system font back. */
+html.ak-system-font {
+  --ak-font: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --ak-font-article: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/*
+ * Large title. Markup:
+ *   <header class="ak-navbar"><span class="ak-navbar-title" aria-hidden="true">Closet</span></header>
+ *   <h1 class="ak-large-title">Closet</h1>
+ * AppKit.largeTitle adds .ak-collapsed to the navbar once the large title has
+ * scrolled under it. Until then the small title and the hairline are hidden.
+ */
+.ak-navbar {
+  position: sticky;
+  top: 0;
+  z-index: var(--ak-z-tabbar, 20);
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(44px + var(--ak-safe-top));
+  padding: var(--ak-safe-top) var(--ak-s4) 0;
+  background: var(--ak-glass);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  backdrop-filter: saturate(180%) blur(20px);
+  border-bottom: 0.5px solid transparent;
+  color: var(--ak-text);
+  transition: border-color 150ms ease-out;
+}
+.ak-navbar.ak-collapsed { border-bottom-color: var(--ak-hairline); }
+.ak-navbar-title {
+  font-size: var(--ak-fs-xl);
+  font-weight: var(--ak-fw);
+  letter-spacing: -0.01em;
+  opacity: 0;
+  transition: opacity 150ms ease-out;
+}
+.ak-navbar.ak-collapsed .ak-navbar-title { opacity: 1; }
+.ak-large-title {
+  margin: 0;
+  padding: var(--ak-s1) 20px var(--ak-s2);
+  color: var(--ak-text);
+  font-size: var(--ak-fs-display);
+  font-weight: var(--ak-fw-bold);
+  letter-spacing: -0.045em;
+  line-height: 1.05;
+}
+
+/* Translucent tab bar, same glass as the navbar. */
+html.ak-native .ak-tabbar {
+  background: var(--ak-glass);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  backdrop-filter: saturate(180%) blur(20px);
+}
+
+/* No backdrop-filter: an opaque bar, so text under it does not show through. */
+@supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  .ak-navbar { background: var(--ak-bg); }
+  html.ak-native .ak-tabbar { background: var(--ak-bg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ak-navbar,
+  .ak-navbar-title { transition: none; }
+}
+
+/* e-ink: no blur (ak-components.css holds --ak-glass at white for html.eink). */
+html.eink .ak-navbar,
+html.eink.ak-native .ak-tabbar {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+/* ---------- 5. Pull to refresh (AppKit.pullToRefresh) ---------- */
+/*
+ * The script adds one .ak-ptr to <body> and sets two variables on it:
+ * --ak-ptr-y (px the indicator has travelled, 0 hidden, 52 at rest while
+ * loading) and --ak-ptr-progress (0 to 1). While the finger is down the script
+ * adds .ak-ptr-pulling, so it follows without a transition.
+ */
+.ak-ptr {
+  position: fixed;
+  top: calc(var(--ak-safe-top) + 52px);
+  left: 50%;
+  box-sizing: border-box;
+  width: 36px;
+  height: 36px;
+  margin-left: -18px;
+  border-radius: 50%;
+  background: var(--ak-surface-2);
+  color: var(--ak-accent);
+  box-shadow: inset 0 0 0 0.5px var(--ak-hairline);
+  opacity: var(--ak-ptr-progress, 0);
+  transform: translateY(calc(var(--ak-ptr-y, 0px) - 52px));
+  transition: transform 220ms ease-out, opacity 220ms ease-out;
+  pointer-events: none;
+  z-index: var(--ak-z-tabbar, 20);
+}
+.ak-ptr.ak-ptr-pulling { transition: none; }
+.ak-ptr::after {
+  content: "";
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  bottom: 8px;
+  left: 8px;
+  box-sizing: border-box;
+  border: 2.5px solid var(--ak-surface-3);
+  border-top-color: currentColor;
+  border-radius: 50%;
+  transform: rotate(calc(var(--ak-ptr-progress, 0) * 270deg));
+}
+.ak-ptr.ak-ptr-loading { opacity: 1; }
+.ak-ptr.ak-ptr-loading::after { animation: ak-ptr-spin 800ms linear infinite; }
+@keyframes ak-ptr-spin { to { transform: rotate(360deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .ak-ptr { transition: none; }
+  .ak-ptr.ak-ptr-loading::after { animation: none; }
+}
+
+/* ---------- 6. Skeletons ---------- */
+/*
+ * Explicit classes, no html.ak-native needed. Put aria-hidden="true" on each
+ * skeleton and aria-busy="true" on the container that is loading.
+ *   <div class="ak-skeleton ak-skeleton-line"></div>
+ *   <div class="ak-skeleton ak-skeleton-line ak-skeleton-short"></div>
+ */
+.ak-skeleton,
+.ak-skeleton-line,
+.ak-skeleton-circle,
+.ak-skeleton-card {
+  display: block;
+  box-sizing: border-box;
+  border-radius: var(--ak-radius-sm);
+  background-color: var(--ak-surface-2);
+  background-image: linear-gradient(90deg, var(--ak-surface-2) 0%, var(--ak-surface-3) 50%, var(--ak-surface-2) 100%);
+  background-size: 200% 100%;
+  animation: ak-shimmer 1.4s ease-in-out infinite;
+}
+.ak-skeleton { min-height: 16px; }
+.ak-skeleton-line { height: 1em; margin: var(--ak-s2) 0; border-radius: 6px; }
+.ak-skeleton-line.ak-skeleton-short { width: 60%; }
+.ak-skeleton-circle { flex: none; width: 40px; height: 40px; border-radius: 50%; }
+.ak-skeleton-card { height: 120px; border-radius: var(--ak-radius-xl); }
+@keyframes ak-shimmer {
+  from { background-position: 100% 0; }
+  to { background-position: -100% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ak-skeleton,
+  .ak-skeleton-line,
+  .ak-skeleton-circle,
+  .ak-skeleton-card {
+    animation: none;
+    background-image: none;
+  }
+}

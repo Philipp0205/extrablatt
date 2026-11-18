@@ -60,7 +60,8 @@
       categories: [],
       started: false,
       stale: false,        // feeds changed elsewhere: reload on the next show()
-      request: 0           // lets a late answer to an old filter be ignored
+      request: 0,          // lets a late answer to an old filter be ignored
+      refreshing: null     // the pull-to-refresh in flight (a Promise), or null
     };
 
     // Mark read by scrolling (Settings, Reading, "scroll"): the website's script, ported.
@@ -114,7 +115,7 @@
         count = state.total === 0 ? 'All read' : state.total + ' unread';
       }
       replace(headEl, [
-        h('h1', { class: 'ak-screen-title' }, 'Articles'),
+        h('h1', { class: 'ak-screen-title ak-large-title' }, 'Articles'),
         count ? h('p', { class: 'pv-count' }, count) : null
       ]);
     }
@@ -408,9 +409,24 @@
       }
     });
 
+    // Placeholder rows while the first page loads. The lines are decoration; the one
+    // visually hidden sentence is what a screen reader gets.
+    function skeleton() {
+      var rows = [];
+      for (var i = 0; i < 3; i++) {
+        rows.push(h('div', { class: 'pv-skel-row', 'aria-hidden': 'true' },
+          h('div', { class: 'ak-skeleton ak-skeleton-line ak-skeleton-short pv-skel-meta' }),
+          h('div', { class: 'ak-skeleton ak-skeleton-line pv-skel-title' }),
+          h('div', { class: 'ak-skeleton ak-skeleton-line ak-skeleton-short pv-skel-title' })));
+      }
+      return h('div', { class: 'pv-skeleton', 'aria-busy': 'true' },
+        h('p', { class: 'pv-sr', role: 'status' }, 'Loading\u2026'),
+        rows);
+    }
+
     function renderList() {
       if (state.status === 'loading') {
-        replace(listEl, [h('p', { class: 'pv-status', role: 'status' }, 'Loading\u2026')]);
+        replace(listEl, [skeleton()]);
         return;
       }
       if (state.status === 'error') {
@@ -449,8 +465,52 @@
       return path;
     }
 
+    // The first page only, through AppKit.swr: the last answer for this account and filter
+    // shows at once, and the fresh one replaces it. The key has the account's e-mail, so a
+    // second account on the same browser never sees the first one's list (and Settings clears
+    // the cache before signing out). Without an e-mail, or without swr, it is a plain fetch.
+    // opts.fresh: do not draw the cached page, only the new one (pull to refresh).
+    // opts.onError: the fetch failed after a cached page was drawn.
+    function fetchFirst(render, opts) {
+      var path = itemsPath(1);
+      var filter = (state.unread ? 'u' : 'a') + ':' +
+        (state.category === null ? 'all' : 'c=' + encodeURIComponent(state.category));
+      function plain() {
+        return Preview.api.get(path).then(function (data) {
+          render(data, { stale: false });
+          return data;
+        });
+      }
+      return Preview.account.get().then(function (account) {
+        var email = account && account.email;
+        if (!email || !AppKit.swr) {
+          return plain();
+        }
+        return AppKit.swr('items:' + email + ':' + filter, function () {
+          return Preview.api.get(path);
+        }, render, {
+          maxAge: opts.fresh ? -1 : undefined,   // -1: no cached page is young enough to draw
+          onError: opts.onError
+        });
+      }, plain);
+    }
+
+    function applyFirst(data) {
+      data = data || {};
+      state.items = data.items || [];
+      state.page = data.page;
+      state.total = typeof data.total === 'number' ? data.total : null;
+      state.hasMore = !!data.hasMore;
+      state.loadingMore = false;
+      state.status = 'ready';
+      renderHead();
+      renderList();
+    }
+
     function loadFirst() {
       var request = ++state.request;
+      var drawn = false;   // a page (cached or fresh) is on screen
+      state.refreshing = null;
       scrollReset();
       state.status = 'loading';
       state.items = [];
@@ -459,26 +519,62 @@
       state.loadingMore = false;
       renderHead();
       renderList();
-      Preview.api.get(itemsPath(1)).then(function (data) {
+      fetchFirst(function (data) {
         if (request !== state.request) {
           return;
         }
-        state.items = data.items || [];
-        state.page = data.page;
-        state.total = typeof data.total === 'number' ? data.total : null;
-        state.hasMore = !!data.hasMore;
-        state.status = 'ready';
-        renderHead();
-        renderList();
-      }, function (error) {
-        if (request !== state.request) {
+        drawn = true;
+        applyFirst(data);
+      }, {
+        onError: function (error) {
+          // A cached page is showing, so this is not a dead end: say so and keep it.
+          if (drawn && request === state.request) {
+            AppKit.toast(error.message, { kind: 'error' });
+          }
+        }
+      }).then(null, function (error) {
+        if (request !== state.request || drawn) {
           return;
         }
         state.status = 'error';
-        state.error = error.message;
+        state.error = error && error.message;
         renderHead();
         renderList();
       });
+    }
+
+    // Pull to refresh: the rows stay where they are until the new first page is there. Always
+    // resolves, so the pull indicator can settle; a failure is a toast and the list stays.
+    function refresh() {
+      if (state.status !== 'ready') {
+        loadFirst();
+        return Promise.resolve();
+      }
+      if (state.refreshing) {
+        return state.refreshing;
+      }
+      var request = ++state.request;
+      var promise = state.refreshing = fetchFirst(function (data) {
+        if (request !== state.request) {
+          return;
+        }
+        scrollReset();
+        applyFirst(data);
+      }, { fresh: true }).then(null, function (error) {
+        if (request === state.request) {
+          if (state.loadingMore) {
+            // A load-more was cut off by this refresh; give its button back.
+            state.loadingMore = false;
+            renderList();
+          }
+          AppKit.toast((error && error.message) || 'Could not refresh.', { kind: 'error' });
+        }
+      }).then(function () {
+        if (state.refreshing === promise) {
+          state.refreshing = null;
+        }
+      });
+      return promise;
     }
 
     function loadMore() {
@@ -574,7 +670,8 @@
       },
       // Another screen changed feeds or articles: reload the next time the list is shown.
       invalidate: function () { if (state.started) { state.stale = true; } },
-      update: update
+      update: update,
+      refresh: refresh
     };
   }
 
@@ -586,6 +683,9 @@
     update: function (id, patch) { if (screen) { screen.update(id, patch); } },
     // A no-op until the list has loaded.
     invalidate: function () { if (screen) { screen.invalidate(); } },
+    // Pull to refresh: reloads the first page, keeping the rows until the new ones arrive.
+    // Always resolves.
+    refresh: function () { return screen ? screen.refresh() : Promise.resolve(); },
     relativeTime: relativeTime
   };
 })();

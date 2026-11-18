@@ -148,6 +148,39 @@ class PreviewAppIntegrationTest {
     }
 
     @Test
+    void theShellLoadsTheNativeFeelKitFilesInOrderAndNothingElseFromIt() throws Exception {
+        MockHttpSession session = signIn();
+
+        String page = mockMvc.perform(get("/app").session(session))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        assertTrue(page.matches("(?is).*<html[^>]*\\bclass=\"ak-native\".*"), "<html> carries ak-native");
+        String[] styles = {"ak-components", "app-kit", "ak-native", "/css/preview"};
+        int at = -1;
+        for (String name : styles) {
+            int next = page.indexOf(name.startsWith("/") ? name + "-" : "/app-kit/" + name + "-");
+            assertTrue(next > at, name + ".css is linked, after the one before it");
+            at = next;
+        }
+        String[] scripts = {"/app-kit/ak-nav-[0-9a-f]{32}\\.js", "/app-kit/ak-native-[0-9a-f]{32}\\.js",
+                "/app-kit/ak-transition-[0-9a-f]{32}\\.js", "/app-kit/ak-swr-[0-9a-f]{32}\\.js",
+                "/js/preview/api-[0-9a-f]{32}\\.js"};
+        at = -1;
+        for (String name : scripts) {
+            java.util.regex.Matcher found = java.util.regex.Pattern.compile(name).matcher(page);
+            assertTrue(found.find(), name + " is loaded");
+            assertTrue(found.start() > at, name + " comes after the one before it");
+            at = found.start();
+        }
+        assertTrue(page.matches("(?s).*/app-kit/ak-native-[0-9a-f]{32}\\.css.*"), "ak-native.css is hashed");
+        for (String left : new String[] {"ak-view-transitions-", "ak-donate-", "ak-sw-", "ak-sw-register-", "ak-base-",
+                "ak-whats-new-", "ak-system-font-", "install-prompt-"}) {
+            assertFalse(page.contains("/app-kit/" + left), left + " is not linked");
+        }
+    }
+
+    @Test
     void theExistingPagesDoNotLinkToTheApp() throws Exception {
         MockHttpSession session = signIn();
 

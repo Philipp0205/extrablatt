@@ -1,0 +1,24 @@
+/*
+ * app-kit cross-document view transitions (multi-page apps).
+ *
+ * Link this file on EVERY page of the app. Chrome 126+ and Safari 18.2+ then
+ * cross-fade between two pages of the same origin instead of a hard cut.
+ * Other browsers ignore it.
+ *
+ * It is its own file because @view-transition is an at-rule for the whole
+ * document: it cannot be scoped to a class, so linking it is the opt-in. It is
+ * not part of ak-native.css, and nothing else in the kit includes it.
+ *
+ * The push/pop slide of AppKit.transition.go (ak-native.css) is for single-page
+ * screens. Between documents the page has no data-ak-nav, so the default
+ * cross-fade plays.
+ */
+@view-transition {
+  navigation: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  @view-transition {
+    navigation: none;
+  }
+}

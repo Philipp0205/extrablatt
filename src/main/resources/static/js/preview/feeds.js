@@ -128,6 +128,7 @@
   // still on the page. Returns null when a sheet is already open.
   function showSheet(node, focusEl, trigger) {
     var opened = AppKit.sheet.show(node, {
+      scaleBackground: document.querySelector('.pv-shell'),
       focus: focusEl,
       onClose: function () {
         open = null;
@@ -375,7 +376,7 @@
     }
 
     function heading(text) {
-      headingEl = h('h1', { class: 'ak-screen-title', tabindex: '-1' }, text);
+      headingEl = h('h1', { class: 'ak-screen-title ak-large-title', tabindex: '-1' }, text);
       return headingEl;
     }
 

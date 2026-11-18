@@ -22,6 +22,7 @@
   --ak-badge: #a3261b;
   --ak-scrim: rgba(27, 26, 23, 0.45);
   --ak-tabbar: rgba(250, 248, 244, 0.94);
+  --ak-glass: rgba(250, 248, 244, 0.8);
   --ak-btn-fill: #1b1a17;
   --ak-btn-ink: #faf8f4;
   --ak-accent: #111111;
@@ -48,6 +49,7 @@
     --ak-badge: #a3261b;
     --ak-scrim: rgba(0, 0, 0, 0.6);
     --ak-tabbar: rgba(20, 20, 18, 0.94);
+    --ak-glass: rgba(20, 20, 18, 0.8);
     --ak-btn-fill: #ece8df;
     --ak-btn-ink: #141412;
     --ak-accent: #f2f2f2;
@@ -72,6 +74,7 @@
     --ak-panel: #ece4d3;
     --ak-scrim: rgba(33, 29, 23, 0.45);
     --ak-tabbar: rgba(244, 238, 225, 0.94);
+    --ak-glass: rgba(244, 238, 225, 0.8);
     --ak-btn-fill: #211d17;
     --ak-btn-ink: #f4eee1;
     --ak-accent: #8f2a1c;
@@ -95,6 +98,7 @@
     --ak-panel: #2a251c;
     --ak-scrim: rgba(0, 0, 0, 0.6);
     --ak-tabbar: rgba(23, 20, 15, 0.94);
+    --ak-glass: rgba(23, 20, 15, 0.8);
     --ak-btn-fill: #ece4d2;
     --ak-btn-ink: #17140f;
     --ak-accent: #d9806c;
@@ -163,6 +167,11 @@ button:focus-visible {
   }
 
   .pv-main { padding-top: var(--ak-s5); padding-bottom: var(--ak-s5); }
+
+  /* The side nav stays put while a page slides (see ak-native.css for the tab bar). */
+  .pv-side { view-transition-name: pv-side; }
+  html[data-ak-nav]::view-transition-old(pv-side),
+  html[data-ak-nav]::view-transition-new(pv-side) { animation: none; mix-blend-mode: normal; }
 }
 
 .pv-brand {
@@ -223,7 +232,29 @@ button:focus-visible {
   padding: var(--ak-s4) 0 var(--ak-s2);
 }
 .pv-screen .ak-screen-title { font-size: 32px; }
+/* The kit's large title brings side padding of its own; the page already has its margin. */
+.pv-screen .ak-large-title { padding: 0; }
 .pv-count { margin: 0; color: var(--ak-muted); font-size: var(--ak-fs-md); }
+
+/* ---------- Phone title bar ---------- */
+
+/* app.js adds the glass bar to the shell. A wide screen has the side nav and in-flow titles. */
+.ak-navbar { display: none; }
+
+@media (max-width: 719px) {
+  /* Only while a large title is on screen; the reader and the Settings groups have none. */
+  .pv-titled .ak-navbar { display: flex; }
+  /* The bar carries the top safe area, so the page must not add it a second time. */
+  .pv-titled .pv-main { padding-top: 0; }
+  .pv-screen .ak-large-title { font-size: var(--ak-fs-display); }
+}
+
+/* ---------- Loading rows ---------- */
+
+.pv-skel-row { padding: var(--ak-s3) 0; border-bottom: 1px solid var(--ak-hairline); }
+.pv-skel-row .ak-skeleton-line { margin: var(--ak-s2) 0; }
+.pv-skel-meta { width: 35%; height: 0.8em; }
+.pv-skel-title { height: 1.1em; }
 
 .pv-controls { display: flex; flex-direction: column; gap: var(--ak-s3); padding-bottom: var(--ak-s3); }
 /* Content width, left-aligned: the two labels do not need the whole row. */

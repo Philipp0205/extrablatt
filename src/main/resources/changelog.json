@@ -1,6 +1,25 @@
 {
   "releases": [
     {
+      "id": "2026-11-18-app-kit-native",
+      "date": "18 November 2026",
+      "title": "The new app feels more like an app",
+      "highlights": [
+        "Opening an article and going back now slides, and the list is where you left it.",
+        "On a phone you can pull the article list down to refresh it, and it shows the last list while the new one loads.",
+        "On a phone the screen names are large titles that shrink into a bar as you scroll."
+      ],
+      "changes": [
+        "Opening an article from the list slides in, and going back slides out. On a phone, opening a category or a Settings group slides too.",
+        "Pull the Articles list down from the top to reload it. If that fails you get a message and the list stays as it was.",
+        "The Articles list shows the list from your last visit straight away and swaps in the new one when it arrives. While nothing is there yet you see grey placeholder lines instead of the word Loading. Signing out or deleting your account clears the saved list.",
+        "On a phone, Articles, Feeds and Settings have a large title at the top. When you scroll, the title moves into a small bar over the page.",
+        "The tab bar remembers how far you had scrolled in each tab, and tapping the tab you are already on takes you back to the top.",
+        "Windows that open from the bottom, such as Send to Kindle setup, now push the page behind them back a little.",
+        "Nothing changes on a Kindle, and the older pages are as they were."
+      ]
+    },
+    {
       "id": "2026-11-17-eink-quiet-list",
       "date": "17 November 2026",
       "title": "A calmer article list on Kindle",
