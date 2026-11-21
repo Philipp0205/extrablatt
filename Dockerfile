@@ -3,7 +3,7 @@
 # Base images are pinned to an exact JDK build and Alpine release so a rebuild
 # of the same commit gets the same runtime. Dependabot (.github/dependabot.yml)
 # proposes the bumps.
-FROM eclipse-temurin:21.0.13_9-jdk-alpine-3.24 AS build
+FROM eclipse-temurin:24-jdk-alpine-3.22 AS build
 WORKDIR /workspace
 
 # Build definition first: the dependency download below stays cached as its own
@@ -31,7 +31,7 @@ RUN if [ "$GIT_REVISION" = "unknown" ] && [ -n "$RAILWAY_GIT_COMMIT_SHA" ]; then
      fi \
   && ./mvnw -B -q -DskipTests -Dgit.revision="$GIT_REVISION" package
 
-FROM eclipse-temurin:21.0.13_9-jre-alpine-3.24 AS runtime
+FROM eclipse-temurin:24-jre-alpine-3.22 AS runtime
 WORKDIR /app
 
 # The healthcheck uses BusyBox wget, which Alpine ships in the base image.
